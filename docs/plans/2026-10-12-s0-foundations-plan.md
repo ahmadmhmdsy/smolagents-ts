@@ -1113,8 +1113,12 @@ git commit -m "build: add vitest and tsup configs and make the architecture guar
 **Files:**
 - Modify: tsconfig.base.json (Step 1)
 - Create, for each of core, models, tools, exec-quickjs and react: packages/NAME/package.json,
-  packages/NAME/vitest.config.ts, packages/NAME/tsup.config.ts, packages/NAME/src/index.ts,
-  packages/NAME/src/version.ts, packages/NAME/test/smoke.test.ts
+  packages/NAME/src/index.ts, packages/NAME/src/version.ts, packages/NAME/test/smoke.test.ts
+- Create, for the four packages other than core: packages/NAME/vitest.config.ts and
+  packages/NAME/tsup.config.ts. Core's two config files come from Task 5 — leave them as they are, and in
+  particular keep its `fileParallelism: false` and the comment that explains it. Measured: this yields 36 new
+  files under `packages/` (24 + 8 + 4 below), which is what commit ca7019b creates; a list that counts core's
+  two configs as new implies 38 instead
 - Create, for the four packages other than core: packages/NAME/tsconfig.json and packages/NAME/tsconfig.test.json
   (core's two exist from Task 3; Step 7 says why every package needs its own)
 - Modify: pnpm-lock.yaml (rewritten by Step 8's pnpm install; staged in Step 10)
@@ -1218,6 +1222,13 @@ Each package's `vitest.config.ts` is core's with the project name changed —
 `defineProject({ test: { name: "models" } })` and so on — and each package's `tsup.config.ts` is core's with the
 external array replaced by the column above. Core's two config files are written in Task 5, so read them
 there; do not invent a different shape.
+
+The four non-core `vitest.config.ts` files keep `fileParallelism: false` but omit core's three-line comment
+explaining it, and the four non-core `tsup.config.ts` files omit core's comment about the zod external. That
+deviation from "core's with the name changed" is intended: both comments describe core-specific facts (the
+race between core's two architecture test files, and core's own dependencies), and a copied comment would
+describe something the file does not do. Measured: this is exactly how each non-core config differs from
+core's in commit ca7019b, and nothing else differs.
 
 Every package except core also needs the two tsconfig files Task 3 wrote for core. They are byte-identical,
 because both `extends` paths are relative to the package directory. **MEASURED**: the tree holds only
@@ -1365,8 +1376,11 @@ git commit -m "feat: add the five package skeletons and make type declarations b
 integration be used for changelogs?` and, with no TTY to answer, dies with `Detected unsettled top-level await`
 and exit code 13. It exposes no non-interactive flag — `changeset init --help` lists only `-h, --help` — and it
 builds the config from four prompts, including the publish-access list. Write the two files instead. The
-config below is what `init` writes for "no GitHub changelog, public access, base branch main"; the README is the
-file `init` copies verbatim out of `@changesets/cli`.
+config below is semantically what `init` writes for "no GitHub changelog, public access, base branch main", but its
+**key order differs** from `init`'s (`$schema, baseBranch, access, format, changelog, commit, ignore, fixed, linked,
+updateInternalDependencies`; the block below follows the design doc instead). Changesets does not care about key order
+and `pnpm changeset status` accepts this file — measured. The README is the file `init` copies verbatim out of
+`@changesets/cli`.
 
 Run: New-Item -ItemType Directory -Force -Path .changeset | Out-Null
 Run: node -e "const fs=require('node:fs'),path=require('node:path');const d=path.dirname(require.resolve('@changesets/cli/package.json'));fs.copyFileSync(path.join(d,'default-files/README.md'),'.changeset/README.md');console.log('README.md ' + fs.statSync('.changeset/README.md').size + ' bytes')"
@@ -1416,7 +1430,8 @@ Expected: exit 1 with a `SyntaxError` raised from `readConfig`. **MEASURED**:
 `@changesets/config@4.0.1`'s `readConfig`, exit 1.
 
 A well-formed but invalid value is caught as well: measured, `"access": "nonsense"` exits 1 with
-`Found issues in your config: - access: Invalid type: Expected ("public" | "restricted")`.
+`Found issues in your config:` then `- access: Invalid type: Expected ("public" | "restricted") but received "nonsense"`
+(quoted above abridged: the real output puts the detail on its own line and ends with `but received "nonsense"`).
 
 Now restore the JSON block from Step 1 verbatim and run `pnpm changeset status` once more — expected exit 0.
 The restore is part of the control: the file that gets committed must be the valid one, not the broken probe.

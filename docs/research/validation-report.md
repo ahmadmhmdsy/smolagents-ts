@@ -1414,6 +1414,53 @@ regex, so they never touch the real store; and `preferFrozenLockfile: true` plus
 the build reproducible. The plan now says the version segment is a snapshot to read from `pnpm-lock.yaml` rather than a
 fact to assert, so a future reader cannot “correct” the test literal to match whatever is current.
 
+### A-50 — Task 7's brief described a config as “what `init` writes” when only its contents match — INFORMATIONAL (corrected)
+
+Implemented and verified: `.changeset/config.json` parses and `pnpm changeset status` exits 0, so the config is fine.
+The brief's gloss was not. It said the block is what `changeset init` writes, but `init` emits the keys in a different
+order (`$schema, baseBranch, access, format, changelog, commit, ignore, fixed, linked, updateInternalDependencies`) —
+semantically equivalent, so nothing failed, but a reader who diffed the two would have concluded the file was wrong and
+“fixed” it into a different byte sequence for no reason. The same step's quoted `access: "nonsense"` output was also
+abridged (the real message puts the detail on its own line and ends `but received "nonsense"`), which invites the same
+doubt. Both are now stated accurately in the brief and the plan. Also verified from the implementer's report and by the
+controller: the brief's unverified aside is true — a changeset naming the private `@smolagents-ts/core` still leaves
+`Packages to be bumped:` empty, confirming that the empty list is not by itself evidence about the config (which is why
+the step's negative control matters).
+
+### A-51 — Task 6's Files list counted core's two pre-existing config files as created — REAL (corrected in brief + plan)
+
+The list opened "Create, for each of core, models, tools, exec-quickjs and react: packages/NAME/package.json,
+packages/NAME/vitest.config.ts, packages/NAME/tsup.config.ts, ...". **MEASURED**: `git ls-tree -r 1cdcb05 -- packages/core`
+already lists `vitest.config.ts` and `tsup.config.ts` (Task 5 created them), and `git show --name-status ca7019b`
+creates **36** files under `packages/`, where that list implies 38. Nothing failed, because the implementer instead read
+Step 7, which says the two files are Task 5's. But an agent following the Files list literally would have rewritten core's
+`vitest.config.ts` from the "for each package" template and silently dropped `fileParallelism: false`, re-arming the A-11
+race between the two architecture test files. The list now separates the 24 package-wide files from the 8 non-core configs
+and the 4 non-core tsconfigs, names 36 as the expected count, and says explicitly to leave core's two config files alone.
+This is the A-40 family (a Files list that misstates the change set) with a delayed blast radius, which is why it is classed
+real rather than cosmetic.
+
+### A-52 — the four non-core `vitest.config.ts` omit core's rationale comment — INFORMATIONAL (recorded)
+
+The brief said each package's config is "core's with the project name changed". **MEASURED**: the four non-core files keep
+`fileParallelism: false` but drop core's three-line comment explaining it, and the four non-core `tsup.config.ts` files drop
+core's comment about the zod external. The outcome is correct — both comments describe core-specific facts, and the
+architecture-guard race cannot exist in a package with one test file — but the brief's sentence invited a reader to call it
+an oversight and "restore" a comment that would then describe something the file does not do. The plan and brief now record
+the deviation and its justification.
+
+### A-53 — A-43's dormancy claim confirmed, with two refinements — INFORMATIONAL (annotated)
+
+The Task 6 reviewer reproduced the pre-Task 6 state exactly (`2 failed | 4 passed (6)`, A-42's recorded figure) by moving
+`packages/core/src` aside, and confirmed that F7's stderr line is **dormant**, not newly vacuous. Two refinements:
+(a) A-43's phrase "F7's stderr assertion" is imprecise — the line holds no `expect`, it is error construction inside
+`architecture.test.ts`'s catch; and (b) the mechanism is stronger than "src is missing": `dependency-cruiser
+--output-type json` **exits 0 even when it reports a violation** (measured: one `core-no-node-builtins` violation, exit 0
+with `--output-type json`, exit 1 without), so rule violations never reach that catch at all. Only hard errors do, and
+Task 6 removed the only hard error that used to occur there. A-43 also omitted that Task 6 leaves the guard's
+`createdDir` cleanup branch permanently untaken; that branch is the only newly dead code and is benign. To re-exercise the
+line, delete `packages/core/src` again.
+
 ### Consequence for the S0 sequence
 
 
