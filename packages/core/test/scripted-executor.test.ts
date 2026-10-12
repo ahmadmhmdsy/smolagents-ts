@@ -66,4 +66,14 @@ describe("ScriptedExecutor", () => {
     await executor.execute("b", options());
     expect(executor.executed).toEqual(["a", "b"]);
   });
+  it("turns a synchronously throwing handler into a rejection", async () => {
+    const executor = new ScriptedExecutor({
+      handler: () => {
+        throw new Error("sync boom");
+      },
+    });
+    const pending = executor.execute("boom", options());
+    expect(pending).toBeInstanceOf(Promise);
+    await expect(pending).rejects.toThrow("sync boom");
+  });
 });

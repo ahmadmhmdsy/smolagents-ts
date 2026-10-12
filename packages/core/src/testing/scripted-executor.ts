@@ -62,7 +62,12 @@ export class ScriptedExecutor implements CodeExecutor {
     this.executed.push(code);
     const recorded = this.results[code];
     if (recorded !== undefined) return Promise.resolve(recorded);
-    if (this.handler !== undefined) return Promise.resolve(this.handler(code, options));
+    const handler = this.handler;
+    if (handler !== undefined) {
+      // Defer the call so a synchronously throwing handler becomes a rejection rather than a
+      // synchronous throw, which would escape execute()'s Promise<CodeResult> contract.
+      return Promise.resolve().then(() => handler(code, options));
+    }
     if (!this.scripted) {
       return Promise.resolve({ logs: "", isFinalAnswer: false, durationMs: 0, toolCallCount: 0 });
     }
