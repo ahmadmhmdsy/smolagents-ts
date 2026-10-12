@@ -3227,7 +3227,7 @@ export function hasFinalAnswerCall(code: string, name = "final_answer"): boolean
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: pnpm vitest run packages/core/test/parse-code-blocks.test.ts
-Expected: PASS, 15 tests.
+Expected: exit 1, "1 failed | 14 passed (15)" with the brief's own code as written, because the test helper `fenced()` emits a second `Thought: ...` header; and exit 0, PASS 15 tests with the committed one-line fix that drops a repeated `Thought:` label. The bare claim "PASS, 15 tests" was false for the code in the same step; corrected after Task 13's review measured both values.
 
 - [ ] **Step 5: Commit**
 
@@ -3238,6 +3238,14 @@ git commit -m "feat(core): add code block, thought and final-answer parsing"
 
 ---
 
+> **Task 13 post-review note.** The review passed the task (0 BLOCKER) and ruled that the committed one-line change
+> (dropping a REPEATED `Thought:` label) is the better reading of the format the agent actually requests: the canonical
+> system-prompt shape emits `Thought: <reasoning>` directly followed by the fence with no literal `Code:` line, and for
+> that shape the committed code equals the briefed code. Its MAJOR finding was that this step's `Expected:` line was false
+> for the brief's own code, so that line is corrected above; the task commit needs no change. Three latent MINORs are
+> carried: `extractThought` leaks a literal `Code:` label for the `Thought:/Code:` form, CRLF input leaks `\r` into
+> extracted code and thought, and the repeated-label cut would truncate genuine later reasoning. Nothing consumes
+> `extractThought` yet.
 ## Task 14: Action types and agent middleware
 
 **Files:**
