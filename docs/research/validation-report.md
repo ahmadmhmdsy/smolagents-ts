@@ -1504,6 +1504,43 @@ Provenance, recorded honestly: 21 identical quotations were written into the pla
 reproduced under the command the steps give. This is the A-44/A-45 family (a stated output that does not match the tool's)
 in its least harmful form — the check still failed for the right reason, so nothing was ever silently green.
 
+### A-56 — three commit steps staged a directory instead of the files they name — INFORMATIONAL (tightened)
+
+A staging audit across all 19 S1 briefs (each brief's commit step must stage exactly the files its Files list declares)
+found no omission, but three commit steps name a **directory**: `packages/core/src/tool` (Task 11),
+`packages/core/test/golden` (Task 16) and `packages/core/src/prompts` (Task 17). In every case the directory is created
+or filled by that same task, so the commits they would produce are correct — hence informational rather than a defect. But
+a directory add stages whatever is inside it at commit time, including a file no step intended: a leftover probe, a scratch
+file, or a controller edit. Two of the three (`src/tool`, `test/golden`) do not exist until their own task creates them,
+and the third (`src/prompts`) holds only already-committed files plus the two that task adds, so the risk was latent
+rather than realized. All six occurrences — three in the plan, three in the briefs — now name the files.
+
+The method is worth recording: the first run flagged Tasks 11 and 17 as "created but not staged", which was the parser's
+fault, not the briefs' — it matched `.ts` paths and could not see a directory token. It was falsified before use (a
+synthetic brief with an omitted file must flag, a correct one must not) and then validated end-to-end against the only
+task that has a real commit: S1 Task 1's brief declares four files, and commit `a1fe894` touches exactly those four. With
+A-55 and A-56 closed, the S1 briefs are clean on every mechanical family this project has a test for: stated counts,
+referenced scripts, referenced test paths, import dependency order, negative-control wording, and staging.
+
+### A-57 — the A-51 correction stated a decomposition that does not add up — REAL (corrected)
+
+Auditing whether every brief declares and stages exactly the files it writes, the task-6 Files list was re-derived from
+commit `ca7019b` — 36 files under `packages/`, 5 of them `test/smoke.test.ts` — and compared against the brief. The list
+itself is correct and complete. The parenthetical that **my own A-51 correction** added, however, read "36 new files under
+`packages/` (24 + 8 + 4 below)", while the list directly below groups them as 5 x 4 = 20 package/entry files, 4 x 2 = 8
+config files and 4 x 2 = 8 tsconfigs: 20 + 8 + 8 = 36. The total was right; the decomposition was invented. Both the plan
+and the brief now state the grouping the list actually has, re-measured from git rather than reasoned out.
+
+This is the A-54 lesson repeating inside one round: a correction written to fix a stated-value defect carried a new
+stated-value defect of its own, in the least noticeable form — arithmetic that sums to the correct total, so any check
+comparing only the total passes. The operative rule: a correction is a claim like any other and needs the same
+verification as the text it replaces. "The number was wrong, so I rewrote the sentence" is not verification.
+
+Method note on the audit that surfaced it: the same run first flagged `packages/core/test/smoke.test.ts` as written but
+undeclared, and comparison against the commit flagged all 36 files as undeclared. Both were the parser's fault — the brief
+declares its files in templated form (`packages/NAME/...`, "for each of core, models, tools, exec-quickjs and react"),
+which a literal path matcher cannot expand. No file was ever missing from the list, only from my reading of it.
+
 ### Consequence for the S0 sequence
 
 

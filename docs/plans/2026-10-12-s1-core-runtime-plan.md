@@ -2736,7 +2736,7 @@ Expected: PASS, 8 tests.
 - [ ] **Step 10: Commit**
 
 ```bash
-git add packages/core/src/logger.ts packages/core/src/tool packages/core/test/logger.test.ts packages/core/test/tool.test.ts packages/core/test/registry.test.ts
+git add packages/core/src/logger.ts packages/core/src/tool/tool.ts packages/core/src/tool/registry.ts packages/core/test/logger.test.ts packages/core/test/tool.test.ts packages/core/test/registry.test.ts
 git commit -m "feat(core): add schema-first tools and the tool registry"
 ```
 
@@ -4847,7 +4847,7 @@ Expected: exit 0.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add packages/core/src/utils/async-queue.ts packages/core/src/agent/code-agent.ts packages/core/test/async-queue.test.ts packages/core/test/code-agent.test.ts packages/core/test/golden
+git add packages/core/src/utils/async-queue.ts packages/core/src/agent/code-agent.ts packages/core/test/async-queue.test.ts packages/core/test/code-agent.test.ts packages/core/test/golden/fibonacci.transcript.json
 git commit -m "feat(core): add CodeAgent, the async queue, and the golden fibonacci transcript"
 ```
 
@@ -5316,7 +5316,7 @@ Expected: exit 0.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/core/src/prompts packages/core/src/agent/tool-calling-agent.ts packages/core/test/tool-calling-agent.test.ts
+git add packages/core/src/prompts/templates.ts packages/core/src/prompts/system-prompt.ts packages/core/src/agent/tool-calling-agent.ts packages/core/test/tool-calling-agent.test.ts
 git commit -m "feat(core): add ToolCallingAgent"
 ```
 

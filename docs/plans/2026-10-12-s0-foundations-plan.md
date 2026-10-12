@@ -1117,8 +1117,8 @@ git commit -m "build: add vitest and tsup configs and make the architecture guar
 - Create, for the four packages other than core: packages/NAME/vitest.config.ts and
   packages/NAME/tsup.config.ts. Core's two config files come from Task 5 — leave them as they are, and in
   particular keep its `fileParallelism: false` and the comment that explains it. Measured: this yields 36 new
-  files under `packages/` (24 + 8 + 4 below), which is what commit ca7019b creates; a list that counts core's
-  two configs as new implies 38 instead
+  files under `packages/` — 5 x 4 = 20 package.json/index/version/smoke, 4 x 2 = 8 configs, 4 x 2 = 8
+  tsconfigs — which is what commit ca7019b creates; a list that counts core's two configs as new implies 38 instead
 - Create, for the four packages other than core: packages/NAME/tsconfig.json and packages/NAME/tsconfig.test.json
   (core's two exist from Task 3; Step 7 says why every package needs its own)
 - Modify: pnpm-lock.yaml (rewritten by Step 8's pnpm install; staged in Step 10)
