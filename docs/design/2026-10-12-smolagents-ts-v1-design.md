@@ -319,8 +319,9 @@ agent.use(approvalMiddleware({ requireFor: ["file_write", "shell"] }));
 ```
 
 Middleware is the sanctioned place for: telemetry, retries, redaction, cost/step budgets, human-in-the-loop
-approval gates, caching, and eval recording. Onion semantics (`await next()` around the step), like Koa.
+approval gates, caching, and eval recording. Onion semantics (`yield* next()` around the step), like Koa.
 Ordering is declaration order; a middleware may short-circuit by not calling `next()`.
+Middleware wraps action execution; wrapping the model phase is an S1.5 extension.
 
 **(b) Component overrides** — L3 primitives take an overrides map, so the default is usable and the
 appearance is replaceable.
