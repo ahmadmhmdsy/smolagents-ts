@@ -6,6 +6,15 @@ import tseslint from "typescript-eslint";
 const FORBIDDEN_CORE_MODULES = [
   "fs", "path", "os", "child_process", "worker_threads", "net", "http", "https",
   "crypto", "stream", "util", "url", "zlib", "vm", "module", "process", "buffer",
+  // Subpath specifiers are listed explicitly so coverage does not depend on how a
+  // no-restricted-imports group entry matches a module name.
+  "timers", "timers/promises",
+  "events", "assert", "assert/strict",
+  "dns", "dns/promises", "tls", "dgram", "cluster",
+  "readline", "readline/promises", "repl", "string_decoder",
+  "perf_hooks", "async_hooks", "inspector", "v8", "domain",
+  "punycode", "querystring", "trace_events", "tty", "diagnostics_channel",
+  "sea", "sqlite", "test", "constants", "sys",
 ];
 
 const FORBIDDEN_CORE_GLOBALS = [
@@ -30,7 +39,7 @@ export default defineConfig(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["packages/core/src/**/*.ts"],
+    files: ["packages/core/src/**/*.{ts,tsx,mts,cts}"],
     rules: {
       "no-restricted-imports": ["error", {
         patterns: [
@@ -59,7 +68,7 @@ export default defineConfig(
     languageOptions: { globals: { ...globals.node } },
   },
   {
-    files: ["**/*.test.ts", "**/*.test.tsx"],
+    files: ["**/*.test.{ts,tsx,mts,cts}"],
     rules: { "no-restricted-globals": "off", "no-restricted-imports": "off" },
   },
 );
