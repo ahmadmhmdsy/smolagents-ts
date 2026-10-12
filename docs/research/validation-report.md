@@ -783,6 +783,26 @@ was done and nobody would look again. Both documents now read `^4.0.0`.
 What the same scan did not find, recorded so the negative result is not mistaken for an omission: the umbrella's
 `"engines": { "node": ">=22" }` is a deliberate loose floor for *published* packages — S0-2 keeps `>=22.12` as
 the repository floor — and the React peer floors (`>=18`) are intentionally permissive.
+### A-13 — a verbatim copy would have imported CRLF, and the stated check could not have caught it — FAIL (corrected)
+
+This is A-11's shape again: a verification step that cannot fail. Task 2 Step 1 copied the upstream LICENSE and
+verified that it "begins with Apache License" and "Version 2.0, January 2004".
+
+The upstream clone has `core.autocrlf=true`, so its working-tree LICENSE is CRLF — 201 CR characters,
+11558 bytes — while the blob committed upstream is LF: 0 CR characters, 11357 bytes. The copy would have
+imported 201 CRLF lines into a repository whose `.editorconfig` mandates LF, and the stated check would
+have passed, because the first line reads the same either way.
+
+Measured, not assumed: `git hash-object` gives `29f81d812f3e768fa89638d1f72920dbfd1413a8` for the
+working-tree copy and `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64` for the blob. `git archive` was tried as a
+shortcut and is not a fix either — it applies the same conversion, yielding the CRLF hash again. The plan now
+normalises after copying and verifies `git hash-object LICENSE` against
+`git -C smolagents rev-parse HEAD:LICENSE`, which is a check that can actually fail.
+
+The same pass adds `.gitattributes` (`* text=auto eol=lf`) to Task 2. `.editorconfig` is advisory: it
+constrains editors, not commits. Without a git-level policy the repository has no defence against the exact
+condition the upstream clone exhibits. Recorded here because neither plan mentioned line endings or
+`.gitattributes` at all, and the omission stayed invisible until a copy step was actually attempted.
 ### Consequence for both plans
 
 Neither plan stated where pnpm configuration lives, and the design's stack section does not mention it.

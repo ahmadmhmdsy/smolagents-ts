@@ -205,11 +205,24 @@ git commit -m "chore: scaffold the pnpm workspace root"
 - Create: NOTICE
 - Create: README.md
 - Create: docs/attribution.md
+- Create: .gitattributes
 
 - [ ] **Step 1: Copy the upstream LICENSE verbatim**
 
-Run: cp smolagents/LICENSE LICENSE
-Expected: LICENSE exists and begins with "Apache License" and "Version 2.0, January 2004".
+The upstream clone has `core.autocrlf=true`, so its working-tree file is CRLF (201 CR characters) while
+the blob committed upstream is LF. A plain copy would import 201 CRLF lines into a repository whose
+`.editorconfig` mandates LF — and the `"begins with Apache License"` check would still pass. Normalise
+after copying:
+
+```powershell
+cp smolagents/LICENSE LICENSE
+(Get-Content LICENSE -Raw) -replace "`r`n", "`n" | Set-Content LICENSE -NoNewline -Encoding utf8
+```
+
+Run: git hash-object LICENSE
+Expected: `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64`, the same value as
+`git -C smolagents rev-parse HEAD:LICENSE`, with no CR characters in the file. This proves byte-identity with the
+upstream blob; the weaker presence check does not.
 
 - [ ] **Step 2: Create NOTICE**
 
@@ -300,11 +313,26 @@ Expected: prints README OK
 Run: node -e "const s=require('fs').readFileSync('NOTICE','utf8');if(!/not affiliated/i.test(s))process.exit(1);console.log('NOTICE OK')"
 Expected: prints NOTICE OK
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Add .gitattributes so the LF policy is enforced by git, not only by editors**
+
+`.editorconfig` is advisory: it governs editors and nothing enforces it at commit time. The upstream clone in
+this very workspace proves the failure — it has `core.autocrlf=true`, so its working tree is CRLF while its
+own blobs are LF. Without a `.gitattributes`, the same file therefore differs byte-wise between two
+machines, which is exactly the problem Step 1 had to work around.
+
+```gitattributes
+# Normalise to LF inside the repository and check out LF everywhere.
+* text=auto eol=lf
+```
+
+Run: git check-attr -a LICENSE
+Expected: reports `text: auto` and `eol: lf` for LICENSE.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add LICENSE NOTICE README.md docs/attribution.md
-git commit -m "docs: add Apache-2.0 licence, derivation notice and attribution map"
+git add LICENSE NOTICE README.md docs/attribution.md .gitattributes
+git commit -m "docs: add Apache-2.0 licence, derivation notice, attribution map and LF policy"
 ```
 
 ---
