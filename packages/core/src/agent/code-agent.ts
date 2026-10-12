@@ -7,7 +7,7 @@ import type { ChatCompletion } from "../model.js";
 import { buildCodeAgentSystemPrompt } from "../prompts/system-prompt.js";
 import type { ToolCall } from "../types.js";
 import { createAsyncQueue } from "../utils/async-queue.js";
-import { extractCodeBlock, hasFinalAnswerCall } from "../utils/parse-code-blocks.js";
+import { extractCodeBlock } from "../utils/parse-code-blocks.js";
 
 export interface CodeAgentOptions extends AgentOptions {
   executor: CodeExecutor;
@@ -100,14 +100,9 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     if (!settled.ok) throw settled.error;
 
     step.toolCalls = toolCalls;
-    // Fallback: some executors run the code without reporting finality, so the sink is never
-    // called even though the guest called final_answer. hasFinalAnswerCall is advisory (it can
-    // match a mention inside a string literal), so it is consulted only after both
-    // authoritative signals have declined.
-    const calledFinalAnswer = hasFinalAnswerCall(action.code, FINAL_ANSWER_TOOL_NAME);
     return {
       observations: settled.result.logs,
-      isFinalAnswer: settled.result.isFinalAnswer || submittedFinal || calledFinalAnswer,
+      isFinalAnswer: settled.result.isFinalAnswer || submittedFinal,
       // The executor's own answer wins when it claims one; the sink is the fallback.
       value: settled.result.isFinalAnswer ? settled.result.value : submitted,
       error: settled.result.error,

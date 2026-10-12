@@ -99,6 +99,7 @@ describe("CodeAgent", () => {
       handler: (_code, options) => {
         options.onToolCall?.({ type: "requested", callId: "c1", name: "get_weather", args: { city: "Paris" } });
         options.onToolCall?.({ type: "result", callId: "c1", name: "get_weather", output: "sunny", durationMs: 3 });
+        if (_code.startsWith("final_answer(")) options.finalAnswer.submit(1);
         return { logs: "sunny", isFinalAnswer: false, durationMs: 3, toolCallCount: 1 };
       },
     });
