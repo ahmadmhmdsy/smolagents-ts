@@ -16,7 +16,8 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * a template string. The parts of upstream's templates that needed a loop (the tool list and the
  * managed-agent list) are pre-rendered by the caller instead.
  *
- * An unknown *identifier* still throws, so a genuine template typo is loud rather than silent.
+ * An unknown *identifier* still throws, so a genuine template typo is loud rather than silent. Names inherited from
+ * Object.prototype count as unknown, so `{{toString}}` throws instead of substituting a native function.
  *
  * Deliberately not built on String.prototype.replace: a value containing "$&" or "$1"
  * must be inserted literally, and a hand-written scanner guarantees that.
@@ -46,7 +47,7 @@ export function populateTemplate(
       cursor = end + CLOSE.length;
       continue;
     }
-    const value = variables[name];
+    const value = Object.hasOwn(variables, name) ? variables[name] : undefined;
     if (value === undefined) {
       throw new TemplateError("Missing value for template variable: " + name);
     }

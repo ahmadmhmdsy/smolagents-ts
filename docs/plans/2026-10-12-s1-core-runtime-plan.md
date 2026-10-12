@@ -1485,6 +1485,12 @@ git commit -m "feat(core): add populateTemplate with strict variable checking"
 
 ---
 
+> **Post-review hardening (controller, after the Task 7 review).** The populateTemplate scanner above is superseded in
+> one place: the variable lookup is now `Object.hasOwn(variables, name) ? variables[name] : undefined`. Looking the
+> name up directly consulted the prototype chain, so `{{toString}}`, `{{constructor}}`, `{{valueOf}}` and `{{__proto__}}`
+> substituted inherited Object.prototype members instead of throwing TemplateError, defeating the strict-identifier
+> contract this task exists to provide. Two tests were added (inherited names throw; an own property shadowing a
+> prototype member still substitutes). Verified: 14/14 populate-template tests, per-file eslint exit 0.
 ## Task 8: Prompt templates and the system prompt builder
 
 **Files:**

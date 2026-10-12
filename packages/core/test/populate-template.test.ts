@@ -43,6 +43,16 @@ describe("populateTemplate", () => {
   it("reports the name of the first missing variable", () => {
     expect(() => populateTemplate("{{ok}} {{missing}}", { ok: "1" })).toThrow(/missing/);
   });
+
+  it("refuses names inherited from Object.prototype", () => {
+    for (const name of ["toString", "constructor", "valueOf", "__proto__", "hasOwnProperty"]) {
+      expect(() => populateTemplate("{{" + name + "}}", {})).toThrow(TemplateError);
+    }
+  });
+
+  it("accepts an own property that shadows a prototype member", () => {
+    expect(populateTemplate("{{ toString }}", { toString: "mine" })).toBe("mine");
+  });
 });
 
 describe("templateVariables", () => {
