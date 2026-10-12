@@ -38,6 +38,21 @@ export default defineConfig(
   { ignores: ["**/dist/**", "**/coverage/**", "**/.superpowers/**", "smolagents/**", "reference/**", "**/*.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  // Upstream-derived code and the S1 code blocks use a leading underscore for deliberately unused bindings
+  // (`_options`, `_ctx`, `_step`). Without this override ESLint reports them as errors, and because `gate`
+  // chains `lint` before the tests, one such binding stops the whole gate: measured during S1, three of them
+  // in Task 10's files and one each in the code blocks of Tasks 14 and 15.
+  {
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["error", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+      }],
+    },
+  },
   {
     files: ["packages/core/src/**/*.{ts,tsx,mts,cts}"],
     rules: {

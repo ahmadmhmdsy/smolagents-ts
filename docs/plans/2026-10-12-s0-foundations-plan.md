@@ -571,6 +571,14 @@ export default defineConfig(
 );
 ```
 
+> **Amendment (controller, during S1).** The config block above gains one rule override: for TypeScript files,
+> `@typescript-eslint/no-unused-vars` is configured with `argsIgnorePattern`, `varsIgnorePattern`,
+> `caughtErrorsIgnorePattern` and `destructuredArrayIgnorePattern` all set to `^_`. The upstream-derived code and the
+> S1 code blocks name deliberately unused bindings with a leading underscore, which the recommended preset reports as
+> errors; because `gate` chains `lint` before the tests, a single such binding stops the entire gate. Measured during
+> S1: three of them in Task 10's files (two `_options`, one `_`) and one in each of Tasks 14 and 15's code blocks
+> (`_ctx`, `_step`). Verified after the override: `pnpm eslint .` exit 0.
+
 - [ ] **Step 2: Create .dependency-cruiser.cjs**
 
 ```js
