@@ -1541,6 +1541,32 @@ undeclared, and comparison against the commit flagged all 36 files as undeclared
 declares its files in templated form (`packages/NAME/...`, "for each of core, models, tools, exec-quickjs and react"),
 which a literal path matcher cannot expand. No file was ever missing from the list, only from my reading of it.
 
+### A-58 — S1 Task 19 expected a `smolagents-ts` subpath that no artifact can print — REAL (corrected)
+
+Task 19's Step 8, in both the plan and the brief, read: "Expected: prints a PASS line for every package and a
+`smolagents-ts` subpath that resolves to core." Three measurements say that output cannot exist:
+
+1. `scripts/pack-smoke.mjs` (S0 Task 8) prints exactly one line, `pack-smoke OK: 5 packages installed and imported from
+   tarballs`, and its consumer check asserts only `typeof VERSION === "string"` for the five `@smolagents-ts/*`
+   packages. S0's own brief expected precisely that line and S0 Task 8's report reproduced it, so the script is right
+   and the S1 text was written against something else.
+2. All five packages declare `exports: { ".": ... }` and nothing more, so there are no subpath exports to resolve.
+3. No step in S0 or S1 creates a package named `smolagents-ts`; it is the umbrella of decision D12 and does not exist.
+
+The S1 definition of done carried the same error in weaker form: item 5 said "the tarball contains what it should, and
+every subpath resolves". The first half overstates the check — it proves install-and-import of the published entry
+point, not an inventory of the tarball — and the second half is vacuous while every package exports only `"."`. Both
+statements are corrected to the measured line, and each now also says what the check does not cover, so that the next
+reader cannot re-derive the same expectation from the definitions.
+
+Left uncorrected this lands in the last task of the plan, where the implementer's only honest options are to report a
+discrepancy or to "fix" a working script to satisfy a staler sentence. It is A-55's family — a quoted expectation the
+command does not print — and with 21 file-form negative controls behind it, the family was worth an audit rather than
+another fix. Audit: all 56 `Expected:` lines in the S1 plan were enumerated; 23 quote a literal, and every remaining
+one is either a negative control already rewritten for A-55 or a task's own self-authored test count. The class is
+closed as of round 23, with A-58 its last member.
+
+
 ### Consequence for the S0 sequence
 
 

@@ -6225,7 +6225,10 @@ Run: pnpm build
 Expected: exit 0.
 
 Run: node scripts/pack-smoke.mjs
-Expected: prints a PASS line for every package and a `smolagents-ts` subpath that resolves to core.
+Expected: prints exactly "pack-smoke OK: 5 packages installed and imported from tarballs" - one tarball per package,
+installed into a throwaway consumer, then each package's published entry point imported there. Note what this does not
+cover: every package in v1 exports only ".", so there are no subpath exports to resolve, and the umbrella `smolagents-ts`
+package of decision D12 does not exist yet (no step in S0 or S1 creates it). Do not add one here.
 
 - [ ] **Step 9: Add a changeset**
 
@@ -6256,7 +6259,10 @@ S1 is complete when **all** of the following hold, each with its own evidence:
 2. `pnpm typecheck` exits 0.
 3. `pnpm lint` exits 0, including the import and global restrictions that keep core isomorphic.
 4. `pnpm test:architecture` passes, including the live negative probe from S0.
-5. `node scripts/pack-smoke.mjs` passes: the tarball contains what it should, and every subpath resolves.
+5. `node scripts/pack-smoke.mjs` prints "pack-smoke OK: 5 packages installed and imported from tarballs":
+   every package packs, installs into a throwaway consumer, and resolves its published entry point (and `VERSION`) from
+   the tarball. There are no package subpath exports in v1 - each package exports only `"."` - so a consumer imports the
+   entry point and nothing finer; when D12's umbrella package lands, this item grows with it.
 6. `packages/core/test/public-surface.test.ts` passes with an exact export list — no accidental leaks.
 7. `packages/core/test/golden/fibonacci.transcript.json` replays event-for-event.
 8. No file under `packages/core/src` imports a `node:*` module, `Buffer`, `process`, `eval`, `new Function`,
