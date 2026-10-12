@@ -1,5 +1,9 @@
 import { populateTemplate } from "./populate-template.js";
-import { CODE_AGENT_SYSTEM_TEMPLATE, CODE_FENCE } from "./templates.js";
+import {
+  CODE_AGENT_SYSTEM_TEMPLATE,
+  CODE_FENCE,
+  TOOL_CALLING_AGENT_SYSTEM_TEMPLATE,
+} from "./templates.js";
 
 export interface BuildCodeAgentSystemPromptOptions {
   /**
@@ -22,6 +26,19 @@ export function buildCodeAgentSystemPrompt(options: BuildCodeAgentSystemPromptOp
   return populateTemplate(CODE_AGENT_SYSTEM_TEMPLATE, {
     language: options.language ?? "JavaScript",
     codeFence: CODE_FENCE,
+    toolDescriptions,
+    customInstructions: options.customInstructions ?? "",
+  });
+}
+
+export function buildToolCallingAgentSystemPrompt(
+  options: BuildCodeAgentSystemPromptOptions,
+): string {
+  const toolDescriptions =
+    options.toolDescriptions.trim() === ""
+      ? "(no tools are available; call final_answer to finish)"
+      : options.toolDescriptions;
+  return populateTemplate(TOOL_CALLING_AGENT_SYSTEM_TEMPLATE, {
     toolDescriptions,
     customInstructions: options.customInstructions ?? "",
   });

@@ -158,6 +158,23 @@ Here are the rules you should always follow to solve your task:
 Now Begin!
 `;
 
+export const TOOL_CALLING_AGENT_SYSTEM_TEMPLATE = [
+  "You are a helpful agent that solves tasks by calling tools.",
+  "",
+  "TOOLS",
+  "You have access to the following tools:",
+  "{{toolDescriptions}}",
+  "",
+  "RULES",
+  "1. Act by emitting tool calls. Never write code and never answer in prose.",
+  "2. Pass only the arguments a tool declares. Do not invent parameters.",
+  "3. You may emit several tool calls in one turn when they do not depend on each other.",
+  "4. When you have the answer, call the final_answer tool with an answer argument.",
+  "5. If a tool fails, read the error, adjust your arguments, and try again.",
+  "",
+  "{{customInstructions}}",
+].join("\n");
+
 /** Variables the template declares; asserted by the drift test in Step 1. */
 export const CODE_AGENT_TEMPLATE_VARIABLES = [
   "codeFence",
