@@ -5938,6 +5938,9 @@ const RUNTIME_EXPORTS = [
   "CODE_FENCE",
   // memory and accounting
   "AgentMemory",
+  // The abstract base of the step hierarchy. Public on purpose: the package already publishes
+  // every subclass and the `AnyAgentStep` union, so the base belongs on the promised surface.
+  "AgentStep",
   "TaskStep",
   "SystemPromptStep",
   "PlanningStep",
@@ -6060,7 +6063,7 @@ export * from "./testing/scripted-executor.js";
 - [ ] **Step 4: Run the surface test**
 
 Run: pnpm vitest run packages/core/test/public-surface.test.ts
-Expected: PASS, 51 tests.
+Expected: PASS, 52 tests.
 
 If a name from `RUNTIME_EXPORTS` is missing, the `export *` line that should have provided it is wrong — fix
 the line, do not remove the name. If the "total export count" test fails, the diff tells you which `export *`

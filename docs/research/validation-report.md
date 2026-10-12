@@ -1300,7 +1300,47 @@ than restricting the include set, so the clone's copy ran too — and passed, be
 The same trap inflates `pnpm test`'s no-config baseline to 1219 files. Task 5's `projects: ["packages/*"]` is
 immune because it resolves against the config's own directory, which is one more reason that line is load-bearing.
 
+### A-40 — S1's gate invoked a script no task creates — FAIL (plan defect, fixed before S1)
+
+S1 Task 19's Step 7 and its definition-of-done item 4 both run `pnpm test:architecture`, but the root scripts were
+exactly `build, typecheck, test, test:watch, lint, depcruise, changeset, publint, attw, pack:smoke, gate` and S0
+Task 8 adds only `ci:check`. **MEASURED**: `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL` + `Command "test:architecture" not
+found`, exit 1 — so the S1 gate could not go green however good the code was. Fixed by giving S0 Task 8 (which
+already edits `package.json` and had not run) the script plus a step verifying `Test Files 2 passed (2)` /
+`Tests 6 passed (6)`. Found by cross-checking every `pnpm <word>` in both plans against the script list; the first
+pass under-counted because its regex dropped `pnpm vitest ...` lines, so the corrected pass is a superset.
+
+### A-41 — the final export-list test fails as written — FAIL (plan defect, fixed before S1)
+
+`public-surface.test.ts` asserts `Object.keys(core)` has nothing outside its 49-name `RUNTIME_EXPORTS` array. But
+`AgentStep` is `export abstract class AgentStep` in `memory/steps.ts`, and Task 19's barrel star-exports that module
+(`export * from "./memory/steps.js"`), so the test fails with `unexpected = ["AgentStep"]`. Every one of the 49
+listed names does have a runtime declaration, so only the array was wrong. Fixed by listing `AgentStep` and raising
+the count to 52, consistent with design spec line 475, which shows `AgentStep` as the public base of the hierarchy.
+Not leaks, checked rather than assumed: the three `*_TEMPLATE*` constants live in `prompts/templates.ts`, which the
+barrel re-exports by name (`export { CODE_FENCE } from ...`) rather than by star; there is no `export default`.
+
+### A-42 — a controller audit measured a correct brief and nearly 'fixed' it — FAIL (process)
+
+Task 5's brief expects `2 failed | 4 passed (6)` for its red runs. Measuring the tree before running the task gave
+`Test Files 2 failed (2)` / `Tests 3 failed | 3 passed (6)`, which looked like staleness worth correcting. It is
+not: `3 failed | 3 passed` is the state **before** Step 3, and after Step 3 the guard's first test passes while only
+the two 'directory is clean' assertions fail, which is exactly the brief's `2 failed | 4 passed`. The brief even
+shows that derivation. Two apparent truncations in the same brief were my own 140-column display slice. Lesson: a
+measurement only refutes an expectation if it is taken at the position the expectation describes — which is the
+same rule the plan imposes on its own verifications. The brief is unchanged.
+
+### A-43 — accepted minors from the Task 4R review (informational, non-blocking)
+
+M1: the anchored dependency-cruiser exclude no longer matches `dist`/`coverage` at any depth; the only real path
+affected is the gitignored scratch clone, which `depcruise packages` never cruises. M2: the explicit builtin
+subpath entries are redundant under ESLint 10 (A-38 measured the same thing). M3: the F2b assertion checks config
+content rather than dependency-cruiser's classification, and F7's stderr assertion is only exercised while
+`packages/core/src` is missing, so after Task 6 both become dormant rather than wrong. Recorded, not fixed: none of
+the three can make a wrong result pass.
+
 ### Consequence for the S0 sequence
+
 
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason

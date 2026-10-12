@@ -63,6 +63,7 @@ smolagents_ts/
 - Create: pnpm-workspace.yaml
 - Create: .gitignore
 - Create: .editorconfig
+- Create: pnpm-lock.yaml (written by the install in Step 5)
 
 - [ ] **Step 1: Create pnpm-workspace.yaml**
 
@@ -351,6 +352,8 @@ git commit -m "docs: add Apache-2.0 licence, derivation notice, attribution map 
 - Create: tsconfig.base.json
 - Create: packages/core/tsconfig.json
 - Create: packages/core/tsconfig.test.json
+- Modify: package.json (the @types/node devDependency)
+- Create: pnpm-lock.yaml (refreshed by the install)
 
 - [ ] **Step 1: Create tsconfig.base.json**
 
@@ -1728,11 +1731,19 @@ if (failures.length > 0) {
 console.log("ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm " + declaredVersion);
 ```
 
-Then edit the root `package.json`: add `"ci:check": "node scripts/check-ci.mjs"` to `scripts`, and
+Then edit the root `package.json`: add `"ci:check": "node scripts/check-ci.mjs"` to `scripts`, add
+`"test:architecture": "vitest run --project core packages/core/test/architecture"`, and
 insert `&& pnpm ci:check` immediately before `&& pnpm pack:smoke` in the `gate` script.
 
 Run: pnpm ci:check
 Expected: prints "ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm 12.3.4"
+
+Run: pnpm test:architecture
+Expected: `Test Files 2 passed (2)` and `Tests 6 passed (6)` — the four architecture assertions from Task 4R plus
+the guard pair from Task 5, all green now that `packages/core/src` exists. This script is what S1's final acceptance
+and its definition of done both invoke; **MEASURED** before this step, `pnpm test:architecture` fails with
+`ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL` + `Command "test:architecture" not found`, so without it S1's gate cannot pass.
+Do **not** add it to `gate`: `gate` already runs `pnpm test`, which collects the same two files.
 
 - [ ] **Step 6: Run the whole gate**
 
