@@ -3067,6 +3067,12 @@ git commit -m "feat(core): add the CodeExecutor contract and a scripted executor
 > a `null` default). Three tests were added: the shared constant survives mutation, a scripted turn's usage is not
 > aliased, and mutating a turn after construction does not rewrite the script. Task 10 also confirmed the brief's
 > contradiction independently and verified that the barrel export is correctly deferred to Task 19.
+> **Controller note after Task 14.** The task's own commit left `pnpm lint` failing on two test-local problems in
+> `packages/core/test/middleware.test.ts`: `require-yield` on the short-circuit middleware, which deliberately yields no
+> events, and an unused `eslint-disable-next-line no-unreachable`. The controller fixed both (a justified disable
+> directive for the first, deletion of the stale directive for the second) in a separate commit, because a task commit
+> that leaves the gate red cannot be the base for the next task. The task's reviewer still sees the original commit and
+> is told so.
 ## Task 13: Parsing the model's code blocks
 
 **Files:**

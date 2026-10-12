@@ -77,6 +77,7 @@ describe("composeMiddleware", () => {
   });
 
   it("lets a middleware short-circuit without calling next", async () => {
+    // eslint-disable-next-line require-yield -- this middleware deliberately yields no events
     const veto = async function* (): AsyncGenerator<AgentEvent, ActionOutcome> {
       return { observations: "blocked by policy", isFinalAnswer: false };
     };
@@ -133,7 +134,6 @@ describe("composeMiddleware", () => {
   it("propagates an error thrown by the terminal", async () => {
     const boom = async function* (): AsyncGenerator<AgentEvent, ActionOutcome> {
       throw new Error("executor exploded");
-      // eslint-disable-next-line no-unreachable
       yield { type: "run.cancelled" };
     };
     const composed = composeMiddleware([])(context(), boom);
