@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -18,6 +18,9 @@ function depcruise(target: string): { summary: { violations: { rule: { name: str
 describe("the boundary guard is real", () => {
   it("flags a node: import inside core/src", () => {
     const probe = join(repoRoot, "packages/core/src/__probe.ts");
+    const srcDir = dirname(probe);
+    const createdDir = !existsSync(srcDir);
+    mkdirSync(srcDir, { recursive: true });
     writeFileSync(probe, "import { readFileSync } from 'node:fs';\nexport const x = readFileSync;\n");
     try {
       const report = depcruise("packages/core/src");
@@ -25,6 +28,7 @@ describe("the boundary guard is real", () => {
       expect(names).toContain("core-no-node-builtins");
     } finally {
       rmSync(probe, { force: true });
+      if (createdDir) rmSync(srcDir, { recursive: true, force: true });
     }
   });
 
