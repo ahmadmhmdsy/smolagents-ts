@@ -1,0 +1,16 @@
+{
+  "name": "@smolagents-ts/exec-quickjs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  },
+  "dependencies": { "zod": "^4.0.0", "quickjs-emscripten-core": "^0.32.0", "@jitl/quickjs-wasmfile-release-sync": "^0.32.0" }
+}
