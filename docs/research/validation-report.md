@@ -1086,6 +1086,71 @@ The rest of Task 8's mechanism was pre-validated against a real private scoped p
   `node10` and `node16-cjs` ignored by the profile as intended.
 
 So the two gate stages that had never faced this package shape are known to pass before Task 6 creates it.
+### A-27 — Task 4's guard test could never pass, and it raced the test it guards — FAIL (measured, corrected)
+
+`packages/core/test/architecture-guard.test.ts` plants `packages/core/src/__probe.ts` and then cruises that directory. Two
+defects, both measured against the delivered artifact.
+
+1. `writeFileSync` does not create parent directories, and `packages/core/src` does not exist until Task 6. At Task 4's
+and Task 5's state the file is red for the wrong reason — 2 of 2 tests failed:
+
+```
+ ❯ packages/core/test/architecture-guard.test.ts (2 tests | 2 failed) 819ms
+   × flags a node: import inside core/src 6ms
+   × passes again once the probe is removed 811ms
+Error: ENOENT: no such file or directory, open '...\\packages\\core\\src\\__probe.ts'
+```
+
+So the rule the guard exists to prove — that `core-no-node-builtins` really fires on `packages/core/src` — had
+never been exercised even once.
+
+2. `architecture.test.ts` asserts that the same directory has zero violations, and Vitest runs test files in
+parallel by default. In a clone simulating Task 6's state (`packages/core/src` holding real files),
+`pnpm exec vitest run --project core` failed 3 of 3 runs with the guard's own probe as the violation:
+
+```
+ ❯ |core| test/architecture.test.ts (1 test | 1 failed) 1457ms
+AssertionError: expected [ { type: 'dependency', …(5) } ] to deeply equal []
++ [ { "from": "packages/core/src/__probe.ts", "rule": { "name": "core-no-node-builtins" }, ... } ]
+```
+
+That is not flakiness; it is a deterministic cross-file race, and it would have made Task 6's `pnpm test` fail
+outright, for a reason unrelated to Task 6.
+
+The fix is Task 5 Steps 2 and 3: `fileParallelism: false` on the `core` project, and a fixture that creates the
+directory when missing and removes it only if the fixture created it. Measured after the fix: Task 6's state 3 of 3
+green (`Tests 3 passed (3)`, exit 0); Task 5's state a deterministic 1 passed / 2 failed, both failures
+`Can't open 'packages/core/src' for reading. Does it exist?`, 3 of 3 runs, no directory left behind.
+
+Alternative considered and rejected: merging the two files so the pair runs sequentially inside one file. It would
+also work and would not serialise the rest of the package's tests, but it restructures a deliverable that is already
+written and under review. A one-line config plus a self-contained fixture is the smaller change, and it is measured.
+
+### A-28 — Task 5's verification was written for a tree that no longer exists — FAIL (corrected)
+
+Task 5's verification step asserted that `pnpm exec vitest run --project core` prints
+`No test files found, exiting with code 1` "because no test files exist yet". Task 4 had already added two test files
+under that project, and the same step quoted `The filter matched no projects` for the negative control. Measured
+before the config files existed:
+
+```
+$ pnpm exec vitest run --project core
+Error: No projects matched the filter "core".
+```
+
+and measured after them (`pnpm exec vitest run --project nope`):
+
+```
+Error: No projects were found. Make sure your configuration is correct. The filter matched no projects: nope.
+```
+
+The step now states the red it will actually see — `Test Files 2 failed (2)`, `Tests 2 failed | 1 passed (3)`,
+the one pass being the guard's probe test — explains why that red is correct at this task's position, and adds the
+two measurements it was missing: `pnpm lint` (exit 0 with three new config files present) and the same
+`--project core` run against a clone simulating Task 6's state (exit 0, 3 of 3 runs).
+
+A-27 and A-28 are the same shape as A-21: a verification whose stated expectation was never measured at the position
+where it will run. A-27 is worse, because the expectation was also the only thing that would have revealed the race.
 ### Consequence for the S0 sequence
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason

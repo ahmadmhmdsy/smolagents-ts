@@ -721,6 +721,7 @@ git commit -m "build: enforce isomorphic core boundaries with eslint and depende
 - Create: vitest.config.ts
 - Create: packages/core/vitest.config.ts
 - Create: packages/core/tsup.config.ts
+- Modify: packages/core/test/architecture-guard.test.ts (make its fixture self-contained; Step 3)
 
 - [ ] **Step 1: Create vitest.config.ts**
 
@@ -745,11 +746,64 @@ auto-named after the package, i.e. `@smolagents-ts/core`.
 import { defineProject } from "vitest/config";
 
 export default defineProject({
-  test: { name: "core" },
+  test: {
+    name: "core",
+    // architecture-guard.test.ts plants a node: import inside packages/core/src and architecture.test.ts
+    // asserts that same directory is clean. Run concurrently, one file's probe is the other file's
+    // violation, so the outcome would depend on timing instead of on the code.
+    fileParallelism: false,
+  },
 });
 ```
 
-- [ ] **Step 3: Create packages/core/tsup.config.ts**
+- [ ] **Step 3: Make the guard fixture self-contained**
+
+`packages/core/test/architecture-guard.test.ts` writes `packages/core/src/__probe.ts`, but `writeFileSync` does
+not create parent directories and `packages/core/src` only starts to exist in Task 6. **MEASURED** at this task's
+state, the file is red for the wrong reason — 2 of 2 tests failed, and the rule it exists to prove was never
+exercised:
+
+```
+ ❯ packages/core/test/architecture-guard.test.ts (2 tests | 2 failed) 819ms
+   × flags a node: import inside core/src 6ms
+   × passes again once the probe is removed 811ms
+Error: ENOENT: no such file or directory, open 'packages\\core\\src\\__probe.ts'
+```
+
+Create the directory when it is missing, and remove it again only if this fixture created it, so the test can
+never delete a real source directory. Replace the two import lines and the first test with:
+
+```ts
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+```
+
+```ts
+  it("flags a node: import inside core/src", () => {
+    const probe = join(repoRoot, "packages/core/src/__probe.ts");
+    const srcDir = dirname(probe);
+    const createdDir = !existsSync(srcDir);
+    mkdirSync(srcDir, { recursive: true });
+    writeFileSync(probe, "import { readFileSync } from 'node:fs';\nexport const x = readFileSync;\n");
+    try {
+      const report = depcruise("packages/core/src");
+      const names = report.summary.violations.map((v) => v.rule.name);
+      expect(names).toContain("core-no-node-builtins");
+    } finally {
+      rmSync(probe, { force: true });
+      if (createdDir) rmSync(srcDir, { recursive: true, force: true });
+    }
+  });
+```
+
+`execFileSync`, `fileURLToPath`, `describe`, `expect` and `it` keep the imports they already have; only the two
+lines above change. With `fileParallelism: false` from Step 2 and this fixture the pair is order-independent.
+**MEASURED**: with `packages/core/src` present (Task 6's state) 3 of 3 tests pass, 3 of 3 runs; with it absent
+(this task's state) exactly one test passes — `flags a node: import inside core/src` — and both
+"directory is clean" assertions fail with `ERROR: Can't open 'packages/core/src' for reading. Does it exist?`,
+3 of 3 runs, leaving no directory behind.
+
+- [ ] **Step 4: Create packages/core/tsup.config.ts**
 
 ```ts
 import { defineConfig } from "tsup";
@@ -768,7 +822,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Verify the versions, the configs' types, and that the projects config resolves**
+- [ ] **Step 5: Verify the versions, the configs' types, and that the projects config resolves**
 
 Run: pnpm exec tsup --version
 Expected: prints 8.x.x
@@ -781,30 +835,42 @@ has loaded them yet, and the next load is Task 6's test run, so a broken config 
 as a Task 6 defect. Type-check the configs directly — this needs no build output and no `src/`:
 
 Run: pnpm exec tsc --noEmit --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --types node vitest.config.ts packages/core/vitest.config.ts packages/core/tsup.config.ts
-Expected: exit code 0, no output. Measured: a config importing a name its module does not export fails with
-`error TS2305` and exit 1.
+Expected: **exit code 0**, no output. **MEASURED** in a clean clone at this task's state. Negative control: a config
+importing a name its module does not export fails with `error TS2305` and exit 1.
+
+Run: pnpm lint
+Expected: **exit code 0**. The three new files are new lint inputs, and this is what proves the boundary rules
+and the Node-globals block do not reject them. **MEASURED**: `eslint .` with all three present, exit 0, no output.
 
 Then prove the `projects` glob and the project name resolve, which is what Task 6 relies on:
 
 Run: pnpm exec vitest run --project core
-Expected: **exit code 1**, with `No test files found, exiting with code 1` and `projects: core` in the output. A red
-result is correct here because no test files exist yet; what matters is `which` red. Measured: a malformed root
-config instead reports `failed to load config`, and a project name that matches nothing reports
-`The filter matched no projects` — both exit 1, and neither is the expected failure.
+Expected: **exit code 1**, with `Test Files 2 failed (2)` and `Tests 2 failed | 1 passed (3)`, every test name
+prefixed `|core|`, exactly one test passing — `flags a node: import inside core/src` from Step 3 — and both
+failures being the "directory is clean" assertions with `ERROR: Can't open 'packages/core/src' for reading. Does it exist?`,
+**MEASURED** 3 of 3 runs at this task's state.
+
+That red is the correct red and not a defect: `packages/core/src` does not exist yet, so nothing can be found
+clean about it, while the rule itself is now genuinely exercised and passes. Task 6 creates the directory, after
+which Step 3's pair goes green. What this command proves here is that the `projects` glob expanded, the `core`
+name resolved, and both test files were collected under it. **MEASURED** in the same clone with a `packages/core/src`
+holding real files (Task 6's state): `Test Files 2 passed (2)`, `Tests 3 passed (3)`, exit 0, 3 of 3 runs. The wrong
+reds look different: a malformed root config reports `failed to load config`, and `--project core` before this
+task's Step 2 reports `No projects matched the filter "core".` — both measured.
 
 Run: pnpm exec vitest run --project nope
-Expected: exit code 1 with `The filter matched no projects: nope`. This is the negative control: it shows the
-`--project` filter is really matched against the config rather than ignored.
+Expected: exit code 1 with `No projects were found. Make sure your configuration is correct. The filter matched no projects: nope.` — **MEASURED** verbatim. This is the negative control: it shows the `--project` filter is really
+matched against the config rather than ignored.
 
 `packages/core/tsup.config.ts` cannot be loaded before Task 6 creates `packages/core/src/index.ts`, because its
 `entry` points there, so the type-check above is the only verification it can have in this task. Task 6 Step 8's
 `pnpm build` is its first real load.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add vitest.config.ts packages/core/vitest.config.ts packages/core/tsup.config.ts package.json pnpm-lock.yaml
-git commit -m "build: add vitest projects config and tsup build config"
+git add vitest.config.ts packages/core/vitest.config.ts packages/core/tsup.config.ts packages/core/test/architecture-guard.test.ts package.json pnpm-lock.yaml
+git commit -m "build: add vitest and tsup configs and make the architecture guard self-contained"
 ```
 
 ---
