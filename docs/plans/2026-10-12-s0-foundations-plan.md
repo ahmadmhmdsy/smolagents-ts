@@ -447,15 +447,21 @@ Set-Content .superpowers/tmp-tscheck/probe.ts 'export const probe: number = 1;' 
 Set-Content .superpowers/tmp-tscheck/tsconfig.json '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "types": ["node"] }, "include": ["probe.ts"] }' -Encoding utf8
 pnpm exec tsc --noEmit -p .superpowers/tmp-tscheck/tsconfig.json
 'TSC_NOEMIT_EXIT=' + $LASTEXITCODE
-pnpm exec tsc --showConfig -p .superpowers/tmp-tscheck/tsconfig.json | Select-String -Pattern '"strict"|noUncheckedIndexedAccess|"types"'
-'TSC_SHOWCONFIG_EXIT=' + $LASTEXITCODE
+$matches = pnpm exec tsc --showConfig -p .superpowers/tmp-tscheck/tsconfig.json | Select-String -Pattern '"strict": true|"noUncheckedIndexedAccess": true'
+'TSC_SHOWCONFIG_MATCHES=' + $matches.Count
 Remove-Item -Recurse -Force .superpowers/tmp-tscheck
 ```
 
-Expected: `TSC_NOEMIT_EXIT=0` and `TSC_SHOWCONFIG_EXIT=0`, and the printed configuration contains
-"strict": true and "noUncheckedIndexedAccess": true. Both exit codes are printed explicitly because the block's
-own exit code is the last command's — `Remove-Item` — so a failing typecheck inside the block would otherwise be
-indistinguishable from a passing one. The probe is deleted again. It exists only because `packages/core/src` is not created until Task 6, and it
+Expected: `TSC_NOEMIT_EXIT=0` and `TSC_SHOWCONFIG_MATCHES=2`.
+
+The match count, not just an exit code, is the assertion, and both lines are printed explicitly. `Select-String`
+is a cmdlet: it does not set `$LASTEXITCODE`, so the earlier `'TSC_SHOWCONFIG_EXIT=' + $LASTEXITCODE` echoed tsc's
+exit code and read 0 even when nothing matched — and the pattern `"strict"|"noUncheckedIndexedAccess"` matched
+`"strict": false` just as happily. That is the presence-versus-identity trap of A-11 and A-13, reproduced inside the
+check written to close A-17. Measured: a base with `"strict": false` yields `TSC_SHOWCONFIG_MATCHES=1` (and `TS5052`,
+exit 2), a bad `extends` path yields `TSC_NOEMIT_EXIT=2` with `TSC_SHOWCONFIG_MATCHES=0`, and the correct
+base yields 0 and 2. The block's own exit code is `Remove-Item`'s, so these lines are its only evidence; the probe
+is deleted again. It exists only because `packages/core/src` is not created until Task 6, and it
 also proves @types/node resolves: without it the test config fails with TS2688 `Cannot find type definition file for 'node'`.
 
 Run: node -e "const fs=require('fs');JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8'));JSON.parse(fs.readFileSync('packages/core/tsconfig.test.json','utf8'));console.log('configs OK')"
@@ -518,7 +524,10 @@ const FORBIDDEN_CORE_GLOBALS = [
 ];
 
 export default defineConfig(
-  { ignores: ["**/dist/**", "**/coverage/**", "smolagents/**", "reference/**", "**/*.d.ts"] },
+  // Throwaway probe trees live under .superpowers/ (the Task 3 tsconfig probe, reviewer scratch) and are
+  // gitignored, so they must never be linted: measured, `eslint .` picks up .superpowers/**/*.ts and fails
+  // on it, which would make Task 8's gate depend on scratch files that happen to be lying around.
+  { ignores: ["**/dist/**", "**/coverage/**", "**/.superpowers/**", "smolagents/**", "reference/**", "**/*.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -629,7 +638,7 @@ describe("architecture boundaries", () => {
       );
     } catch (error) {
       const stdout = (error as { stdout?: string }).stdout ?? "";
-      throw new Error("dependency-cruiser failed: " + stdout.slice(0, 2000));
+      throw new Error("dependency-cruiser failed: " + stdout.slice(0, 2000), { cause: error });
     }
     const report = JSON.parse(output) as { summary: { violations: unknown[] } };
     expect(report.summary.violations).toEqual([]);
@@ -645,8 +654,7 @@ Note: this test file lives in core's test directory, which is **exempt** from th
 ```ts
 // packages/core/test/architecture-guard.test.ts
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -760,13 +768,37 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Verify tsup and vitest are invocable**
+- [ ] **Step 4: Verify the versions, the configs' types, and that the projects config resolves**
 
 Run: pnpm exec tsup --version
 Expected: prints 8.x.x
 
 Run: pnpm exec vitest --version
 Expected: prints 5.x.x
+
+Those two lines prove the tools are installed, not that the three files this task creates are usable. Nothing
+has loaded them yet, and the next load is Task 6's test run, so a broken config would surface two tasks later
+as a Task 6 defect. Type-check the configs directly — this needs no build output and no `src/`:
+
+Run: pnpm exec tsc --noEmit --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --types node vitest.config.ts packages/core/vitest.config.ts packages/core/tsup.config.ts
+Expected: exit code 0, no output. Measured: a config importing a name its module does not export fails with
+`error TS2305` and exit 1.
+
+Then prove the `projects` glob and the project name resolve, which is what Task 6 relies on:
+
+Run: pnpm exec vitest run --project core
+Expected: **exit code 1**, with `No test files found, exiting with code 1` and `projects: core` in the output. A red
+result is correct here because no test files exist yet; what matters is `which` red. Measured: a malformed root
+config instead reports `failed to load config`, and a project name that matches nothing reports
+`The filter matched no projects` — both exit 1, and neither is the expected failure.
+
+Run: pnpm exec vitest run --project nope
+Expected: exit code 1 with `The filter matched no projects: nope`. This is the negative control: it shows the
+`--project` filter is really matched against the config rather than ignored.
+
+`packages/core/tsup.config.ts` cannot be loaded before Task 6 creates `packages/core/src/index.ts`, because its
+`entry` points there, so the type-check above is the only verification it can have in this task. Task 6 Step 8's
+`pnpm build` is its first real load.
 
 - [ ] **Step 5: Commit**
 
@@ -923,12 +955,35 @@ git commit -m "feat: add core, models, tools, exec-quickjs and react package ske
 - Create: .changeset/config.json
 - Create: .changeset/README.md
 
-- [ ] **Step 1: Initialise changesets**
+- [ ] **Step 1: Create .changeset without running init**
 
-Run: pnpm changeset init
-Expected: .changeset/config.json and .changeset/README.md are created.
+`pnpm changeset init` cannot be used here. Measured against @changesets/cli 3.0.3: it asks `Should the GitHub
+integration be used for changelogs?` and, with no TTY to answer, dies with `Detected unsettled top-level await`
+and exit code 13. It exposes no non-interactive flag — `changeset init --help` lists only `-h, --help` — and it
+builds the config from four prompts, including the publish-access list. Write the two files instead. The
+config below is what `init` writes for "no GitHub changelog, public access, base branch main"; the README is the
+file `init` copies verbatim out of `@changesets/cli`.
 
-- [ ] **Step 2: Replace .changeset/config.json**
+Run: New-Item -ItemType Directory -Force -Path .changeset | Out-Null
+Run: node -e "const fs=require('node:fs'),path=require('node:path');const d=path.dirname(require.resolve('@changesets/cli/package.json'));fs.copyFileSync(path.join(d,'default-files/README.md'),'.changeset/README.md');console.log('README.md ' + fs.statSync('.changeset/README.md').size + ' bytes')"
+Expected: `README.md 334 bytes`. Copying the shipped file keeps the README byte-identical to what `init` would
+have produced; there is no reason to retype it.
+
+```json
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}
+```
+
+Write that to `.changeset/config.json`. It replaces nothing: `init` is not run, so there is no Step 2.
 
 ```json
 {
@@ -945,12 +1000,26 @@ Expected: .changeset/config.json and .changeset/README.md are created.
 ```
 
 Note: @changesets/cli and @changesets/config are different majors (3.x and 4.x); the schema URL tracks the
-config version that changeset init itself would write.
+installed config version, `@changesets/config@4.0.1`, which is what `init` itself resolves.
 
-- [ ] **Step 3: Verify a changeset can be created and status is clean**
+- [ ] **Step 2: Verify the config is accepted, and that it rejects a bad one**
 
 Run: pnpm changeset status
-Expected: exits 0. A non-zero exit means the config is malformed.
+Expected: exit 0, printing an empty `Packages to be bumped:`.
+
+On its own that proves only that changesets parsed the file; it cannot distinguish a valid config from one
+that failed open. Measure the negative control — make the config invalid, confirm the non-zero exit, then put
+the file back:
+
+Run: Set-Content .changeset/config.json '{ not valid json' -Encoding utf8
+Run: pnpm changeset status
+Expected: exit 1 with a `SyntaxError` raised from `readConfig`. Measured.
+
+A well-formed but invalid value is caught as well: measured, `"access": "nonsense"` exits 1 with
+`Found issues in your config: - access: Invalid type: Expected ("public" | "restricted")`.
+
+Now restore the JSON block from Step 1 verbatim and run `pnpm changeset status` once more — expected exit 0.
+The restore is part of the control: the file that gets committed must be the valid one, not the broken probe.
 
 - [ ] **Step 4: Commit**
 
