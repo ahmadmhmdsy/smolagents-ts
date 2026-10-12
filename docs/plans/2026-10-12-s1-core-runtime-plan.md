@@ -129,7 +129,9 @@ describe("token usage arithmetic", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/types.test.ts
-Expected: FAIL with "Failed to resolve import ../src/types.js"
+Expected: FAIL, because `../src/types.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
+
+**Note on this pattern (A-55).** Every "watch it fail" step in this plan is phrased this way deliberately: the check fails because the specifier cannot be resolved, and the error names it. Do not require a particular wording beyond that. The same failure prints `Cannot find module '<specifier>'` on Vitest 5.0.3's Node path and `Failed to resolve import '<specifier>'` on Vite's, so a quotation would be a coin flip. A resolution error naming the specifier means the step behaved as intended. (The earlier revision quoted one of those two messages in all 21 steps; measured against the command the steps themselves give, it printed the other.)
 
 - [ ] **Step 3: Write src/types.ts**
 
@@ -256,7 +258,7 @@ describe("AgentError.from", () => {
 - [ ] **Step 6: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/errors.test.ts
-Expected: FAIL with "Failed to resolve import ../src/errors.js"
+Expected: FAIL, because `../src/errors.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 7: Write src/errors.ts**
 
@@ -448,7 +450,7 @@ describe("memory steps", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/steps.test.ts
-Expected: FAIL with "Failed to resolve import ../src/memory/steps.js"
+Expected: FAIL, because `../src/memory/steps.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/memory/steps.ts**
 
@@ -619,7 +621,7 @@ describe("makeRunResult", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/run-result.test.ts
-Expected: FAIL with "Failed to resolve import ../src/agent/run-result.js"
+Expected: FAIL, because `../src/agent/run-result.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/agent/run-result.ts**
 
@@ -761,7 +763,7 @@ describe("assertNever", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/events.test.ts
-Expected: FAIL with "Failed to resolve import ../src/events.js"
+Expected: FAIL, because `../src/events.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/events.ts**
 
@@ -996,7 +998,7 @@ engineer finds it clumsy, replacing it with a direct cast is fine. The assertion
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/memory.test.ts
-Expected: FAIL with "Failed to resolve import ../src/memory/memory.js"
+Expected: FAIL, because `../src/memory/memory.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/memory/memory.ts**
 
@@ -1215,7 +1217,7 @@ describe("Monitor", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/monitor.test.ts
-Expected: FAIL with "Failed to resolve import ../src/monitoring/monitor.js"
+Expected: FAIL, because `../src/monitoring/monitor.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/monitoring/monitor.ts**
 
@@ -1358,7 +1360,7 @@ describe("populateTemplate", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/populate-template.test.ts
-Expected: FAIL with "Failed to resolve import ../src/prompts/populate-template.js"
+Expected: FAIL, because `../src/prompts/populate-template.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/prompts/populate-template.ts**
 
@@ -1599,7 +1601,7 @@ describe("buildCodeAgentSystemPrompt", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/system-prompt.test.ts
-Expected: FAIL with "Failed to resolve import ../src/prompts/templates.js"
+Expected: FAIL, because `../src/prompts/templates.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/prompts/templates.ts**
 
@@ -1925,7 +1927,7 @@ describe("collectCompletion", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/model.test.ts
-Expected: FAIL with "Failed to resolve import ../src/model.js"
+Expected: FAIL, because `../src/model.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/model.ts**
 
@@ -2147,7 +2149,7 @@ describe("MockModel", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/mock-model.test.ts
-Expected: FAIL with "Failed to resolve import ../src/testing/mock-model.js"
+Expected: FAIL, because `../src/testing/mock-model.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/testing/mock-model.ts**
 
@@ -2387,7 +2389,7 @@ describe("tool()", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/tool.test.ts
-Expected: FAIL with "Failed to resolve import ../src/tool/tool.js"
+Expected: FAIL, because `../src/tool/tool.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/logger.ts and its test**
 
@@ -2638,7 +2640,7 @@ describe("ToolRegistry", () => {
 - [ ] **Step 7: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/registry.test.ts
-Expected: FAIL with "Failed to resolve import ../src/tool/registry.js"
+Expected: FAIL, because `../src/tool/registry.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 8: Write src/tool/registry.ts**
 
@@ -2833,7 +2835,7 @@ describe("ScriptedExecutor", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/scripted-executor.test.ts
-Expected: FAIL with "Failed to resolve import ../src/executor.js"
+Expected: FAIL, because `../src/executor.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/executor.ts**
 
@@ -3095,7 +3097,7 @@ prefer, tighten it later with a real tokenizer; do not build one now.
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/parse-code-blocks.test.ts
-Expected: FAIL with "Failed to resolve import ../src/utils/parse-code-blocks.js"
+Expected: FAIL, because `../src/utils/parse-code-blocks.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/utils/parse-code-blocks.ts**
 
@@ -3327,7 +3329,7 @@ describe("composeMiddleware", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/middleware.test.ts
-Expected: FAIL with "Failed to resolve import ../src/agent/action.js"
+Expected: FAIL, because `../src/agent/action.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/agent/action.ts**
 
@@ -3813,7 +3815,7 @@ function attachingAbort(controller: AbortController) {
 - [ ] **Step 3: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/multi-step-agent.test.ts
-Expected: FAIL with "Failed to resolve import ../src/agent/multi-step-agent.js"
+Expected: FAIL, because `../src/agent/multi-step-agent.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 4: Write src/agent/multi-step-agent.ts**
 
@@ -4364,7 +4366,7 @@ describe("createAsyncQueue", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/async-queue.test.ts
-Expected: FAIL with "Failed to resolve import ../src/utils/async-queue.js"
+Expected: FAIL, because `../src/utils/async-queue.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/utils/async-queue.ts**
 
@@ -4680,7 +4682,7 @@ describe("CodeAgent", () => {
 - [ ] **Step 7: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/code-agent.test.ts
-Expected: FAIL with "Failed to resolve import ../src/agent/code-agent.js"
+Expected: FAIL, because `../src/agent/code-agent.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 8: Write src/agent/code-agent.ts**
 
@@ -5058,7 +5060,7 @@ describe("ToolCallingAgent", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/tool-calling-agent.test.ts
-Expected: FAIL with "Failed to resolve import ../src/agent/tool-calling-agent.js"
+Expected: FAIL, because `../src/agent/tool-calling-agent.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Add the tool-calling prompt template**
 
@@ -5512,7 +5514,7 @@ describe("AgentSession", () => {
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/agent-session.test.ts
-Expected: FAIL with "Failed to resolve import ../src/session/agent-session.js"
+Expected: FAIL, because `../src/session/agent-session.js` cannot be resolved — the error names that specifier (Vitest 5.0.3 says "Cannot find module"; other resolvers say "Failed to resolve import")
 
 - [ ] **Step 3: Write src/session/agent-session.ts**
 

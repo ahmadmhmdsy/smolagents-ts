@@ -967,15 +967,16 @@ Exit 1 (13 internally). `changeset init --help` lists only `-h, --help`, and the
 from four prompts — GitHub changelog, auto-commit, publish access, base branch — so there is no flag path. Step 1
 was unrunnable as written, and the implementer would have been blocked at the first step of the task.
 
-The step now writes the two files directly. The config is what `init` writes for "no GitHub changelog, public
-access, base branch main" — read out of the installed `init.mjs`, which builds `{...defaultWrittenConfig}` with those
-overrides — and `README.md` is copied from `@changesets/cli/default-files/README.md` (measured 334 bytes) rather
+The step now writes the two files directly. The config carries the same **content** `init` writes for "no GitHub
+changelog, public access, base branch main" — read out of the installed `init.mjs`, which builds
+`{...defaultWrittenConfig}` with those overrides. A-50 records the one respect in which it is not identical: the key
+order differs, and `init` also emits an explicit `"format": "auto"` that the file leaves to the schema default — and `README.md` is copied from `@changesets/cli/default-files/README.md` (measured 334 bytes) rather
 than retyped. `@changesets/config@4.0.1` is the installed config, so the `$schema` URL was already correct.
 
 Step 3 was one-sided as well: `pnpm changeset status` exiting 0 on branch `main` only proves the file parsed.
 Measured negative controls: invalid JSON → exit 1 with a `SyntaxError` from `readConfig`; a well-formed but
-wrong value (`"access": "nonsense"`) → exit 1 with `Found issues in your config: - access: Invalid type:`
-`Expected ("public" | "restricted")`. The brief now requires the invalid-JSON control and the restore.
+wrong value (`"access": "nonsense"`) → exit 1 with `Found issues in your config:` then `- access: Invalid type:`
+`Expected ("public" | "restricted") but received "nonsense"`. The brief now requires the invalid-JSON control and the restore.
 
 ### A-23 — the probe's second exit code measured tsc, not the assertion — FAIL (corrected)
 
@@ -1460,6 +1461,48 @@ with `--output-type json`, exit 1 without), so rule violations never reach that 
 Task 6 removed the only hard error that used to occur there. A-43 also omitted that Task 6 leaves the guard's
 `createdDir` cleanup branch permanently untaken; that branch is the only newly dead code and is benign. To re-exercise the
 line, delete `packages/core/src` again.
+
+### A-54 — the Task 7 review passed, and all of its findings were in the controller's own documents — INFORMATIONAL (all fixed)
+
+Commit `529c34b` verified independently: exactly the brief's two files, single parent, no amend; the config is
+load-bearing (corrupt JSON -> `pnpm changeset status` exit 1 with `SyntaxError ... position 2`, restore -> exit 0, and the
+restored blob `319f1633...` equals `git rev-parse 529c34b:.changeset/config.json`); the README is byte-identical to
+`@changesets/cli@3.0.3`'s `default-files/README.md`; the single trailing newline matches `init.mjs`, and eslint,
+prettier and publint have nothing to say about either file. Three findings, none in the artifact:
+
+- The A-50 correction had introduced a **second** false provenance claim: the corrected sentence said the block "follows
+  the design doc instead", but the design doc carries no changeset config block (measured: zero hits for `baseBranch`,
+  `changelog`, `config.json`, `updateInternalDependencies`). Fixed by stating only verifiable facts and by recording
+  the reviewer's nuance that `init` additionally emits an explicit `"format": "auto"` that the file leaves to the
+  schema default.
+- A-22 above still asserted "the config is what `init` writes" and quoted the abridged `access` message, so one
+  document contradicted itself across 450 lines. Both fixed in place, with a pointer to A-50.
+- Task 7's implementer never wrote `.superpowers/sdd/task-7-report.md`, so its claims were unauditable at source and the
+  review verified outcomes instead. That file now exists as an explicitly reconstructed record of what the review
+  measured rather than a paraphrase of a report that does not exist; dispatch prompts from Task 8 onward name the report
+  path as a deliverable rather than a courtesy.
+
+The lesson is not that a reviewer found typos. It is that a correction written quickly can carry the same defect class as
+the text it replaces, and only an independent reader comparing the correction against the artifact catches it.
+
+### A-55 — every S1 negative control quoted a failure message the command does not print — REAL (corrected)
+
+The pre-implementation steps pair each "run it and watch it fail" command with an exact quoted message:
+`Expected: FAIL with "Failed to resolve import ../src/types.js"`, repeated 21 times with different specifiers.
+**MEASURED** by S1 Task 1's implementer, on the command the step itself gives (`pnpm vitest run
+packages/core/test/types.test.ts` before `src/types.ts` exists): Vitest 5.0.3 prints `Error: Cannot find module
+'../src/types.js' imported from .../types.test.ts` and exits 1. The substance was right — an unresolved import naming
+that specifier — and the implementer reported the mismatch rather than editing the step or the test to force a match.
+
+The expectation is now phrased by substance in the plan and in all 18 briefs that carried it: the step fails because the
+specifier cannot be resolved and the error names it. Quoting one resolver's wording cannot be made safe, because Vitest's
+Vite path and Node's ESM loader report the same failure differently, and a quotation mismatch invites precisely the wrong
+repair — editing the expectation, or the test, until the text matches. The plan carries a note at the first occurrence so
+the tolerant phrasing reads as deliberate rather than vague.
+
+Provenance, recorded honestly: 21 identical quotations were written into the plan, and the message they quote was never
+reproduced under the command the steps give. This is the A-44/A-45 family (a stated output that does not match the tool's)
+in its least harmful form — the check still failed for the right reason, so nothing was ever silently green.
 
 ### Consequence for the S0 sequence
 

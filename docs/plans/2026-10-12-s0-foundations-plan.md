@@ -1377,9 +1377,10 @@ integration be used for changelogs?` and, with no TTY to answer, dies with `Dete
 and exit code 13. It exposes no non-interactive flag — `changeset init --help` lists only `-h, --help` — and it
 builds the config from four prompts, including the publish-access list. Write the two files instead. The
 config below is semantically what `init` writes for "no GitHub changelog, public access, base branch main", but its
-**key order differs** from `init`'s (`$schema, baseBranch, access, format, changelog, commit, ignore, fixed, linked,
-updateInternalDependencies`; the block below follows the design doc instead). Changesets does not care about key order
-and `pnpm changeset status` accepts this file — measured. The README is the file `init` copies verbatim out of
+**key order differs** from `init`'s (which emits `$schema, baseBranch, access, format, changelog, commit, ignore,
+fixed, linked, updateInternalDependencies`, and also an explicit `"format": "auto"` that the block leaves to the schema
+default). Neither the order nor that omission is significant — changesets matches on keys, and `pnpm changeset status`
+accepts this file — measured. The order of the block below is not copied from any source; nothing else depends on it. The README is the file `init` copies verbatim out of
 `@changesets/cli`.
 
 Run: New-Item -ItemType Directory -Force -Path .changeset | Out-Null
