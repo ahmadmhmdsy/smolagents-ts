@@ -15,7 +15,7 @@ describe("architecture boundaries", () => {
       );
     } catch (error) {
       const stdout = (error as { stdout?: string }).stdout ?? "";
-      throw new Error("dependency-cruiser failed: " + stdout.slice(0, 2000));
+      throw new Error("dependency-cruiser failed: " + stdout.slice(0, 2000), { cause: error });
     }
     const report = JSON.parse(output) as { summary: { violations: unknown[] } };
     expect(report.summary.violations).toEqual([]);

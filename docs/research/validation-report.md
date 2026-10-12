@@ -924,13 +924,127 @@ modification list and the revision string; both were checked by hand instead —
 the clone. No permanent substitute exists, because the upstream clone is absent from CI, so this is recorded
 rather than gated.
 
+### A-21 — Task 5 created three configuration files and verified none of them — FAIL (corrected)
+
+Task 5's Files list is `vitest.config.ts`, `packages/core/vitest.config.ts` and `packages/core/tsup.config.ts`, and its only
+verification was `pnpm exec tsup --version` and `pnpm exec vitest --version`. Version strings prove the tools are installed;
+they do not load one line of what the task writes. The first load was Task 6's `vitest run --project core`, two
+tasks later, where a broken config would have been read as a Task 6 defect — the same misattribution the brief
+itself warns about for the lint config.
+
+Measured, with the root config and one project named `core`:
+
+- `vitest run --project core` with no test files → exit 1, `No test files found, exiting with code 1`, printing
+  `projects: core`. This is a real check: a malformed root config instead reports `failed to load config`
+  (esbuild `Expected identifier but found end of file`), and an unmatched name reports
+  `The filter matched no projects: nope`.
+- `vitest run --project nope` → exit 1, `The filter matched no projects: nope` — the negative control proving the
+  filter is matched against the config rather than ignored.
+- `tsc --noEmit --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --types node` over the
+  three config files → exit 0. A config importing a name its module does not export gives `error TS2305`,
+  exit 1.
+
+`packages/core/tsup.config.ts` cannot be loaded before Task 6 creates `src/index.ts` — its `entry` points there — so the
+type-check is the only verification available in Task 5. The brief now says that instead of implying the file is
+covered.
+
+### A-22 — Task 7's `changeset init` cannot run without a TTY — FAIL (corrected)
+
+Measured against @changesets/cli 3.0.3:
+
+```
+🦋 changeset v3.0.3
+A new Changeset configuration is being initialized...
+*  Should the GitHub integration be used for changelogs?
+  Yes / > No
+Warning: Detected unsettled top-level await at file:///.../@changesets/cli/bin.js:9
+await import("@changesets/cli");
+[ELIFECYCLE] Command failed with exit code 13.
+```
+
+Exit 1 (13 internally). `changeset init --help` lists only `-h, --help`, and the command builds its config
+from four prompts — GitHub changelog, auto-commit, publish access, base branch — so there is no flag path. Step 1
+was unrunnable as written, and the implementer would have been blocked at the first step of the task.
+
+The step now writes the two files directly. The config is what `init` writes for "no GitHub changelog, public
+access, base branch main" — read out of the installed `init.mjs`, which builds `{...defaultWrittenConfig}` with those
+overrides — and `README.md` is copied from `@changesets/cli/default-files/README.md` (measured 334 bytes) rather
+than retyped. `@changesets/config@4.0.1` is the installed config, so the `$schema` URL was already correct.
+
+Step 3 was one-sided as well: `pnpm changeset status` exiting 0 on branch `main` only proves the file parsed.
+Measured negative controls: invalid JSON → exit 1 with a `SyntaxError` from `readConfig`; a well-formed but
+wrong value (`"access": "nonsense"`) → exit 1 with `Found issues in your config: - access: Invalid type:`
+`Expected ("public" | "restricted")`. The brief now requires the invalid-JSON control and the restore.
+
+### A-23 — the probe's second exit code measured tsc, not the assertion — FAIL (corrected)
+
+The Task 3 reviewer found this in the recipe A-17 had just corrected, and it is the same class a third time.
+`Select-String` is a PowerShell cmdlet and does not set `$LASTEXITCODE`, so:
+
+```powershell
+'TSC_SHOWCONFIG_EXIT=' + $LASTEXITCODE
+```
+
+echoed tsc's exit code. The reviewer's negative control — the correct base with `"strict": false` — printed
+`TSC_SHOWCONFIG_EXIT=0` with three matches, and a config with no `strict` key at all printed `TSC_SHOWCONFIG_EXIT=0` with
+zero matches. The pattern `"strict"|noUncheckedIndexedAccess` matched `"strict": false` identically, so the check
+tested presence where identity was required: A-11 and A-13 reproduced inside the check written to close A-17.
+
+The recipe now counts matches against `'"strict": true|"noUncheckedIndexedAccess": true'` and requires
+`TSC_SHOWCONFIG_MATCHES=2`. Measured: correct base → `0` and `2`; `"strict": false` → `TSC_NOEMIT_EXIT=2` (plus
+`TS5052`, since `exactOptionalPropertyTypes` requires `strictNullChecks`) with `TSC_SHOWCONFIG_MATCHES=1`; a bad
+`extends` path → `TSC_NOEMIT_EXIT=2`, `TSC_SHOWCONFIG_MATCHES=0`.
+
+### A-24 — Task 4's code snippets failed the lint config the same task created — FAIL (corrected)
+
+Task 4's Step 5 required `pnpm lint` to exit 0, and the implementer measured exit 1 against the brief's own
+Steps 3 and 4:
+
+```
+packages\core\test\architecture-guard.test.ts
+  2:10  error  'mkdtempSync' is defined but never used  @typescript-eslint/no-unused-vars
+  3:10  error  'tmpdir' is defined but never used       @typescript-eslint/no-unused-vars
+packages\core\test\architecture.test.ts
+  18:7  error  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+```
+
+Two unused imports were vestigial — the probe writes into `packages/core/src/__probe.ts`, not a temp directory —
+and the `catch` rethrew without `{ cause: error }`. Both rules are enabled by the brief's own config:
+`@typescript-eslint/no-unused-vars` by `tseslint.configs.recommended`, `preserve-caught-error` by ESLint 10's
+`js.configs.recommended`. The implementer reported the contradiction and refused to work around it, which is why
+it is attributed here instead of surfacing as a Task 6 gate failure.
+
+The same measurement exposed a second gap in that config: `eslint .` does lint `.superpowers/**/*.ts`. Measured on a
+probe file:
+
+```
+files linted: 5
+.dependency-cruiser.cjs
+.superpowers\tmp-lintprobe\bad.ts
+eslint.config.js
+packages\core\test\architecture-guard.test.ts
+packages\core\test\architecture.test.ts
+```
+
+This plan tells every later task to build throwaway probe trees under `.superpowers/`, so `**/.superpowers/**` is
+now in the config's `ignores`. Without it Task 8's gate could fail on scratch files that merely happened to
+exist — a red that says nothing about the code.
+
 ### Consequence for the S0 sequence
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason
 it did not name: A-11, A-13, A-15. A-18 and A-19 are the same defect in a different position — a configuration
 that breaks a gate two tasks later, and a check that tests a file for a substring when the fact that mattered
 was which package manager it installs. A-17 is the sharpest: the controller's own validation, run against a
-retyped copy rather than the plan's text, produced a green result for a recipe that could not pass. A green
-tick, a coincidental exit 0, and a validation of the wrong artifact are indistinguishable from a correct run
-when nobody reads the output. Every remaining task's verification is now checked by executing the plan's own
-text.
+retyped copy rather than the plan's text, produced a green result for a recipe that could not pass. A-21 is the
+same omission at task scale — three files created, none loaded. A-22 is not a weak check but an impossible step:
+`changeset init` cannot run in an agent's shell at all, and only running it revealed that. A-23 and A-24 are the
+pattern turning inward, onto the two safeguards built in response to it: the probe written to close A-17
+asserted presence where it needed identity, and the task that built the lint gate shipped snippets that violated
+it.
+
+Six of the eight S0 tasks carry a defect of this family, and every one was found by executing the plan's own
+text rather than reading it. The rule for the remaining tasks is therefore not "is this verified" but "run the
+verification exactly as written, and state what would make it fail" — and for any check that reports a boolean,
+arrange a negative control in the same run. A green tick, a coincidental exit 0, and a validation of the wrong
+artifact are indistinguishable from a correct run when nobody reads the output.

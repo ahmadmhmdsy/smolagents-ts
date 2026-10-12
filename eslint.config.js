@@ -23,7 +23,10 @@ const FORBIDDEN_CORE_GLOBALS = [
 ];
 
 export default defineConfig(
-  { ignores: ["**/dist/**", "**/coverage/**", "smolagents/**", "reference/**", "**/*.d.ts"] },
+  // Throwaway probe trees live under .superpowers/ (the Task 3 tsconfig probe, reviewer scratch) and are
+  // gitignored, so they must never be linted: measured, `eslint .` picks up .superpowers/**/*.ts and fails
+  // on it, which would make Task 8's gate depend on scratch files that happen to be lying around.
+  { ignores: ["**/dist/**", "**/coverage/**", "**/.superpowers/**", "smolagents/**", "reference/**", "**/*.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
