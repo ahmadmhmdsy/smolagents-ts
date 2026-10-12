@@ -219,10 +219,18 @@ cp smolagents/LICENSE LICENSE
 (Get-Content LICENSE -Raw) -replace "`r`n", "`n" | Set-Content LICENSE -NoNewline -Encoding utf8
 ```
 
+Run: node -e "const b=require('fs').readFileSync('LICENSE');const cr=b.filter((x)=>x===13).length;console.log('bytes='+b.length+' cr='+cr);if(cr!==0||b.length!==11357)process.exit(1)"
+Expected: `bytes=11357 cr=0`
+
 Run: git hash-object LICENSE
 Expected: `261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64`, the same value as
-`git -C smolagents rev-parse HEAD:LICENSE`, with no CR characters in the file. This proves byte-identity with the
-upstream blob; the weaker presence check does not.
+`git -C smolagents rev-parse HEAD:LICENSE`.
+
+Run the byte check as the primary evidence, and run both before Step 6 creates `.gitattributes`.
+`git hash-object` applies the filters configured for the path: once `* text=auto eol=lf` exists, a CRLF file
+at path `LICENSE` is normalised on the way in and hashes to the same `261eeb9e...` blob, so the hash can no
+longer distinguish a CRLF import from a correct one. The measured `cr=0` byte count can, because it never
+passes through a filter.
 
 - [ ] **Step 2: Create NOTICE**
 
@@ -436,14 +444,18 @@ Expected: @types/node appears in the root package.json devDependencies.
 ```powershell
 New-Item -ItemType Directory -Force -Path .superpowers/tmp-tscheck | Out-Null
 Set-Content .superpowers/tmp-tscheck/probe.ts 'export const probe: number = 1;' -Encoding utf8
-Set-Content .superpowers/tmp-tscheck/tsconfig.json '{ "extends": "../tsconfig.base.json", "compilerOptions": { "types": ["node"] }, "include": ["probe.ts"] }' -Encoding utf8
+Set-Content .superpowers/tmp-tscheck/tsconfig.json '{ "extends": "../../tsconfig.base.json", "compilerOptions": { "types": ["node"] }, "include": ["probe.ts"] }' -Encoding utf8
 pnpm exec tsc --noEmit -p .superpowers/tmp-tscheck/tsconfig.json
+'TSC_NOEMIT_EXIT=' + $LASTEXITCODE
 pnpm exec tsc --showConfig -p .superpowers/tmp-tscheck/tsconfig.json | Select-String -Pattern '"strict"|noUncheckedIndexedAccess|"types"'
+'TSC_SHOWCONFIG_EXIT=' + $LASTEXITCODE
 Remove-Item -Recurse -Force .superpowers/tmp-tscheck
 ```
 
-Expected: exit code 0, and the printed configuration contains "strict": true and "noUncheckedIndexedAccess":
-true. The probe is deleted again. It exists only because `packages/core/src` is not created until Task 6, and it
+Expected: `TSC_NOEMIT_EXIT=0` and `TSC_SHOWCONFIG_EXIT=0`, and the printed configuration contains
+"strict": true and "noUncheckedIndexedAccess": true. Both exit codes are printed explicitly because the block's
+own exit code is the last command's — `Remove-Item` — so a failing typecheck inside the block would otherwise be
+indistinguishable from a passing one. The probe is deleted again. It exists only because `packages/core/src` is not created until Task 6, and it
 also proves @types/node resolves: without it the test config fails with TS2688 `Cannot find type definition file for 'node'`.
 
 Run: node -e "const fs=require('fs');JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8'));JSON.parse(fs.readFileSync('packages/core/tsconfig.test.json','utf8'));console.log('configs OK')"
@@ -468,12 +480,22 @@ This is the task that makes core genuinely isomorphic. Without it, D7 is a wish.
 - Create: eslint.config.js
 - Create: .dependency-cruiser.cjs
 - Create: packages/core/test/architecture.test.ts
+- Create: packages/core/test/architecture-guard.test.ts
+- Edit: package.json, pnpm-lock.yaml (adds the `globals` devDependency)
 
 - [ ] **Step 1: Create eslint.config.js**
+
+Run: pnpm add -Dw globals
+Expected: `globals` appears in the root package.json devDependencies. `js.configs.recommended` turns on
+`no-undef`, and the repository's non-TypeScript files — this config, `.dependency-cruiser.cjs`, and the
+scripts Task 8 adds — need Node globals or they fail linting.
+
+Then create `eslint.config.js`:
 
 ```js
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
+import globals from "globals";
 import tseslint from "typescript-eslint";
 
 const FORBIDDEN_CORE_MODULES = [
@@ -515,6 +537,18 @@ export default defineConfig(
         { selector: "CallExpression[callee.name='Function']", message: "a bare Function(...) call is the same escape hatch." },
       ],
     },
+  },
+  // js.configs.recommended applies to every file ESLint lints, and ESLint lints .js, .mjs and .cjs by
+  // default. Without Node globals those files fail no-undef: measured, eslint . reports
+  // "'module' is not defined" on .dependency-cruiser.cjs and console/process/URL on the .mjs scripts.
+  {
+    files: ["**/*.cjs"],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
+    files: ["**/*.js", "**/*.mjs"],
+    languageOptions: { globals: { ...globals.node } },
   },
   {
     files: ["**/*.test.ts", "**/*.test.tsx"],
@@ -647,12 +681,18 @@ describe("the boundary guard is real", () => {
 });
 ```
 
-- [ ] **Step 5: Run the tests to verify they fail**
+- [ ] **Step 5: Run the linter, then the tests to verify they fail**
 
 Run: pnpm exec vitest run packages/core/test/architecture.test.ts
 Expected: FAIL — the test file actually runs and its assertion fails, because packages/core/src does not
 exist yet, so dependency-cruiser exits non-zero and the test throws. That is the correct failure, and it is
 completed in Task 6, Step 8.
+
+Run: pnpm lint
+Expected: exit 0, no output. This task creates the lint configuration, so this task proves it runs; otherwise
+the first execution is Task 6's gate, where a failure caused by this config would be misread as a Task 6
+defect. Measured against this config without the Node-globals block above: `eslint .` reports
+`'module' is not defined` on `.dependency-cruiser.cjs` and exits 1.
 
 Do not use `--project core` here. The root `vitest.config.ts` is created in Task 5, and until it exists
 `--project` produces a startup error — `No projects matched the filter "core"` — with exit code 1 and
@@ -661,7 +701,7 @@ without running the test at all. That exit code looks exactly like the expected 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add eslint.config.js .dependency-cruiser.cjs packages/core/test/architecture.test.ts packages/core/test/architecture-guard.test.ts
+git add eslint.config.js .dependency-cruiser.cjs packages/core/test/architecture.test.ts packages/core/test/architecture-guard.test.ts package.json pnpm-lock.yaml
 git commit -m "build: enforce isomorphic core boundaries with eslint and dependency-cruiser"
 ```
 
@@ -929,7 +969,9 @@ worth packaging, so it can never be "temporarily" broken.
 **Files:**
 - Create: scripts/pack-smoke.mjs
 - Create: scripts/runtime-smoke.mjs
+- Create: scripts/check-ci.mjs
 - Create: .github/workflows/ci.yml
+- Edit: package.json, pnpm-lock.yaml (adds the `yaml` devDependency and the `ci:check` script)
 
 - [ ] **Step 1: Create scripts/pack-smoke.mjs**
 
@@ -1094,8 +1136,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # No version input. packageManager in package.json (pnpm@12.3.4) is the single source of truth, and
+        # action-setup reads it for pnpm 11+. Pinning 10 here contradicted packageManager and would install
+        # with a pnpm older than the one that wrote the lockfile.
       - uses: actions/setup-node@v4
         with:
           node-version: "${{ matrix.node }}"
@@ -1108,6 +1151,7 @@ jobs:
       - run: pnpm build
       - run: pnpm publint
       - run: pnpm attw
+      - run: pnpm ci:check
       - run: pnpm pack:smoke
 
   runtime-matrix:
@@ -1120,8 +1164,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # No version input. packageManager in package.json (pnpm@12.3.4) is the single source of truth, and
+        # action-setup reads it for pnpm 11+. Pinning 10 here contradicted packageManager and would install
+        # with a pnpm older than the one that wrote the lockfile.
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -1143,10 +1188,79 @@ jobs:
         if: matrix.runtime == 'deno'
 ```
 
-- [ ] **Step 5: Verify the workflow file is present and well-formed**
+- [ ] **Step 5: Verify the workflow file structurally, and pin its pnpm version to packageManager**
 
-Run: node -e "const s=require('fs').readFileSync('.github/workflows/ci.yml','utf8');if(!/name: CI/.test(s))process.exit(1);console.log('ci.yml present, '+s.split(String.fromCharCode(10)).length+' lines')"
-Expected: prints "ci.yml present, N lines"
+A regex for `name: CI` would pass on a workflow that installs the wrong package manager, which is exactly the
+defect this step exists to catch: the workflow pinned pnpm 10 while `packageManager` requires 12.3.4. Parse the
+YAML and assert the facts instead.
+
+Run: pnpm add -Dw yaml
+Expected: `yaml` appears in the root package.json devDependencies.
+
+Create `scripts/check-ci.mjs`:
+
+```js
+#!/usr/bin/env node
+/**
+ * Assert the CI workflow's structure, not its spelling.
+ *
+ * The pnpm version is read from package.json's packageManager field and compared with what the workflow
+ * installs, so the two cannot drift apart unnoticed.
+ */
+import { readFileSync } from "node:fs";
+import { parse } from "yaml";
+
+const workflow = parse(readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"));
+const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+
+const failures = [];
+function check(name, fn) {
+  try {
+    if (fn() === false) throw new Error("assertion returned false");
+  } catch (error) {
+    failures.push(name + ": " + error.message);
+  }
+}
+
+check("gate job exists", () => Boolean(workflow.jobs && workflow.jobs.gate));
+check("runtime-matrix job exists", () => Boolean(workflow.jobs && workflow.jobs["runtime-matrix"]));
+check("gate node matrix is 22/24/26", () =>
+  JSON.stringify(workflow.jobs && workflow.jobs.gate && workflow.jobs.gate.strategy.matrix.node) ===
+  JSON.stringify(["22", "24", "26"]));
+check("runtime matrix is node/bun/deno", () =>
+  JSON.stringify(workflow.jobs && workflow.jobs["runtime-matrix"] && workflow.jobs["runtime-matrix"].strategy.matrix.runtime) ===
+  JSON.stringify(["node", "bun", "deno"]));
+
+const declared = /^pnpm@(.+)$/.exec(pkg.packageManager || "");
+const declaredVersion = declared && declared[1];
+check("packageManager declares a pnpm version", () => typeof declaredVersion === "string");
+check("every pnpm/action-setup step agrees with packageManager", () => {
+  const jobs = Object.values(workflow.jobs || {});
+  const steps = jobs.flatMap((job) => job.steps || []);
+  const setup = steps.filter((step) => String(step.uses || "").startsWith("pnpm/action-setup"));
+  if (setup.length === 0) throw new Error("no pnpm/action-setup step found");
+  for (const step of setup) {
+    const version = step.with && step.with.version;
+    if (version === undefined) continue; // action-setup reads packageManager itself
+    if (String(version) !== String(declaredVersion)) {
+      throw new Error("workflow pins pnpm " + version + " but packageManager declares " + declaredVersion);
+    }
+  }
+  return true;
+});
+
+if (failures.length > 0) {
+  for (const failure of failures) console.error("  - " + failure);
+  throw new Error("ci:check FAILED: " + failures.length + " assertion(s) failed");
+}
+console.log("ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm " + declaredVersion);
+```
+
+Then edit the root `package.json`: add `"ci:check": "node scripts/check-ci.mjs"` to `scripts`, and
+insert `&& pnpm ci:check` immediately before `&& pnpm pack:smoke` in the `gate` script.
+
+Run: pnpm ci:check
+Expected: prints "ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm 12.3.4"
 
 - [ ] **Step 6: Run the whole gate**
 
@@ -1157,7 +1271,7 @@ Expected: every stage exits 0 and the final line is
 - [ ] **Step 7: Commit**
 
 ```bash
-git add scripts/pack-smoke.mjs scripts/runtime-smoke.mjs .github/workflows/ci.yml
+git add scripts/pack-smoke.mjs scripts/runtime-smoke.mjs scripts/check-ci.mjs .github/workflows/ci.yml package.json pnpm-lock.yaml
 git commit -m "ci: add runtime matrix and published-shape gate"
 ```
 

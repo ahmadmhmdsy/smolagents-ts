@@ -857,9 +857,80 @@ with only that name, or the external array, changed. Measured while checking thi
 `--project <name>` only when its config sets that `name`, and Task 6 Step 5's `--project core` therefore depends
 on Task 5 having created the root config first.
 
+### A-17 — the controller validated a recipe it had retyped, not the one it wrote — FAIL (process, corrected)
+
+Task 3 Step 3's probe writes `.superpowers/tmp-tscheck/tsconfig.json`, and its `extends` was `../tsconfig.base.json`.
+Relative to that file, `../` is `.superpowers/`, so the base config is `../../tsconfig.base.json`. As written the
+probe failed `TS5083: Cannot read file '...\.superpowers\tsconfig.base.json'`: the implementer measured exit 2 where the
+brief promised exit 0, refused to edit the recipe, and reported it instead.
+
+The instructive part is how it survived review. The controller had "validated" the recipe minutes earlier by
+running a hand-retyped copy of the command with `../../` already in it, so the run that returned exit 0 never
+executed the text in the plan. The validation and the artifact differed by one path segment, and only the
+artifact was wrong. This is A-11 and A-13 seen from the other side: not a check that cannot fail, but a check
+applied to something other than the thing under test. The recipe is now the exact text that was executed when
+verifying this correction, and it prints `TSC_NOEMIT_EXIT` and `TSC_SHOWCONFIG_EXIT` explicitly — without those the
+block's exit code is `Remove-Item`'s, and a failing typecheck inside it would look like a passing one.
+
+### A-18 — Task 4's ESLint configuration could not pass the gate it exists to protect — FAIL (corrected)
+
+`eslint.config.js` applies `js.configs.recommended` to every file ESLint lints, and ESLint lints `.js`, `.mjs` and
+`.cjs` by default, with no Node globals configured. Measured against that config as written:
+
+```
+.dependency-cruiser.cjs
+  2:1  error  'module' is not defined  no-undef
+
+zz-probe.mjs
+  1:1   error  'console' is not defined  no-undef
+  1:19  error  'process' is not defined  no-undef
+  1:37  error  'URL' is not defined      no-undef
+```
+
+`.dependency-cruiser.cjs` exists from Task 4 and `scripts/*.mjs` from Task 8, so `pnpm lint` — first run at Task 6 Step 8,
+then in every CI job — fails on files Task 4 itself created. Task 4 also never ran `pnpm lint` at all, so its own
+defect would have surfaced two tasks later and looked like a Task 6 defect. The config now grants
+`globals.node` to `**/*.js`, `**/*.mjs` and `**/*.cjs` (with the `require` rule off for `.cjs`), and Task 4 runs
+`pnpm lint` as part of its verification.
+
+Two smaller defects in the same task, the A-14 shape: `architecture-guard.test.ts` is created by Step 4 but
+missing from the Files list, and the commit's `git add` line did not stage the `package.json` / `pnpm-lock.yaml` change
+produced by the new devDependency.
+
+### A-19 — CI would have installed a different package manager than the repository declares — FAIL (corrected)
+
+Both jobs in `.github/workflows/ci.yml` pinned `pnpm/action-setup@v4` with `version: 10`, while `packageManager` in
+the root package.json is `pnpm@12.3.4` — the version that wrote a pnpm-12 lockfile, and the only version under
+which this repository's settings (`allowBuilds`, the camelCase keys in `pnpm-workspace.yaml`) have been exercised.
+The action's `version` input overrides `packageManager`, so CI would have installed pnpm 10 and run
+`--frozen-lockfile` against a lockfile produced by a later major. The input is now omitted — supported for
+pnpm 11+ — making `packageManager` the single source of truth.
+
+The step meant to catch this said "verify the workflow file is present and well-formed" and then checked only
+that the file contains `name: CI`, the A-11/A-13 shape once more. It is replaced by `scripts/check-ci.mjs`, which
+parses the YAML and asserts the job set, both matrices, and that every `pnpm/action-setup` step agrees with
+`packageManager`; it is wired into the `gate` script so it runs locally and in CI.
+
+### A-20 — Task 2's licence check depended on a git filter, and two of its steps had no verification — recorded
+
+The review of Task 2 (APPROVED, no Critical) found that Step 1's `git hash-object LICENSE` is not the "raw on-disk
+byte hash" the report called it: `git hash-object` applies the filters configured for the path, so once
+`.gitattributes` exists a CRLF file at path `LICENSE` normalises on the way in and hashes to the same
+`261eeb9e...` blob. The check was valid when it ran — Step 6 creates `.gitattributes` — but the post-commit
+re-check the report cited as proof cannot fail. Step 1 now measures the bytes directly (`bytes=11357 cr=0`) as
+the primary evidence. The reviewer also found that Step 4 (the attribution table) has no verification step at
+all, and that Step 5's disclaimer check tests for one phrase rather than the required wording, the NOTICE
+modification list and the revision string; both were checked by hand instead — 18 of 18 rows resolve against
+the clone. No permanent substitute exists, because the upstream clone is absent from CI, so this is recorded
+rather than gated.
+
 ### Consequence for the S0 sequence
 
-A-11, A-13 and A-15 are the same defect in three costumes: a verification step that cannot fail, or that fails
-for a reason it does not name. A green tick and a coincidental exit 1 are indistinguishable from a correct run
-when nobody reads the output. Three of the eight S0 tasks contained one. Every remaining task's verification is
-checked by running it against the installed toolchain, not by reading it.
+Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason
+it did not name: A-11, A-13, A-15. A-18 and A-19 are the same defect in a different position — a configuration
+that breaks a gate two tasks later, and a check that tests a file for a substring when the fact that mattered
+was which package manager it installs. A-17 is the sharpest: the controller's own validation, run against a
+retyped copy rather than the plan's text, produced a green result for a recipe that could not pass. A green
+tick, a coincidental exit 0, and a validation of the wrong artifact are indistinguishable from a correct run
+when nobody reads the output. Every remaining task's verification is now checked by executing the plan's own
+text.
