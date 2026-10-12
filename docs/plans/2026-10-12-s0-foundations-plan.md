@@ -754,9 +754,12 @@ Change the pattern to an unanchored one that requires the trailing slash:
         to: { dependencyTypes: ["npm"], pathNot: "node_modules/zod/" },
 ```
 
-**MEASURED**: dependency-cruiser 18.5.0 reports the zod store path as
-`node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts` (and the same value with a `../../` prefix in the JSON
-`resolved` field). `^node_modules/zod` matches neither. The unanchored form matches the store layout, a flat
+**MEASURED** on 2026-10-12, when the registry's `latest` was `zod@4.6.7`: dependency-cruiser 18.5.0 reports the zod
+store path as `node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts` (and the same value with a `../../` prefix in
+the JSON `resolved` field). **The version segment is a snapshot, not a fact to rely on**: zod 4.6.7 was published that
+afternoon, and the `pnpm install` S0 Task 6 ran hours later resolved `zod@4.6.6` from the same `"zod": "^4.0.0"`
+range, so read the resolved version from `pnpm-lock.yaml` rather than assuming this one. `^node_modules/zod` matches
+neither form. The unanchored form matches the store layout, a flat
 layout and the `../../`-prefixed form, and still cannot match a different package because the slash after `zod` is
 required (`.../node_modules/zodfoo/index.d.ts` does not match).
 
@@ -873,9 +876,10 @@ const config = loadCjs(join(repoRoot, ".dependency-cruiser.cjs")) as {
 };
 ```
 
-1. **the zod exception matches the pnpm store layout**: `new RegExp(rule.to.pathNot)` must match
+1. **the zod exception matches the pnpm store layout**: `new RegExp(rule.to.pathNot)` must match the string literals
 `node_modules/zod/index.d.ts`, `node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts` and
-`../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts`, and must not match
+`../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts`, and must not match (these are literals passing through
+the regex — the test never touches the store, so the version in them is illustrative, see the note in Task 4)
 `node_modules/.pnpm/typescript@6.0.3/node_modules/typescript/lib/typescript.d.ts` or
 `node_modules/.pnpm/zodfoo@1.0.0/node_modules/zodfoo/index.d.ts`.
 2. **the source-dependency rule cannot go blind**: some forbidden rule with `from.path === "^packages/[^/]+/src"` must
@@ -948,8 +952,10 @@ export default defineConfig({
 
 - [ ] **Step 2: Create packages/core/vitest.config.ts**
 
-Each package names its own project explicitly so that `--project core` resolves. Without a `name` a project is
-auto-named after the package, i.e. `@smolagents-ts/core`.
+Each package names its own project explicitly so that `--project core` resolves to a pinned name. **MEASURED**
+(Task 5's review): with no per-package manifest yet, a directory matched by the `projects` glob is auto-named after the
+**directory basename**, i.e. `core`, not after the package — so `--project core` would resolve even without this line.
+The explicit `name` is what keeps it stable once Task 6 adds each package's `package.json`.
 
 ```ts
 import { defineProject } from "vitest/config";
@@ -1047,7 +1053,8 @@ as a Task 6 defect. Type-check the configs directly — this needs no build outp
 
 Run: pnpm exec tsc --noEmit --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --types node vitest.config.ts packages/core/vitest.config.ts packages/core/tsup.config.ts
 Expected: **exit code 0**, no output. **MEASURED** in a clean clone at this task's state. Negative control: a config
-importing a name its module does not export fails with `error TS2305` and exit 1.
+importing a name its module does not export fails with `error TS2305` and **exit 2** (measured; the positive
+check above is unaffected).
 
 Run: pnpm lint
 Expected: **exit code 0**. The three new files are new lint inputs, and this is what proves the boundary rules
@@ -1078,9 +1085,11 @@ clean about it, while the rule itself is now genuinely exercised and passes. Tas
 which Step 3's pair goes green. What this command proves here is that the `projects` glob expanded, the `core`
 name resolved, and both test files were collected under it. **MEASURED** in the same clone with a `packages/core/src`
 holding real files (Task 6's state): `Test Files 2 passed (2)`, `Tests 3 passed (3)`, exit 0, 3 of 3 runs — 6 of 6
-once Task 4R's three lexical assertions are counted. The wrong
-reds look different: a malformed root config reports `failed to load config`, and `--project core` before this
-task's Step 2 reports `No projects matched the filter "core".` — both measured.
+once Task 4R's three lexical assertions are counted. The wrong red looks different: a malformed root config reports `failed to load config`. The `--project core`
+control originally written here was **not reproducible**, and was corrected after Task 5's review measured it: moving
+`packages/core/vitest.config.ts` out of the tree still leaves a project auto-named `core` (the directory basename), so
+`--project core` resolves and runs the suite instead of erroring. The negative control that does work is Step 5's
+`--project nope` below, confirmed verbatim.
 
 Run: pnpm exec vitest run --project nope
 Expected: exit code 1 with `No projects were found. Make sure your configuration is correct. The filter matched no projects: nope.` — **MEASURED** verbatim. This is the negative control: it shows the `--project` filter is really
@@ -1431,7 +1440,7 @@ worth packaging, so it can never be "temporarily" broken.
 - Create: scripts/runtime-smoke.mjs
 - Create: scripts/check-ci.mjs
 - Create: .github/workflows/ci.yml
-- Edit: package.json, pnpm-lock.yaml (adds the `yaml` devDependency and the `ci:check` script)
+- Edit: package.json, pnpm-lock.yaml (adds the `yaml` devDependency and the `ci:check` and `test:architecture` scripts)
 
 - [ ] **Step 1: Create scripts/pack-smoke.mjs**
 

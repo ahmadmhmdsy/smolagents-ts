@@ -1126,7 +1126,7 @@ function stringifyOutput(output: unknown): string {
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: pnpm vitest run packages/core/test/memory.test.ts
-Expected: PASS, 13 tests.
+Expected: PASS, 12 tests.
 
 Note: the invariants are enforced, not merely typed. `steps` returns a frozen copy and
 asserts the frozen state in Step 4, so mutating memory from outside the class is a runtime error rather
@@ -1843,7 +1843,7 @@ export function buildCodeAgentSystemPrompt(options: BuildCodeAgentSystemPromptOp
 - [ ] **Step 5: Run the test to verify it passes**
 
 Run: pnpm vitest run packages/core/test/system-prompt.test.ts
-Expected: PASS, 12 tests.
+Expected: PASS, 13 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -3168,7 +3168,7 @@ git commit -m "feat(core): add code block, thought and final-answer parsing"
 - Create: packages/core/src/agent/action.ts
 - Create: packages/core/src/middleware.ts
 - Test: packages/core/test/middleware.test.ts
-- Edit: docs/design/2026-10-12-smolagents-ts-v1-design.md (section 5.5(a), if it has not already been amended)
+- Edit: docs/design/2026-10-12-smolagents-ts-v1-design.md (section 5.5(a)’s prose and its missing S1.5 sentence — see Step 6)
 
 **Design note (a real decision, recorded here):** middleware wraps the **action execution** phase as an
 async-generator chain, not the whole step. That is what keeps it live — a middleware can observe or inject
@@ -3430,10 +3430,24 @@ Expected: PASS, 8 tests.
 
 - [ ] **Step 6: Confirm the design spec matches (amend it if it does not)**
 
-Section 5.5(a) of `docs/design/2026-10-12-smolagents-ts-v1-design.md` should already carry the generator
-`AgentMiddleware` signature and the sentence "Middleware wraps action execution; wrapping the model phase is an
-S1.5 extension." Verify it, and if it still shows the old `next: () => Promise<void>` form, replace it with the
-generator form shipped here.
+**MEASURED against the document as this plan was written**: section 5.5(a) of
+`docs/design/2026-10-12-smolagents-ts-v1-design.md` already carries the generator `AgentMiddleware` signature
+(`next: () => AsyncGenerator<void, void, void>`) and a `yield* next()` comment, but it is still wrong in two ways that
+a search for the literal string `next: () => Promise<void>` would never find — that string appears nowhere in the
+file. Fix both:
+
+1. Its prose says "Onion semantics (`await next()` around the step), like Koa", contradicting the generator signature
+   two lines above it. Replace that clause with the generator form (`yield* next()`).
+2. The narrowing sentence "Middleware wraps action execution; wrapping the model phase is an S1.5 extension." does not
+   appear anywhere in the file — add it to 5.5(a). This is the sentence that makes S1's definition-of-done item 9 true.
+
+Verify by measurement, not by impression:
+
+```powershell
+Select-String -Path docs/design/2026-10-12-smolagents-ts-v1-design.md -Pattern 'await next'   # must print nothing
+Select-String -Path docs/design/2026-10-12-smolagents-ts-v1-design.md -Pattern 'yield\* next'  # must match the prose
+Select-String -Path docs/design/2026-10-12-smolagents-ts-v1-design.md -Pattern 'wrapping the model phase'  # must match
+```
 
 ```bash
 git add docs/design/2026-10-12-smolagents-ts-v1-design.md

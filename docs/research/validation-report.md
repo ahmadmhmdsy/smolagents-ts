@@ -1309,6 +1309,8 @@ found`, exit 1 — so the S1 gate could not go green however good the code was. 
 already edits `package.json` and had not run) the script plus a step verifying `Test Files 2 passed (2)` /
 `Tests 6 passed (6)`. Found by cross-checking every `pnpm <word>` in both plans against the script list; the first
 pass under-counted because its regex dropped `pnpm vitest ...` lines, so the corrected pass is a superset.
+Task 8's Files line also still named only `ci:check`; it now names both scripts, so the file list can no longer send an
+implementer looking for a script the step does not mention.
 
 ### A-41 — the final export-list test fails as written — FAIL (plan defect, fixed before S1)
 
@@ -1338,6 +1340,79 @@ subpath entries are redundant under ESLint 10 (A-38 measured the same thing). M3
 content rather than dependency-cruiser's classification, and F7's stderr assertion is only exercised while
 `packages/core/src` is missing, so after Task 6 both become dormant rather than wrong. Recorded, not fixed: none of
 the three can make a wrong result pass.
+
+### A-44 — S1 Task 8's stated test count is one too low — FAIL (plan defect, fixed before S1)
+
+Task 8's final step runs `pnpm vitest run packages/core/test/system-prompt.test.ts` and expects `PASS, 12 tests.`, but
+the test file the same task writes verbatim contains **13** `it` calls — 6 under `describe("CODE_AGENT_SYSTEM_TEMPLATE")`
+and 7 under `describe("buildCodeAgentSystemPrompt")` — with no `.each`, no `.skip`/`.todo`, and no second appended block
+anywhere in the section. Measured by counting `it(` across the whole Task 8 section (13 hits, all inside the one fenced
+block) and by reading that block in full. The number is load-bearing twice over: S1's definition of done item 1 requires
+every task's stated count to match the actual count, so the full gate cannot pass while it is wrong; and the cheapest way
+for an implementer to make 13 tests report as 12 is to delete one — and the two fidelity tests that carry upstream's six
+examples and eleven numbered rules are exactly the ones that would be sacrificed. Fixed to `13 tests.` in the plan and in
+`s1-task-8-brief.md` before Task 8 runs.
+
+### A-45 — S1 Task 5's stated test count is one too high — FAIL (plan defect, fixed before S1)
+
+The same audit found the mirror image one task later in the sequence: Task 5 expects `PASS, 13 tests.` for
+`packages/core/test/memory.test.ts`, whose block contains exactly **12** `it` calls — 6 under `describe("AgentMemory")`,
+3 under `toMessages` and 3 under `toChatMessages` — again with no `.each` and no append step. (`for` loops do appear at
+lines 1068 and 1105, but those are in `src/memory/memory.ts`, not in the test file.) Fixed to `12 tests.` in the plan and
+in `s1-task-5-brief.md`.
+
+Both came from the same sweep, and three of its other hits were false positives that direct reading overturned: the `13`
+for `types.test.ts` is a combined run of that file's 3 tests plus `errors.test.ts`'s 10; Task 7's `12` is its 10 plus the
+2 tests Step 5 explicitly appends; and Task 19's `52` is the `for (const name of RUNTIME_EXPORTS)` loop over 50 exports
+plus 2 explicit tests. The sweep's first version compared with `>=`, which by construction cannot see an over-claim like
+A-45 — a loose comparison inside the checker is itself an unfalsifiable verification (A-17, A-42).
+
+### A-46 — the plan's vitest auto-naming claim and its `--project core` control are not reproducible — LOW (plan and brief corrected)
+
+Task 5's `packages/core/vitest.config.ts` step justified `name: "core"` with the claim that without a `name` a project is
+"auto-named after the package, i.e. `@smolagents-ts/core`", and Task 5's Step 5 listed `--project core` before Step 2 as
+a negative control expecting `No projects matched the filter "core".` The plan tagged both as measured. Task 5's review
+measured otherwise: with `packages/core/vitest.config.ts` moved out of the tree, the `projects: ["packages/*"]` glob
+still yields a project auto-named after the **directory basename** — `core` — so `--project core` resolves and runs the
+suite, while `--project "@smolagents-ts/core"` is the filter that errors. Impact on the shipped config: none; the
+file's load-bearing content is `fileParallelism: false` (review control 2, which reproduced the probe race 3 of 3 when
+the line was removed), and the explicit `name` still pins the name once Task 6 adds each package's manifest. The false
+claim and its "both measured" tag were corrected in the plan and `task-5-brief.md`. The note about `--project core` in
+the earlier task that precedes the root config was left alone: it describes the no-config state, which the review did
+not measure.
+
+### A-47 — `tsc` reports TS2305 with exit 2, not exit 1 — INFORMATIONAL (plan and brief corrected)
+
+The same step's negative control for the three-config `tsc --noEmit` check said an unexported import "fails with
+`error TS2305` and exit 1". The review measured `error TS2305: Module '"vitest/config"' has no exported member
+'thisNameDoesNotExist'` with **exit 2**. The positive assertion (exit 0, no output) is unaffected; the claim and the same
+sentence in `task-5-brief.md` were corrected.
+
+### A-48 — S1 Task 14's design-spec check could pass while the spec stayed wrong — FAIL (plan defect, fixed before S1)
+
+Step 6 told the implementer that section 5.5(a) "should already carry" the generator middleware signature and the
+sentence "Middleware wraps action execution; wrapping the model phase is an S1.5 extension.", and to replace the "old
+`next: () => Promise<void>` form" if it was still present. Measured against the document itself: 5.5(a) does carry the
+generator type (`next: () => AsyncGenerator<void, void, void>`) and a `yield* next()` comment, but **no occurrence of
+`next: () => Promise<void>` exists anywhere in the file**, while the prose still reads "Onion semantics (`await next()`)
+around the step), like Koa" (line 322) and the required S1.5 sentence appears nowhere. An implementer following the step
+literally would search for a string that is not there, conclude the section was already amended, and leave both the
+contradiction and the missing sentence — so S1's definition-of-done item 9 would be reported satisfied by a check that
+never examined what it names. This is the A-11/A-17 family again: a verification that cannot fail for the reason it
+states. Step 6 now names the two concrete defects, gives the three `Select-String` commands whose output must come back
+empty/`yield* next`/matching, and the Files line no longer hedges with "if it has not already been amended". Corrected in
+the plan and `s1-task-14-brief.md`.
+
+### A-49 — the plan's store paths embed a package version that the install does not keep — INFORMATIONAL (annotated)
+
+The plan states as MEASURED that dependency-cruiser reports the zod store path as
+`node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts`. **MEASURED now**: the registry's `latest` is still 4.6.7, but
+the lockfile S0 Task 6 committed resolves **`zod@4.6.6`** from the same `"zod": "^4.0.0"` range, because 4.6.7 was
+published 2026-10-12 16:29 (about eight hours before the install) and pnpm resolved from its local metadata cache.
+No test is broken: the only load-bearing occurrences are string literals that the lexical architecture test feeds to a
+regex, so they never touch the real store; and `preferFrozenLockfile: true` plus the committed lockfile is what makes
+the build reproducible. The plan now says the version segment is a snapshot to read from `pnpm-lock.yaml` rather than a
+fact to assert, so a future reader cannot “correct” the test literal to match whatever is current.
 
 ### Consequence for the S0 sequence
 
