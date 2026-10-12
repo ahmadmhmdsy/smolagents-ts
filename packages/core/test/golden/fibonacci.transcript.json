@@ -1,0 +1,41 @@
+{
+  "name": "fibonacci",
+  "description": "Two-step run: compute the tenth Fibonacci number, then report it through final_answer.",
+  "task": "What is the 10th Fibonacci number, counting 0 as the 0th?",
+  "turns": [
+    {
+      "thought": "I will build the sequence in a loop and print the tenth element.",
+      "code": "const fib = [0, 1];\nfor (let i = 2; i < 10; i += 1) {\n  fib.push(fib[i - 1] + fib[i - 2]);\n}\nconsole.log(fib[9]);"
+    },
+    {
+      "thought": "The loop printed 34, so that is the answer.",
+      "code": "final_answer(34)"
+    }
+  ],
+  "logs": {
+    "0": "34"
+  },
+  "finalAnswer": 34,
+  "expected": {
+    "output": 34,
+    "state": "success",
+    "actionSteps": 2,
+    "eventTypes": [
+      "run.started",
+      "step.started",
+      "message.delta",
+      "usage.updated",
+      "message.completed",
+      "code.completed",
+      "logs.appended",
+      "observation.completed",
+      "step.started",
+      "message.delta",
+      "usage.updated",
+      "message.completed",
+      "code.completed",
+      "observation.completed",
+      "run.completed"
+    ]
+  }
+}
