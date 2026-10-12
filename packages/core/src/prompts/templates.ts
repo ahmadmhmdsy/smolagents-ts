@@ -11,9 +11,12 @@ export const CODE_FENCE = "```";
  * - {{language}} replaces the hard-coded "Python".
  * - {{toolDescriptions}} replaces the {% for tool in tools.values() %} loop.
  * - No managed-agents section: S1 has no managed agents (deferred to S2).
- * - No {{ placeholders in prose: the renderer substitutes only declared
- *   variables and passes the rest through, so an undeclared one would survive
- *   into the prompt and fail the drift test.
+ * - Example 3 drops upstream's two-line "additional arguments" disclosure and its literal dict. Upstream
+ *   passes those arguments as Python variables through a feature this port does not implement, so the
+ *   prompt does not advertise it. Declared deviation, recorded in the S1 plan.
+ * - No {{ placeholders in prose. The renderer substitutes declared identifiers and leaves non-identifier
+ *   braces alone, but an undeclared *identifier* throws TemplateError, so a stray one fails at render
+ *   rather than surviving into the prompt.
  */
 export const CODE_AGENT_SYSTEM_TEMPLATE = `You are an expert assistant who can solve any task by writing {{language}} code. You will be given a task to solve as best you can.
 To do so, you have been given access to a list of tools: these tools are functions which you can call with code.

@@ -1870,6 +1870,18 @@ git commit -m "feat(core): port the code agent prompt to the JavaScript dialect"
 
 ---
 
+> **Post-review note (controller, after the Task 8 review).** The review confirmed the fidelity crux: all six worked
+> examples and all eleven numbered rules are present, five rules verbatim and six adapted for the JavaScript dialect,
+> and it settled the pin question - `src/smolagents/prompts.py` does not exist at the pin, while the pin's
+> `code_agent.yaml` is byte-identical to the clone's, so no difference is attributable to the pin. Three corrections:
+> (1) the block's comment claimed an undeclared `{{identifier}}` "passes through"; it throws `TemplateError`, and the
+> comment now says so; (2) example 3 drops upstream's two-line "additional arguments" disclosure and its literal dict -
+> the brief justified that with a claim about upstream's variables that the review measured as false for the pin, and the
+> real reason is that this port has no additional-args injection, which the comment and plan now state as a declared
+> deviation; (3) LOW-2/LOW-3 remain open and declared: example 3 adds an Observation and a sentence not in upstream, and
+> example 4 compresses one paragraph and drops a fragment. Neither affects a rule, and both are carried to the
+> whole-branch review rather than churned here, so the illustrative examples may differ in wording while every binding
+> rule matches.
 ## Task 9: The Model interface
 
 **Files:**
