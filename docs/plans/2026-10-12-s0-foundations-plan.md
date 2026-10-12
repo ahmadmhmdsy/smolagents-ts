@@ -1020,6 +1020,17 @@ exist?`, 3 of 3 runs, leaving no directory behind. Task 4R then added three lexi
 `architecture.test.ts`; they read the config and need no `src/` directory, so this task's totals become 6
 collected tests: 4 pass (those three plus the guard probe) and 2 fail.
 
+**Amended in round 24, after the S0 Task 8 review (BLOCKER F1).** Those three assertions each shell out to
+`pnpm exec depcruise`, so their duration is a property of the machine rather than of the code: measured 4.2-4.4 s
+per assertion idle and 5.6-22.2 s under load, with the 5000 ms default once observed at 4920 ms - an 80 ms margin.
+The default bound therefore made `pnpm test:architecture`, and the `gate` stage that runs it, pass or fail by
+timing: the review saw `pnpm gate` exit 1 with three `Test timed out in 5000ms` failures on one run and exit 0 on
+the next, with the deciding assertion at 4963/5000 ms. Both files now declare `const DEPCRUISE_TIMEOUT_MS = 120_000`
+and pass it as the third argument of those three `it()` calls; every other test keeps the default, so a genuinely
+hung test still fails fast. Verified by setting the constant to 1: exactly those three assertions fail with
+`Test timed out in 1ms` while the three lexical config assertions still pass, so the bound is wired to the
+subprocess tests and to nothing else. The code blocks above are the pre-amendment shape and are superseded here.
+
 - [ ] **Step 4: Create packages/core/tsup.config.ts**
 
 ```ts

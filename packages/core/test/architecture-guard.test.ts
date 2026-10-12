@@ -15,6 +15,13 @@ function depcruise(target: string): { summary: { violations: { rule: { name: str
   return JSON.parse(output);
 }
 
+// Each assertion here shells out to `pnpm exec depcruise`, which starts a Node process and walks the
+// package. Measured in this repo: 4.2-4.4 s per assertion idle and 5.6-22.2 s under load (the pnpm
+// shim alone costs 1.8-2.5 s). Vitest's 5000 ms default is therefore a coin flip, not a budget. These
+// assertions set their own generous bound; every other test keeps the default, so a genuinely hung
+// test still fails fast.
+const DEPCRUISE_TIMEOUT_MS = 120_000;
+
 describe("the boundary guard is real", () => {
   it("flags a node: import inside core/src", () => {
     const probe = join(repoRoot, "packages/core/src/__probe.ts");
@@ -30,9 +37,9 @@ describe("the boundary guard is real", () => {
       rmSync(probe, { force: true });
       if (createdDir) rmSync(srcDir, { recursive: true, force: true });
     }
-  });
+  }, DEPCRUISE_TIMEOUT_MS);
 
   it("passes again once the probe is removed", () => {
     expect(depcruise("packages/core/src").summary.violations).toEqual([]);
-  });
+  }, DEPCRUISE_TIMEOUT_MS);
 });

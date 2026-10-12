@@ -17,6 +17,13 @@ const config = loadCjs(join(repoRoot, ".dependency-cruiser.cjs")) as {
   options: { exclude: { path: string } };
 };
 
+// Each assertion here shells out to `pnpm exec depcruise`, which starts a Node process and walks the
+// package. Measured in this repo: 4.2-4.4 s per assertion idle and 5.6-22.2 s under load (the pnpm
+// shim alone costs 1.8-2.5 s). Vitest's 5000 ms default is therefore a coin flip, not a budget. These
+// assertions set their own generous bound; every other test keeps the default, so a genuinely hung
+// test still fails fast.
+const DEPCRUISE_TIMEOUT_MS = 120_000;
+
 describe("architecture boundaries", () => {
   it("dependency-cruiser reports no violations", () => {
     let output: string;
@@ -33,7 +40,7 @@ describe("architecture boundaries", () => {
     }
     const report = JSON.parse(output) as { summary: { violations: unknown[] } };
     expect(report.summary.violations).toEqual([]);
-  });
+  }, DEPCRUISE_TIMEOUT_MS);
 
   it("core-no-extra-runtime-deps exempts zod however pnpm resolves it", () => {
     const rule = config.forbidden.find((candidate) => candidate.name === "core-no-extra-runtime-deps");
