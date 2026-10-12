@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vitest/
+.DS_Store
+*.log
+# reference-only clones; never committed, never built
+smolagents/
+reference/
