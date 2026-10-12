@@ -1280,7 +1280,28 @@ post-Task-6 manifest shape that same import reports the new rule and exits 1, wh
 (`npm`), peers and optionals stay allowed. Task 4R also adds the lexical regression asserting that a rule whose
 `from` is `^packages/[^/]+/src` covers `npm-no-pkg`, so a later simplification cannot quietly reintroduce it.
 This is A-27/A-28's sibling: a guard that reads green because it cannot fire.
+### A-38 — a brief asserted a false reason for keeping subpath entries — FAIL (corrected by the implementer)
+
+Task 4R's Step 5 claimed that `no-restricted-imports` group entries match whole module names, so `timers` would
+not cover `timers/promises` and the subpath needed its own entry. The implementer measured the opposite —
+dropping `timers/promises` left both messages unchanged — and this report confirms the mechanism: ESLint 10's
+`no-restricted-imports.js` builds its matcher with the `ignore` package (`matcher: ignore({`, line 334 of
+`eslint@10.12.0`), whose parent-directory semantics make a bare name cover its subpaths. The entries are kept for
+explicitness with a neutralised comment; the plan's rationale is corrected. Held as a FAIL because a brief may not
+state a false cause even when the resulting artifact is right.
+
+### A-39 — a vitest positional argument is a filter, not an include — FAIL (verification trap, corrected)
+
+`pnpm exec vitest run packages/core/test` was expected to collect two files. It collects three: the gitignored
+scratch clone `.superpowers/tmp-dry` mirrors `packages/core`, and the positional argument filters paths rather
+than restricting the include set, so the clone's copy ran too — and passed, because that tree has a
+`packages/core/src`. **MEASURED** without an exclude: `Test Files 3 failed | 2 passed (5)`, `Tests 4 failed |
+6 passed (10)`; with `--exclude "**/tmp-dry/**"`: `Test Files 2 failed (2)`, `Tests 3 failed | 3 passed (6)`.
+The same trap inflates `pnpm test`'s no-config baseline to 1219 files. Task 5's `projects: ["packages/*"]` is
+immune because it resolves against the config's own directory, which is one more reason that line is load-bearing.
+
 ### Consequence for the S0 sequence
+
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason
 it did not name: A-11, A-13, A-15. A-18 and A-19 are the same defect in a different position — a configuration

@@ -751,7 +751,7 @@ Change the pattern to an unanchored one that requires the trailing slash:
         to: { dependencyTypes: ["npm"], pathNot: "node_modules/zod/" },
 ```
 
-**MEASURED**: dependency-cruiser 18.5.1 reports the zod store path as
+**MEASURED**: dependency-cruiser 18.5.0 reports the zod store path as
 `node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts` (and the same value with a `../../` prefix in the JSON
 `resolved` field). `^node_modules/zod` matches neither. The unanchored form matches the store layout, a flat
 layout and the `../../`-prefixed form, and still cannot match a different package because the slash after `zod` is
@@ -828,8 +828,11 @@ Add the modules the review named and their close neighbours to `FORBIDDEN_CORE_M
 `cluster`, `readline`, `readline/promises`, `repl`, `string_decoder`, `perf_hooks`, `async_hooks`,
 `inspector`, `v8`, `domain`, `punycode`, `querystring`, `trace_events`, `tty`,
 `diagnostics_channel`, `sea`, `sqlite`, `test`, `constants`, `sys`.
-Subpath specifiers need their own entry, because a `no-restricted-imports` group entry matches whole module
-names: `timers` does not cover `timers/promises`, which only dependency-cruiser caught before this step.
+The subpath entries are redundant under ESLint 10 and are kept only for explicitness: `no-restricted-imports`
+matches group entries with the `ignore` package (rule source line 334), whose parent-directory semantics make a bare
+`timers` cover `timers/promises`. **MEASURED** by Task 4R's implementer: removing `timers/promises` leaves both
+messages unchanged, so this list is about not depending on that behaviour, not about coverage. What the step must
+prove is that the *core scope* catches a bare builtin at all: before it, only dependency-cruiser did.
 Verify with a core/src probe importing bare `timers/promises` and `assert` plus a legitimate import that must
 stay clean, then delete the probe.
 
@@ -882,7 +885,9 @@ have failed before it.
 - [ ] **Step 8: Prove each new assertion can fail, then commit**
 
 For each of the three tests above, temporarily undo its Step 1, 2 or 3 fix and confirm exactly that test fails
-(`pnpm vitest run --project core -t "<test name>"`), then restore it. Then:
+(`pnpm exec vitest run packages/core/test/architecture.test.ts -t "<test name>"` — **not** `--project core`,
+which cannot resolve until Task 5's root `vitest.config.ts` exists; **MEASURED** at this state it fails with `No
+projects matched the filter "core".`), then restore it. Then:
 
 Run: `pnpm lint`
 Expected: exit 0.
@@ -890,11 +895,22 @@ Expected: exit 0.
 Run: `pnpm exec depcruise packages --config .dependency-cruiser.cjs`
 Expected: `✔ no dependency violations found`, exit 0.
 
-Run: `pnpm test`
-Expected: unchanged failures and no new ones. `packages/core/src` still does not exist, so the tree test fails with the
-same cause as before — `Can't open 'packages/core/src'` — now with that text visible in the thrown message, and
-`architecture.test.ts` goes from 1 test (1 failed) to 4 tests (3 passed, 1 failed). `architecture-guard.test.ts` still
-fails on F3 and F4, which Task 5 fixes.
+Run: pnpm exec vitest run packages/core/test --exclude "**/tmp-dry/**"
+Expected: `Test Files 2 failed (2)` and `Tests 3 failed | 3 passed (6)` — the three passing are this task's lexical
+assertions, which need no `src/`; the three failing are the dependency-cruiser tree test (`packages/core/src` does not
+exist yet) and the guard pair (F3/F4, Task 5). The failure text must now name `Can't open 'packages/core/src'`,
+which it did not before Step 6. The `--exclude` is not decoration: the positional argument is a **path filter**, not
+an include, so it also matches the gitignored scratch clone's mirror of this directory — **MEASURED** without it,
+`Test Files 3 failed | 2 passed (5)` / `Tests 4 failed | 6 passed (10)`, because `.superpowers/tmp-dry` has its own
+`packages/core/src` and so its copy of the tree test passes.
+
+Run: pnpm test
+Expected: this bare script has **no** root config until Task 5 and therefore default-collects the gitignored
+`reference/` clone and `.superpowers/`: **MEASURED** baseline at this state `Test Files 1123 failed | 96 passed
+(1219)` and `Tests 77 failed | 612 passed | 8 skipped (697)`. After the fix expect the same 1219 files with this
+task's three added tests passing, i.e. `Tests 77 failed | 615 passed | 8 skipped (700)`. That 1123 is not this
+task's failure set; the focused run above is its gate, and Task 5's root config is what turns `pnpm test` into a
+packages-only gate.
 
 ```bash
 git add .dependency-cruiser.cjs eslint.config.js packages/core/test/architecture.test.ts
@@ -912,7 +928,10 @@ git commit -m "fix(architecture): keep the zod exception and the source-dependen
 
 - [ ] **Step 1: Create vitest.config.ts**
 
-Vitest 4 removed `defineWorkspace`; the modern equivalent is the `projects` array on one root config.
+Vitest 4 removed `defineWorkspace`; the modern equivalent is the `projects` array on one root config. This
+one line is load-bearing: with no root config `pnpm test` default-collects every test file in the working tree.
+**MEASURED** at Task 4R's state: `Test Files 1123 failed | 96 passed (1219)` and `Tests 77 failed | 612 passed |
+8 skipped (697)`, because vitest's default `include` reaches the gitignored `reference/` clone and `.superpowers/`.
 
 ```ts
 import { defineConfig } from "vitest/config";
@@ -985,10 +1004,12 @@ import { dirname, join } from "node:path";
 
 `execFileSync`, `fileURLToPath`, `describe`, `expect` and `it` keep the imports they already have; only the two
 lines above change. With `fileParallelism: false` from Step 2 and this fixture the pair is order-independent.
-**MEASURED**: with `packages/core/src` present (Task 6's state) 3 of 3 tests pass, 3 of 3 runs; with it absent
-(this task's state) exactly one test passes — `flags a node: import inside core/src` — and both
-"directory is clean" assertions fail with `ERROR: Can't open 'packages/core/src' for reading. Does it exist?`,
-3 of 3 runs, leaving no directory behind.
+**MEASURED** in the pre-Task-4R clone: with `packages/core/src` present (Task 6's state) 3 of 3 tests pass, 3 of 3
+runs; with it absent (this task's state) exactly one test passes — `flags a node: import inside core/src` — and
+both "directory is clean" assertions fail with `ERROR: Can't open 'packages/core/src' for reading. Does it
+exist?`, 3 of 3 runs, leaving no directory behind. Task 4R then added three lexical assertions to
+`architecture.test.ts`; they read the config and need no `src/` directory, so this task's totals become 6
+collected tests: 4 pass (those three plus the guard probe) and 2 fail.
 
 - [ ] **Step 4: Create packages/core/tsup.config.ts**
 
@@ -1029,19 +1050,32 @@ Run: pnpm lint
 Expected: **exit code 0**. The three new files are new lint inputs, and this is what proves the boundary rules
 and the Node-globals block do not reject them. **MEASURED**: `eslint .` with all three present, exit 0, no output.
 
+Run: pnpm test
+Expected: **exit code 1** with the same `Test Files 2 failed (2)` and `Tests 2 failed | 4 passed (6)` as the
+`--project core` run below — and **not** the `Test Files 1123 failed | 96 passed (1219)` baseline from a tree
+without this config. That contrast is what proves the `projects` array restricts collection to the packages instead
+of letting the gitignored `reference/` clone into the gate. If `reference/` appears in the output, stop and report.
+This is also why `projects: ["packages/*"]` is immune to the other scratch tree: it resolves against this config's
+directory, so `.superpowers/tmp-dry`'s mirror of `packages/core` is never collected — unlike a path filter, which
+matches it (**MEASURED**: a filtered run there reads 5 files / 10 tests).
+
 Then prove the `projects` glob and the project name resolve, which is what Task 6 relies on:
 
 Run: pnpm exec vitest run --project core
-Expected: **exit code 1**, with `Test Files 2 failed (2)` and `Tests 2 failed | 1 passed (3)`, every test name
-prefixed `|core|`, exactly one test passing — `flags a node: import inside core/src` from Step 3 — and both
-failures being the "directory is clean" assertions with `ERROR: Can't open 'packages/core/src' for reading. Does it exist?`,
-**MEASURED** 3 of 3 runs at this task's state.
+Expected: **exit code 1**, with `Test Files 2 failed (2)` and `Tests 2 failed | 4 passed (6)`, every test name
+prefixed `|core|`. The four passing are Task 4R's three lexical config assertions plus `flags a node: import
+inside core/src` from Step 3; the two failing are the "directory is clean" assertions, both with
+`ERROR: Can't open 'packages/core/src' for reading. Does it exist?`. The `2 failed | 1 passed (3)` this task was
+first briefed with is **MEASURED** in the pre-Task-4R clone; Task 4R adds exactly three tests that need no `src/`,
+so `4 passed | 2 failed (6)` is the derived expectation. If your run disagrees, stop and report instead of
+editing this line.
 
 That red is the correct red and not a defect: `packages/core/src` does not exist yet, so nothing can be found
 clean about it, while the rule itself is now genuinely exercised and passes. Task 6 creates the directory, after
 which Step 3's pair goes green. What this command proves here is that the `projects` glob expanded, the `core`
 name resolved, and both test files were collected under it. **MEASURED** in the same clone with a `packages/core/src`
-holding real files (Task 6's state): `Test Files 2 passed (2)`, `Tests 3 passed (3)`, exit 0, 3 of 3 runs. The wrong
+holding real files (Task 6's state): `Test Files 2 passed (2)`, `Tests 3 passed (3)`, exit 0, 3 of 3 runs — 6 of 6
+once Task 4R's three lexical assertions are counted. The wrong
 reds look different: a malformed root config reports `failed to load config`, and `--project core` before this
 task's Step 2 reports `No projects matched the filter "core".` — both measured.
 
@@ -1151,7 +1185,9 @@ export { VERSION } from "./version.js";
 - [ ] **Step 6: Run the tests**
 
 Run: pnpm vitest run --project core
-Expected: **MEASURED** `Test Files 3 passed (3)` and `Tests 4 passed (4)` — smoke 1, architecture 1, guard 2. If
+Expected: `Test Files 3 passed (3)` and `Tests 7 passed (7)` — smoke 1, architecture 4 (one dependency-cruiser
+boundary assertion plus Task 4R's three config assertions), guard 2. The pre-Task-4R clone measured
+`Tests 4 passed (4)` with the same file count. If
 the architecture test fails, its output names the offending import: fix the import, do not relax the rule.
 
 - [ ] **Step 7: Create the other four packages from the same template**
@@ -1245,8 +1281,9 @@ the all-in-one quickjs-emscripten package (roughly 7.5-9 MB installed); the core
 about 1.1-1.3 MB.
 
 Run: pnpm test
-Expected: **MEASURED** `Test Files 7 passed (7)` and `Tests 8 passed (8)`, 0 failures — five smoke tests plus the
-three core architecture tests (one boundary, two guard).
+Expected: `Test Files 7 passed (7)` and `Tests 11 passed (11)`, 0 failures — five smoke tests plus six core
+architecture tests (Task 4R's three config assertions, one dependency-cruiser boundary assertion, two guard).
+The pre-Task-4R clone measured `Tests 8 passed (8)` with the same file count.
 
 - [ ] **Step 9: Verify every gate passes**
 
@@ -1267,7 +1304,35 @@ Expected: exit 0.
 Run: pnpm depcruise
 Expected: prints "no dependency violations found (N modules, M dependencies cruised)".
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Prove the zod exception and the source-dependency rule against the real store**
+
+Task 4R had to prove both rules lexically, because zod is not installed there; here they meet the real pnpm
+store. Write `packages/core/src/__probe_zod.ts`:
+
+```ts
+import { z } from "zod";
+export const probe = z;
+```
+
+Run: `pnpm exec depcruise packages/core/src --config .dependency-cruiser.cjs --output-type json`
+Expected: `"violations": []` — the declared zod dependency satisfies both the allow-list and the
+source-dependency rule.
+
+Then prove the allow-list is narrow rather than dead. Temporarily add `"typescript": "^6.0.3"` to
+`packages/core/package.json`'s `dependencies` and replace the probe's body with
+`import ts from "typescript"; export const probe = ts;`.
+
+Run: the same command.
+Expected: exactly one `core-no-extra-runtime-deps` violation naming the typescript store path. No install
+is needed: dependency-cruiser classifies a dependency against the importing module's nearest manifest, and the
+store already holds typescript, so the declaration alone changes its type to `npm`. That mechanism was
+**MEASURED** in Task 4R's pre-flight (`vitest` went `npm-dev` -> `npm-no-pkg` -> `npm-dev` as the nearest
+manifest changed); this step is where the zod case itself is measured.
+
+Now revert `packages/core/package.json`, delete `__probe_zod.ts` (and any other probe you created under
+`src`), and re-run the command to confirm zero violations. `packages/core/src` itself stays — Step 5 created it.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add tsconfig.base.json packages pnpm-lock.yaml
