@@ -1128,13 +1128,28 @@ try {
 }
 ```
 
-- [ ] **Step 2: Run the pack smoke test**
+- [ ] **Step 2: Prove the gate can fail, then run it**
 
+The negative control comes first, because a gate that cannot fail is not a gate. Running it "before pnpm build"
+is no longer possible by Task 8 — Task 6 Step 8 already built all five packages — so move one package's output
+aside instead, and require the literal message:
+
+Run: Move-Item packages/core/dist .superpowers/hidden-core-dist
+Run: node scripts/pack-smoke.mjs
+Expected: FAIL, non-zero exit, with a message naming the core package — either `no tarball for core` (if
+`pnpm pack` refuses an empty `files` list) or a module-resolution error out of the consumer's
+`check.mjs` (if it packs anyway). Record which one it was, verbatim: that tells you where the gate caught it.
+
+Run: Move-Item .superpowers/hidden-core-dist packages/core/dist
 Run: pnpm build && node scripts/pack-smoke.mjs
 Expected: prints "pack-smoke OK: 5 packages installed and imported from tarballs".
 
-Run it once before pnpm build to confirm it fails honestly (not silently):
-Expected: FAIL with "no tarball for core" or an install error. A gate that cannot fail is not a gate.
+The hidden copy goes to `.superpowers/`, which is gitignored, so a forgotten restore cannot be committed. The
+rest of this mechanism has been pre-validated against a real private scoped package: `pnpm pack` exits 0 and
+names the tarball `smolagents-ts-core-0.0.0.tgz`; `npm install <tgz>` installs the tarball plus `zod` from the
+registry (`added 2 packages`), after which `import { VERSION } from '@smolagents-ts/core'` resolves;
+`publint --strict` reports `All good!`; and `attw --pack --profile esm-only` exits 0 with
+`node16 (from ESM)` and `bundler` both green.
 
 - [ ] **Step 3: Create scripts/runtime-smoke.mjs**
 

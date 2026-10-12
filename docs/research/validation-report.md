@@ -1030,6 +1030,62 @@ This plan tells every later task to build throwaway probe trees under `.superpow
 now in the config's `ignores`. Without it Task 8's gate could fail on scratch files that merely happened to
 exist — a red that says nothing about the code.
 
+### A-25 — the controller committed another agent's staged work under its own message — FAIL (controller, accepted)
+
+While the Task 4 implementer was applying the A-24 fix, the controller patched the plan and committed the
+documentation with `git add docs/... && git commit`. By then the implementer had already run
+`git add eslint.config.js packages/core/test/architecture.test.ts packages/core/test/architecture-guard.test.ts` and was about
+to commit. `git commit` commits the whole index, so the three code files rode into the controller's commit:
+
+```
+a0c0ee3 docs: record A-21 to A-24, the weak and impossible verification steps
+ docs/research/validation-report.md            | 122 ++++++++++++++-
+ eslint.config.js                              |   5 +-
+ packages/core/test/architecture-guard.test.ts |   3 +-
+ packages/core/test/architecture.test.ts       |   2 +-
+ 4 files changed, 124 insertions(+), 8 deletions(-)
+```
+
+The implementer detected the collision, refused to create an empty or placeholder commit to satisfy the
+instruction, and asked for a decision instead of rewriting history. Both refusals were correct; the defect is the
+controller's, and the shape was already visible in A-17 — two writers in one working tree, each assuming it owned
+the commit.
+
+Nothing is lost in content. Re-measured independently at `a0c0ee3`: `pnpm lint` exits 0 with no output, the
+architecture test still fails for the genuine reason (`Caused by: ... Can't open 'packages/core/src' for reading`),
+and `packages/core/src` is still absent. The blemish is that a documentation message covers three code files and
+Task 4's fix therefore has no commit of its own.
+
+Decision: accepted as written. The alternative, `--amend`, is a history rewrite, which this project forbids;
+a revert-and-recommit or an empty placeholder would add a misleading commit to fix a label. The blemish is carried
+into the final whole-branch review. The rule for the rest of S0 and S1: the controller does not commit while an
+implementer or reviewer is working in the same tree, and when it does commit it names paths explicitly
+(`git commit -- <paths>`) so a concurrent `git add` cannot ride along.
+
+### A-26 — Task 8's negative control could not run where the plan put it — FAIL (corrected)
+
+Task 8 Step 2 said to run `node scripts/pack-smoke.mjs` "once before `pnpm build`" to confirm the gate fails
+honestly. That state no longer exists by Task 8: Task 6 Step 8 runs `pnpm build`, so all five `dist/` trees are
+present and the script would simply pass. The control could not be executed where it was written.
+
+It now moves one package's build output aside — `Move-Item packages/core/dist .superpowers/hidden-core-dist` —
+requires the literal failure message (either `no tarball for core`, if `pnpm pack` refuses an empty
+`files` list, or a module-resolution error from the consumer if it packs anyway), then restores it and rebuilds.
+The hidden copy is under `.superpowers/`, which is gitignored, so a forgotten restore cannot be committed.
+
+The rest of Task 8's mechanism was pre-validated against a real private scoped package instead of assumed:
+
+- `npm ping` → `PONG 456ms`, so the consumer install has registry access here.
+- `pnpm pack --pack-destination <dir>` on `@smolagents-ts/core` with `private: true` → exit 0, tarball
+  `smolagents-ts-core-0.0.0.tgz`, contents `dist/index.d.ts`, `dist/index.js`, `package.json`. The brief's
+  `f.includes("smolagents-ts-" + name + "-")` matcher is correct.
+- `npm install <tgz>` → `added 2 packages in 4s` (the tarball plus `zod` from the registry), and the
+  consumer's `import { VERSION } from '@smolagents-ts/core'` resolved.
+- `pnpm exec publint --strict` on that shape → `All good!`, exit 0.
+- `pnpm exec attw --pack --profile esm-only` → exit 0, `node16 (from ESM) 🟢 (ESM)` and `bundler 🟢`, with
+  `node10` and `node16-cjs` ignored by the profile as intended.
+
+So the two gate stages that had never faced this package shape are known to pass before Task 6 creates it.
 ### Consequence for the S0 sequence
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason
