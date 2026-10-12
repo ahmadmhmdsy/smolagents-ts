@@ -61,7 +61,12 @@ export class ToolRegistry {
         const property = properties[name] ?? {};
         const type = describeType(property);
         const suffix = required.has(name) ? "required" : "optional";
-        const description = typeof property.description === "string" ? ": " + property.description : "";
+        const parts: string[] = [];
+        if (typeof property.description === "string") parts.push(property.description);
+        if (Array.isArray(property.enum)) {
+          parts.push("one of " + property.enum.map((value) => JSON.stringify(value)).join(" | "));
+        }
+        const description = parts.length > 0 ? ": " + parts.join("; ") : "";
         return name + " (" + type + ", " + suffix + ")" + description;
       });
       lines.push("  Arguments: " + rendered.join(", "));
@@ -70,12 +75,13 @@ export class ToolRegistry {
   }
 }
 
+/**
+ * The JSON Schema type of an argument, as printed inside the parentheses. An enum-bearing property
+ * still reports its underlying type here; the allowed values are appended to the argument's
+ * description by renderDescriptions(), so a required type is never replaced by its value list.
+ */
 function describeType(property: Record<string, unknown>): string {
-  if (Array.isArray(property.enum)) {
-    return property.enum.map((value) => JSON.stringify(value)).join(" | ");
-  }
   const type = property.type;
   if (typeof type === "string") return type;
-  if (Array.isArray(type)) return type.join(" | ");
-  return "unknown";
+  return Array.isArray(type) ? type.join(" | ") : "unknown";
 }

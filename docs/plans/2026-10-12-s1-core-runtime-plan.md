@@ -2787,6 +2787,14 @@ git commit -m "feat(core): add schema-first tools and the tool registry"
 
 ---
 
+> **Post-implementation note (controller).** A second brief-internal contradiction, same class as Task 10's: the
+> brief's `describeType` returned the `enum` values where the brief's own test asserts the JSON Schema type, so
+> `units` rendered as `("celsius" | "fahrenheit", optional)` against an expected `units (string, optional)` -
+> measured 1 failed / 7 passed where the step claimed 8 passed. The implementer stopped and escalated instead of
+> editing either side, which is what the policy asks for. Resolution: prefer `property.type` and append the allowed
+> values to the argument's description as `one of ...`, so the type is never replaced by its value list and the test
+> passes unchanged. The committed `registry.ts` differs from the block above by exactly that change. Twice now the
+> contradiction has been test-block versus source-block; briefs 12-19 were re-checked for the same shape.
 ## Task 12: The CodeExecutor contract
 
 **Files:**
