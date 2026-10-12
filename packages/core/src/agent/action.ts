@@ -28,5 +28,5 @@ export interface ActionOutcome {
   isFinalAnswer: boolean;
   /** Set when isFinalAnswer is true. */
   value?: unknown;
-  error?: AgentErrorInfo;
+  error?: AgentErrorInfo | undefined;
 }

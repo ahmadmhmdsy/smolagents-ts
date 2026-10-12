@@ -51,6 +51,16 @@ export class AgentError extends Error {
     const message = error instanceof Error ? error.message : String(error);
     return new AgentError(message, stepIndex === undefined ? { code, cause: error } : { code, stepIndex, cause: error });
   }
+
+  /** Rebuild a throwable from the plain-data form that travels in events. */
+  static fromInfo(info: AgentErrorInfo): AgentError {
+    const options: AgentErrorOptions = { code: info.code as AgentErrorCode };
+    if (info.stepIndex !== undefined) options.stepIndex = info.stepIndex;
+    if (info.cause !== undefined) options.cause = info.cause;
+    const error = new AgentError(info.message, options);
+    error.name = info.name;
+    return error;
+  }
 }
 
 export class AgentParsingError extends AgentError {
