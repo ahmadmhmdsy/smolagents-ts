@@ -482,6 +482,8 @@ git commit -m "build: add strict shared TypeScript configuration"
 
 This is the task that makes core genuinely isomorphic. Without it, D7 is a wish.
 
+**Superseded in part by Task 4R** (the review's F1, F2, F2b, F5, F6 and F7 fixes).
+
 **Files:**
 - Create: eslint.config.js
 - Create: .dependency-cruiser.cjs
@@ -715,6 +717,191 @@ git commit -m "build: enforce isomorphic core boundaries with eslint and depende
 
 ---
 
+## Task 4R: Task 4 review fixes
+
+The Task 4 reviewer returned **CHANGES_REQUIRED** (1 Critical, 3 Important, 4 Minor) with the full report at
+`.superpowers/sdd/task-4-review.md`. Six findings are fixed here. F3 and F4 are not: they are the guard fixture's
+`writeFileSync` placement and vitest isolation, and Task 5 owns both.
+
+**Files:**
+- Modify: .dependency-cruiser.cjs
+- Modify: eslint.config.js
+- Modify: packages/core/test/architecture.test.ts
+
+**Do not touch:** `docs/plans/2026-10-12-s0-foundations-plan.md`, `docs/research/validation-report.md`,
+`.superpowers/sdd/progress.md`, and anything Task 5 owns (`vitest.config.ts`,
+`packages/core/vitest.config.ts`, `packages/core/tsup.config.ts`,
+`packages/core/test/architecture-guard.test.ts`). Never `git add -A`, `git add .`, `git add -u`
+or `git commit -a`; stage the three paths explicitly. Report an unexpected `git status` entry instead of
+touching it. Write your report to `.superpowers/sdd/task-4r-report.md`.
+
+- [ ] **Step 1: Make the zod exception match how pnpm resolves zod (F1, Critical)**
+
+The rule `core-no-extra-runtime-deps` exists to allow exactly one dependency, zod, and it flags it instead.
+dependency-cruiser resolves through the pnpm store (`preserveSymlinks: false`), so the module path is not
+`node_modules/zod/...` but the store path, and the current pattern is anchored to the former:
+
+```js
+        to: { dependencyTypes: ["npm"], pathNot: "^node_modules/zod" },
+```
+
+Change the pattern to an unanchored one that requires the trailing slash:
+
+```js
+        to: { dependencyTypes: ["npm"], pathNot: "node_modules/zod/" },
+```
+
+**MEASURED**: dependency-cruiser 18.5.1 reports the zod store path as
+`node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts` (and the same value with a `../../` prefix in the JSON
+`resolved` field). `^node_modules/zod` matches neither. The unanchored form matches the store layout, a flat
+layout and the `../../`-prefixed form, and still cannot match a different package because the slash after `zod` is
+required (`.../node_modules/zodfoo/index.d.ts` does not match).
+
+- [ ] **Step 2: Anchor the exclude so it cannot match inside node_modules (F2, Important)**
+
+The current exclude matches `/dist/` at any depth, so it deletes npm edges before any rule runs:
+
+```js
+    exclude: { path: "(^|/)(dist|coverage|smolagents|reference)/" },
+```
+
+Replace it with the anchored form:
+
+```js
+    exclude: { path: "^packages/[^/]+/(?:dist|coverage)/|^(?:dist|coverage|smolagents|reference)/" },
+```
+
+**MEASURED**: with the shipped pattern a `vitest` import in `packages/core/src` is dropped and the cruise
+reports 32 modules, 21 dependencies; with the anchored pattern the same tree reports 34 modules and 34 dependencies,
+and the restored leaf modules are `vitest/dist/index.d.ts`, `tsup/dist/index.js` and `vitest/config.d.ts`.
+Our own build output stays excluded in both cases (`packages/*/dist` and `packages/*/coverage` modules cruised: 0).
+Do not `"simplify"` this to `^(?:packages/[^/]+/)?(?:dist|coverage)/`: **MEASURED**, dependency-cruiser refuses
+that shape with "The pattern ... will probably run very slowly - cowardly refusing to run" because the quantified
+group nests a second quantifier.
+
+- [ ] **Step 3: Replace a rule that goes blind once packages have manifests (F2b, Important)**
+
+`not-to-dev-dep` classifies a dependency against the nearest `package.json` of the importing module. Today
+`packages/core/package.json` does not exist, so the nearest manifest is the root's, which declares `vitest` as a
+devDependency, and the rule fires. Task 6 creates `packages/NAME/package.json` declaring only `zod` (or zod plus
+the quickjs packages), at which point the very same import is classified `npm-no-pkg` and the rule is silent:
+
+```text
+no packages/core/package.json -> [npm-dev,import]    -> not-to-dev-dep: 1
+core/package.json declares only zod -> [npm-no-pkg,import] -> not-to-dev-dep: 0
+core/package.json also declares vitest as a devDep -> [npm-dev,import] -> not-to-dev-dep: 1
+```
+
+Replace the rule with one that treats every non-declared package the same way:
+
+```js
+    {
+      name: "no-undeclared-deps-from-src",
+      severity: "error",
+      comment: "packages/*/src may only import packages its own manifest declares.",
+      from: { path: "^packages/[^/]+/src" },
+      to: { dependencyTypes: ["npm-dev", "npm-no-pkg", "npm-unknown"] },
+    },
+```
+
+**MEASURED** in the post-Task-6 manifest shape (nearest manifest declares only zod): the same `vitest` import that
+left `not-to-dev-dep` silent makes this rule report `no-undeclared-deps-from-src` and exit 1. A declared
+dependency stays allowed (`npm`), and `npm-peer` / `npm-optional` stay allowed, so the react package may
+still import its peers. `core-no-extra-runtime-deps` is what then narrows core's declared dependencies to zod.
+
+- [ ] **Step 4: Apply the core restrictions to every source extension (F5, Minor)**
+
+`packages/core/src/__probe_scope.mts` holding `eval(...)` and `process.exit(...)` **is** linted but produces
+**zero** messages with the shipped pattern, because the restriction block only claims `**/*.ts`. Widen it:
+
+```js
+    files: ["packages/core/src/**/*.{ts,tsx,mts,cts}"],
+```
+
+**MEASURED**: with the widened pattern the same probe reports two `no-restricted-globals` errors. Also widen the
+test-file override from `files: ["**/*.test.ts", "**/*.test.tsx"]` to `files: ["**/*.test.{ts,tsx,mts,cts}"]`.
+
+- [ ] **Step 5: Close the builtin list (F6, Minor)**
+
+Add the modules the review named and their close neighbours to `FORBIDDEN_CORE_MODULES`: `timers`,
+`timers/promises`, `events`, `assert`, `assert/strict`, `dns`, `dns/promises`, `tls`, `dgram`,
+`cluster`, `readline`, `readline/promises`, `repl`, `string_decoder`, `perf_hooks`, `async_hooks`,
+`inspector`, `v8`, `domain`, `punycode`, `querystring`, `trace_events`, `tty`,
+`diagnostics_channel`, `sea`, `sqlite`, `test`, `constants`, `sys`.
+Subpath specifiers need their own entry, because a `no-restricted-imports` group entry matches whole module
+names: `timers` does not cover `timers/promises`, which only dependency-cruiser caught before this step.
+Verify with a core/src probe importing bare `timers/promises` and `assert` plus a legitimate import that must
+stay clean, then delete the probe.
+
+- [ ] **Step 6: Make the failing gate explain itself (F7, Minor)**
+
+dependency-cruiser writes its diagnostic to stderr, but `architecture.test.ts` reads only `error.stdout`, so the
+thrown message body is empty. Include both streams:
+
+```ts
+    } catch (error) {
+      const stdout = (error as { stdout?: string }).stdout ?? "";
+      const stderr = (error as { stderr?: string }).stderr ?? "";
+      throw new Error("dependency-cruiser failed: " + (stdout + stderr).slice(0, 2000), { cause: error });
+    }
+```
+
+- [ ] **Step 7: Add the regressions that would have caught Steps 1 to 3 (permanent, no install needed)**
+
+Add three lexical tests to `packages/core/test/architecture.test.ts`. They read the config directly, so they run
+today, before zod is installed. Load it without tripping `@typescript-eslint/no-require-imports` by not naming the
+function `require`:
+
+```ts
+import { createRequire } from "node:module";
+import { join } from "node:path";
+
+const loadCjs = createRequire(import.meta.url);
+const config = loadCjs(join(repoRoot, ".dependency-cruiser.cjs")) as {
+  forbidden: {
+    name: string;
+    from?: { path?: string };
+    to?: { path?: string; pathNot?: string; dependencyTypes?: string[] };
+  }[];
+  options: { exclude: { path: string } };
+};
+```
+
+1. **the zod exception matches the pnpm store layout**: `new RegExp(rule.to.pathNot)` must match
+`node_modules/zod/index.d.ts`, `node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts` and
+`../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/index.d.ts`, and must not match
+`node_modules/.pnpm/typescript@6.0.3/node_modules/typescript/lib/typescript.d.ts` or
+`node_modules/.pnpm/zodfoo@1.0.0/node_modules/zodfoo/index.d.ts`.
+2. **the source-dependency rule cannot go blind**: some forbidden rule with `from.path === "^packages/[^/]+/src"` must
+have `"npm-no-pkg"` in its `to.dependencyTypes`. This single assertion is what Step 3 is about, and it would
+have failed before it.
+3. **the exclude cannot match inside node_modules**: `new RegExp(config.options.exclude.path)` must not match
+`node_modules/.pnpm/vitest@5.0.3_@types+node@26/node_modules/vitest/dist/index.d.ts`, and must match
+`packages/core/dist/index.js`.
+
+- [ ] **Step 8: Prove each new assertion can fail, then commit**
+
+For each of the three tests above, temporarily undo its Step 1, 2 or 3 fix and confirm exactly that test fails
+(`pnpm vitest run --project core -t "<test name>"`), then restore it. Then:
+
+Run: `pnpm lint`
+Expected: exit 0.
+
+Run: `pnpm exec depcruise packages --config .dependency-cruiser.cjs`
+Expected: `✔ no dependency violations found`, exit 0.
+
+Run: `pnpm test`
+Expected: unchanged failures and no new ones. `packages/core/src` still does not exist, so the tree test fails with the
+same cause as before — `Can't open 'packages/core/src'` — now with that text visible in the thrown message, and
+`architecture.test.ts` goes from 1 test (1 failed) to 4 tests (3 passed, 1 failed). `architecture-guard.test.ts` still
+fails on F3 and F4, which Task 5 fixes.
+
+```bash
+git add .dependency-cruiser.cjs eslint.config.js packages/core/test/architecture.test.ts
+git commit -m "fix(architecture): keep the zod exception and the source-dependency rule alive under pnpm"
+```
+
+---
 ## Task 5: Test and build tooling
 
 **Files:**
@@ -1106,7 +1293,8 @@ file `init` copies verbatim out of `@changesets/cli`.
 
 Run: New-Item -ItemType Directory -Force -Path .changeset | Out-Null
 Run: node -e "const fs=require('node:fs'),path=require('node:path');const d=path.dirname(require.resolve('@changesets/cli/package.json'));fs.copyFileSync(path.join(d,'default-files/README.md'),'.changeset/README.md');console.log('README.md ' + fs.statSync('.changeset/README.md').size + ' bytes')"
-Expected: `README.md 334 bytes`. Copying the shipped file keeps the README byte-identical to what `init` would
+Expected: `README.md 334 bytes`. **MEASURED** against @changesets/cli 3.0.3: the shipped
+`default-files/README.md` is exactly 334 bytes. Copying it keeps the README byte-identical to what `init` would
 have produced; there is no reason to retype it.
 
 ```json
@@ -1123,29 +1311,22 @@ have produced; there is no reason to retype it.
 }
 ```
 
-Write that to `.changeset/config.json`. It replaces nothing: `init` is not run, so there is no Step 2.
+Write that to `.changeset/config.json`. There is nothing to replace: `init` is never run.
 
-```json
-{
-  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
-  "changelog": "@changesets/cli/changelog",
-  "commit": false,
-  "fixed": [],
-  "linked": [],
-  "access": "public",
-  "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": []
-}
-```
-
-Note: @changesets/cli and @changesets/config are different majors (3.x and 4.x); the schema URL tracks the
-installed config version, `@changesets/config@4.0.1`, which is what `init` itself resolves.
+Note: @changesets/cli and @changesets/config are different majors (3.x and 4.x); the schema URL tracks the config
+package @changesets/cli pulls in, and **MEASURED** the installed one is `@changesets/config@4.0.1`. It is a
+transitive dependency, so it is not importable from the root by name; its version shows in the stack traces below.
 
 - [ ] **Step 2: Verify the config is accepted, and that it rejects a bad one**
 
 Run: pnpm changeset status
-Expected: exit 0, printing an empty `Packages to be bumped:`.
+Expected: exit 0, printing an empty `Packages to be bumped:`
+
+**MEASURED**: `🦋 changeset v3.0.3`, then `Packages to be bumped:` with nothing under it, exit 0. The empty list
+is expected and is not evidence about the config: all five packages are `private: true` by design D12, and
+changesets never reports private packages. **MEASURED**: adding a changeset naming `@smolagents-ts/core` and
+re-running still printed an empty list, so the output alone cannot distinguish a valid config from one that failed
+open. That is exactly why the two controls below matter..
 
 On its own that proves only that changesets parsed the file; it cannot distinguish a valid config from one
 that failed open. Measure the negative control — make the config invalid, confirm the non-zero exit, then put
@@ -1153,7 +1334,9 @@ the file back:
 
 Run: Set-Content .changeset/config.json '{ not valid json' -Encoding utf8
 Run: pnpm changeset status
-Expected: exit 1 with a `SyntaxError` raised from `readConfig`. Measured.
+Expected: exit 1 with a `SyntaxError` raised from `readConfig`. **MEASURED**:
+`SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)`, thrown from
+`@changesets/config@4.0.1`'s `readConfig`, exit 1.
 
 A well-formed but invalid value is caught as well: measured, `"access": "nonsense"` exits 1 with
 `Found issues in your config: - access: Invalid type: Expected ("public" | "restricted")`.
@@ -1161,7 +1344,7 @@ A well-formed but invalid value is caught as well: measured, `"access": "nonsens
 Now restore the JSON block from Step 1 verbatim and run `pnpm changeset status` once more — expected exit 0.
 The restore is part of the control: the file that gets committed must be the valid one, not the broken probe.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add .changeset

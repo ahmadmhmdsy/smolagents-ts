@@ -399,7 +399,8 @@ documented valid pair.
 `crypto/*` matches subpaths only and would **not** ban the bare specifier `"crypto"`. S0 already lists
 the bare builtin names in `FORBIDDEN_CORE_MODULES` *and* the `node:*` glob, so both spellings are caught.
 `no-restricted-globals` accepting `{ name, message }` objects, the `dependencyTypes: ["core"]` rule, and
-`not-to-dev-dep` were all confirmed against the tools' current documentation and behaviour.
+`not-to-dev-dep` were all confirmed against the tools' current documentation and behaviour — **but A-37 later
+measured that this one goes blind once per-package manifests exist, and Task 4R replaces it**.
 
 ### S0-12 — licence and notice duties — PASS
 
@@ -1224,6 +1225,61 @@ So the record is not only defects. In a clone at Task 5's state with all five pa
   `Refusing to use task run state directory at <root>\node_modules because it is a symbolic link or not a directory`.
   That is a property of the clone, not of the project; the real tree has a real `node_modules`, and Task 6 Step 8
   exercises those two recursive scripts for real.
+### A-33 — Task 7's step list skipped a number and repeated its config block — FAIL (corrected)
+
+Task 7 numbered its steps 1, 2, 4 — there was no Step 3 — and the whole `.changeset/config.json` block appeared
+twice, separated by a sentence that referred to a "Step 2" that no longer existed. Both were residue from an
+earlier rewrite. The commit is now Step 3 and the duplicate block is gone.
+
+### A-34 — Task 7's claims measured true, but its empty output proves less than it looks — PASS (with note)
+
+Measured against @changesets/cli 3.0.3: the shipped `default-files/README.md` is exactly 334 bytes;
+`pnpm changeset status` exits 0 printing `Packages to be bumped:` with nothing under it; `{ not valid json`
+gives exit 1 with `SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)` thrown from
+`@changesets/config@4.0.1`'s `readConfig`; `"access": "nonsense"` gives exit 1 with `Found issues in your`
+`config: - access: Invalid type: Expected ("public" | "restricted") but received "nonsense"`; restoring the valid config returns
+exit 0. The empty list is not evidence about the config: all five packages are `private: true` by design D12, and a
+probe changeset naming `@smolagents-ts/core` still printed an empty list. Task 7's brief now says so, so the two
+negative controls are understood as the real verification.
+
+### A-35 — the Task 4 review found the architecture guard partly blind — FAIL (review verdict; Task 4R)
+
+Verdict CHANGES_REQUIRED: 1 Critical, 3 Important, 4 Minor (418-line report at `.superpowers/sdd/task-4-review.md`).
+The Critical (F1) is that `core-no-extra-runtime-deps` flags zod, the one dependency the rule exists to permit.
+Re-measured here: dependency-cruiser resolves through the pnpm store, so a core import of zod appears as
+`node_modules/.pnpm/zod@.../node_modules/zod/index.d.ts`, which the anchored exception `^node_modules/zod` cannot
+match. F2, the unanchored `exclude` deleting npm edges before any rule runs, also re-measured: 32 modules and 21
+dependencies with the shipped pattern, 34 and 34 with the anchored one, while our own `dist` and `coverage` modules
+stay at 0 in both. Task 4R carries F1, F2, F2b, F5, F6 and F7; F3 and F4 stay with Task 5, which already plans them.
+
+### A-36 — F5 is real, but its mechanism is narrower than "not linted" — FAIL (corrected)
+
+The review reported that non-test `.tsx`/`.mts`/`.cts` files are "not linted at all". Measured:
+`pnpm exec eslint . -f json` lists 30 files and a `packages/core/src/__probe_scope.mts` probe **is** among them; what fails
+is that the core restriction block claims only `**/*.ts`, so the probe's `eval(...)` and `process.exit(...)`
+produce zero messages. With `files: ["packages/core/src/**/*.{ts,tsx,mts,cts}"]` the same probe reports two
+`no-restricted-globals` errors. Task 4R fixes the scope with that widening.
+
+### A-37 — Task 6 would silently kill `not-to-dev-dep`; the rule is replaced — FAIL (Important)
+
+Found by pre-flighting the review's F2 fix. dependency-cruiser classifies a dependency against the **nearest
+package.json of the importing module** (`determine-dependency-types.mjs`: the from-module's manifest). Measured with a
+`vitest` import inside `packages/core/src`:
+
+```
+no packages/core/package.json (nearest = root, vitest is a root devDep) -> [npm-dev,import]     -> not-to-dev-dep: 1
+core/package.json declares only zod (the post-Task-6 state)              -> [npm-no-pkg,import] -> not-to-dev-dep: 0
+core/package.json also declares vitest as a devDep                       -> [npm-dev,import]    -> not-to-dev-dep: 1
+```
+
+The rule fires today only because no per-package manifest exists yet. The moment Task 6 adds
+`packages/NAME/package.json` declaring zod alone, every import from `packages/*/src` that the manifest does not
+name becomes `npm-no-pkg` and the rule goes blind — while it still looks alive in Task 4's review. Task 4R
+replaces it with `no-undeclared-deps-from-src` over `["npm-dev", "npm-no-pkg", "npm-unknown"]`; **MEASURED**, in the
+post-Task-6 manifest shape that same import reports the new rule and exits 1, while declared dependencies
+(`npm`), peers and optionals stay allowed. Task 4R also adds the lexical regression asserting that a rule whose
+`from` is `^packages/[^/]+/src` covers `npm-no-pkg`, so a later simplification cannot quietly reintroduce it.
+This is A-27/A-28's sibling: a guard that reads green because it cannot fire.
 ### Consequence for the S0 sequence
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason
