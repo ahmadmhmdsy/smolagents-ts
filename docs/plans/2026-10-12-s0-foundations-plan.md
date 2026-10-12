@@ -877,15 +877,42 @@ git commit -m "build: add vitest and tsup configs and make the architecture guar
 
 ## Task 6: The five packages
 
-**Files (created for each of core, models, tools, exec-quickjs, react):**
-- Create: packages/NAME/package.json
-- Create: packages/NAME/vitest.config.ts
-- Create: packages/NAME/tsup.config.ts
-- Create: packages/NAME/src/index.ts
-- Create: packages/NAME/src/version.ts
-- Create: packages/NAME/test/smoke.test.ts
+**Files:**
+- Modify: tsconfig.base.json (Step 1)
+- Create, for each of core, models, tools, exec-quickjs and react: packages/NAME/package.json,
+  packages/NAME/vitest.config.ts, packages/NAME/tsup.config.ts, packages/NAME/src/index.ts,
+  packages/NAME/src/version.ts, packages/NAME/test/smoke.test.ts
+- Create, for the four packages other than core: packages/NAME/tsconfig.json and packages/NAME/tsconfig.test.json
+  (core's two exist from Task 3; Step 7 says why every package needs its own)
+- Modify: pnpm-lock.yaml (rewritten by Step 8's pnpm install; staged in Step 10)
 
-- [ ] **Step 1: Create packages/core/package.json**
+- [ ] **Step 1: Make the type declarations buildable under TypeScript 6**
+
+tsup's dts step always sets `baseUrl` (`baseUrl: compilerOptions.baseUrl || ".",` in tsup 8.5.1), and TypeScript
+6.0.3 turned `baseUrl` into a deprecation **error**. Without a silence flag every `pnpm build` fails after the
+ESM half has already succeeded, so `dist/index.js` exists, no `dist/index.d.ts` is written, and publint, attw and
+the pack smoke test all fail later for a reason that looks unrelated:
+
+```
+DTS Build error
+error TS5101: Option 'baseUrl' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption
+'"ignoreDeprecations": "6.0"' to silence this error.
+Error: error occurred in dts build
+```
+
+Add the flag the compiler itself names to `tsconfig.base.json`, next to `moduleDetection`:
+
+```json
+    "moduleDetection": "force",
+    "ignoreDeprecations": "6.0",
+```
+
+**MEASURED** in a clone with this exact base config, TypeScript 6.0.3 and tsup 8.5.1: without the flag tsup exits 1
+and emits only `dist/index.js` and `dist/index.js.map`; with it all five packages report `ESM Build success` and
+`DTS Build success`, every `dist/index.d.ts` is 117 bytes and declares `VERSION`, `publint --strict` says
+`All good!` and `attw --pack . --profile esm-only` exits 0. `tsc --noEmit -p tsconfig.test.json` still exits 0, so the
+flag does not disturb the type-check.
+- [ ] **Step 2: Create packages/core/package.json**
 
 ```json
 {
@@ -906,14 +933,14 @@ git commit -m "build: add vitest and tsup configs and make the architecture guar
 }
 ```
 
-- [ ] **Step 2: Create packages/core/src/version.ts**
+- [ ] **Step 3: Create packages/core/src/version.ts**
 
 ```ts
 /** Kept in sync with package.json by the release workflow. */
 export const VERSION = "0.0.0";
 ```
 
-- [ ] **Step 3: Write the smoke test**
+- [ ] **Step 4: Write the smoke test**
 
 ```ts
 // packages/core/test/smoke.test.ts
@@ -928,20 +955,19 @@ describe("core package", () => {
 });
 ```
 
-- [ ] **Step 4: Create packages/core/src/index.ts to make it pass**
+- [ ] **Step 5: Create packages/core/src/index.ts to make it pass**
 
 ```ts
 export { VERSION } from "./version.js";
 ```
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 6: Run the tests**
 
 Run: pnpm vitest run --project core
-Expected: smoke.test.ts PASSES; architecture.test.ts PASSES; architecture-guard.test.ts PASSES
-(2 tests). If the architecture test fails, the failure output names the offending import — fix the
-import, do not relax the rule.
+Expected: **MEASURED** `Test Files 3 passed (3)` and `Tests 4 passed (4)` — smoke 1, architecture 1, guard 2. If
+the architecture test fails, its output names the offending import: fix the import, do not relax the rule.
 
-- [ ] **Step 6: Create the other four packages from the same template**
+- [ ] **Step 7: Create the other four packages from the same template**
 
 Create the same six files for each package below. The only differences are the package name, the vitest
 project name, the runtime dependencies and the tsup external list.
@@ -957,6 +983,50 @@ Each package's `vitest.config.ts` is core's with the project name changed —
 `defineProject({ test: { name: "models" } })` and so on — and each package's `tsup.config.ts` is core's with the
 external array replaced by the column above. Core's two config files are written in Task 5, so read them
 there; do not invent a different shape.
+
+Every package except core also needs the two tsconfig files Task 3 wrote for core. They are byte-identical,
+because both `extends` paths are relative to the package directory. **MEASURED**: the tree holds only
+`packages/core/tsconfig.json` and `packages/core/tsconfig.test.json`, so a package whose typecheck script says
+`tsc --noEmit -p tsconfig.test.json` without that file fails and takes `pnpm typecheck` down with it:
+
+```
+error TS5058: The specified path does not exist: 'packages/models/tsconfig.test.json'.
+```
+
+`packages/NAME/tsconfig.json`:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+```
+
+`packages/NAME/tsconfig.test.json`:
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src", "test"]
+}
+```
+
+**MEASURED** in the clone: with all five in place, `tsc --noEmit -p packages/NAME/tsconfig.test.json` exits 0 for
+core, models, tools, exec-quickjs and react.
+
+Pin the dependency ranges; the table names packages but no versions. Use `"zod": "^4.0.0"` in every
+package, and for exec-quickjs `"quickjs-emscripten-core": "^0.32.0"` with
+`"@jitl/quickjs-wasmfile-release-sync": "^0.32.0"` — 0.32.0 is the version the validation report measured
+`(quickjs-emscripten-core@0.32.0 is 2025-09-13+f1139494)` and it is still the published latest. `release-sync` is the
+design's default; the asyncify build is only the fallback ladder at design §9.3, so do not substitute it.
 
 The react package additionally declares optional peers:
 
@@ -980,7 +1050,7 @@ export { VERSION } from "./version.js";
 
 Each package's test/smoke.test.ts is core's smoke test with the describe name changed to match.
 
-- [ ] **Step 7: Install and run everything**
+- [ ] **Step 8: Install and run everything**
 
 Run: pnpm install
 Expected: no error; quickjs-emscripten-core and the chosen variant appear in pnpm-lock.yaml. Do not depend on
@@ -988,15 +1058,19 @@ the all-in-one quickjs-emscripten package (roughly 7.5-9 MB installed); the core
 about 1.1-1.3 MB.
 
 Run: pnpm test
-Expected: 5 smoke tests + 3 architecture tests pass, 0 failures.
+Expected: **MEASURED** `Test Files 7 passed (7)` and `Tests 8 passed (8)`, 0 failures — five smoke tests plus the
+three core architecture tests (one boundary, two guard).
 
-- [ ] **Step 8: Verify every gate passes**
+- [ ] **Step 9: Verify every gate passes**
 
 Run: pnpm typecheck
-Expected: exit 0, no output.
+Expected: exit 0, no output. This is `pnpm -r run typecheck`, so each package's own `tsc --noEmit -p`
+`tsconfig.test.json` must pass; Step 7's measured per-package runs are what this aggregates.
 
 Run: pnpm build
-Expected: five dist/index.js and five dist/index.d.ts files now exist. Verify with:
+Expected: five `dist/index.js` and five `dist/index.d.ts` files now exist. `pnpm build` is
+`pnpm -r --filter ./packages/* run build`, so it runs each package's `tsup`; **MEASURED** by running `pnpm exec tsup`
+in each package directory once Step 1 was applied: five `ESM Build success` and five `DTS Build success`. Verify with:
 node -e "for (const p of ['core','models','tools','exec-quickjs','react']) { for (const f of ['dist/index.js','dist/index.d.ts']) { require('fs').accessSync('packages/'+p+'/'+f); } } console.log('all builds present')"
 Expected: prints all builds present
 
@@ -1006,11 +1080,11 @@ Expected: exit 0.
 Run: pnpm depcruise
 Expected: prints "no dependency violations found (N modules, M dependencies cruised)".
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add packages pnpm-lock.yaml
-git commit -m "feat: add core, models, tools, exec-quickjs and react package skeletons"
+git add tsconfig.base.json packages pnpm-lock.yaml
+git commit -m "feat: add the five package skeletons and make type declarations buildable under TypeScript 6"
 ```
 
 ---

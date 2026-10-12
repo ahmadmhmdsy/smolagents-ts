@@ -1151,6 +1151,79 @@ two measurements it was missing: `pnpm lint` (exit 0 with three new config files
 
 A-27 and A-28 are the same shape as A-21: a verification whose stated expectation was never measured at the position
 where it will run. A-27 is worse, because the expectation was also the only thing that would have revealed the race.
+### A-29 — tsup's dts build cannot run under TypeScript 6 without a silence flag — FAIL (critical, corrected)
+
+tsup 8.5.1's dts step always passes `baseUrl: compilerOptions.baseUrl || ".",` (its own dist/index.js line 6837).
+TypeScript 6.0.3 turned `baseUrl` into a hard deprecation error, so every `pnpm build` failed after the ESM half had
+already written `dist/index.js`:
+
+```
+DTS Build error
+error TS5101: Option 'baseUrl' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption
+'"ignoreDeprecations": "6.0"' to silence this error.
+Error: error occurred in dts build
+```
+
+The failure is quiet in the worst way: tsup exits 1, but `dist/index.js` and `dist/index.js.map` are already on
+disk, so the build looks like it produced something while no `dist/index.d.ts` exists. Everything downstream then
+fails for a reason that does not name the cause — `publint reports pkg.exports["."].types is ./dist/index.d.ts but` the
+file does not exist — and Task 8's attw and pack smoke test would follow it down.
+
+Fix, now Task 6 Step 1: add the flag the compiler itself names to `tsconfig.base.json`:
+
+```json
+    "moduleDetection": "force",
+    "ignoreDeprecations": "6.0",
+```
+
+**MEASURED** in a clone with the real base config, TypeScript 6.0.3 and tsup 8.5.1: without the flag tsup exits 1 for
+all five packages and emits only `dist/index.js` plus `dist/index.js.map`; with it, five `ESM Build success` and
+five `DTS Build success`, each `dist/index.d.ts` 117 bytes declaring `VERSION`, `publint --strict` → `All good!`,
+`attw --pack --profile esm-only` → exit 0, and `tsc --noEmit -p tsconfig.test.json` still exit 0. The alternative, pinning
+TypeScript 5.x, would reverse a decision the design made deliberately.
+
+### A-30 — Task 6's file list omitted the tsconfigs its own typecheck script needs — FAIL (corrected)
+
+Each package's `package.json` declares `"typecheck": "tsc --noEmit -p tsconfig.test.json"`, but the Files list created
+six files per package and Task 3 wrote tsconfigs for core alone. **MEASURED**: `packages/*/tsconfig*.json` on disk held
+exactly `packages/core/tsconfig.json` and `packages/core/tsconfig.test.json`, and a package without its own fails:
+
+```
+error TS5058: The specified path does not exist: 'packages/models/tsconfig.test.json'.
+```
+
+`pnpm typecheck` would have failed for four of the five packages. Task 6 now creates `packages/NAME/tsconfig.json` and
+`packages/NAME/tsconfig.test.json` for the four packages other than core, byte-identical to core's because both `extends`
+paths are relative to the package directory. **MEASURED** in the clone: with all five in place,
+`tsc --noEmit -p packages/NAME/tsconfig.test.json` exits 0 for each of them.
+
+### A-31 — Task 6 named runtime dependencies without versions — FAIL (corrected)
+
+The dependency table listed `quickjs-emscripten-core` and `@jitl/quickjs-wasmfile-release-sync` by name only, leaving the
+implementer to invent ranges for two packages this project had never installed. Task 6 now pins both to `^0.32.0`
+— the version the validation report measured (`quickjs-emscripten-core@0.32.0 is 2025-09-13+f1139494`) and still the
+published latest — and repeats that `release-sync` is the design's default while asyncify is only the fallback
+ladder at design §9.3. The Files list also omitted `pnpm-lock.yaml`, which Step 8's `pnpm install` rewrites and
+Step 10 stages, and `tsconfig.base.json` for Step 1; both are listed now.
+
+### A-32 — the Task 6 dry run also settled what was already right
+
+So the record is not only defects. In a clone at Task 5's state with all five packages scaffolded:
+
+- `pnpm exec tsc --noEmit -p packages/NAME/tsconfig.test.json` → exit 0 for all five, once A-30's files exist.
+- `pnpm exec vitest run --project core` → `Test Files 3 passed (3)`, `Tests 4 passed (4)`, exit 0.
+- `pnpm test` → `Test Files 7 passed (7)`, `Tests 8 passed (8)`, exit 0 — Step 7's "5 smoke tests + 3
+  architecture tests" is exactly right.
+- `pnpm lint` → exit 0 with five packages and three new config files in the tree.
+- `pnpm depcruise` → `✔ no dependency violations found (31 modules, 20 dependencies cruised)`, the wording Step 9 expects.
+- the smoke test's `import { VERSION } from "../src/index.js"` resolves under `moduleResolution: "bundler"` for both tsc
+  and Vitest, so the `.js`-extension convention carries no hidden cost.
+- `node -e "require('fs').accessSync(...)"` works from a `"type": "module"` root, so Step 9's artifact check is valid as
+  written.
+- `pnpm -r` could not be exercised in the clone: with `node_modules` reached through a junction, pnpm 12 refuses with
+  `Refusing to use task run state directory at <root>\node_modules because it is a symbolic link or not a directory`.
+  That is a property of the clone, not of the project; the real tree has a real `node_modules`, and Task 6 Step 8
+  exercises those two recursive scripts for real.
 ### Consequence for the S0 sequence
 
 Three of the first eight S0 tasks contained a verification step that could not fail, or that failed for a reason
