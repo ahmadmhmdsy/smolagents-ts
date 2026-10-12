@@ -1,3 +1,15 @@
 packages:
   - "packages/*"
   - "examples/*"
+
+# Fail loudly instead of silently guessing peer dependency versions.
+strictPeerDependencies: true
+# Do not auto-install optional peers (React) for Node-only consumers.
+autoInstallPeers: false
+# Reproducible CI installs.
+preferFrozenLockfile: true
+# esbuild ships a prebuilt platform binary; its postinstall only validates the install.
+# Recording it explicitly stops pnpm from appending a placeholder to this checked-in file
+# on every non-interactive install (pnpm issue 11574).
+allowBuilds:
+  esbuild: true
