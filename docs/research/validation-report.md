@@ -808,3 +808,58 @@ condition the upstream clone exhibits. Recorded here because neither plan mentio
 Neither plan stated where pnpm configuration lives, and the design's stack section does not mention it.
 Settings now sit in the file pnpm actually reads, and S0 Task 1 verifies the effective values instead of
 trusting a file's presence.
+
+### A-14 — Task 3 created a file it did not commit, and verified a config that had no inputs — FAIL (corrected)
+
+Both defects were found by running Task 3's commands against the installed TypeScript 6.0.3 rather than by
+reading them.
+
+1. Step 2b creates `packages/core/tsconfig.test.json`, but the Files list omits it and Step 4's `git add` omits
+   it too. The file would never be committed, while Task 6's `typecheck` script is
+   `tsc --noEmit -p tsconfig.test.json` — so the repository gate would fail in a fresh clone of a tree that was
+   green locally. The file is now listed and staged.
+2. Step 3 ran `tsc --showConfig -p packages/core/tsconfig.json` and expected exit code 0. Measured: **exit 1,
+   `error TS18003: No inputs were found in config file ... Specified 'include' paths were '["src"]'`** —
+   `packages/core/src` is not created until Task 6, so the check could not pass at the point it was written.
+
+The obvious repair, seeding `packages/core/src/index.ts` in Task 3, would break Task 4: its architecture test
+deliberately asserts that dependency-cruiser fails while `packages/core/src` is absent. The plan therefore
+verifies the shared base against a throwaway `.tmp-tscheck` probe that is deleted again, plus a JSON-parse
+check of both package configs, and defers the input-dependent check to Task 6's gate.
+
+Measured in the same pass, so that it is not assumed: `declaration: true` together with `noEmit: true` is
+accepted by TypeScript 6.0.3 (no diagnostic was reported), and `tsconfig.test.json` requires `@types/node` or
+it fails with `TS2688: Cannot find type definition file for 'node'`.
+
+### A-15 — Task 4's red test would have failed for the wrong reason — FAIL (corrected)
+
+Task 4 Step 5 ran `pnpm vitest run --project core architecture` and expected a FAIL caused by
+dependency-cruiser rejecting a `packages/core/src` that does not exist yet. But the root `vitest.config.ts` and
+the per-package project configs are created in Task 5, and Task 4 comes first. Measured without them:
+
+```
+Error: No projects matched the filter "core".   (exit code 1, test never executed)
+```
+
+The step would have been marked satisfied by an exit code produced before any test ran, so the red state it
+was meant to establish would not have existed. This is A-11's and A-13's shape inverted: not a check that
+cannot fail, but a failure that proves nothing. The step now invokes the test file by path, which was measured
+to work with no vitest config present, and it states explicitly why `--project core` must not be used there.
+
+### A-16 — Task 6 under-counted and under-specified its own files — FAIL (corrected)
+
+Task 6's Files block lists six files per package, but Step 6 called them "the same five files", and no step gave
+the contents of `vitest.config.ts` and `tsup.config.ts` for the four non-core packages: Task 5 writes those two
+files for core only. An implementer would have had to infer both the count and the contents.
+
+The table now carries an explicit vitest project name for each package and states that each config is core's
+with only that name, or the external array, changed. Measured while checking this: a project is resolvable by
+`--project <name>` only when its config sets that `name`, and Task 6 Step 5's `--project core` therefore depends
+on Task 5 having created the root config first.
+
+### Consequence for the S0 sequence
+
+A-11, A-13 and A-15 are the same defect in three costumes: a verification step that cannot fail, or that fails
+for a reason it does not name. A green tick and a coincidental exit 1 are indistinguishable from a correct run
+when nobody reads the output. Three of the eight S0 tasks contained one. Every remaining task's verification is
+checked by running it against the installed toolchain, not by reading it.

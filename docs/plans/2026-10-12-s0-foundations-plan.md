@@ -342,6 +342,7 @@ git commit -m "docs: add Apache-2.0 licence, derivation notice, attribution map 
 **Files:**
 - Create: tsconfig.base.json
 - Create: packages/core/tsconfig.json
+- Create: packages/core/tsconfig.test.json
 
 - [ ] **Step 1: Create tsconfig.base.json**
 
@@ -422,19 +423,38 @@ The test tree gets its own config instead.
 Note: @types/node is needed only so the *test* directory can use node:child_process. Add it to the root
 devDependencies in Step 3.
 
-- [ ] **Step 3: Add @types/node and verify the config parses**
+- [ ] **Step 3: Add @types/node and verify the configs parse**
+
+`packages/core/tsconfig.json` sets `include: ["src"]`, and `packages/core/src` deliberately does not exist yet:
+Task 4's architecture test depends on that absence, and Task 6 creates src. So `tsc -p packages/core/tsconfig.json`
+fails here with TS18003 "No inputs were found", and a config-shaped check must take its input from elsewhere.
+Verify the shared base against a throwaway probe rather than seeding src:
 
 Run: pnpm add -Dw @types/node
 Expected: @types/node appears in the root package.json devDependencies.
 
-Run: pnpm exec tsc --showConfig -p packages/core/tsconfig.json
-Expected: prints the resolved configuration containing "strict": true and "noUncheckedIndexedAccess": true,
-exit code 0.
+```powershell```
+New-Item -ItemType Directory -Force -Path .tmp-tscheck | Out-Null
+Set-Content .tmp-tscheck/probe.ts 'export const probe: number = 1;' -Encoding utf8
+Set-Content .tmp-tscheck/tsconfig.json '{ "extends": "../tsconfig.base.json", "compilerOptions": { "types": ["node"] }, "include": ["probe.ts"] }' -Encoding utf8
+pnpm exec tsc --noEmit -p .tmp-tscheck/tsconfig.json
+pnpm exec tsc --showConfig -p .tmp-tscheck/tsconfig.json | Select-String -Pattern '"strict"|noUncheckedIndexedAccess|"types"'
+Remove-Item -Recurse -Force .tmp-tscheck
+``````
+
+Expected: exit code 0, and the printed configuration contains "strict": true and "noUncheckedIndexedAccess":
+true. The probe is deleted again. It exists only because `packages/core/src` is not created until Task 6, and it
+also proves @types/node resolves: without it the test config fails with TS2688 `Cannot find type definition` `file for 'node'`.
+
+Run: node -e "const fs=require('fs');JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8'));JSON.parse(fs.readFileSync('packages/core/tsconfig.test.json','utf8'));console.log('configs OK')"
+Expected: prints configs OK
+
+The input-dependent check of the real package configs is Task 6's gate, by which point src and test exist.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add tsconfig.base.json packages/core/tsconfig.json package.json pnpm-lock.yaml
+git add tsconfig.base.json packages/core/tsconfig.json packages/core/tsconfig.test.json package.json pnpm-lock.yaml
 git commit -m "build: add strict shared TypeScript configuration"
 ```
 
@@ -629,9 +649,14 @@ describe("the boundary guard is real", () => {
 
 - [ ] **Step 5: Run the tests to verify they fail**
 
-Run: pnpm vitest run --project core architecture
-Expected: FAIL — packages/core/src does not exist yet, so dependency-cruiser exits non-zero and the test
-throws. This is the correct failure. It is completed in Task 6, Step 8.
+Run: pnpm exec vitest run packages/core/test/architecture.test.ts
+Expected: FAIL — the test file actually runs and its assertion fails, because packages/core/src does not
+exist yet, so dependency-cruiser exits non-zero and the test throws. That is the correct failure, and it is
+completed in Task 6, Step 8.
+
+Do not use `--project core` here. The root `vitest.config.ts` is created in Task 5, and until it exists
+`--project` produces a startup error — `No projects matched the filter "core"` — with exit code 1 and
+without running the test at all. That exit code looks exactly like the expected failure while proving nothing.
 
 - [ ] **Step 6: Commit**
 
@@ -780,15 +805,20 @@ import, do not relax the rule.
 
 - [ ] **Step 6: Create the other four packages from the same template**
 
-Create the same five files for each package below. The only differences are the package name, the
-runtime dependencies and the tsup external list.
+Create the same six files for each package below. The only differences are the package name, the vitest
+project name, the runtime dependencies and the tsup external list.
 
-| package | name | runtime dependencies | tsup external |
-|---|---|---|---|
-| models | @smolagents-ts/models | zod | ["zod"] |
-| tools | @smolagents-ts/tools | zod | ["zod"] |
-| exec-quickjs | @smolagents-ts/exec-quickjs | zod, quickjs-emscripten-core, @jitl/quickjs-wasmfile-release-sync | ["zod", "quickjs-emscripten-core", "@jitl/quickjs-wasmfile-release-sync"] |
-| react | @smolagents-ts/react | zod | ["zod", "react", "react-dom", "react/jsx-runtime"] |
+| package | package name | vitest project name | runtime dependencies | tsup external |
+|---|---|---|---|---|
+| models | @smolagents-ts/models | models | zod | ["zod"] |
+| tools | @smolagents-ts/tools | tools | zod | ["zod"] |
+| exec-quickjs | @smolagents-ts/exec-quickjs | exec-quickjs | zod, quickjs-emscripten-core, @jitl/quickjs-wasmfile-release-sync | ["zod", "quickjs-emscripten-core", "@jitl/quickjs-wasmfile-release-sync"] |
+| react | @smolagents-ts/react | react | zod | ["zod", "react", "react-dom", "react/jsx-runtime"] |
+
+Each package's `vitest.config.ts` is core's with the project name changed —
+`defineProject({ test: { name: "models" } })` and so on — and each package's `tsup.config.ts` is core's with the
+external array replaced by the column above. Core's two config files are written in Task 5, so read them
+there; do not invent a different shape.
 
 The react package additionally declares optional peers:
 
