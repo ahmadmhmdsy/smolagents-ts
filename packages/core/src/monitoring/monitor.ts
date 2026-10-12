@@ -1,4 +1,4 @@
-import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
+import { type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
 
 export interface MonitorStat {
   callCount: number;

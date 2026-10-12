@@ -1222,7 +1222,7 @@ Expected: FAIL, because `../src/monitoring/monitor.js` cannot be resolved — th
 - [ ] **Step 3: Write src/monitoring/monitor.ts**
 
 ```ts
-import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
+import { type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
 
 export interface MonitorStat {
   callCount: number;
@@ -2761,7 +2761,6 @@ contract, which lands here.
 ```ts
 // packages/core/test/scripted-executor.test.ts
 import { describe, expect, it } from "vitest";
-import type { CodeResult } from "../src/executor.js";
 import { ScriptedExecutor, finalAnswerResult } from "../src/testing/scripted-executor.js";
 import { ToolRegistry } from "../src/tool/registry.js";
 
@@ -3827,7 +3826,6 @@ import {
   AgentParsingError,
 } from "../errors.js";
 import type { AgentEvent } from "../events.js";
-import type { CodeExecutor } from "../executor.js";
 import { type Logger, noopLogger } from "../logger.js";
 import { AgentMemory } from "../memory/memory.js";
 import {
@@ -5113,9 +5111,8 @@ add one — but do not change `BuildCodeAgentSystemPromptOptions` to accommodate
 ```ts
 import { type AgentErrorInfo, AgentToolCallError } from "../errors.js";
 import type { AgentEvent } from "../events.js";
-import type { ToolCallEvent } from "../executor.js";
 import type { ActionStep } from "../memory/steps.js";
-import type { ChatCompletion, ToolCallRequest } from "../model.js";
+import type { ChatCompletion } from "../model.js";
 import { buildToolCallingAgentSystemPrompt } from "../prompts/system-prompt.js";
 import type { Tool, ToolContext } from "../tool/tool.js";
 import type { ToolCall } from "../types.js";
