@@ -3051,6 +3051,14 @@ git commit -m "feat(core): add the CodeExecutor contract and a scripted executor
 
 ---
 
+> **Post-review hardening (controller, after the Task 10 review).** `generate()` now returns `usage: { ...(turn.usage ??
+> EMPTY_TOKEN_USAGE) }` and `normalizeTurn` copies the scripted turn (including its tool calls). This is the THIRD
+> instance of one aliasing class in this plan - Monitor.total (9d20b32), collectCompletion (d96312b), MockModel.generate
+> - so it is systematic in the briefs' code blocks, not incidental: a stored object or shared constant handed out or
+> kept by reference. A repo-wide sweep after this fix found only harmless remaining instances (a `console` default and
+> a `null` default). Three tests were added: the shared constant survives mutation, a scripted turn's usage is not
+> aliased, and mutating a turn after construction does not rewrite the script. Task 10 also confirmed the brief's
+> contradiction independently and verified that the barrel export is correctly deferred to Task 19.
 ## Task 13: Parsing the model's code blocks
 
 **Files:**

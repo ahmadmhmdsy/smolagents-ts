@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MockModel } from "../src/testing/mock-model.js";
+import { EMPTY_TOKEN_USAGE } from "../src/types.js";
 
 describe("MockModel", () => {
   it("returns scripted responses in order", async () => {
@@ -66,5 +67,26 @@ describe("MockModel", () => {
     expect(model.provider).toBe("mock");
     expect(model.id).toBe("mock");
     expect(model.capabilities.toolCalls).toBe(true);
+  });
+
+  it("does not hand out the shared empty usage by reference", async () => {
+    const completion = await new MockModel(["x"]).generate([]);
+    (completion.usage as { inputTokens: number }).inputTokens = 999;
+    expect(EMPTY_TOKEN_USAGE.inputTokens).toBe(0);
+    expect((await new MockModel(["y"]).generate([])).usage.inputTokens).toBe(0);
+  });
+
+  it("does not alias a scripted turn\u0027s usage object", async () => {
+    const usage = { inputTokens: 1, outputTokens: 2, totalTokens: 3 };
+    const model = new MockModel([{ content: "x", usage }]);
+    ((await model.generate([])).usage as { inputTokens: number }).inputTokens = 999;
+    expect(usage.inputTokens).toBe(1);
+  });
+
+  it("copies a scripted turn, so mutating it later cannot rewrite the script", async () => {
+    const turn = { content: "first" };
+    const model = new MockModel([turn]);
+    turn.content = "hijacked";
+    expect((await model.generate([])).content).toBe("first");
   });
 });

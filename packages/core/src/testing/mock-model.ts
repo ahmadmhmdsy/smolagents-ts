@@ -65,7 +65,7 @@ export class MockModel implements Model {
     return {
       content: turn.content ?? "",
       toolCalls: turn.toolCalls === undefined ? [] : turn.toolCalls.map((call) => ({ ...call })),
-      usage: turn.usage ?? EMPTY_TOKEN_USAGE,
+      usage: { ...(turn.usage ?? EMPTY_TOKEN_USAGE) },
       finishReason: turn.finishReason ?? "stop",
     };
   }
@@ -105,5 +105,8 @@ export class MockModel implements Model {
 }
 
 function normalizeTurn(input: MockTurnInput): MockTurn {
-  return typeof input === "string" ? { content: input } : input;
+  if (typeof input === "string") return { content: input };
+  const turn: MockTurn = { ...input };
+  if (input.toolCalls !== undefined) turn.toolCalls = input.toolCalls.map((call) => ({ ...call }));
+  return turn;
 }
