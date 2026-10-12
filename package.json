@@ -12,13 +12,15 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:architecture": "vitest run --project core packages/core/test/architecture",
     "lint": "eslint .",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
     "changeset": "changeset",
     "publint": "pnpm -r --filter ./packages/* exec publint",
     "attw": "pnpm -r --filter ./packages/* exec attw --pack . --profile esm-only",
     "pack:smoke": "node scripts/pack-smoke.mjs",
-    "gate": "pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm pack:smoke"
+    "ci:check": "node scripts/check-ci.mjs",
+    "gate": "pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm ci:check && pnpm pack:smoke"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.0",
@@ -34,6 +36,7 @@
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.0.0",
     "vite": "^6.4.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "yaml": "^2.9.1"
   }
 }
