@@ -1,0 +1,2 @@
+# Normalise to LF inside the repository and check out LF everywhere.
+* text=auto eol=lf

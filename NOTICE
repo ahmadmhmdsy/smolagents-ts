@@ -1,0 +1,20 @@
+smolagents-ts
+Copyright 2026 the smolagents-ts contributors
+
+This product is an unofficial, independent TypeScript implementation derived from
+smolagents (https://github.com/huggingface/smolagents),
+Copyright Hugging Face, licensed under the Apache License, Version 2.0.
+
+Reference revision: 96f33faaf028479119ec8d34507b47694cf14e34 (v1.27.0.dev0, 2026-10-06).
+
+Modifications made by this project:
+  - The library was reimplemented in TypeScript.
+  - The Python AST interpreter (local_python_executor.py) was replaced by a pluggable
+    CodeExecutor abstraction with a QuickJS-WASM default.
+  - Decorator-based and type-hint-based tool definition was replaced by schema-first
+    declaration using Zod.
+  - The Gradio user interface was replaced by a React layer.
+  - Prompt templates were translated from the Python dialect to the JavaScript dialect.
+
+This project is not affiliated with, sponsored by, or endorsed by Hugging Face.
+"smolagents" and the Hugging Face marks belong to Hugging Face.
