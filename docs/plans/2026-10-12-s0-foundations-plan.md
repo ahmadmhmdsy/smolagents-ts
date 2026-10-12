@@ -1772,6 +1772,17 @@ Then edit the root `package.json`: add `"ci:check": "node scripts/check-ci.mjs"`
 insert `&& pnpm ci:check` immediately before `&& pnpm pack:smoke` in the `gate` script.
 
 Run: pnpm ci:check
+**Amended in round 25 (S0 Task 8 review F2).** The checks above bind the two jobs, both matrices and the pnpm
+version, but they never read a step's `run`. Measured consequence: deleting a `- run: pnpm test` line from the gate
+job, or renaming a stage in `scripts.gate`, leaves `pnpm ci:check` at exit 0 - CI would go green while running
+nothing, which is the silent-under-testing class this script exists to prevent. The script now also compares the gate
+job's `pnpm ...` run steps against `package.json`'s `gate` script, stage by stage and in order, requires the
+`pnpm install --frozen-lockfile` step, and requires each runtime's `scripts/runtime-smoke.mjs` step to run under its
+own `if: matrix.runtime == '<runtime>'`. Verified by eight mutations, each failing with the offending stage or
+condition named: a deleted stage, a renamed stage, two reordered stages (middle and last), a missing install step, a
+deleted bun step, a bun step under node's condition, and an extra non-stage `pnpm exec` step; the restored tree
+passes. The success line below is unchanged, so the expectation that follows still holds.
+
 Expected: prints "ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm 12.3.4"
 
 Run: pnpm test:architecture
