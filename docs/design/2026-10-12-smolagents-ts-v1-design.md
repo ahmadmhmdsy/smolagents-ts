@@ -540,7 +540,8 @@ interface AgentErrorInfo {
   readonly message: string;
   readonly code: string;
   readonly stepIndex?: number;
-  readonly cause?: unknown;
+  readonly cause?: string;  // v1: the stringified message, so `info` survives events, workers and the wire
+  // (the design's serialisability rule above); the original error stays on the Error's own `cause`
 }
 ```
 
@@ -930,7 +931,7 @@ Every pull request must pass:
 | `tools.py` | 1206 | **port** → `core/tool/*` + `tools/index.ts` |
 | `default_tools.py` | 586 | **port subset** → `tools/defaults/*` |
 | `utils.py` | 487 | **port subset** → `core/utils/*` |
-| `agent_types.py` | 221 | **port subset** → `core/types.ts` (text + image; audio deferred) |
+| `agent_types.py` | 221 | **port subset** → `core/types.ts` (text + image; audio deferred). **v1 deviation:** `ChatMessage.content` is `string`, i.e. text-only, so vision inputs are not supported in v1 |
 | `prompts/*.yaml` | 3 files | **re-author faithfully** → `core/prompts/*.ts` (JS dialect) |
 | `local_python_executor.py` | 1556 | **replace** → `exec-quickjs` behind `CodeExecutor` |
 | `gradio_ui.py` | 389 | **replace** → `react` L2/L3 (+ L4 later) |

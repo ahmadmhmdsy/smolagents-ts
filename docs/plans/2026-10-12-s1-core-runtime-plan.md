@@ -6010,6 +6010,14 @@ The last assertion in the second test is the point of the test: an accidental ne
 shows up as a failure rather than as a surprise in a published package. When you add an export on purpose, add
 its name to `RUNTIME_EXPORTS` in the same commit.
 
+**Coverage requirement added by the Task 1 review (MINOR-1).** Task 1's `errors.test.ts` exercises only 2 of the 7
+error subclasses, so the hierarchy's behaviour is otherwise unverified. Add one `it()` per error type — `AgentError`,
+`AgentParsingError`, `AgentExecutionError`, `AgentGenerationError`, `AgentMaxStepsError`, `AgentToolCallError`,
+`AgentTimeoutError`, `AgentCancelledError` — and in each assert: the instance is an `AgentError`, and `name`, `code`,
+`info.stepIndex` (when passed) and `info.cause` (as the stringified message, per the design note in §6.6) are what the
+hierarchy documents, and that the Error's own `cause` preserves the original error object. That is 8 new `it()` blocks,
+so Step 4's expected total becomes 60 rather than 52.
+
 - [ ] **Step 2: Run it and verify it fails**
 
 Run: pnpm vitest run packages/core/test/public-surface.test.ts
@@ -6079,7 +6087,7 @@ export * from "./testing/scripted-executor.js";
 - [ ] **Step 4: Run the surface test**
 
 Run: pnpm vitest run packages/core/test/public-surface.test.ts
-Expected: PASS, 52 tests.
+Expected: PASS, 60 tests.
 
 If a name from `RUNTIME_EXPORTS` is missing, the `export *` line that should have provided it is wrong — fix
 the line, do not remove the name. If the "total export count" test fails, the diff tells you which `export *`
