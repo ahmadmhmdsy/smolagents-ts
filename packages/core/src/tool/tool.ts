@@ -68,7 +68,7 @@ export function tool<TIn extends z.ZodType, TOut = unknown>(
     name,
     toSpec(): ToolSpec {
       // z.toJSONSchema emits "$schema" (which providers ignore or reject) and, in input mode, omits
-      // "additionalProperties: false" (which strict OpenAI-style function schemas require). Normalise both
+      // "additionalProperties: false" (which strict OpenAI-style function schemas require). Normalise both Only the root object gets `additionalProperties: false`; nested objects keep it absent, so this is not fully strict OpenAI-style (recorded for the whole-branch review).
       // here, so the prompt, the wire format and validation all stay derived from one source. Note that
       // z.toJSONSchema throws on types JSON Schema cannot express, such as z.bigint().
       const jsonSchema = z.toJSONSchema(definition.inputSchema, { io: "input" }) as Record<string, unknown>;

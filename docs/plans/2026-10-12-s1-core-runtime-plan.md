@@ -2795,6 +2795,14 @@ git commit -m "feat(core): add schema-first tools and the tool registry"
 > values to the argument's description as `one of ...`, so the type is never replaced by its value list and the test
 > passes unchanged. The committed `registry.ts` differs from the block above by exactly that change. Twice now the
 > contradiction has been test-block versus source-block; briefs 12-19 were re-checked for the same shape.
+> **Post-review note (controller, after the Task 11 review).** The review passed the task and confirmed the documented
+> deviation, then found two comments that overstate behaviour. Both are now honest: `toSpec()` sets
+> `additionalProperties: false` only on the root object, so the 'strict OpenAI-style' claim is qualified as
+> root-only, and Task 8's `toolDescriptions` note no longer claims 'one line per tool' where the renderer emits a bullet
+> plus an Arguments line. Its third finding - `describeType` renders `anyOf`/`oneOf` union arguments as '(unknown, ...)'
+> in the prompt, where arrays of scalar types are handled correctly - is deliberately NOT fixed here: every candidate
+> rendering ('object | object', or a deduped constituent list) loses information in a different place, the wire schema
+> is correct, and no test pins it. Carried to the whole-branch review as an open MINOR with the options.
 ## Task 12: The CodeExecutor contract
 
 **Files:**

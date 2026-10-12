@@ -4,6 +4,7 @@ import { CODE_AGENT_SYSTEM_TEMPLATE, CODE_FENCE } from "./templates.js";
 export interface BuildCodeAgentSystemPromptOptions {
   /**
    * Pre-rendered tool documentation, one line per tool. An empty string means
+ * The registry's renderer emits one bullet plus an Arguments line per tool, so count lines rather than tools.
    * "no tools", which the prompt states explicitly rather than leaving a blank.
    */
   toolDescriptions: string;
