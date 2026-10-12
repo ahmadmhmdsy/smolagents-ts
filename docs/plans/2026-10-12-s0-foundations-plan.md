@@ -433,18 +433,18 @@ Verify the shared base against a throwaway probe rather than seeding src:
 Run: pnpm add -Dw @types/node
 Expected: @types/node appears in the root package.json devDependencies.
 
-```powershell```
-New-Item -ItemType Directory -Force -Path .tmp-tscheck | Out-Null
-Set-Content .tmp-tscheck/probe.ts 'export const probe: number = 1;' -Encoding utf8
-Set-Content .tmp-tscheck/tsconfig.json '{ "extends": "../tsconfig.base.json", "compilerOptions": { "types": ["node"] }, "include": ["probe.ts"] }' -Encoding utf8
-pnpm exec tsc --noEmit -p .tmp-tscheck/tsconfig.json
-pnpm exec tsc --showConfig -p .tmp-tscheck/tsconfig.json | Select-String -Pattern '"strict"|noUncheckedIndexedAccess|"types"'
-Remove-Item -Recurse -Force .tmp-tscheck
-``````
+```powershell
+New-Item -ItemType Directory -Force -Path .superpowers/tmp-tscheck | Out-Null
+Set-Content .superpowers/tmp-tscheck/probe.ts 'export const probe: number = 1;' -Encoding utf8
+Set-Content .superpowers/tmp-tscheck/tsconfig.json '{ "extends": "../tsconfig.base.json", "compilerOptions": { "types": ["node"] }, "include": ["probe.ts"] }' -Encoding utf8
+pnpm exec tsc --noEmit -p .superpowers/tmp-tscheck/tsconfig.json
+pnpm exec tsc --showConfig -p .superpowers/tmp-tscheck/tsconfig.json | Select-String -Pattern '"strict"|noUncheckedIndexedAccess|"types"'
+Remove-Item -Recurse -Force .superpowers/tmp-tscheck
+```
 
 Expected: exit code 0, and the printed configuration contains "strict": true and "noUncheckedIndexedAccess":
 true. The probe is deleted again. It exists only because `packages/core/src` is not created until Task 6, and it
-also proves @types/node resolves: without it the test config fails with TS2688 `Cannot find type definition` `file for 'node'`.
+also proves @types/node resolves: without it the test config fails with TS2688 `Cannot find type definition file for 'node'`.
 
 Run: node -e "const fs=require('fs');JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8'));JSON.parse(fs.readFileSync('packages/core/tsconfig.test.json','utf8'));console.log('configs OK')"
 Expected: prints configs OK
