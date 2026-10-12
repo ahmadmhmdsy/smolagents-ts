@@ -56,4 +56,37 @@ describe("Monitor", () => {
       a: { callCount: 1, inputTokens: 1, outputTokens: 1, totalTokens: 2, totalDurationMs: 10 },
     });
   });
+
+  it("hands out a fresh total, so callers cannot corrupt the shared empty usage", () => {
+    const monitor = new Monitor();
+    const total = monitor.total as { inputTokens: number };
+    total.inputTokens = 99;
+    expect(monitor.total.inputTokens).toBe(0);
+  });
+
+  it("sums a recorded total that is not the sum of input and output", () => {
+    const monitor = new Monitor();
+    monitor.record("a", { inputTokens: 1, outputTokens: 1, totalTokens: 5 }, 0);
+    monitor.record("a", { inputTokens: 2, outputTokens: 3, totalTokens: 7 }, 0);
+    expect(monitor.total).toEqual({ inputTokens: 3, outputTokens: 4, totalTokens: 12 });
+  });
+
+  it("uses the wall clock when no start time is given", () => {
+    const before = Date.now();
+    const monitor = new Monitor();
+    expect(monitor.elapsedMs()).toBeGreaterThanOrEqual(0);
+    expect(monitor.elapsedMs(before + 10)).toBeGreaterThanOrEqual(9);
+  });
+
+  it("returns copies from get and snapshot", () => {
+    const monitor = new Monitor();
+    monitor.record("a", { inputTokens: 1, outputTokens: 2, totalTokens: 3 }, 4);
+    const got = monitor.get("a") as { callCount: number };
+    got.callCount = 99;
+    expect(monitor.get("a")?.callCount).toBe(1);
+    const snap = monitor.snapshot();
+    (snap["a"] as { callCount: number }).callCount = 99;
+    expect(monitor.get("a")?.callCount).toBe(1);
+    expect(monitor.snapshot()["a"]?.totalDurationMs).toBe(4);
+  });
 });

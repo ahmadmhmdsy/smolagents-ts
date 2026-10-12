@@ -9,8 +9,9 @@ export interface MonitorStat {
 }
 
 /**
- * Token and timing accounting, ported from upstream smolagents monitoring.py.
- * Injected clock so that the tests are deterministic.
+ * Token and timing accounting modelled on upstream smolagents monitoring.py, with an injected clock so
+ * tests are deterministic. Deliberate v1 differences from upstream: no `reset()` (a Monitor is created per
+ * run, so there is nothing to reset), no `update_metrics()`/`step_durations`, and `total` is a value copy.
  */
 export class Monitor {
   private readonly stats = new Map<string, MonitorStat>();
@@ -37,7 +38,7 @@ export class Monitor {
   }
 
   get total(): TokenUsage {
-    let total: TokenUsage = EMPTY_TOKEN_USAGE;
+    let total: TokenUsage = { ...EMPTY_TOKEN_USAGE };
     for (const stat of this.stats.values()) {
       total = addTokenUsage(total, {
         inputTokens: stat.inputTokens,

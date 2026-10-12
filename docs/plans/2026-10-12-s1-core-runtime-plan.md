@@ -1300,6 +1300,14 @@ git commit -m "feat(core): add the Monitor token and timing accountant"
 
 ---
 
+> **Post-review hardening (controller, after the Task 6 review).** The Monitor block above is superseded in three ways.
+> `total` now starts from `{ ...EMPTY_TOKEN_USAGE }` rather than the shared constant, because at runtime that constant is
+> a plain mutable object (its fields are `readonly` only at the type level), so a JavaScript consumer could otherwise have
+> mutated the module-level value through `monitor.total`. The class comment no longer claims "ported from upstream
+> monitoring.py": upstream has `get_total_token_counts()`/`reset()`/`update_metrics()`/`step_durations` and v1
+> deliberately has none of them, because a Monitor is created per run. Four tests were added covering the fresh-total
+> guarantee, a total that is not the sum of input and output, the default `Date.now()` clock, and the copies returned by
+> `get`/`snapshot`. Verified: 11/11 monitor tests, `pnpm lint` exit 0, core typecheck exit 0.
 ## Task 7: Template population
 
 **Files:**
