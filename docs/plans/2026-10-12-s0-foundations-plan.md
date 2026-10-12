@@ -35,8 +35,7 @@ this plan adds no runtime code beyond a version constant.
 ```text
 smolagents_ts/
 ├─ package.json                       root scripts + devDependencies, private
-├─ pnpm-workspace.yaml                workspace globs
-├─ .npmrc                             pnpm settings
+├─ pnpm-workspace.yaml                workspace globs + all pnpm settings
 ├─ .gitignore  .editorconfig
 ├─ tsconfig.base.json                 shared compiler options
 ├─ eslint.config.js                   flat config + core boundary rules
@@ -62,28 +61,44 @@ smolagents_ts/
 **Files:**
 - Create: package.json
 - Create: pnpm-workspace.yaml
-- Create: .npmrc
 - Create: .gitignore
 - Create: .editorconfig
 
 - [ ] **Step 1: Create pnpm-workspace.yaml**
 
+pnpm 12 reads **only auth and registry settings** from an `.npmrc` file; every other setting lives in
+`pnpm-workspace.yaml` or the global `config.yaml`. This project needs no registry or auth overrides, so there
+is no `.npmrc` at all and all three settings go here, in pnpm's camelCase form.
+
 ```yaml
 packages:
   - "packages/*"
   - "examples/*"
-```
 
-- [ ] **Step 2: Create .npmrc**
-
-```ini
 # Fail loudly instead of silently guessing peer dependency versions.
-strict-peer-dependencies=true
+strictPeerDependencies: true
 # Do not auto-install optional peers (React) for Node-only consumers.
-auto-install-peers=false
+autoInstallPeers: false
 # Reproducible CI installs.
-prefer-frozen-lockfile=true
+preferFrozenLockfile: true
+# esbuild ships a prebuilt platform binary; its postinstall only validates the install.
+# Recording it explicitly stops pnpm from appending a placeholder to this checked-in file
+# on every non-interactive install (pnpm issue 11574).
+allowBuilds:
+  esbuild: true
 ```
+
+- [ ] **Step 2: Verify the settings are actually in effect**
+
+Run: pnpm config get autoInstallPeers
+Expected: `false`
+
+Run: pnpm config get strictPeerDependencies
+Expected: `true`
+
+This step exists because the settings are easy to put in the wrong file. Under pnpm 12 an `.npmrc` holding
+`auto-install-peers=false` is silently ignored, and the only trace of the mistake is
+`settings.autoInstallPeers: true` recorded inside `pnpm-lock.yaml`.
 
 - [ ] **Step 3: Create .gitignore**
 
@@ -160,16 +175,25 @@ trim_trailing_whitespace = false
 - [ ] **Step 6: Install and verify the workspace resolves**
 
 Run: pnpm install
-Expected: a pnpm-lock.yaml is created, no error output.
+Expected: exit code 0; a pnpm-lock.yaml is created; no error output.
+
+Run: pnpm config get autoInstallPeers
+Expected: `false` — the value now comes from pnpm-workspace.yaml (Step 2), and
+`settings.autoInstallPeers: false` is recorded inside pnpm-lock.yaml.
 
 Run: pnpm exec tsc --version
-Expected: prints Version 5.x.x
+Expected: prints Version 6.0.3 (the range is `^6.0.0`; TypeScript 6 is the current major).
+
+A non-zero `pnpm install` here means pnpm refused to run a dependency's build script. pnpm 11+
+defaults `strictDepBuilds` to true and exits 1 with ERR_PNPM_IGNORED_BUILDS for any package that has a
+build script and is not named in `allowBuilds`. Step 1 names esbuild, so a correct configuration
+installs cleanly; if this step fails, fix `allowBuilds` rather than downgrading pnpm.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add package.json pnpm-workspace.yaml .npmrc .gitignore .editorconfig pnpm-lock.yaml
-git commit -m "chore: initialize pnpm workspace root"
+git add package.json pnpm-workspace.yaml .gitignore .editorconfig pnpm-lock.yaml
+git commit -m "chore: scaffold the pnpm workspace root"
 ```
 
 ---

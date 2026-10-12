@@ -722,5 +722,69 @@ wrapping object — the real failure mode the upstream rule was guarding against
 | managed agents | **recommended default applied** (deferred to S2, now named in the design); reversible by adding a 20th S1 task |
 | upstream example count | corrected from "eight" to **six** in all three documents — the original pass overstated it, which is noted here rather than quietly fixed |
 
-S1 is now 6257 lines across 19 tasks plus the definition of done; the design is 1013 lines; S0 is 1115.
+S1 is now 6257 lines across 19 tasks plus the definition of done; the design is 1013 lines; S0 is 1139.
 
+---
+
+## 13. Findings from executing S0 Task 1
+
+Task 1 was the first task to touch a real toolchain, and it produced problems that document review had not
+surfaced. Both are corrected in the plan. Neither is a defect in the library design itself.
+
+### A-9 — pnpm 12 ignores every `.npmrc` setting except auth and registry — FAIL (corrected)
+
+The plan had Task 1 create an `.npmrc` holding `strict-peer-dependencies=true`,
+`auto-install-peers=false` and `prefer-frozen-lockfile=true`. Under pnpm 12 that file is inert: pnpm's
+settings page states that only auth and registry settings are read from `.npmrc` files, and that all
+other settings live in `pnpm-workspace.yaml` or the global `config.yaml`.
+
+The evidence was in the tree before anyone read the documentation. `pnpm-lock.yaml` recorded
+`settings.autoInstallPeers: true` — the opposite of what the file asked for — and
+`pnpm config get auto-install-peers` returned `undefined`. The plan now has no `.npmrc` at all: the
+three settings live in `pnpm-workspace.yaml` in pnpm's camelCase form (`strictPeerDependencies`,
+`autoInstallPeers`, `preferFrozenLockfile`), and a new verification step asserts the effective values,
+because the failure is otherwise silent.
+
+This is the sharper kind of documentation defect: the plan's text was plausible — written from npm-era
+practice — and wrong only in combination with the exact package manager version that the same plan pins.
+
+### A-10 — a non-interactive `pnpm install` mutates the checked-in workspace file and exits 1 — FAIL (corrected)
+
+pnpm 11+ defaults `strictDepBuilds` to true and refuses to run a dependency's build script unless the
+package is named in `allowBuilds`. For a non-interactive install pnpm does not prompt: it appends a literal
+placeholder, `allowBuilds:` / `esbuild: "set this to true or false"`, to the checked-in
+`pnpm-workspace.yaml`, and exits 1 with `ERR_PNPM_IGNORED_BUILDS`. Task 1's install step had expected
+exit code 0 and no error output, so the plan's own verification step would have failed on a correct
+implementation.
+
+The consequence is worse than a dirty worktree: a checked-in file changes on every install, so a CI run that
+treats a non-zero install as fatal breaks on a machine nobody had touched. The plan now names esbuild in
+`allowBuilds` explicitly. The esbuild install script only validates the install — the prebuilt
+`@esbuild/win32-x64/esbuild.exe` arrives as an optional dependency and runs without it, confirmed by
+executing it (`esbuild.exe --version` → `0.27.7`) — so recording `esbuild: true` keeps the tree
+clean honestly, rather than suppressing the signal with `dangerouslyAllowAllBuilds`.
+
+### A-11 — the install step expected TypeScript 5 — FAIL (corrected)
+
+Task 1's verification said `pnpm exec tsc --version` should print `Version 5.x.x`, while the same task
+pinned the dependency range to `^6.0.0`. The install resolves 6.0.3. The stale expectation was corrected,
+and it is the reason the plan now states resolved versions rather than major-version guesses.
+
+### A-12 — a correction recorded as applied had reached only one of its two targets — FAIL (corrected)
+
+Section 5 records S1-2, the `zod@^3` hedge, as removed — and it was removed from S1. It was left in place
+in the design, whose canonical `package.json` for the published umbrella still read
+`"dependencies": { "zod": "^3.25.0" }`. That contradicts S0 Task 6's `"zod": "^4.0.0"` and the
+Zod 4-only API S1 depends on: `z.toJSONSchema` does not exist in Zod 3.
+
+A correction recorded as applied is more dangerous than one not yet made, because the report asserted the work
+was done and nobody would look again. Both documents now read `^4.0.0`.
+
+What the same scan did not find, recorded so the negative result is not mistaken for an omission: the umbrella's
+`"engines": { "node": ">=22" }` is a deliberate loose floor for *published* packages — S0-2 keeps `>=22.12` as
+the repository floor — and the React peer floors (`>=18`) are intentionally permissive.
+### Consequence for both plans
+
+Neither plan stated where pnpm configuration lives, and the design's stack section does not mention it.
+Settings now sit in the file pnpm actually reads, and S0 Task 1 verifies the effective values instead of
+trusting a file's presence.

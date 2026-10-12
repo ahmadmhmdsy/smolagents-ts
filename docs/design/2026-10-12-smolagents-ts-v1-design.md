@@ -204,7 +204,7 @@ the monorepo exists.
     "react": { "optional": true },
     "react-dom": { "optional": true }
   },
-  "dependencies": { "zod": "^3.25.0" },
+  "dependencies": { "zod": "^4.0.0" },
   "engines": { "node": ">=22" }
 }
 ```
