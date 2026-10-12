@@ -2075,6 +2075,17 @@ git commit -m "feat(core): add the Model interface and stream collection"
 
 ---
 
+> **Post-review hardening (controller, after the Task 9 review).** `collectCompletion` now returns
+> `usage: { ...usage }` instead of `usage`. Its default parameter *was* the shared `EMPTY_TOKEN_USAGE` constant, so a
+> call without a usage argument returned that module-level object by reference: the review's probe mutated
+> `result.usage.inputTokens` and read 999 back out of the constant. Same defect class as Monitor.total, fixed in the
+> same way. Four tests were added - the shared constant is not mutated, a caller-supplied usage object is not aliased,
+> a mid-stream throw propagates rather than returning partial state (previously undocumented and untested), and
+> `modelCapabilities()` defaults and overrides. Two further review points are carried to the whole-branch review rather
+> than fixed here: the design spec's section 7 calls the capability bag `supports` while the implementation and every
+> later task use `capabilities`/`modelCapabilities()` (plan/spec drift), and `ChatCompletionChunk` carries no usage where
+> upstream's `ChatMessageStreamDelta` does (Task 15's brief documents this as a v1 limitation). Verified: 10/10 model
+> tests, `pnpm lint` exit 0, core typecheck exit 0.
 ## Task 10: MockModel — the scripted test double
 
 **Files:**
@@ -2313,6 +2324,14 @@ git commit -m "feat(core): add MockModel, the deterministic scripted model"
 
 ---
 
+> **Post-implementation note (controller).** The brief's Step 1 test contradicted its Step 3 source: the source emitted
+> a trailing empty-delta chunk, so the deltas were `["abcd","efgh","ij",""]` while the tests asserted
+> `["abcd","efgh","ij"]` - measured 7 passed / 2 failed against a step whose `Expected:` line claimed 9 passed. The
+> implementer kept the test byte-for-byte, dropped the trailing yield and attached the finish reason to the final content
+> chunk, and reported both values without editing the step, the test or the expectation. The committed
+> `src/testing/mock-model.ts` therefore differs from the block above by exactly that one adjustment. This is the
+> highest-cost brief defect found so far, and it is the reason the remaining briefs now state that, when an `Expected:`
+> line contradicts the code, the code blocks and their tests are authoritative.
 ## Task 11: Tools and the tool registry
 
 **Files:**

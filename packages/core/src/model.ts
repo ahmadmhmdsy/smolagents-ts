@@ -109,5 +109,5 @@ export async function collectCompletion(
     .sort(([a], [b]) => a - b)
     .map(([, call]) => call);
 
-  return { content, toolCalls, usage, finishReason };
+  return { content, toolCalls, usage: { ...usage }, finishReason };
 }
