@@ -1026,8 +1026,11 @@ per assertion idle and 5.6-22.2 s under load, with the 5000 ms default once obse
 The default bound therefore made `pnpm test:architecture`, and the `gate` stage that runs it, pass or fail by
 timing: the review saw `pnpm gate` exit 1 with three `Test timed out in 5000ms` failures on one run and exit 0 on
 the next, with the deciding assertion at 4963/5000 ms. Both files now declare `const DEPCRUISE_TIMEOUT_MS = 120_000`
-and pass it as the third argument of those three `it()` calls; every other test keeps the default, so a genuinely
-hung test still fails fast. Verified by setting the constant to 1: exactly those three assertions fail with
+and pass it as the third argument of those three `it()` calls; every other test keeps the default. Vitest evaluates its bound only
+after a synchronous body returns, so the bound alone cannot preempt a stuck child: the three `execFileSync` calls
+also carry `timeout: DEPCRUISE_CHILD_TIMEOUT_MS` (60 s, below the test bound so a stuck depcruise surfaces as a
+failed assertion rather than a stuck suite). Verified by setting that child bound to 1: all three assertions fail
+with ETIMEDOUT in 613 ms instead of hanging, while the three lexical assertions still pass. Verified by setting the constant to 1: exactly those three assertions fail with
 `Test timed out in 1ms` while the three lexical config assertions still pass, so the bound is wired to the
 subprocess tests and to nothing else. The code blocks above are the pre-amendment shape and are superseded here.
 

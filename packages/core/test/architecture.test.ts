@@ -17,12 +17,14 @@ const config = loadCjs(join(repoRoot, ".dependency-cruiser.cjs")) as {
   options: { exclude: { path: string } };
 };
 
-// Each assertion here shells out to `pnpm exec depcruise`, which starts a Node process and walks the
-// package. Measured in this repo: 4.2-4.4 s per assertion idle and 5.6-22.2 s under load (the pnpm
-// shim alone costs 1.8-2.5 s). Vitest's 5000 ms default is therefore a coin flip, not a budget. These
-// assertions set their own generous bound; every other test keeps the default, so a genuinely hung
-// test still fails fast.
+// Each assertion here shells out to `pnpm exec depcruise`, which starts a Node process and walks the package.
+// Measured in this repo: 3.0-4.9 s per assertion at rest and 5.6-22.2 s under load (the pnpm shim alone costs
+// 1.8-2.5 s), against Vitest's 5000 ms default - a coin flip, not a budget. Two bounds are needed, and not just
+// because of the measured range: Vitest evaluates its timeout only after a synchronous test body returns, so the
+// test bound alone cannot preempt a child that hangs. The child bound below is what actually stops one; it is
+// deliberately below the test bound so a stuck depcruise surfaces as a failed assertion, not a stuck suite.
 const DEPCRUISE_TIMEOUT_MS = 120_000;
+const DEPCRUISE_CHILD_TIMEOUT_MS = 60_000;
 
 describe("architecture boundaries", () => {
   it("dependency-cruiser reports no violations", () => {
@@ -31,7 +33,7 @@ describe("architecture boundaries", () => {
       output = execFileSync(
         "pnpm",
         ["exec", "depcruise", "packages/core/src", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
-        { encoding: "utf8", cwd: repoRoot, shell: process.platform === "win32" },
+        { encoding: "utf8", cwd: repoRoot, shell: process.platform === "win32", timeout: DEPCRUISE_CHILD_TIMEOUT_MS },
       );
     } catch (error) {
       const stdout = (error as { stdout?: string }).stdout ?? "";
