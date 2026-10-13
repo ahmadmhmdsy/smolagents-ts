@@ -42,6 +42,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
+| T-8 | plan and execute S3: the tool system | in_progress | maintainer | `packages/tools/`, `docs/` | a written S3 plan exists and its Definition of done holds | - |
 <!-- rotate:end -->
 
 ## Blocked
