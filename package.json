@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:architecture": "vitest run --project core packages/core/test/architecture",
+    "example:node": "pnpm --filter smolagents-ts build && node examples/node-script/index.mjs",
     "lint": "eslint .",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
     "changeset": "changeset",
