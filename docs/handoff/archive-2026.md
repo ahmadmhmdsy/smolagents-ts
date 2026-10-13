@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-13T19:34:09+03:00 — the adoption is closed out; S2 chosen; both pack patches recorded
+
+**State.** The context pack is adopted and accepted, and S2 (model layer) is the
+milestone in progress. The library is unchanged from the S0/S1 report: core
+green, ToolCallingAgent still unusable against a real provider.
+
+**Did.** Closed the adoption ledger — T-1 done, T-3 answered (S2), T-4 accepted —
+and rotated those rows to `docs/tasks/archive-2026.md`; answered both open
+questions in `docs/01-project.md` (revision 3); accepted
+`docs/09-decisions/0001-pack-walk-excludes-vendored-trees.md`; added
+`docs/09-decisions/0003-pruning-surface-walker.md` with `iter_surface()` in
+`scripts/_packmodel.py`, now used by `walk()`, `c00_adapt()` and
+`Pack.scoped_agents()`; corrected the false runtime claim in 0001 and added its
+lesson to `docs/memory/general.md`.
+
+**Verified.** `python scripts/validate_context.py --root . --baseline
+docs/.baseline.json --json` reports `{"new": [], "baselined": 14, "errors": 0,
+"warnings": 0}`, byte-identical before and after the pruner, in 433 ms against
+179,240 ms before it. `pnpm gate` exited 0 on this tree at `e4e4b5a` and no
+package source has changed since.
+
+**Unverified / open.** No fresh session has answered the five boot questions from
+the repository alone, so readability stays unproven. Bun and Deno are not
+installed here, so those runtime legs are CI-only. Both pack patches are local
+deviations; T-5 waits on the owner.
+
+**Next.** Write the S2 plan, then execute it from a reviewed brief.
+
+**Blockers.** None. T-2 waits on the S2 plan's tasks, T-5 on the owner.
+
+**Artifacts.** `docs/09-decisions/0003-pruning-surface-walker.md`,
+`.superpowers/validate-before-prune.json`, `docs/01-project.md`.
+
 ## 2026-10-13T18:47:31+03:00 — context pack adopted; S1 state recorded
 
 **State.** Branch `context-pack-adoption` off `main` at `e4e4b5a`: the context

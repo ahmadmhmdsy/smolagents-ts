@@ -34,6 +34,30 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-13T20:54:22+03:00 — the S2b plan is written; execution is the next step
+
+**State.** `main` is at `964c702` plus this entry. S2a is merged and its branch is gone;
+S2b is planned but not executed, so `docs/04-tasks.md` still shows T-7 in progress.
+
+**Did.** Wrote `docs/plans/2026-10-13-s2b-anthropic-gemini-huggingface-plan.md`: eight
+tasks for the Anthropic, Gemini and HuggingFace adapters, each with its files, steps, a
+red/green command and a commit. Also corrected the S2a fixture comment that called a
+hand-shaped completion a recording.
+
+**Verified.** The validator reports `new: 0` with no errors and no warnings;
+`rotate.py --check` exits 0; the plan carries the `Contract` heading a new `docs/` file
+needs.
+
+**Unverified / open.** No adapter from this plan exists yet, and the Anthropic and Gemini
+wire facts come from published documentation rather than from a call this project made.
+
+**Next.** Execute the plan task by task, starting with the Anthropic adapter.
+
+**Blockers.** T-5 still waits on the owner.
+
+**Artifacts.** `docs/plans/2026-10-13-s2b-anthropic-gemini-huggingface-plan.md`,
+`.superpowers/validate-s2b-plan.json`.
+
 ## 2026-10-13T20:40:53+03:00 — main is the S2a state; the branch is gone
 
 **State.** The work sits on `main` at `79a4f9c` and `context-pack-adoption` is deleted, so the
@@ -128,38 +152,6 @@ the fallback. No fresh session has answered the five boot questions.
 **Artifacts.** `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`,
 `docs/04-tasks.md`, `docs/memory/general.md`.
 
-## 2026-10-13T19:34:09+03:00 — the adoption is closed out; S2 chosen; both pack patches recorded
-
-**State.** The context pack is adopted and accepted, and S2 (model layer) is the
-milestone in progress. The library is unchanged from the S0/S1 report: core
-green, ToolCallingAgent still unusable against a real provider.
-
-**Did.** Closed the adoption ledger — T-1 done, T-3 answered (S2), T-4 accepted —
-and rotated those rows to `docs/tasks/archive-2026.md`; answered both open
-questions in `docs/01-project.md` (revision 3); accepted
-`docs/09-decisions/0001-pack-walk-excludes-vendored-trees.md`; added
-`docs/09-decisions/0003-pruning-surface-walker.md` with `iter_surface()` in
-`scripts/_packmodel.py`, now used by `walk()`, `c00_adapt()` and
-`Pack.scoped_agents()`; corrected the false runtime claim in 0001 and added its
-lesson to `docs/memory/general.md`.
-
-**Verified.** `python scripts/validate_context.py --root . --baseline
-docs/.baseline.json --json` reports `{"new": [], "baselined": 14, "errors": 0,
-"warnings": 0}`, byte-identical before and after the pruner, in 433 ms against
-179,240 ms before it. `pnpm gate` exited 0 on this tree at `e4e4b5a` and no
-package source has changed since.
-
-**Unverified / open.** No fresh session has answered the five boot questions from
-the repository alone, so readability stays unproven. Bun and Deno are not
-installed here, so those runtime legs are CI-only. Both pack patches are local
-deviations; T-5 waits on the owner.
-
-**Next.** Write the S2 plan, then execute it from a reviewed brief.
-
-**Blockers.** None. T-2 waits on the S2 plan's tasks, T-5 on the owner.
-
-**Artifacts.** `docs/09-decisions/0003-pruning-surface-walker.md`,
-`.superpowers/validate-before-prune.json`, `docs/01-project.md`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.
