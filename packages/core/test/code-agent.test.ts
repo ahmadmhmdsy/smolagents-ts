@@ -133,6 +133,32 @@ describe("CodeAgent", () => {
     expect(result.output).toBe("from executor");
   });
 
+  it("puts a failed code step's error into the observation", async () => {
+    const executor = new ScriptedExecutor({
+      handler: (code, options): CodeResult => {
+        if (code === "broken()") {
+          return {
+            logs: "half a line",
+            isFinalAnswer: false,
+            durationMs: 1,
+            toolCallCount: 0,
+            error: { name: "TypeError", message: "not a function", code: "AGENT_EXECUTION", stepIndex: 0 },
+          };
+        }
+        options.finalAnswer.submit("recovered");
+        return { logs: "", isFinalAnswer: false, durationMs: 0, toolCallCount: 0 };
+      },
+    });
+    const agent = new CodeAgent({
+      model: new MockModel([fenced("go", "broken()"), fenced("recover", "final_answer('recovered')")]),
+      executor,
+    });
+    const { result } = await drain(agent, "Q");
+    const firstAction = result?.steps.find((step) => step.kind === "action");
+    expect(firstAction).toMatchObject({ observations: "half a line\nError: not a function" });
+    expect(result?.output).toBe("recovered");
+  });
+
   it("replays the golden fibonacci transcript event for event", async () => {
     const transcript = JSON.parse(
       readFileSync(new URL("./golden/fibonacci.transcript.json", import.meta.url), "utf8"),

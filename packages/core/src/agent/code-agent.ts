@@ -3,6 +3,7 @@ import { MultiStepAgent, type AgentOptions, type RunContext } from "./multi-step
 import type { AgentEvent } from "../events.js";
 import type { CodeExecutor, ToolCallEvent } from "../executor.js";
 import type { ActionStep } from "../memory/steps.js";
+import type { AgentErrorInfo } from "../errors.js";
 import type { ChatCompletion } from "../model.js";
 import { buildCodeAgentSystemPrompt } from "../prompts/system-prompt.js";
 import type { ToolCall } from "../types.js";
@@ -101,13 +102,24 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
     step.toolCalls = toolCalls;
     return {
-      observations: settled.result.logs,
+      observations: describeExecution(settled.result.logs, settled.result.error),
       isFinalAnswer: settled.result.isFinalAnswer || submittedFinal,
       // The executor's own answer wins when it claims one; the sink is the fallback.
       value: settled.result.isFinalAnswer ? settled.result.value : submitted,
       error: settled.result.error,
     };
   }
+}
+
+/**
+ * What the model reads back from a step. A failed step has to say why: the executor reports
+ * the guest's output and the failure separately, and an observation with no reason in it
+ * leaves the model nothing to react to.
+ */
+function describeExecution(logs: string, error: AgentErrorInfo | undefined): string {
+  if (error === undefined) return logs;
+  const failure = "Error: " + error.message;
+  return logs === "" ? failure : logs + "\n" + failure;
 }
 
 function toAgentEvent(event: ToolCallEvent): AgentEvent {
