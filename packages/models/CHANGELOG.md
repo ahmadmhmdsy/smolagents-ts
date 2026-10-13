@@ -9,17 +9,10 @@
   with its `alt=sse` stream, and the Inference Providers router built as a
   subclass of the OpenAI-compatible adapter. All five adapters are exported from
   the package barrel.
-- The first release: an agent whose action is a program, in TypeScript.
-
-  `smolagents-ts` is the package to install. It re-exports the runtime, the
-  provider adapters, the default tools, the QuickJS executor and the React layer
-  under one name, with React and the QuickJS engine as optional peers. The
-  internal packages are published beside it because its declarations name them;
-  they are not the documented entry point.
-
-  This release is pre-1.0 and its API can move. It is an unofficial TypeScript
-  implementation of the smolagents approach and is not affiliated with Hugging
-  Face.
+- The first release of the adapters: an OpenAI-compatible client, Anthropic's Messages API
+  with its tool blocks, Gemini's streaming `generateContent`, the Hugging Face Inference
+  Providers router, and a model a caller defines with functions. Each sits behind the
+  core's `Model` interface and none of them is imported by it.
 
 ### Patch Changes
 

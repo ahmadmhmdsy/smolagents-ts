@@ -8,17 +8,9 @@
   core's registry, `htmlToText`, and the `userInputTool`, `duckDuckGoSearchTool` and
   `visitWebpageTool` defaults. The package now depends on `@smolagents-ts/core` for the
   `Tool` interface and `ToolContext`.
-- The first release: an agent whose action is a program, in TypeScript.
-
-  `smolagents-ts` is the package to install. It re-exports the runtime, the
-  provider adapters, the default tools, the QuickJS executor and the React layer
-  under one name, with React and the QuickJS engine as optional peers. The
-  internal packages are published beside it because its declarations name them;
-  they are not the documented entry point.
-
-  This release is pre-1.0 and its API can move. It is an unofficial TypeScript
-  implementation of the smolagents approach and is not affiliated with Hugging
-  Face.
+- The first release of the tool ecosystem: `ToolCollection`, `htmlToText`, and the
+  `userInputTool`, `duckDuckGoSearchTool` and `visitWebpageTool` defaults, every one of
+  them built with the core's `tool()` and a Zod schema.
 
 ### Patch Changes
 
