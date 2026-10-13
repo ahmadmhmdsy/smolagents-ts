@@ -36,6 +36,18 @@ export interface StepView {
   readonly endedAt?: number;
 }
 
+/**
+ * The planning lane: one entry per planning step, filled while its text streams and replaced
+ * wholesale when the step completes.
+ */
+export interface PlanningView {
+  readonly stepIndex: number;
+  readonly status: "streaming" | "complete";
+  readonly text: string;
+  readonly startedAt: number;
+  readonly endedAt?: number;
+}
+
 export interface AgentSessionSnapshot {
   readonly runId: string | null;
   readonly task: string | null;
@@ -43,6 +55,7 @@ export interface AgentSessionSnapshot {
   readonly status: SessionStatus;
   readonly isRunning: boolean;
   readonly steps: readonly StepView[];
+  readonly planning: readonly PlanningView[];
   readonly output: unknown;
   readonly error: AgentErrorInfo | null;
   readonly usage: TokenUsage;
@@ -64,12 +77,21 @@ interface StepDraft {
   endedAt?: number;
 }
 
+interface PlanningDraft {
+  stepIndex: number;
+  status: "streaming" | "complete";
+  text: string;
+  startedAt: number;
+  endedAt?: number;
+}
+
 interface RunDraft {
   runId: string | null;
   task: string | null;
   modelId: string | null;
   status: SessionStatus;
   steps: StepDraft[];
+  planning: PlanningDraft[];
   output: unknown;
   error: AgentErrorInfo | null;
   usage: TokenUsage;
@@ -84,6 +106,7 @@ function emptyRun(): RunDraft {
     modelId: null,
     status: "idle",
     steps: [],
+    planning: [],
     output: undefined,
     error: null,
     usage: EMPTY_TOKEN_USAGE,
@@ -198,6 +221,31 @@ export class AgentSession<TOut = unknown> {
         this.draft.status = "running";
         return;
 
+      case "planning.started":
+        this.draft.planning.push({
+          stepIndex: event.stepIndex,
+          status: "streaming",
+          text: "",
+          startedAt: Date.now(),
+        });
+        return;
+
+      case "planning.delta": {
+        // Advisory, exactly like message.delta: planning.completed replaces the text.
+        const planning = this.planningAt(event.stepIndex);
+        if (planning !== undefined) planning.text += event.text;
+        return;
+      }
+
+      case "planning.completed": {
+        const planning = this.planningAt(event.stepIndex);
+        if (planning === undefined) return;
+        planning.text = event.text;
+        planning.status = "complete";
+        planning.endedAt = Date.now();
+        return;
+      }
+
       case "step.started":
         this.draft.steps[event.stepIndex] = {
           stepIndex: event.stepIndex,
@@ -304,8 +352,8 @@ export class AgentSession<TOut = unknown> {
         this.draft.endedAt = Date.now();
         return;
 
-      // Planning and tool-call announcement events are not part of the step view in v1.
-      // The run inspector adds a planning lane in S5; leaving them unhandled is honest.
+      // code.delta is advisory: code.completed replaces the step's code wholesale, so a
+      // partial line never reaches the snapshot.
       default:
         return;
     }
@@ -317,6 +365,13 @@ export class AgentSession<TOut = unknown> {
 
   private stepAt(stepIndex: number): StepDraft | undefined {
     return this.draft.steps[stepIndex] ?? this.openStep();
+  }
+
+  private planningAt(stepIndex: number): PlanningDraft | undefined {
+    return (
+      this.draft.planning.find((entry) => entry.stepIndex === stepIndex) ??
+      this.draft.planning[this.draft.planning.length - 1]
+    );
   }
 
   /**
@@ -380,6 +435,17 @@ function freezeRun(draft: RunDraft, lastEventType: AgentEventType | null): Agent
           isFinalAnswer: step.isFinalAnswer,
           startedAt: step.startedAt,
           ...(step.endedAt === undefined ? {} : { endedAt: step.endedAt }),
+        }),
+      ),
+    ),
+    planning: Object.freeze(
+      draft.planning.map((planning) =>
+        Object.freeze({
+          stepIndex: planning.stepIndex,
+          status: planning.status,
+          text: planning.text,
+          startedAt: planning.startedAt,
+          ...(planning.endedAt === undefined ? {} : { endedAt: planning.endedAt }),
         }),
       ),
     ),
