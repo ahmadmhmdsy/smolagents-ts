@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectCompletion, modelCapabilities } from "../src/model.js";
+import { ToolCallAccumulator, collectCompletion, modelCapabilities } from "../src/model.js";
 import { EMPTY_TOKEN_USAGE } from "../src/types.js";
 import type { ChatCompletionChunk } from "../src/model.js";
 
@@ -60,6 +60,34 @@ describe("collectCompletion", () => {
     (completion.usage as { inputTokens: number }).inputTokens = 999;
     expect(EMPTY_TOKEN_USAGE.inputTokens).toBe(0);
     expect((await collectCompletion(from([]))).usage.inputTokens).toBe(0);
+  });
+
+  it("takes the usage a stream reports when the caller supplies none", async () => {
+    const completion = await collectCompletion(
+      from([{ delta: "x" }, { delta: "", usage: { inputTokens: 7, outputTokens: 2, totalTokens: 9 } }]),
+    );
+    expect(completion.usage).toEqual({ inputTokens: 7, outputTokens: 2, totalTokens: 9 });
+  });
+
+  it("prefers the caller's usage over the stream's", async () => {
+    const supplied = { inputTokens: 1, outputTokens: 1, totalTokens: 2 };
+    const completion = await collectCompletion(
+      from([{ delta: "x", usage: { inputTokens: 9, outputTokens: 9, totalTokens: 18 } }]),
+      supplied,
+    );
+    expect(completion.usage).toEqual(supplied);
+  });
+
+  it("accumulates streamed tool-call deltas by index", () => {
+    const accumulator = new ToolCallAccumulator();
+    accumulator.accept({ index: 0, id: "call_a", name: "add", argumentsDelta: '{"a":' });
+    accumulator.accept({ index: 0, argumentsDelta: "2}" });
+    accumulator.accept({ index: 1, id: "call_b", name: "mul", argumentsDelta: "{}" });
+
+    expect(accumulator.finish()).toEqual([
+      { id: "call_a", name: "add", arguments: '{"a":2}' },
+      { id: "call_b", name: "mul", arguments: "{}" },
+    ]);
   });
 
   it("does not alias the usage object it was given", async () => {

@@ -15,7 +15,13 @@ import {
   TaskStep,
 } from "../memory/steps.js";
 import { type AgentMiddleware, type MiddlewareContext, composeMiddleware } from "../middleware.js";
-import type { ChatCompletion, Model } from "../model.js";
+import {
+  ToolCallAccumulator,
+  type ChatCompletion,
+  type FinishReason,
+  type GenerateOptions,
+  type Model,
+} from "../model.js";
 import { Monitor } from "../monitoring/monitor.js";
 import { ToolRegistry } from "../tool/registry.js";
 import type { Tool } from "../tool/tool.js";
@@ -120,6 +126,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
   /** Which transcript shape this agent's memory renders into. */
   protected get transcriptStyle(): "observation" | "tool-messages" {
     return "observation";
+  }
+
+  /** Whether this agent sends its tool schemas with the request. */
+  protected get advertisesTools(): boolean {
+    return false;
   }
 
   /** The one place the transcript options are assembled. */
@@ -362,6 +373,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
   }
 
+  /** The request options for one model turn, assembled in one place. */
+  private modelOptions(context: RunContext): GenerateOptions {
+    const options: GenerateOptions = { signal: context.signal };
+    if (this.advertisesTools) {
+      const specs = this.tools.toSpecs();
+      if (specs.length > 0) options.tools = specs;
+    }
+    return options;
+  }
+
   /**
    * One model turn. Deltas are emitted as they arrive; the authoritative completion is
    * returned, never reconstructed from deltas by the caller.
@@ -373,24 +394,42 @@ export abstract class MultiStepAgent<TOut = unknown> {
     kind: "action" | "planning",
   ): AsyncGenerator<AgentEvent, ChatCompletion> {
     if (this.prefersStreaming && this.model.capabilities.streaming) {
+      const startedAt = Date.now();
+      const accumulator = new ToolCallAccumulator();
       let text = "";
-      for await (const chunk of this.model.generateStream(messages, { signal: context.signal })) {
-        if (chunk.delta === "") continue;
-        text += chunk.delta;
-        yield this.emit(
-          kind === "planning"
-            ? { type: "planning.delta", stepIndex, text: chunk.delta }
-            : { type: "message.delta", text: chunk.delta },
-        );
+      let finishReason: FinishReason = "stop";
+      let streamUsage: TokenUsage | undefined;
+
+      for await (const chunk of this.model.generateStream(messages, this.modelOptions(context))) {
+        if (chunk.delta !== "") {
+          text += chunk.delta;
+          yield this.emit(
+            kind === "planning"
+              ? { type: "planning.delta", stepIndex, text: chunk.delta }
+              : { type: "message.delta", text: chunk.delta },
+          );
+        }
+        if (chunk.toolCallDelta !== undefined) accumulator.accept(chunk.toolCallDelta);
+        if (chunk.finishReason !== undefined) finishReason = chunk.finishReason;
+        if (chunk.usage !== undefined) streamUsage = chunk.usage;
       }
-      // ChatCompletionChunk carries no usage, so the running total is unchanged. Emit anyway,
-      // so consumers have one invariant: exactly one usage.updated per model turn.
+
+      if (streamUsage !== undefined) {
+        this.monitor.record(this.model.id, streamUsage, Date.now() - startedAt);
+        context.usage = addTokenUsage(context.usage, streamUsage);
+      }
+      // Exactly one usage.updated per model turn, whether or not the stream reported usage.
       yield this.emit({ type: "usage.updated", usage: context.usage });
-      return { content: text, toolCalls: [], usage: EMPTY_TOKEN_USAGE, finishReason: "stop" };
+      return {
+        content: text,
+        toolCalls: accumulator.finish(),
+        usage: streamUsage ?? EMPTY_TOKEN_USAGE,
+        finishReason,
+      };
     }
 
     const startedAt = Date.now();
-    const completion = await this.model.generate(messages, { signal: context.signal });
+    const completion = await this.model.generate(messages, this.modelOptions(context));
     if (completion.content !== "") {
       yield this.emit(
         kind === "planning"

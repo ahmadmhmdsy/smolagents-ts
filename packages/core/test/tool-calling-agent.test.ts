@@ -89,6 +89,19 @@ describe("ToolCallingAgent", () => {
     ]);
   });
 
+  it("advertises the tool schemas on the request", async () => {
+    const model = new MockModel([
+      { content: "", toolCalls: [call("get_weather", { city: "Paris" })], finishReason: "tool_calls" },
+      { content: "", toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: "sunny" }, "c2")], finishReason: "tool_calls" },
+    ]);
+    const agent = new ToolCallingAgent({ model, tools: [weatherTool] });
+    await agent.run("Q");
+
+    const specs = model.requestOptions[0]?.tools ?? [];
+    expect(specs.map((spec) => spec.name)).toContain("get_weather");
+    expect(specs.find((spec) => spec.name === "get_weather")?.inputSchema).toMatchObject({ type: "object" });
+  });
+
   it("records an unknown tool as a failed call and keeps the run alive", async () => {
     const model = new MockModel([
       { content: "", toolCalls: [call("nope", {})], finishReason: "tool_calls" },

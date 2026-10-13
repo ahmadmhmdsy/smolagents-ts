@@ -27,6 +27,11 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     return false;
   }
 
+  /** The schemas travel on the request: this agent's model decides what to call. */
+  protected override get advertisesTools(): boolean {
+    return true;
+  }
+
   /** A tool-calling provider is given tool_calls and tool results, not Observations. */
   protected override get transcriptStyle(): "observation" | "tool-messages" {
     return "tool-messages";

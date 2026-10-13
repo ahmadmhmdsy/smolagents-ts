@@ -28,6 +28,9 @@ const RUNTIME_EXPORTS = [
   // model and execution seams
   "modelCapabilities",
   "collectCompletion",
+  // Published beside collectCompletion: an adapter that reassembles a streamed answer in
+  // its own generate() needs the same accumulator the built-in helper uses.
+  "ToolCallAccumulator",
   // tools
   "tool",
   "ToolDefinitionError",

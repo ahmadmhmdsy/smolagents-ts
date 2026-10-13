@@ -36,6 +36,9 @@ export class MockModel implements Model {
   /** Every transcript passed to generate or generateStream, in call order. */
   readonly calls: ChatMessage[][] = [];
 
+  /** The options each of those calls was made with, in the same order. */
+  readonly requestOptions: GenerateOptions[] = [];
+
   constructor(input: MockTurnInput[] | MockModelOptions) {
     if (Array.isArray(input)) {
       this.turns = input.map(normalizeTurn);
@@ -59,10 +62,11 @@ export class MockModel implements Model {
   reset(): void {
     this.index = 0;
     this.calls.length = 0;
+    this.requestOptions.length = 0;
   }
 
-  async generate(messages: readonly ChatMessage[], _options?: GenerateOptions): Promise<ChatCompletion> {
-    const turn = this.take(messages);
+  async generate(messages: readonly ChatMessage[], options?: GenerateOptions): Promise<ChatCompletion> {
+    const turn = this.take(messages, options);
     return {
       content: turn.content ?? "",
       toolCalls: turn.toolCalls === undefined ? [] : turn.toolCalls.map((call) => ({ ...call })),
@@ -73,27 +77,35 @@ export class MockModel implements Model {
 
   async *generateStream(
     messages: readonly ChatMessage[],
-    _options?: GenerateOptions,
+    options?: GenerateOptions,
   ): AsyncIterable<ChatCompletionChunk> {
-    const turn = this.take(messages);
+    const turn = this.take(messages, options);
     const content = turn.content ?? "";
     const size = this.chunkSize > 0 ? this.chunkSize : content.length;
     if (content.length === 0) {
       yield { delta: "", finishReason: turn.finishReason ?? "stop" };
+      yield* this.usageChunk(turn);
       return;
     }
     for (let offset = 0; offset < content.length; offset += size) {
       const delta = content.slice(offset, offset + size);
-      // The finish reason rides on the final content chunk: the test contract is that the
-      // delta sequence is exactly the content chunks, with no trailing empty-delta chunk.
+      // The finish reason rides on the final content chunk, so the delta sequence is
+      // exactly the content chunks; a usage report, when there is one, follows them.
       yield offset + size >= content.length
         ? { delta, finishReason: turn.finishReason ?? "stop" }
         : { delta };
     }
+    yield* this.usageChunk(turn);
   }
 
-  private take(messages: readonly ChatMessage[]): MockTurn {
+  /** A real provider reports usage on a trailing textless chunk. So does this one. */
+  private *usageChunk(turn: MockTurn): Iterable<ChatCompletionChunk> {
+    if (turn.usage !== undefined) yield { delta: "", usage: { ...turn.usage } };
+  }
+
+  private take(messages: readonly ChatMessage[], options?: GenerateOptions): MockTurn {
     this.calls.push([...messages]);
+    this.requestOptions.push(options ?? {});
     const turn = this.turns[this.index];
     if (turn === undefined) {
       throw new AgentGenerationError(

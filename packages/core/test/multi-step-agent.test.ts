@@ -58,6 +58,13 @@ class TestAgent extends MultiStepAgent<string> {
   }
 }
 
+/** Streaming is off in every shipped agent, so a test subclass is the only way in. */
+class StreamingTestAgent extends TestAgent {
+  protected override get prefersStreaming(): boolean {
+    return true;
+  }
+}
+
 function buildAgent(options: {
   responses: string[];
   results?: Record<string, ReturnType<typeof finalAnswerResult>>;
@@ -217,6 +224,32 @@ describe("MultiStepAgent", () => {
     const agent = new TestAgent(executor, { model });
     const result = await agent.run("Q");
     expect(result.tokenUsage).toEqual({ inputTokens: 30, outputTokens: 5, totalTokens: 35 });
+  });
+
+  it("keeps a streamed turn's usage and still emits exactly one usage.updated", async () => {
+    const model = new MockModel({
+      responses: [
+        {
+          content: fenced("final_answer(1)"),
+          usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 },
+        },
+      ],
+      chunkSize: 7,
+    });
+    const executor = new ScriptedExecutor({ results: { "final_answer(1)": finalAnswerResult(1) } });
+    const agent = new StreamingTestAgent(executor, { model });
+
+    const events = await collect(agent, "Q");
+
+    const updates = events.filter((event) => event.type === "usage.updated");
+    expect(updates).toHaveLength(1);
+    expect((updates[0] as { usage: unknown }).usage).toEqual({
+      inputTokens: 10,
+      outputTokens: 2,
+      totalTokens: 12,
+    });
+    expect(events.filter((event) => event.type === "message.delta").length).toBeGreaterThan(1);
+    expect(events.at(-1)?.type).toBe("run.completed");
   });
 
   it("surfaces an executor-reported error as an observation and keeps going", async () => {

@@ -28,6 +28,28 @@ export interface ChatCompletionChunk {
   delta: string;
   toolCallDelta?: ToolCallDelta;
   finishReason?: FinishReason;
+  /**
+   * Present on a stream's final chunk when the provider reports usage. Without it a
+   * streamed run cannot account for tokens at all.
+   */
+  usage?: TokenUsage;
+}
+
+/** Accumulates streamed tool-call deltas into whole calls, in index order. */
+export class ToolCallAccumulator {
+  private readonly open = new Map<number, ToolCallRequest>();
+
+  accept(delta: ToolCallDelta): void {
+    const existing = this.open.get(delta.index) ?? { id: "", name: "", arguments: "" };
+    if (delta.id !== undefined) existing.id = delta.id;
+    if (delta.name !== undefined) existing.name = delta.name;
+    if (delta.argumentsDelta !== undefined) existing.arguments += delta.argumentsDelta;
+    this.open.set(delta.index, existing);
+  }
+
+  finish(): ToolCallRequest[] {
+    return [...this.open.entries()].sort(([a], [b]) => a - b).map(([, call]) => call);
+  }
 }
 
 export interface ModelCapabilities {
@@ -79,28 +101,21 @@ export function modelCapabilities(overrides: Partial<ModelCapabilities> = {}): M
  */
 export async function collectCompletion(
   chunks: AsyncIterable<ChatCompletionChunk>,
-  usage: TokenUsage = EMPTY_TOKEN_USAGE,
+  usage?: TokenUsage,
 ): Promise<ChatCompletion> {
   let content = "";
   let finishReason: FinishReason = "stop";
-  const openCalls = new Map<number, ToolCallRequest>();
+  let streamUsage: TokenUsage | undefined;
+  const accumulator = new ToolCallAccumulator();
 
   for await (const chunk of chunks) {
     content += chunk.delta;
-    const delta = chunk.toolCallDelta;
-    if (delta !== undefined) {
-      const existing = openCalls.get(delta.index) ?? { id: "", name: "", arguments: "" };
-      if (delta.id !== undefined) existing.id = delta.id;
-      if (delta.name !== undefined) existing.name = delta.name;
-      if (delta.argumentsDelta !== undefined) existing.arguments += delta.argumentsDelta;
-      openCalls.set(delta.index, existing);
-    }
+    if (chunk.toolCallDelta !== undefined) accumulator.accept(chunk.toolCallDelta);
     if (chunk.finishReason !== undefined) finishReason = chunk.finishReason;
+    if (chunk.usage !== undefined) streamUsage = chunk.usage;
   }
 
-  const toolCalls = [...openCalls.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([, call]) => call);
-
-  return { content, toolCalls, usage: { ...usage }, finishReason };
+  // The caller's total wins when it has one; otherwise the stream's own report is used.
+  const total = usage ?? streamUsage ?? EMPTY_TOKEN_USAGE;
+  return { content, toolCalls: accumulator.finish(), usage: { ...total }, finishReason };
 }
