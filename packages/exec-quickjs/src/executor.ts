@@ -110,7 +110,7 @@ export class QuickJSExecutor implements CodeExecutor {
       );
     }
     this.lastLogger = options.logger;
-    const guest = await this.ensureGuest();
+    const guest = await this.ensureGuest(options.stepIndex);
     const run: RunState = {
       options,
       logs: [],
@@ -170,9 +170,19 @@ export class QuickJSExecutor implements CodeExecutor {
   }
 
   /** Load the engine once and create the realm once, so state survives between steps. */
-  private async ensureGuest(): Promise<Guest> {
-    this.modulePromise ??= newQuickJSWASMModuleFromVariant(variant);
-    const module = await this.modulePromise;
+  private async ensureGuest(stepIndex: number): Promise<Guest> {
+    let module: QuickJSWASMModule;
+    try {
+      this.modulePromise ??= newQuickJSWASMModuleFromVariant(variant);
+      module = await this.modulePromise;
+    } catch (error) {
+      // rules/components/exec-quickjs.md: a platform with no usable WASM binary fails with a
+      // typed executor error, and it never falls back to evaluating guest code in the host.
+      throw new AgentExecutionError(
+        "The QuickJS WASM module could not be loaded on this platform.",
+        { stepIndex, cause: error },
+      );
+    }
     if (this.runtime === undefined || this.context === undefined) {
       const runtime = module.newRuntime();
       runtime.setMemoryLimit(this.memoryLimitBytes);
