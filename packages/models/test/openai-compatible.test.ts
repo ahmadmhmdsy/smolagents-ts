@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { OpenAICompatibleModel } from "../src/openai-compatible.js";
 import { HttpError, type FetchLike } from "../src/transport.js";
 
-/** The recorded response of a real tool-calling turn, kept as a fixture so the suite needs no key. */
+/** The completion OpenAI documents for a tool-calling turn, kept as a fixture so the suite needs no key. */
 const completion = readFileSync(
   new URL("./fixtures/openai-chat-completion.json", import.meta.url),
   "utf8",
