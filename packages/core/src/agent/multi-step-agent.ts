@@ -189,6 +189,27 @@ export abstract class MultiStepAgent<TOut = unknown> {
    * run.completed, run.failed, run.maxStepsReached and run.cancelled are terminal.
    */
   async *stream(task: string, options: RunOptions = {}): AsyncGenerator<AgentEvent, void> {
+    try {
+      yield* this.runStream(task, options);
+    } finally {
+      await this.releaseResources();
+    }
+  }
+
+  /**
+   * Release anything the run held. Called once, after the terminal event, from the
+   * generator's finally, which an async generator runs on completion, on failure and on a
+   * consumer's early return() — but not if a consumer abandons the stream without returning.
+   */
+  protected async releaseResources(): Promise<void> {
+    // Nothing to release by default. An agent that owns a sandbox overrides this.
+  }
+
+  /** The run itself. stream() owns the release hook so that no terminal path can skip it. */
+  private async *runStream(
+    task: string,
+    options: RunOptions = {},
+  ): AsyncGenerator<AgentEvent, void> {
     const runId = crypto.randomUUID();
     const signal = options.signal ?? new AbortController().signal;
     const context: RunContext = {

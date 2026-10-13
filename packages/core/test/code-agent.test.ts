@@ -133,6 +133,29 @@ describe("CodeAgent", () => {
     expect(result.output).toBe("from executor");
   });
 
+  it("releases the executor when the run ends, on success and on failure", async () => {
+    class DisposingExecutor extends ScriptedExecutor {
+      disposals = 0;
+      async dispose(): Promise<void> {
+        this.disposals += 1;
+      }
+    }
+
+    const completed = new DisposingExecutor({ results: { "final_answer(1)": finalAnswerResult(1) } });
+    const succeeded = new CodeAgent({
+      model: new MockModel([fenced("done", "final_answer(1)")]),
+      executor: completed,
+    });
+    await succeeded.run("Q");
+    expect(completed.disposals).toBe(1);
+
+    // An exhausted script fails the run through run.failed; the release must still happen.
+    const failed = new DisposingExecutor();
+    const broken = new CodeAgent({ model: new MockModel([]), executor: failed });
+    await expect(broken.run("Q")).rejects.toThrow();
+    expect(failed.disposals).toBe(1);
+  });
+
   it("puts a failed code step's error into the observation", async () => {
     const executor = new ScriptedExecutor({
       handler: (code, options): CodeResult => {

@@ -109,6 +109,10 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       error: settled.result.error,
     };
   }
+
+  protected override async releaseResources(): Promise<void> {
+    await this.executor.dispose?.();
+  }
 }
 
 /**
