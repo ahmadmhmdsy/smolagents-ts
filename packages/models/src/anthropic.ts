@@ -12,6 +12,7 @@ import {
   type ToolCallRequest,
   type ToolSpec,
 } from "@smolagents-ts/core";
+import { parseSse } from "./sse.js";
 import { joinUrl, postJson, resolveFetch, type FetchLike } from "./transport.js";
 
 export interface AnthropicOptions {
@@ -66,6 +67,15 @@ interface WireUsage {
 interface WireResponse {
   content?: WireBlock[];
   stop_reason?: string | null;
+  usage?: WireUsage;
+}
+
+/** One named event of the streamed form: the pieces arrive split across several events. */
+interface WireStreamEvent {
+  index?: number;
+  message?: { usage?: WireUsage };
+  content_block?: { type?: string; id?: string; name?: string };
+  delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string | null };
   usage?: WireUsage;
 }
 
@@ -229,17 +239,74 @@ export class AnthropicModel implements Model {
     };
   }
 
-  /**
-   * The next task replaces this with the event reader. It throws rather than yielding an
-   * empty stream, because an empty stream would look like a model that answered nothing.
-   */
-  generateStream(
+  async *generateStream(
     messages: readonly ChatMessage[],
     options: GenerateOptions = {},
-  ): AsyncIterable<ChatCompletionChunk> {
-    void messages;
-    void options;
-    throw new Error("AnthropicModel cannot stream yet");
+  ): AsyncGenerator<ChatCompletionChunk> {
+    const response = await this.post(
+      this.payload(messages, options, true),
+      options.signal,
+      "text/event-stream",
+    );
+    if (response.body === null) {
+      throw new Error("The provider returned no body to stream");
+    }
+    // The input count arrives once at the start; the output count arrives once at the end.
+    let inputTokens = 0;
+    for await (const event of parseSse(response.body)) {
+      let parsed: WireStreamEvent;
+      try {
+        parsed = JSON.parse(event.data) as WireStreamEvent;
+      } catch {
+        continue; // a keep-alive that is not JSON
+      }
+      switch (event.event) {
+        case "message_start":
+          inputTokens = parsed.message?.usage?.input_tokens ?? 0;
+          break;
+        case "content_block_start":
+          if (parsed.content_block?.type === "tool_use") {
+            yield {
+              delta: "",
+              toolCallDelta: {
+                index: parsed.index ?? 0,
+                ...(parsed.content_block.id === undefined ? {} : { id: parsed.content_block.id }),
+                ...(parsed.content_block.name === undefined
+                  ? {}
+                  : { name: parsed.content_block.name }),
+              },
+            };
+          }
+          break;
+        case "content_block_delta": {
+          const delta = parsed.delta;
+          if (delta?.type === "text_delta" && delta.text !== undefined) {
+            yield { delta: delta.text };
+          } else if (delta?.type === "input_json_delta" && delta.partial_json !== undefined) {
+            yield {
+              delta: "",
+              toolCallDelta: { index: parsed.index ?? 0, argumentsDelta: delta.partial_json },
+            };
+          }
+          break;
+        }
+        case "message_delta": {
+          const chunk: ChatCompletionChunk = { delta: "" };
+          const reason = parsed.delta?.stop_reason;
+          if (reason !== undefined && reason !== null) chunk.finishReason = toFinishReason(reason);
+          const outputTokens = parsed.usage?.output_tokens;
+          if (outputTokens !== undefined) {
+            chunk.usage = { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens };
+          }
+          yield chunk;
+          break;
+        }
+        case "message_stop":
+          return;
+        default:
+          break;
+      }
+    }
   }
 
   protected payload(
@@ -264,7 +331,11 @@ export class AnthropicModel implements Model {
     };
   }
 
-  private async post(body: unknown, signal?: AbortSignal): Promise<Response> {
+  private async post(
+    body: unknown,
+    signal?: AbortSignal,
+    accept?: string,
+  ): Promise<Response> {
     const url = joinUrl(this.baseUrl, "/v1/messages");
     return postJson(
       this.fetchImpl,
@@ -272,6 +343,7 @@ export class AnthropicModel implements Model {
       body,
       {
         "anthropic-version": this.version,
+        ...(accept === undefined ? {} : { accept }),
         ...(this.apiKey === undefined ? {} : { "x-api-key": this.apiKey }),
         ...this.headers,
       },
