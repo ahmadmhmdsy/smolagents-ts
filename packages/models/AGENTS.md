@@ -5,26 +5,31 @@
 `@smolagents-ts/models` holds provider adapters behind the core's `Model`
 interface: one wire protocol per adapter, the mapping into `ChatMessage`, and the
 streaming form of a completion. It ships `OpenAICompatibleModel`, which speaks to
-every endpoint that copies OpenAI's chat-completions format, and `CustomModel`,
-which turns two functions into a model.
+every endpoint that copies OpenAI's chat-completions format, `AnthropicModel` and
+`GeminiModel`, which each map a block-shaped wire of their own, `HuggingFaceModel`,
+which is the OpenAI adapter pointed at the Inference Providers router, and
+`CustomModel`, which turns two functions into a model.
 
 ## Entry points
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/models/src/index.ts` | `VERSION`, `OpenAICompatibleModel`, `CustomModel` |
+| public barrel | `packages/models/src/index.ts` | `VERSION` and the five adapters |
 | OpenAI-compatible adapter | `packages/models/src/openai-compatible.ts` | one request per turn, streaming and not |
+| Anthropic adapter | `packages/models/src/anthropic.ts` | the Messages API: a `system` field, `tool_use` and `tool_result` blocks, named stream events |
+| Gemini adapter | `packages/models/src/gemini.ts` | `generateContent`, and `streamGenerateContent` pinned to `alt=sse` |
+| HuggingFace adapter | `packages/models/src/huggingface.ts` | the router: the OpenAI mapping, a different host |
 | custom model | `packages/models/src/custom.ts` | a model defined by functions |
-| HTTP transport | `packages/models/src/transport.ts` | the injected fetch, `joinUrl`, `HttpError` |
+| HTTP transport | `packages/models/src/transport.ts` | the injected fetch, `joinUrl`, `postJson`, `HttpError` |
 | SSE reader | `packages/models/src/sse.ts` | incremental event-stream parsing |
-| recorded fixtures | `packages/models/test/fixtures/` | a completion and a streamed transcript |
+| recorded fixtures | `packages/models/test/fixtures/` | one per provider and per form, named with the provider's prefix |
 | version marker | `packages/models/src/version.ts` | the value the smoke test asserts |
 
 ## Smallest validation command
 
     pnpm vitest run --project models
 
-Expected result: 7 test files and 30 tests pass, exit code 0. It is a resolution
+Expected result: 13 test files and 62 tests pass, exit code 0. It is a resolution
 and wire-format check: every test drives an injected fetch against a recorded
 fixture, so no test reaches a live provider.
 
@@ -42,6 +47,9 @@ implements, and the core must never import from here.
 - A provider format change is invisible until an adapter pins a fixture; treat
   the first adapter as the one that created that habit, and re-record when a
   provider moves.
+- A fixture is hand-shaped from the provider's published documentation and never
+  a live capture, and the test that reads it says so; a comment claiming a
+  recording is a provenance claim that nothing in the repository can support.
 - The test tsconfig widens `rootDir`, because the base tsconfig maps
   `@smolagents-ts/core` to its source and core's files then join this project's
   program.

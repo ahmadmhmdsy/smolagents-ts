@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-13T19:41:34+03:00 — the S2a plan is written; execution is the next step
+
+**State.** S2 is in progress and now has a plan it can be executed from. Nothing under
+`packages/` has changed since the S0/S1 report, so the library is exactly where it was:
+core green, ToolCallingAgent still unusable against a real provider.
+
+**Did.** Wrote `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md` with
+nine tasks, and split S2 because four tier-1 adapters are four independent wire formats:
+S2a is the seam plus `OpenAICompatibleModel` and `CustomModel`, S2b is Anthropic, Gemini
+and HuggingFace. The plan front-loads four measured core defects — the loop never passes
+`tools`, the streaming branch returns `toolCalls: []` with `EMPTY_TOKEN_USAGE`,
+`toMessages()` drops assistant tool calls, and `AgentSession` drops a call whose failure
+arrives first. T-2 moved to in_progress and T-6 (execute the plan) was added.
+
+**Verified.** `python scripts/validate_context.py --root . --baseline docs/.baseline.json
+--json` reports `{"new": 0, "baselined": 14, "errors": 0, "warnings": 0}`, and
+`rotate.py --check` exits 0. The plan's first run produced four warnings; rewording three
+quoted comments and one control line took them to zero. No code was run this session.
+
+**Unverified / open.** Every code change the plan proposes is unexecuted, so all of it is a
+proposal rather than a result, and the last green gate remains the close-out at `ba48d0b`.
+The plan's pre-registered risk is `pnpm pack` rewriting `workspace:*` to `0.0.0` while
+`pack-smoke.mjs` installs all five tarballs at once; Task 5 Step 6 measures that and names
+the fallback. No fresh session has answered the five boot questions.
+
+**Next.** Execute Task 1 of the plan, or have the plan reviewed first.
+
+**Blockers.** None. T-5 waits on the owner.
+
+**Artifacts.** `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`,
+`docs/04-tasks.md`, `docs/memory/general.md`.
+
 ## 2026-10-13T19:34:09+03:00 — the adoption is closed out; S2 chosen; both pack patches recorded
 
 **State.** The context pack is adopted and accepted, and S2 (model layer) is the

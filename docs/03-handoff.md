@@ -34,6 +34,51 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-14T00:09:45+03:00 — S2 is complete: three adapters ship and the model layer closes
+
+**State.** `@smolagents-ts/models` exports five adapters — `OpenAICompatibleModel`,
+`AnthropicModel`, `GeminiModel`, `HuggingFaceModel` and `CustomModel` — so all four
+tier-1 providers of S2 exist and `docs/01-project.md` marks S2 done. Every adapter
+reaches the network through an injected fetch, and neither the tests nor an import
+needs a key.
+
+**Did.** Executed the eight tasks of
+`docs/plans/2026-10-13-s2b-anthropic-gemini-huggingface-plan.md` in seven commits
+(`8424350`..`bda2663`), plus the unused import the gate's lint step found (`99282a2`),
+plus this record: the Anthropic Messages adapter with its `system` field,
+`tool_use`/`tool_result` blocks and named-event stream; the Gemini
+`generateContent` adapter and its `alt=sse` stream; the HuggingFace router as a
+subclass of the OpenAI adapter that asks for streamed usage; the barrel with its
+pinned surface; and an end-to-end test that drives the Anthropic adapter through a
+real `ToolCallingAgent`. T-7 moved to `docs/tasks/archive-2026.md`,
+`packages/models/AGENTS.md` now names the adapters and the measured count, and five
+lessons went to `docs/memory/general.md`.
+
+**Verified.** `pnpm gate` exit 0 — `.superpowers/gate-s2b.txt`: 44 files and 351
+tests, lint, depcruise at 105 modules and 243 dependencies with no violations,
+build, publint, attw, `ci:check OK`, and `pack-smoke OK: 5 packages installed and
+imported from tarballs`. The models project alone is 13 files and 62 tests. The
+validator reports `new: 0` with 0 errors and 0 warnings, and `rotate.py --check`
+exits 0.
+
+**Unverified / open.** No live provider call was made for any of the three adapters;
+every fixture is hand-shaped from published documentation, so each wire format is
+faithful to its document rather than to an endpoint exercised today. Gemini's
+JSON-array stream form is deliberately unread and its adapter pins `alt=sse`. The
+`supports`/`capabilities` drift in the design record is still an owner decision, and
+nothing in this milestone touched `packages/core`.
+
+**Next.** S3 (the tool system), or the release work S2 leaves open — package subpaths
+and the changeset merge — whichever the owner picks.
+
+**Blockers.** T-5 waits on the owner:
+`docs/09-decisions/0003-pruning-surface-walker.md` is proposed, not accepted.
+
+**Artifacts.** `packages/models/src/anthropic.ts`, `packages/models/src/gemini.ts`,
+`packages/models/src/huggingface.ts`, `.changeset/s2b-model-adapters.md`,
+`docs/plans/2026-10-13-s2b-anthropic-gemini-huggingface-plan.md`.
+
+
 ## 2026-10-13T20:54:22+03:00 — the S2b plan is written; execution is the next step
 
 **State.** `main` is at `964c702` plus this entry. S2a is merged and its branch is gone;
@@ -119,38 +164,6 @@ proposed, not accepted.
 **Artifacts.** `packages/models/src/openai-compatible.ts`,
 `packages/models/test/agent-e2e.test.ts`,
 `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`.
-
-## 2026-10-13T19:41:34+03:00 — the S2a plan is written; execution is the next step
-
-**State.** S2 is in progress and now has a plan it can be executed from. Nothing under
-`packages/` has changed since the S0/S1 report, so the library is exactly where it was:
-core green, ToolCallingAgent still unusable against a real provider.
-
-**Did.** Wrote `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md` with
-nine tasks, and split S2 because four tier-1 adapters are four independent wire formats:
-S2a is the seam plus `OpenAICompatibleModel` and `CustomModel`, S2b is Anthropic, Gemini
-and HuggingFace. The plan front-loads four measured core defects — the loop never passes
-`tools`, the streaming branch returns `toolCalls: []` with `EMPTY_TOKEN_USAGE`,
-`toMessages()` drops assistant tool calls, and `AgentSession` drops a call whose failure
-arrives first. T-2 moved to in_progress and T-6 (execute the plan) was added.
-
-**Verified.** `python scripts/validate_context.py --root . --baseline docs/.baseline.json
---json` reports `{"new": 0, "baselined": 14, "errors": 0, "warnings": 0}`, and
-`rotate.py --check` exits 0. The plan's first run produced four warnings; rewording three
-quoted comments and one control line took them to zero. No code was run this session.
-
-**Unverified / open.** Every code change the plan proposes is unexecuted, so all of it is a
-proposal rather than a result, and the last green gate remains the close-out at `ba48d0b`.
-The plan's pre-registered risk is `pnpm pack` rewriting `workspace:*` to `0.0.0` while
-`pack-smoke.mjs` installs all five tarballs at once; Task 5 Step 6 measures that and names
-the fallback. No fresh session has answered the five boot questions.
-
-**Next.** Execute Task 1 of the plan, or have the plan reviewed first.
-
-**Blockers.** None. T-5 waits on the owner.
-
-**Artifacts.** `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`,
-`docs/04-tasks.md`, `docs/memory/general.md`.
 
 <!-- rotate:end -->
 
