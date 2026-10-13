@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/models",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "Provider adapters behind the core's Model interface: OpenAI-compatible, Anthropic, Gemini, Hugging Face and a model defined by functions.",

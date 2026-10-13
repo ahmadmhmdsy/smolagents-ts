@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "The runtime: the agent loop, its memory and steps, the event stream, the typed errors, the prompt templates, the tool, executor and model interfaces, AgentSession, middleware and the Monitor.",

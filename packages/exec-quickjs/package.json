@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/exec-quickjs",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "The default CodeExecutor: agent-authored JavaScript in a QuickJS-WASM realm, with the async tool-call bridge.",

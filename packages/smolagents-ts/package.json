@@ -1,7 +1,6 @@
 {
   "name": "smolagents-ts",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "Agents that think in code, natively in TypeScript: the agent runtime, the provider adapters, the default tools, the QuickJS executor and the React layer under one name.",

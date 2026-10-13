@@ -2,7 +2,17 @@
   "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@smolagents-ts/core",
+      "@smolagents-ts/models",
+      "@smolagents-ts/tools",
+      "@smolagents-ts/exec-quickjs",
+      "@smolagents-ts/react",
+      "smolagents-ts"
+    ]
+  ],
+
   "linked": [],
   "access": "public",
   "baseBranch": "main",

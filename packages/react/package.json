@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/react",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "The L2 hooks and L3 headless primitives that render an AgentSession: AgentRun, AgentStep, unstyled and accessible.",
