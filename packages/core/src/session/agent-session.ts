@@ -237,15 +237,22 @@ export class AgentSession<TOut = unknown> {
         return;
       }
 
+      case "toolcalls.requested": {
+        // The announcement every later tool-call event refers back to, so a call exists
+        // in the store before any result or failure names it.
+        for (const announced of event.calls) {
+          this.recordCall(announced.id, announced.name, announced.arguments);
+        }
+        return;
+      }
+
       case "action.requested": {
-        const step = this.openStep();
-        if (step === undefined) return;
-        step.toolCalls.push({ id: event.callId, name: event.name, args: event.args, status: "pending" });
+        this.recordCall(event.callId, event.name, event.args);
         return;
       }
 
       case "action.result": {
-        const call = this.findCall(event.callId);
+        const call = this.recordCall(event.callId, event.name, undefined);
         if (call === undefined) return;
         call.status = "ok";
         call.output = event.output;
@@ -254,7 +261,7 @@ export class AgentSession<TOut = unknown> {
       }
 
       case "action.failed": {
-        const call = this.findCall(event.callId);
+        const call = this.recordCall(event.callId, event.name, undefined);
         if (call === undefined) return;
         call.status = "error";
         call.error = event.error.message;
@@ -310,6 +317,25 @@ export class AgentSession<TOut = unknown> {
 
   private stepAt(stepIndex: number): StepDraft | undefined {
     return this.draft.steps[stepIndex] ?? this.openStep();
+  }
+
+  /**
+   * The call for callId, created on the open step when no event has mentioned it yet.
+   * Events arrive in whatever order the agent emitted them — a failure can be reported
+   * before its request — so the store converges on the call instead of requiring the
+   * happy order.
+   */
+  private recordCall(callId: string, name: string, args: unknown): ToolCallDraft | undefined {
+    const existing = this.findCall(callId);
+    if (existing !== undefined) {
+      if (args !== undefined) existing.args = args;
+      return existing;
+    }
+    const step = this.openStep();
+    if (step === undefined) return undefined;
+    const created: ToolCallDraft = { id: callId, name, args, status: "pending" };
+    step.toolCalls.push(created);
+    return created;
   }
 
   private findCall(callId: string): ToolCallDraft | undefined {
