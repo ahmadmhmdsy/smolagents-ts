@@ -155,3 +155,4 @@ Append-only. Newest last.
 | 2026-10-12 | initial | created from the pack template, transcribed from the v1 design record | maintainer |
 | 2026-10-13 | 2 | context pack adopted; spec transcribed without new scope | maintainer |
 | 2026-10-13 | 3 | owner chose S2 after S1 and placed the ToolCallingAgent gaps inside it; both open questions above closed; no other scope change | owner |
+| 2026-10-13 | 4 | S2 split into S2a (model seam, OpenAI-compatible adapter, custom escape hatch) and S2b (the other three adapters); the S2a plan is written and no code has been executed from it | maintainer |

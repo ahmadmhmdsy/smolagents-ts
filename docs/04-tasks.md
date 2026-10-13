@@ -41,8 +41,9 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-2 | close the two ToolCallingAgent gaps inherited from S1 | pending | maintainer | `packages/core/src/agent/`, `packages/core/test/` | the S2 tasks arrive in this table from the S2 plan | - |
+| T-2 | close the two ToolCallingAgent gaps inherited from S1 | in_progress | maintainer | `packages/core/src/agent/`, `packages/core/src/session/`, `packages/core/test/` | S2a plan Tasks 3 and 4; the gaps close when the schemas reach the request and the session records the call | - |
 | T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
+| T-6 | execute the S2a plan: the model seam and the OpenAI-compatible adapter | pending | maintainer | `packages/core/`, `packages/models/`, `tsconfig.base.json`, `docs/` | the plan's Definition of done holds and `pnpm gate` exits 0 | - |
 <!-- rotate:end -->
 
 ## Blocked
