@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    // The base tsconfig maps @smolagents-ts/core to its source, so this project typechecks
+    // core's files too. rootDir has to contain them; noEmit means it emits nothing anyway.
+    "rootDir": "../.."
   },
   "include": ["src", "test"]
 }

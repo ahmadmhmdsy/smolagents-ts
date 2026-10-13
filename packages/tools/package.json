@@ -12,5 +12,5 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
-  "dependencies": { "zod": "^4.0.0" }
+  "dependencies": { "@smolagents-ts/core": "workspace:*", "zod": "^4.0.0" }
 }
