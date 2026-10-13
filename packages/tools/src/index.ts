@@ -1,1 +1,10 @@
 export { VERSION } from "./version.js";
+export { ToolCollection } from "./collection.js";
+export type { ToolCollectionOptions } from "./collection.js";
+export { htmlToText } from "./html.js";
+export { userInputTool } from "./defaults/user-input.js";
+export type { UserInputToolOptions } from "./defaults/user-input.js";
+export { duckDuckGoSearchTool } from "./defaults/duckduckgo-search.js";
+export type { DuckDuckGoSearchToolOptions } from "./defaults/duckduckgo-search.js";
+export { visitWebpageTool } from "./defaults/visit-webpage.js";
+export type { VisitWebpageToolOptions } from "./defaults/visit-webpage.js";
