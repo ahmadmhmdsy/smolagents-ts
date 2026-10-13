@@ -14,6 +14,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PACKAGES = ["core", "models", "tools", "exec-quickjs", "react"];
+/** The published name: its tarball is the only one that is not scoped. */
+const FACADE = "smolagents-ts";
 
 /** Quote only what needs it, so paths with spaces survive the shell. */
 function quote(value) {
@@ -54,18 +56,24 @@ function peerSpec() {
 const workspace = mkdtempSync(join(tmpdir(), "smolagents-pack-smoke-"));
 
 try {
-  for (const name of PACKAGES) {
+  for (const name of [...PACKAGES, FACADE]) {
     run("pnpm", ["pack", "--pack-destination", workspace], join(ROOT, "packages", name));
   }
 
   const found = readdirSync(workspace).filter((f) => f.endsWith(".tgz"));
-  const tarballs = PACKAGES.map((name) => {
-    const match = found.find((f) => f.includes("smolagents-ts-" + name + "-"));
+  const tarballFor = (pattern) => {
+    const match = found.find((f) => pattern.test(f));
     if (!match) {
-      throw new Error("no tarball for " + name + "; found: " + found.join(", "));
+      throw new Error("no tarball matching " + pattern + "; found: " + found.join(", "));
     }
     return join(workspace, match);
-  });
+  };
+  const tarballs = [
+    ...PACKAGES.map((name) => tarballFor(new RegExp("^smolagents-ts-" + name + "-"))),
+    // The facade's tarball is "smolagents-ts-<version>.tgz": the scoped packages
+    // start with the same prefix, so the version digit is what separates them.
+    tarballFor(/^smolagents-ts-\d/),
+  ];
 
   writeFileSync(
     join(workspace, "package.json"),
@@ -81,6 +89,23 @@ try {
     assertions.push("if (typeof v" + i + " !== 'string') throw new Error('bad export from " + name + "');");
   });
 
+  // The facade is what a caller installs, so every subpath its exports map
+  // promises is imported here, through the published name rather than the
+  // workspace link.
+  imports.push(
+    "import { VERSION as facadeVersion } from 'smolagents-ts';",
+    "import * as facadeModels from 'smolagents-ts/models';",
+    "import * as facadeTools from 'smolagents-ts/tools';",
+    "import * as facadeQuickjs from 'smolagents-ts/exec/quickjs';",
+    "import * as facadeReact from 'smolagents-ts/react';",
+  );
+  assertions.push(
+    "if (typeof facadeVersion !== 'string') throw new Error('bad export from smolagents-ts');",
+    "for (const [name, surface] of Object.entries({ models: facadeModels, tools: facadeTools, quickjs: facadeQuickjs, react: facadeReact })) {",
+    "  if (Object.keys(surface).length === 0) throw new Error('smolagents-ts/' + name + ' re-exports nothing');",
+    "}",
+  );
+
   writeFileSync(
     join(workspace, "check.mjs"),
     imports.join("\n") + "\n" + assertions.join("\n") + "\nconsole.log('pack-smoke OK');\n",
@@ -90,7 +115,7 @@ try {
   if (!output.includes("pack-smoke OK")) {
     throw new Error("consumer check did not report OK");
   }
-  console.log("pack-smoke OK: " + PACKAGES.length + " packages installed and imported from tarballs");
+  console.log("pack-smoke OK: " + (PACKAGES.length + 1) + " packages installed and imported from tarballs");
 } finally {
   rmSync(workspace, { recursive: true, force: true });
 }
