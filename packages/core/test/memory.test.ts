@@ -82,6 +82,52 @@ describe("toMessages", () => {
     expect(memory.toMessages()).toHaveLength(2);
   });
 
+  it("renders tool calls and their results when asked for the tool-message form", () => {
+    const memory = seeded();
+    const action = new ActionStep("");
+    action.observations = "Tool add returned: 5";
+    action.toolCalls = [{ id: "call_1", name: "add", arguments: { a: 2, b: 3 }, result: 5 }];
+    memory.addStep(action);
+
+    const messages = memory.toMessages({ toolResults: "tool-messages" });
+
+    expect(messages[2]).toEqual({
+      role: "assistant",
+      content: "",
+      toolCalls: [{ id: "call_1", name: "add", arguments: '{"a":2,"b":3}' }],
+    });
+    expect(messages[3]).toEqual({ role: "tool", toolCallId: "call_1", name: "add", content: "5" });
+  });
+
+  it("keeps the Observation form when tool messages were not asked for", () => {
+    const memory = seeded();
+    const action = new ActionStep("code");
+    action.observations = "tool said 5";
+    action.toolCalls = [{ id: "call_1", name: "add", arguments: {}, result: 5 }];
+    memory.addStep(action);
+
+    expect(memory.toMessages().map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "user",
+    ]);
+  });
+
+  it("reports a failed call as an error string in the tool message", () => {
+    const memory = seeded();
+    const action = new ActionStep("");
+    action.toolCalls = [{ id: "call_1", name: "explode", arguments: {}, error: "tool exploded" }];
+    memory.addStep(action);
+
+    expect(memory.toMessages({ toolResults: "tool-messages" })[3]).toEqual({
+      role: "tool",
+      toolCallId: "call_1",
+      name: "explode",
+      content: "Error: tool exploded",
+    });
+  });
+
   it("stops at the final answer", () => {
     const memory = seeded();
     memory.addStep(new FinalAnswerStep(4));

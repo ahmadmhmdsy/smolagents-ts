@@ -117,6 +117,19 @@ export abstract class MultiStepAgent<TOut = unknown> {
     return false;
   }
 
+  /** Which transcript shape this agent's memory renders into. */
+  protected get transcriptStyle(): "observation" | "tool-messages" {
+    return "observation";
+  }
+
+  /** The one place the transcript options are assembled. */
+  protected transcript(): ChatMessage[] {
+    return this.memory.toMessages({
+      systemPrompt: this.systemPrompt,
+      toolResults: this.transcriptStyle,
+    });
+  }
+
   protected abstract buildSystemPrompt(): string;
 
   /** Read the model's reply. This is where the two agent flavours diverge. */
@@ -214,7 +227,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       let completion: ChatCompletion;
       try {
         completion = yield* this.streamCompletion(
-          this.memory.toMessages({ systemPrompt: this.systemPrompt }),
+          this.transcript(),
           stepIndex,
           context,
           "action",
@@ -335,7 +348,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context: RunContext,
   ): AsyncGenerator<AgentEvent, { ok: true } | { cancelled: true } | { failed: AgentError }> {
     yield this.emit({ type: "planning.started", stepIndex });
-    const messages = this.memory.toMessages({ systemPrompt: this.systemPrompt });
+    const messages = this.transcript();
     messages.push({ role: "user", content: PLANNING_INSTRUCTION });
     try {
       const completion = yield* this.streamCompletion(messages, stepIndex, context, "planning");
@@ -396,7 +409,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       runId: context.runId,
       output: output as TOut,
       steps: this.memory.steps,
-      messages: this.memory.toMessages({ systemPrompt: this.systemPrompt }),
+      messages: this.transcript(),
       start: context.startedAt,
       end: Date.now(),
       tokenUsage: context.usage,

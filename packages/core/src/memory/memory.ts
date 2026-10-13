@@ -10,6 +10,13 @@ import {
 export interface ToMessagesOptions {
   /** Overrides the stored system prompt, for callers that render it themselves. */
   systemPrompt?: string;
+  /**
+   * The shape an executed action takes. "observation" is the turn both agents shared
+   * before: the model output, then the Observation. "tool-messages" is what a
+   * tool-calling provider expects: one assistant turn carrying tool_calls, then one
+   * role "tool" message per result.
+   */
+  toolResults?: "observation" | "tool-messages";
 }
 
 /**
@@ -71,7 +78,29 @@ export class AgentMemory {
           messages.push({ role: "assistant", content: "Plan:\n" + step.plan });
           messages.push({ role: "user", content: "Now proceed with the plan." });
           break;
-        case "action":
+        case "action": {
+          const calls = step.toolCalls;
+          if (options.toolResults === "tool-messages" && calls.length > 0) {
+            messages.push({
+              role: "assistant",
+              content: step.modelOutput ?? "",
+              toolCalls: calls.map((call) => ({
+                id: call.id,
+                name: call.name,
+                arguments: JSON.stringify(call.arguments ?? {}),
+              })),
+            });
+            for (const call of calls) {
+              messages.push({
+                role: "tool",
+                toolCallId: call.id,
+                name: call.name,
+                content:
+                  call.error === undefined ? stringifyOutput(call.result) : "Error: " + call.error,
+              });
+            }
+            break;
+          }
           if (step.modelOutput !== null) {
             messages.push({ role: "assistant", content: step.modelOutput });
           }
@@ -79,6 +108,7 @@ export class AgentMemory {
             messages.push({ role: "user", content: "Observation:\n" + step.observations });
           }
           break;
+        }
         case "final_answer":
         case "system_prompt":
           break;

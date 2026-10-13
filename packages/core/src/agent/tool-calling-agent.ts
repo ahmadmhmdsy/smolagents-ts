@@ -27,6 +27,11 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     return false;
   }
 
+  /** A tool-calling provider is given tool_calls and tool results, not Observations. */
+  protected override get transcriptStyle(): "observation" | "tool-messages" {
+    return "tool-messages";
+  }
+
   protected override buildSystemPrompt(): string {
     const customInstructions = this.customInstructionsValue;
     return buildToolCallingAgentSystemPrompt({
