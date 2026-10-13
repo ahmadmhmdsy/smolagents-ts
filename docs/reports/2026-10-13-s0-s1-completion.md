@@ -9,7 +9,7 @@ implementer and an independent reviewer, ending in a green full gate.
 
 | item | value |
 |---|---|
-| commits from the initial commit `51adb5b` | 67 |
+| commits from the initial commit `51adb5b` through the measured source HEAD `28eed02` | 67 |
 | TypeScript source files / lines under `packages/` | 76 / 5496 |
 | packages | `@smolagents-ts/core`, `models`, `exec-quickjs`, `react`, `tools` |
 | measured source HEAD | `28eed02` (doc-comment repair, comments only) |
@@ -31,7 +31,9 @@ implementer and an independent reviewer, ending in a green full gate.
 ## Verification
 
 The chained `pnpm gate` passed at `5b0499b`, and every stage passed individually in the whole-branch
-reviewer's own worktree at that same commit:
+reviewer's own worktree at that same commit. After the comments-only doc repair in `28eed02` the chained gate was
+re-run and passed again (exit 0, log `gate-r-final2.log`), so the final source state is verified. The commits after
+that one add only this report.
 
 | stage | result |
 |---|---|
