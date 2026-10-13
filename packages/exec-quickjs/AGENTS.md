@@ -22,7 +22,7 @@ defined in one step is readable in the next, and released when the run ends.
 
     pnpm vitest run --project exec-quickjs
 
-Expected result: six files with twenty-eight tests, exit code 0. Run
+Expected result: six files with twenty-nine tests, exit code 0. Run
 `pnpm --filter @smolagents-ts/exec-quickjs run typecheck` beside it: the runner
 erases types, so only the compiler checks the QuickJS handle lifetimes this
 package is built on.

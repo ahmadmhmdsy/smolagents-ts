@@ -98,6 +98,23 @@ describe("QuickJSExecutor under a CodeAgent", () => {
     }
   });
 
+  it("releases the executor when a consumer stops early", async () => {
+    const executor = new QuickJSExecutor();
+    let disposals = 0;
+    const real = executor.dispose.bind(executor);
+    executor.dispose = async () => {
+      disposals += 1;
+      await real();
+    };
+    const agent = agentFor(executor, new MockModel([fenced("look it up", weatherCode)]));
+    // A break() calls the generator's return(), which runs the release hook. An iterator
+    // dropped without one does not, which is why dispose() stays the caller's backstop.
+    for await (const event of agent.stream("Q")) {
+      if (event.type === "run.started") break;
+    }
+    expect(disposals).toBe(1);
+  });
+
   it("keeps a step's variables for the next step", async () => {
     const executor = new QuickJSExecutor();
     try {
