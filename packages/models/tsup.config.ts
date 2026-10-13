@@ -9,5 +9,5 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   minify: false,
-  external: ["zod"],
+  external: ["zod", "@smolagents-ts/core"],
 });

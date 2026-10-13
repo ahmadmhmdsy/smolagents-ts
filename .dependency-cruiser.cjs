@@ -23,6 +23,13 @@ module.exports = {
       to: { dependencyTypes: ["npm"], pathNot: "node_modules/zod/" },
     },
     {
+      name: "core-no-models",
+      severity: "error",
+      comment: "core owns the interface; an adapter implements it, never the reverse.",
+      from: { path: "^packages/core/src" },
+      to: { path: "^packages/models" },
+    },
+    {
       name: "no-circular",
       severity: "error",
       from: {},

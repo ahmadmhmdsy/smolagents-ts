@@ -25,6 +25,10 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "allowJs": false,
-    "types": []
+    "types": [],
+
+    "paths": {
+      "@smolagents-ts/core": ["./packages/core/src/index.ts"]
+    }
   }
 }

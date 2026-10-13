@@ -175,6 +175,9 @@ importers:
 
   packages/models:
     dependencies:
+      '@smolagents-ts/core':
+        specifier: workspace:*
+        version: link:../core
       zod:
         specifier: ^4.0.0
         version: 4.6.6
