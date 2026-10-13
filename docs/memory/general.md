@@ -145,4 +145,10 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** `rules/components/exec-quickjs.md` requires a typed error when the platform has no usable WASM binary, and the executor passed the loader's own error through instead, which no test could see because the branch never runs where the binary loads; checking a component rule against the shipped code is part of a task, and a branch a suite cannot reach is still testable by replacing the engine's entry point for one file.
 - **Evidence:** `packages/exec-quickjs/src/executor.ts` (`ensureGuest`) and `packages/exec-quickjs/test/engine-load.test.ts`, which mocks `quickjs-emscripten-core`.
 
+## 2026-10-14 — a scoped entry's expected test count is a live fact
+
+- **Status:** validated
+- **Lesson:** a scoped entry names the smallest validation command and the numbers it should print, so a task that adds tests makes that sentence false the moment it lands; S4 added two core tests and left `packages/core/AGENTS.md` claiming 286, which nothing but reading the entry after the gate would catch, so the entry moves in the same task as the tests it counts.
+- **Evidence:** `packages/core/AGENTS.md` said 286 while `pnpm vitest run --project core` printed "Tests 288 passed (288)" on 2026-10-14; the S5 plan's Task 9 closes the same gap for the react entry.
+
 

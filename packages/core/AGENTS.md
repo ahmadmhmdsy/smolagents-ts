@@ -22,9 +22,9 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 28 test files and 286 tests pass, exit code 0. Measured after
+Expected result: 28 test files and 288 tests pass, exit code 0. Measured after
 the S2a work as "Test Files 28 passed (28)" and "Tests 286 passed (286)"; the
-adoption revision reported 27 and 273.
+adoption revision reported 27 and 273; S4's two release tests took it to 288.
 
 Use `pnpm typecheck` as well when a type changed and no test covers it.
 
