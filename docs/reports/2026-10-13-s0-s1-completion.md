@@ -104,7 +104,7 @@ it should not be discovered later by a consumer.
   every fidelity claim is against `30bb116`, not the pin.
 - **The deno and Bun legs, and every GitHub Actions run.** `ci:check` declares node 22/24/26 and runtime
   node/bun/deno; deno is not installed here and no Action has ever been observed running.
-- **Real provider behaviour.** No adapter exists in S1 (S2/S3), so streaming, tool-call wire formats and provider
+- **Real provider behaviour.** No adapter exists in S1 (the model-layer adapters are S2; the tool ecosystem is S3), so streaming, tool-call wire formats and provider
   errors are unexercised; the streaming branch is off by default and has no committed coverage.
 - **`dispose()`, frequent-value stream ordering, and non-Node runtimes.**
 - Semantic "documented as public" for the 62 type-only names (presence was checked; prose coverage was not).
