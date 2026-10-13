@@ -42,8 +42,10 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
-| T-12 | ship the runnable React example the S5 definition names | pending | owner | `examples/**` | S6's docs site chooses the host and the build | - |
-| T-10 | settle the handoff's cap debt | pending | owner | `docs/03-handoff.md`, `scripts/_packmodel.py` | the owner chooses between shortening the oversized past entry, raising the pack's per-entry cap, and leaving the inline region at two entries | - |
+| T-12 | ship the runnable React example the S5 definition names | pending | owner | `examples/**` | T-13 picks the example's host and build | - |
+| T-10 | settle the handoff's cap debt | pending | owner | `docs/03-handoff.md`, `docs/handoff/archive-2026.md`, `scripts/_packmodel.py` | the S2 entry (2598 bytes) now sits in the archive, because rotation refuses to move an entry over the per-entry cap; the owner chooses between shortening it there, raising the cap in `scripts/_packmodel.py`, and leaving it as it stands | - |
+| T-13 | ship the v1.5 modules S6's design row names: CLI, MCP, remote executors, exec-pyodide, docs site, L4/L5 | pending | owner | new packages, `examples/**`, `apps/**` | the owner picks the next module and where it runs | - |
+| T-14 | publish 0.1.0 to the registry | pending | owner | `.changeset/**`, `packages/**` | registry credentials and a repository URL, neither of which this session has | - |
 <!-- rotate:end -->
 
 ## Blocked

@@ -123,11 +123,14 @@ entry.
 | S3 | Tool system | the `tool()` ecosystem, `ToolCollection`, default tools | done |
 | S4 | Code execution | `CodeExecutor` implementations, `exec-quickjs`, final-answer bridging, async tool-call bridging | done |
 | S5 | React layer | L2 hooks, L3 headless primitives, examples | done |
-| S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | pending |
+| S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | in_progress |
 | S1.5 | Parity harness | Python-to-TypeScript differential tests | pending |
 
-S5's hooks and primitives are done. The runnable example its definition also
-names is not built: T-12 tracks it, and S6's docs site chooses where it runs.
+S5's hooks and primitives are done; the runnable example its definition also
+names waits on T-13, which picks where it runs. S6's v1 share is done: the six
+packages carry the metadata a registry reads, the facade re-exports them, the
+packed tarballs install and import, and 0.1.0 is cut. The CLI, MCP, the remote
+executors, `exec-pyodide`, the docs site and L4/L5 are T-13's.
 
 ## Risks and mitigations
 

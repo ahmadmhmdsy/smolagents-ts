@@ -1058,3 +1058,84 @@ The facade and the example are additive: deleting `packages/smolagents-ts`, `exa
 - The spike's findings are this plan's evidence for the shape; F1 is the one that decided it, and task 8 records it as a decision rather than a note.
 - S6's own row in the design names six more deliverables than this plan builds. They are named in T-13 rather than dropped, which is what risk R3 of the design asks for.
 
+## Measured results
+
+Appended after execution. The task steps above are the predictions; this section
+is the measurement, and nothing above it was edited.
+
+### The gate
+
+| measurement | S5 | S6 |
+|---|---|---|
+| `pnpm gate` exit code | 0 | 0 |
+| test files | 63 | 65 |
+| tests | 444 | 447 |
+| depcruise modules / dependencies | 149 / 379 | 157 / 388 |
+| publint | five "All good!" | six "All good!" |
+| `pack:smoke` | 5 packages | 6 packages |
+| `ci:check` | OK | OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm 12.3.4 |
+
+The two new files are the facade's surface test and the example's test; the three
+new tests are those two plus the example's one. Per project, the five older
+packages are unchanged from S5 (core 29 files and 290 tests, models 13/62, tools
+7/28, exec-quickjs 6/29, react 8/35), and the two new projects contribute
+`smolagents-ts` 1/2 and `example-node-script` 1/1. Evidence:
+`.superpowers/gate-s6.txt`, exit code 0.
+
+### Per task
+
+| task | prediction | measured |
+|---|---|---|
+| 1 | five manifests publishable, the licence texts inside the tarball, no copies left behind | PASS — core's tarball carries `package/LICENSE` and `package/NOTICE`; its manifest has `license` and `publishConfig.access` and no `private`; the working tree holds no leftover copy after a pack |
+| 2 | six subpaths, a declaration per entry, both configs resolving | PASS — the built entries are roughly 104 to 169 bytes each with a `.d.ts` beside each; typecheck, build and the surface test are green |
+| 3 | a scoped entry, a rule file, a router row | PASS — 3672 bytes of scoped entry, three rules and one table row; two duplicate-facts warnings appeared and were cleared by rewording, not by baselining |
+| 4 | the facade packs and its subpaths import from the tarball | PASS — the smoke reports six packages installed and imported |
+| 5 | six versions at 0.1.0, the fixed group, six changelogs | PASS after the deviation below: the version cut succeeded once the facade stopped being private |
+| 6 | the example prints its greeting and its test passes | PASS — `pnpm example:node` prints the expected line and the project's single test is green |
+| 7 | install and quick start in the README, line one untouched | PASS — both sections sit between Status and Licence and line one is unchanged |
+| 8 | the decision, the rows, the handoff entry and this section | PASS — written; the validator reports no new finding, no error and no warning, and `rotate.py --check` exits 0 |
+
+### Deviations from the plan
+
+1. **The version cut needs the facade public first.** `pnpm changeset version`
+   exited 1 with "Found mixed changeset" and "ignored packages:
+   smolagents-ts", because a private manifest counts as ignored. Removing
+   `private` before the second run is what made it succeed; the manifest would
+   have lost it in Task 5 anyway.
+2. **The facade's dependencies stay `workspace:*`.** pnpm rewrites them to the
+   published versions while packing, so the source manifest keeps the workspace
+   protocol and no hand-edit is needed.
+3. **The example's test project aliases the published names to the sources.**
+   The gate runs the tests before the build, so the example resolves
+   `smolagents-ts` and its subpaths through a `resolve.alias` list rather than
+   through a built `dist`.
+4. **The example declares both quickjs peers.** `pnpm install
+   --no-frozen-lockfile` failed with a peer-dependency error because the example
+   depends on the facade, whose peers are optional; naming both packages at
+   `^0.32.0` in the example's dependencies is what satisfied it.
+5. **The script builds the facade first.** `example:node` runs the facade's build
+   and then the script, because the script imports the published names.
+6. **The changelogs were rewritten by hand.** The generated bodies repeated one
+   changeset paragraph in all six packages, which the duplicate-facts check
+   flags; each `0.1.0` section now carries package-specific prose.
+7. **The plan was assembled from four part files.** One template literal of this
+   size failed to parse, so the plan was concatenated from parts and the
+   placeholders were replaced afterwards.
+8. **Two path references were reworded.** Prose naming a file that did not exist
+   yet is an error in this pack, so the rule file and the decision are referred
+   to by their directory until the file exists.
+9. **The handoff region had no room, and rotation refuses an over-cap entry.**
+   The new entry took the region over its cap, and the script aborts before
+   moving anything when an inline entry exceeds the per-entry cap — the S2 entry
+   is 2598 bytes against 2048. The two oldest entries were therefore moved to
+   `docs/handoff/archive-2026.md` verbatim, which leaves three inline entries,
+   a region of 5465 bytes, a green `--check` and a working `--apply`. The
+   over-cap entry's fate is T-10's, and this move does not settle it.
+
+### Not measured
+
+- **Nothing was published.** No registry call was made, no credentials exist,
+  and no manifest carries a repository URL, so T-14 stays open.
+- **No CI run.** `ci:check` validates the workflow files locally; the matrix
+  legs it names are CI-only.
+- **No React example.** T-12 waits on T-13's host choice.

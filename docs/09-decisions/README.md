@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0006 | the distribution shape | accepted | 2026-10-14 |
 | 0005 | the React layer's public surface | accepted | 2026-10-14 |
 | 0004 | the guest program captures a step's declarations by scanning its source | accepted | 2026-10-14 |
 | 0003 | the pack's surface walk prunes skipped trees | proposed | 2026-10-13 |
