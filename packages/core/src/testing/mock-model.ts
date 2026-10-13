@@ -1,5 +1,6 @@
 import { AgentGenerationError } from "../errors.js";
-import { type ChatCompletion, type ChatCompletionChunk, type FinishReason, type GenerateOptions, type Model, type ToolCallRequest, modelCapabilities } from "../model.js";
+import { type ChatCompletion, type ChatCompletionChunk, type FinishReason, type GenerateOptions, type Model, modelCapabilities } from "../model.js";
+import type { ToolCallRequest } from "../types.js";
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
 import type { ChatMessage } from "../types.js";
 

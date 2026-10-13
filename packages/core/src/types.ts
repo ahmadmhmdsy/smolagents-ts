@@ -9,6 +9,8 @@ export interface ChatMessage {
   toolCallId?: string;
   /** Optional tool name, for providers that require it on tool results. */
   name?: string;
+  /** The calls an assistant turn asked for, when it asked for any. */
+  toolCalls?: readonly ToolCallRequest[];
 }
 
 export interface TokenUsage {
@@ -31,6 +33,13 @@ export interface Timing {
   readonly start: number;
   readonly end: number;
   readonly durationMs: number;
+}
+
+/** A tool call the model asked for. arguments is the raw JSON string the provider returned. */
+export interface ToolCallRequest {
+  id: string;
+  name: string;
+  arguments: string;
 }
 
 /** One tool invocation, as recorded in an ActionStep. */

@@ -1,18 +1,11 @@
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "./types.js";
-import type { ChatMessage } from "./types.js";
+import type { ChatMessage, ToolCallRequest } from "./types.js";
 
 /** A tool as advertised to the model: JSON Schema, provider-neutral. */
 export interface ToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-}
-
-/** A tool call the model asked for. arguments is the raw JSON string the provider returned. */
-export interface ToolCallRequest {
-  id: string;
-  name: string;
-  arguments: string;
 }
 
 export type FinishReason = "stop" | "tool_calls" | "length" | "other";

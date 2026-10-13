@@ -4,7 +4,7 @@ import { FINAL_ANSWER_TOOL_NAME, ToolCallingAgent } from "../src/agent/tool-call
 import type { AgentEvent } from "../src/events.js";
 import { MockModel } from "../src/testing/mock-model.js";
 import { tool } from "../src/tool/tool.js";
-import type { ToolCallRequest } from "../src/model.js";
+import type { ToolCallRequest } from "../src/types.js";
 
 const weatherTool = tool({
   name: "get_weather",

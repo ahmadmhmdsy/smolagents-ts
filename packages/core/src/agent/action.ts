@@ -1,5 +1,5 @@
 import type { AgentErrorInfo } from "../errors.js";
-import type { ToolCallRequest } from "../model.js";
+import type { ToolCallRequest } from "../types.js";
 
 /**
  * The name the guest or the model calls to end the run. It lives here, in the lowest-level
