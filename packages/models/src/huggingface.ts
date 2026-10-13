@@ -1,4 +1,4 @@
-import type { ChatCompletionChunk, ChatMessage, GenerateOptions } from "@smolagents-ts/core";
+import type { ChatMessage, GenerateOptions } from "@smolagents-ts/core";
 import { OpenAICompatibleModel, type OpenAICompatibleOptions } from "./openai-compatible.js";
 
 /** The router takes the OpenAI adapter's options; only the defaults differ. */
