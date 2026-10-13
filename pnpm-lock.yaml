@@ -213,6 +213,27 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
 
+  packages/smolagents-ts:
+    dependencies:
+      '@smolagents-ts/core':
+        specifier: workspace:*
+        version: link:../core
+      '@smolagents-ts/exec-quickjs':
+        specifier: workspace:*
+        version: link:../exec-quickjs
+      '@smolagents-ts/models':
+        specifier: workspace:*
+        version: link:../models
+      '@smolagents-ts/react':
+        specifier: workspace:*
+        version: link:../react
+      '@smolagents-ts/tools':
+        specifier: workspace:*
+        version: link:../tools
+      zod:
+        specifier: ^4.0.0
+        version: 4.6.6
+
   packages/tools:
     dependencies:
       '@smolagents-ts/core':

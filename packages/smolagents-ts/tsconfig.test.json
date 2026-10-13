@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "node"
+    ],
+    "noEmit": true,
+    "rootDir": "../..",
+    "paths": {
+      "@smolagents-ts/core": [
+        "../core/src/index.ts"
+      ],
+      "@smolagents-ts/models": [
+        "../models/src/index.ts"
+      ],
+      "@smolagents-ts/tools": [
+        "../tools/src/index.ts"
+      ],
+      "@smolagents-ts/exec-quickjs": [
+        "../exec-quickjs/src/index.ts"
+      ],
+      "@smolagents-ts/react": [
+        "../react/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "test"
+  ]
+}
