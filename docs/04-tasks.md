@@ -42,7 +42,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
-| T-7 | plan and execute S2b: the Anthropic, Gemini and HuggingFace adapters | pending | maintainer | `packages/models/`, `docs/` | a written S2b plan exists and its Definition of done holds | - |
+| T-7 | plan and execute S2b: the Anthropic, Gemini and HuggingFace adapters | in_progress | maintainer | `packages/models/`, `docs/` | a written S2b plan exists and its Definition of done holds | - |
 <!-- rotate:end -->
 
 ## Blocked

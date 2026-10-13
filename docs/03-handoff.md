@@ -34,6 +34,27 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-13T20:40:53+03:00 — main is the S2a state; the branch is gone
+
+**State.** The work sits on `main` at `79a4f9c` and `context-pack-adoption` is deleted, so the
+next session starts from the default branch with nothing left to integrate.
+
+**Did.** Fast-forwarded `main` from `e4e4b5a` to `79a4f9c` — twelve commits: the pack
+adoption, the S2a plan, and the S2a implementation — then removed the merged branch.
+
+**Verified.** `pnpm test` on `main`: 38 files and 319 tests, exit code 0, on the tree the gate
+already passed. Working tree clean. T-7 moved to in_progress.
+
+**Unverified / open.** Unchanged from the entry below: no live provider call, the
+`supports`/`capabilities` drift still open, T-5 still with the owner, S2b unplanned.
+
+**Next.** Write the S2b plan for the Anthropic, Gemini and HuggingFace adapters (T-7).
+
+**Blockers.** T-5 waits on the owner; `docs/09-decisions/0003-pruning-surface-walker.md` is
+proposed, not accepted.
+
+**Artifacts.** `docs/04-tasks.md`, `git log --oneline -1`.
+
 ## 2026-10-13T20:09:21+03:00 — S2a landed: the seam is closed and one real adapter ships
 
 **State.** `@smolagents-ts/models` holds a working provider adapter, and the core loop
