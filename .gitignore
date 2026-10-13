@@ -8,3 +8,11 @@ coverage/
 # reference-only clones; never committed, never built
 smolagents/
 reference/
+# context-pack local state (locks, atomic writes, python caches)
+docs/.locks/
+*.tmp
+.pytest_cache/
+
+# Python bytecode from the context-pack scripts
+__pycache__/
+*.pyc

@@ -1,0 +1,9 @@
+{
+  "pack": "context-pack",
+  "pack_version": "2.0.0",
+  "adopted_at": "2026-10-13",
+  "components": ["core", "exec-quickjs", "models", "react", "tools"],
+  "modules": [],
+  "profile": "shared-tree",
+  "dropped_rules": []
+}
