@@ -38,9 +38,16 @@ module.exports = {
     {
       name: "no-undeclared-deps-from-src",
       severity: "error",
-      comment: "packages/*/src may only import packages its own manifest declares.",
+      comment:
+        "packages/*/src may only import a package its own manifest declares as a dependency or a peer.",
       from: { path: "^packages/[^/]+/src" },
-      to: { dependencyTypes: ["npm-dev", "npm-no-pkg", "npm-unknown"] },
+      to: {
+        // A peer dependency is declared, but dependency-cruiser reports it as npm-dev and
+        // npm-no-pkg as well when the package is only a peer at runtime, so importing one has
+        // to be distinguished from importing a dev-only or transitive package.
+        dependencyTypes: ["npm-dev", "npm-optional", "npm-bundled", "npm-no-pkg", "npm-unknown"],
+        dependencyTypesNot: ["npm", "npm-peer"],
+      },
     },
   ],
   options: {

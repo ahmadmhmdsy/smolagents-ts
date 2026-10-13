@@ -42,7 +42,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
-| T-11 | build the React layer: the L2 hooks and the L3 headless primitives | in_progress | this session | `packages/react/**`, `packages/core/src/session/agent-session.ts` | - | `docs/plans/2026-10-14-s5-react-layer-plan.md` |
+| T-12 | ship the runnable React example the S5 definition names | pending | owner | `examples/**` | S6's docs site chooses the host and the build | - |
 | T-10 | settle the handoff's cap debt | pending | owner | `docs/03-handoff.md`, `scripts/_packmodel.py` | the owner chooses between shortening the oversized past entry, raising the pack's per-entry cap, and leaving the inline region at two entries | - |
 <!-- rotate:end -->
 

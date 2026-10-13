@@ -151,4 +151,34 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** a scoped entry names the smallest validation command and the numbers it should print, so a task that adds tests makes that sentence false the moment it lands; S4 added two core tests and left `packages/core/AGENTS.md` claiming 286, which nothing but reading the entry after the gate would catch, so the entry moves in the same task as the tests it counts.
 - **Evidence:** `packages/core/AGENTS.md` said 286 while `pnpm vitest run --project core` printed "Tests 288 passed (288)" on 2026-10-14; the S5 plan's Task 9 closes the same gap for the react entry.
 
+## 2026-10-14 — an extra status role makes the run's own status ambiguous
+
+- **Status:** validated
+- **Lesson:** the tool-call primitive carried `role="status"` on every call, so a run with one call rendered two status regions and the run's own status could no longer be found by role; each primitive's own test renders exactly one, so only a composition test sees it. A live region that reports a completion is `aria-live="polite"` on its own, and the component that owns the run keeps the status role.
+- **Evidence:** `packages/react/src/tool-call.tsx`; found by `packages/react/test/composition.test.tsx` on 2026-10-14 (`Found multiple elements with the role "status"`).
+
+## 2026-10-14 — a declaration build reads a workspace dependency's published types
+
+- **Status:** validated
+- **Lesson:** the react package's tests passed while its `build` failed with `Module '@smolagents-ts/core' has no exported member 'PlanningView'`, because the vitest project aliases core to its source while tsup's declaration worker resolves core through the package's `types` field; a type added to a dependency in the same session needs that dependency's build first, so a package's build run by hand on a green tree can fail where the gate's dependency-ordered `build` stage succeeds.
+- **Evidence:** `pnpm --filter @smolagents-ts/react build` failed, then passed after `pnpm --filter @smolagents-ts/core build`, on 2026-10-14; recorded as a hazard in `packages/react/AGENTS.md`.
+
+## 2026-10-14 — a test double only fills the lanes its handler drives
+
+- **Status:** validated
+- **Lesson:** a composition test built on `ScriptedExecutor` rendered no appended output at all while every assertion about the snapshot's steps passed, because a step's logs come only from the executor's `onLog` callback and the double never called it; a fixture that wants a lane to be non-empty drives it the way a real executor does, which is what makes the test evidence about the executor's contract rather than about the empty default.
+- **Evidence:** `packages/react/test/composition.test.tsx` (its handler calls `options.onLog`); the wiring is `packages/core/src/agent/code-agent.ts` (`onLog` to `logs.appended`).
+
+## 2026-10-14 — a task that renders a leaf depends on the leaf's task
+
+- **Status:** validated
+- **Lesson:** the S5 plan put the run primitives in Task 5 and the leaf primitives in Task 7, but `AgentRun.FinalAnswer` renders the final-answer leaf, so Task 5's commit could not typecheck without Task 7's file; ordering a plan by dependency means ordering by what each task renders, not by what each task is named, and the leaves moved into Task 5's commit.
+- **Evidence:** commits `f3fb857` and `86aac39`; the deviation is recorded in `docs/plans/2026-10-14-s5-react-layer-plan.md` under `## Measured results`.
+
+## 2026-10-14 — a peer dependency is not a declared import to the boundary rule
+
+- **Status:** validated
+- **Lesson:** dependency-cruiser reports a package that is only a runtime peer as `npm-dev` and `npm-no-pkg` beside `npm-peer`, so the rule that forbade `npm-dev` from `packages/*/src` rejected every React import in the new package although the manifest declares the peer; an import is undeclared only when it is neither a dependency nor a peer, and the rule now says so with `dependencyTypesNot`.
+- **Evidence:** `pnpm gate` failed at depcruise with 10 `no-undeclared-deps-from-src` errors on 2026-10-14, and `pnpm depcruise --output-type json` shows `["npm-peer","npm-no-pkg","npm-dev"]` for `react`; after the rule in `.dependency-cruiser.cjs` changed, `pnpm depcruise` reported `no dependency violations found (149 modules, 379 dependencies cruised)`.
+
 

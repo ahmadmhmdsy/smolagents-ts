@@ -122,9 +122,12 @@ entry.
 | S2 | Model layer | the `Model` interface plus OpenAI-compatible, Anthropic, Gemini and Hugging Face adapters | done |
 | S3 | Tool system | the `tool()` ecosystem, `ToolCollection`, default tools | done |
 | S4 | Code execution | `CodeExecutor` implementations, `exec-quickjs`, final-answer bridging, async tool-call bridging | done |
-| S5 | React layer | L2 hooks, L3 headless primitives, examples | pending |
+| S5 | React layer | L2 hooks, L3 headless primitives, examples | done |
 | S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | pending |
 | S1.5 | Parity harness | Python-to-TypeScript differential tests | pending |
+
+S5's hooks and primitives are done. The runnable example its definition also
+names is not built: T-12 tracks it, and S6's docs site chooses where it runs.
 
 ## Risks and mitigations
 

@@ -7,10 +7,10 @@
  * map, an ESM/CJS mismatch, a .d.ts that does not resolve.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PACKAGES = ["core", "models", "tools", "exec-quickjs", "react"];
@@ -36,6 +36,21 @@ function run(cmd, args, cwd) {
   });
 }
 
+/**
+ * A tarball does not carry its peers, and a package whose optional peer is absent cannot be
+ * imported at all. The one peer the published entries need at import time is taken from the
+ * workspace's own installed copy, so the smoke stays offline. react-dom is deliberately absent:
+ * nothing imports it, and installing it would pull its scheduler dependency from the registry.
+ */
+function peerSpec() {
+  const found = [
+    join(ROOT, "packages", "react", "node_modules", "react"),
+    join(ROOT, "node_modules", "react"),
+  ].find((dir) => existsSync(join(dir, "package.json")));
+  if (found === undefined) throw new Error("react is not installed in the workspace");
+  return "react@" + pathToFileURL(found).href;
+}
+
 const workspace = mkdtempSync(join(tmpdir(), "smolagents-pack-smoke-"));
 
 try {
@@ -57,7 +72,7 @@ try {
     JSON.stringify({ name: "consumer", private: true, type: "module" }, null, 2),
   );
 
-  run("npm", ["install", "--no-audit", "--no-fund", ...tarballs], workspace);
+  run("npm", ["install", "--no-audit", "--no-fund", ...tarballs, peerSpec()], workspace);
 
   const imports = [];
   const assertions = [];

@@ -4,8 +4,9 @@
 
 - **Role:** the implementation plan for milestone S5 of
   `docs/design/2026-10-12-smolagents-ts-v1-design.md`.
-- **Mutability:** append-only from the moment execution begins. A step that proved
-  wrong gets a note under the task that owns it; the step text itself is left alone.
+- **Mutability:** once execution starts the steps below are frozen: a step that turned
+  out wrong gets a note under the task that owns it, and the step's own text is not
+  rewritten. Measured results are appended at the end.
 - **Read when:** executing S5, or reviewing what S5 was supposed to deliver.
 - **Update when:** a task's measured result differs from its prediction, or a task is
   added or dropped.
@@ -841,6 +842,82 @@ restores the pre-S5 tree with no data migration and no released artifact to unpu
   `## Measured results` and in `docs/tasks/archive-2026.md`.
 - The spike's findings are the plan's evidence for the toolchain; Task 1 commits exactly
   what the spike measured, and Tasks 2, 5 and 7 re-assert F2–F6 as permanent tests.
+
+## Measured results
+
+Recorded on 2026-10-14 in Task 9, on the tree the nine task commits left. The predictions
+above are what the tasks expected; these are what the commands reported.
+
+| Task | Predicted | Measured | Command |
+|---|---|---|---|
+| 1 | 1 file, 1 test | 1 file, 1 test | `pnpm vitest run --project react` |
+| 2 | 2 files, 5 tests | 2 files, 5 tests | the same command after `test/use-agent-session.test.tsx` |
+| 3 | 3 files, 9 tests | 3 files, 9 tests | after `test/use-agent-run.test.tsx` |
+| 4 | 4 files, 12 tests | 4 files, 12 tests | after `test/use-agent-event.test.tsx` |
+| 5 | 5 files, 16 tests | 5 files, 15 tests | after `test/agent-run.test.tsx`, with Task 7's leaves |
+| 6 | 29 files, 290 tests | 29 files, 290 tests | `pnpm vitest run --project core` |
+| 7 | 6 files, 22 tests | 6 files, 20 tests | after `test/agent-step.test.tsx` |
+| 8 | 7 files, 25 tests | 7 files, 23 tests | after `test/composition.test.tsx` |
+| 9 | 8 files, 35 tests | 8 files, 35 tests | after `test/public-surface.test.ts` |
+| gate | — | 63 files, 444 tests | `pnpm gate` — exit 0, `.superpowers/gate-s5.txt` |
+
+The gate's other numbers: depcruise at 149 modules and 379 dependencies with no violations,
+`ci:check OK`, and `pack-smoke OK: 5 packages installed and imported from tarballs` (five,
+because the react package joined the four S4 packed); publint and attw are clean for all five.
+S4's gate reported 55 files and 408 tests, so this milestone added 8 files and 36 tests: the
+seven new react files (35 tests, less the smoke test's one) and the core planning file's two.
+
+Deviations from the plan, each owned by the task that made it:
+
+- **Tasks 5 and 7, one commit boundary moved.** `AgentRun.FinalAnswer` renders the
+  final-answer leaf, so Task 5 could not typecheck without Task 7's `CodeBlock`,
+  `FinalAnswer` and `ToolCall`; those three files landed in Task 5's commit
+  (`f3fb857`) and Task 7 added `agent-step.tsx` and its test (`86aac39`). The plan's own
+  execution note reordered Task 6 before Task 5 for the same reason, and that was right.
+- **Task 7, the tool call's live region.** The plan gave `ToolCall` a `role="status"`; the
+  composition test failed with `Found multiple elements with the role "status"`, because
+  every call became a second status region and the run's own status could no longer be found
+  by role. The call now carries `aria-live="polite"` alone.
+- **Task 7, the value helper's test.** The first version asserted `renderValue(undefined)`;
+  the helper returns the string `"undefined"` for it, because `JSON.stringify` has no
+  answer. Both callers guard `undefined` before calling, so the test pins `null` instead and
+  the fallback stays for a value that cannot be serialised at all.
+- **Task 8, the logs lane in the fixture.** `ScriptedExecutor` never called `onLog`, so the
+  first composition test rendered no appended output at all while every snapshot assertion
+  passed. The fixture now drives `onLog` and `onToolCall` the way a real executor does.
+- **Task 9, the boundary rule.** The first full gate failed at depcruise with ten
+  `no-undeclared-deps-from-src` errors: dependency-cruiser reports `react` as `npm-dev`
+  and `npm-no-pkg` beside `npm-peer`, and the rule forbade the first two. The rule now also
+  requires the absence of `npm` and `npm-peer`, so a peer is a declared import while a
+  dev-only or transitive package is not.
+- **Task 9, the smoke consumer's peer.** The second gate run failed at `pack:smoke`: the
+  throwaway consumer installed the five tarballs and none of their peers, so importing the
+  react entry could not resolve `react`. `scripts/pack-smoke.mjs` now installs `react`
+  from the workspace's own copy through a `file:` spec, which keeps the smoke offline;
+  `react-dom` is left out because nothing imports it and its `scheduler` dependency would
+  need the registry.
+- **Task 9, the record commit's message.** It is
+  `feat(react): pin the public surface and record S5` rather than `docs: record S5`,
+  because it carries the barrel and the surface test as well as the records.
+
+The spike findings, confirmed or corrected:
+
+- **F1** — React 19.3.0 renders under Vitest's jsdom and `.tsx` compiles through
+  `tsconfig.base.json`'s `jsx: react-jsx`. Confirmed: the react project's 35 tests render.
+- **F2** — `useSyncExternalStore` over a real `AgentSession` reports `idle` then
+  `success`. Confirmed and pinned by `test/use-agent-session.test.tsx`.
+- **F3** — the session's methods are unbound, so `useAgentRun` wraps them in closures.
+  Confirmed; `test/use-agent-run.test.tsx` covers it.
+- **F4** — the testing library's cleanup needs a global `afterEach`. Confirmed;
+  `test/setup.ts` registers it once for the project.
+- **F5** — `aria-live` and `aria-busy` are readable through `getByRole`. Confirmed, with
+  one correction: a `status` role is not free, because a second one in the tree makes the
+  query ambiguous (see the Task 7 deviation).
+- **F6** — `CodeAgentOptions.executor` is required. Confirmed; every fixture passes one.
+
+The five open questions above are settled by decision
+`docs/09-decisions/0005-react-layer-surface.md`, and the milestone's remaining piece — the
+runnable example — is T-12 in `docs/04-tasks.md`.
 
 
 

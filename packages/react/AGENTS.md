@@ -2,39 +2,61 @@
 
 ## What this component is
 
-`@smolagents-ts/react` will hold the L2 hooks and the L3 headless primitives
-that render a run from `AgentSession`. It is a placeholder at the adoption
-revision: the barrel exports a version marker, and React is a peer dependency
-that the core never imports.
+`@smolagents-ts/react` renders a run from `AgentSession`. It holds the L2
+hooks that read the session's snapshot — `useAgentSession`, `useAgentRun`,
+`useAgentEvent`, `useAgentRunSnapshot` — and the L3 headless primitives that
+render it: `AgentRun` with `Status`, `Steps`, `Cancel` and `FinalAnswer`,
+and `AgentStep` with `Action`, `Planning`, `FinalAnswer`, `Code`,
+`ToolCalls`, `Logs` and `Observation`. Nothing is styled: every element
+carries a class name and the stylesheet belongs to the caller. The package stays
+private at this revision, so nothing ships from it yet.
 
 ## Entry points
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/react/src/index.ts` | placeholder export only |
-| version marker | `packages/react/src/version.ts` | the value the smoke test asserts |
+| public barrel | `packages/react/src/index.ts` | the ten runtime names pinned by `packages/react/test/public-surface.test.ts` |
+| hooks | `packages/react/src/session.ts`, `use-agent-run.ts`, `use-agent-event.ts` | one hook per file |
+| run primitives | `packages/react/src/agent-run.tsx`, `agent-step.tsx` | |
+| composition context | `packages/react/src/context.ts` | internal: only `useAgentRunSnapshot` and the override-map type reach the barrel |
+| version marker | `packages/react/src/version.ts` | |
 
 ## Smallest validation command
 
     pnpm vitest run --project react
 
-Expected result: one file with one test, exit code 0 — measured as "Tests 1
-passed (1)" at the adoption revision. It says the package resolves, nothing
-more.
+Expected result: 8 test files and 35 tests pass, exit code 0. Measured on
+2026-10-14 as "Test Files 8 passed (8)" and "Tests 35 passed (35)". The
+adoption revision reported one file and one test; the surface test is what
+remains of that smoke test, and the rest is the layer.
 
 ## Boundaries
 
-This package owns hooks, primitives and their accessibility behaviour. It owns
-no run state of its own and no agent logic: the store it subscribes to lives in
-the core. The core never imports it, and it never imports the core's internals.
+This package owns hooks, the primitives and their accessibility behaviour. It
+owns no run state and no agent logic: the store is the core's `AgentSession`,
+reached through `useSyncExternalStore`. The core never imports it, and it
+imports the core's barrel rather than its internals. React alone is the optional
+peer; `react-dom` is not a dependency of this package.
 
 ## Hazards
 
-- The package is empty while its smoke test is green, so the test count is not
-  evidence of S5 progress.
-- React is a peer dependency; a test that renders a primitive needs a React
-  version supplied by the workspace, and a second copy of React in the tree
-  breaks hooks without a useful error.
+- The jsdom environment does not clean up between tests on its own; the cleanup
+  runs from the `afterEach` in `packages/react/test/setup.ts`.
+- The vitest project aliases `@smolagents-ts/core` to the core's source, while
+  the declaration build resolves it through the core's published types, so a
+  core type added in the same session needs the core's build before this
+  package's `build`.
+- `AgentRun` starts its run from an effect keyed on the session and the task,
+  and `useAgentRun` builds a session per agent identity, so an agent created
+  inline in a render body starts a new session on every render.
+- `AgentStep.Code`, `.Logs`, `.Observation` and `.ToolCalls` read the step
+  from context and throw outside `AgentStep.Action` or `.FinalAnswer`.
+- A tool call renders `aria-live` without a status role, so the run's status
+  stays the only status region in the tree.
+- The step leaves render the snapshot; the model's streamed text is not rendered
+  word by word, and `AgentRun` does not cancel its run when it unmounts.
+- A step's logs come only from the executor's `onLog` callback, so a test
+  double that never calls it renders an empty logs region.
 
 ## Pointers to root rules
 

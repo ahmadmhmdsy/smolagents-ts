@@ -33,6 +33,33 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T02:31:12+03:00 — S5 is complete: the React layer renders a run
+
+**State.** `@smolagents-ts/react` exports four hooks and two compound primitives over
+`AgentSession`, and the core's snapshot carries a `planning` lane. S5 is done; the runnable
+example its definition also names is T-12, gated on S6's docs site. S6 and S1.5 have no plan.
+
+**Did.** Executed the nine tasks of `docs/plans/2026-10-14-s5-react-layer-plan.md` in ten
+commits (`c0d3690`..`cc7daa8`, then this record): the toolchain, `useAgentSession`,
+`useAgentRun`, `useAgentEvent`, the core planning lane, `AgentRun` and `AgentStep` with
+three leaf primitives, the composition and accessibility tests, and the pinned barrel. Four
+findings the plan did not name, and decision 0005's three divergences from design section 10,
+are in the plan's Measured results and the memory shard.
+
+**Verified.** `pnpm gate` exit 0 — `.superpowers/gate-s5.txt`: 63 files and 444 tests, lint,
+depcruise at 149 modules and 379 dependencies with no violations, build, publint, attw,
+`ci:check OK`, `pack-smoke OK: 5 packages`. The react project alone is 8 files and 35 tests,
+the core 29 and 290.
+
+**Unverified / open.** No example app, no live model call, and no released artifact: the
+package stays private, so its changeset line is inert until S6 picks a version line.
+
+**Next.** Plan S6 (distribution), leaving the publish itself as the owner's gate.
+
+**Blockers.** T-5, T-10 and T-12 stay with the owner.
+
+**Artifacts.** `packages/react/AGENTS.md`, `docs/09-decisions/0005-react-layer-surface.md`.
+
 ## 2026-10-14T01:22:29+03:00 — S4 is complete: agent code runs in QuickJS
 
 **State.** `@smolagents-ts/exec-quickjs` exports `QuickJSExecutor`, and `CodeAgent` now
