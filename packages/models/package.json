@@ -1,16 +1,43 @@
 {
   "name": "@smolagents-ts/models",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "sideEffects": false,
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  "description": "Provider adapters behind the core's Model interface: OpenAI-compatible, Anthropic, Gemini, Hugging Face and a model defined by functions.",
+  "keywords": [
+    "smolagents",
+    "llm",
+    "openai",
+    "anthropic",
+    "gemini",
+    "huggingface"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12"
   },
-  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
   },
-  "dependencies": { "@smolagents-ts/core": "workspace:*", "zod": "^4.0.0" }
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "zod": "^4.0.0"
+  }
 }

@@ -1,16 +1,44 @@
 {
   "name": "@smolagents-ts/exec-quickjs",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "sideEffects": false,
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  "description": "The default CodeExecutor: agent-authored JavaScript in a QuickJS-WASM realm, with the async tool-call bridge.",
+  "keywords": [
+    "smolagents",
+    "code-execution",
+    "quickjs",
+    "wasm",
+    "sandbox"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12"
   },
-  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
   },
-  "dependencies": { "@smolagents-ts/core": "workspace:*", "zod": "^4.0.0", "quickjs-emscripten-core": "^0.32.0", "@jitl/quickjs-wasmfile-release-sync": "^0.32.0" }
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "zod": "^4.0.0",
+    "quickjs-emscripten-core": "^0.32.0",
+    "@jitl/quickjs-wasmfile-release-sync": "^0.32.0"
+  }
 }

@@ -1,9 +1,23 @@
 {
   "name": "@smolagents-ts/react",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "sideEffects": false,
+  "description": "The L2 hooks and L3 headless primitives that render an AgentSession: AgentRun, AgentStep, unstyled and accessible.",
+  "keywords": [
+    "smolagents",
+    "react",
+    "hooks",
+    "headless",
+    "agents"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -11,11 +25,15 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
   },
   "dependencies": {
     "@smolagents-ts/core": "workspace:*"

@@ -1,16 +1,41 @@
 {
   "name": "@smolagents-ts/tools",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "sideEffects": false,
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  "description": "The default tools and the collection that assembles them, each built with the core's tool() and a Zod schema.",
+  "keywords": [
+    "smolagents",
+    "agents",
+    "tools",
+    "web-search"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12"
   },
-  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
   },
-  "dependencies": { "@smolagents-ts/core": "workspace:*", "zod": "^4.0.0" }
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "zod": "^4.0.0"
+  }
 }

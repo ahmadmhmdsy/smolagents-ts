@@ -1,16 +1,42 @@
 {
   "name": "@smolagents-ts/core",
   "version": "0.0.0",
-  "private": true,
   "type": "module",
   "sideEffects": false,
-  "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  "description": "The runtime: the agent loop, its memory and steps, the event stream, the typed errors, the prompt templates, the tool, executor and model interfaces, AgentSession, middleware and the Monitor.",
+  "keywords": [
+    "smolagents",
+    "agents",
+    "ai",
+    "llm",
+    "typescript",
+    "agent-loop"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12"
   },
-  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
   },
-  "dependencies": { "zod": "^4.0.0" }
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
 }
