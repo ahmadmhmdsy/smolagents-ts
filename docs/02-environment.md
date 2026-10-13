@@ -155,3 +155,4 @@ Append-only.
 | 2026-10-13 | the machine and toolchain facts above | the commands in How to verify | the values recorded above |
 | 2026-10-13 | the full gate at commit e4e4b5a | `pnpm gate` from the repository root | exit 0; 31 test files and 277 tests passed; 85 modules and 173 dependencies cruised; publint clean on five packages |
 | 2026-10-13 | per-package test counts | `pnpm vitest run --project <id>` for each of the five packages | core 27 files / 273 tests, the other four 1 test each |
+| 2026-10-13 | the full gate after S2a | `pnpm gate` from the repository root | exit 0; 38 test files and 319 tests passed; 94 modules and 200 dependencies cruised; `pack-smoke OK` on five tarballs |

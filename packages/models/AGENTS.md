@@ -2,25 +2,31 @@
 
 ## What this component is
 
-`@smolagents-ts/models` is where provider adapters will live behind the core's
-`Model` interface: one wire protocol per adapter, the mapping into
-`ChatMessage`, and the streaming form of a completion. The package is a
-placeholder today — it exports a version marker, no adapter exists, and no run
-can reach a provider.
+`@smolagents-ts/models` holds provider adapters behind the core's `Model`
+interface: one wire protocol per adapter, the mapping into `ChatMessage`, and the
+streaming form of a completion. It ships `OpenAICompatibleModel`, which speaks to
+every endpoint that copies OpenAI's chat-completions format, and `CustomModel`,
+which turns two functions into a model.
 
 ## Entry points
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/models/src/index.ts` | placeholder export only |
+| public barrel | `packages/models/src/index.ts` | `VERSION`, `OpenAICompatibleModel`, `CustomModel` |
+| OpenAI-compatible adapter | `packages/models/src/openai-compatible.ts` | one request per turn, streaming and not |
+| custom model | `packages/models/src/custom.ts` | a model defined by functions |
+| HTTP transport | `packages/models/src/transport.ts` | the injected fetch, `joinUrl`, `HttpError` |
+| SSE reader | `packages/models/src/sse.ts` | incremental event-stream parsing |
+| recorded fixtures | `packages/models/test/fixtures/` | a completion and a streamed transcript |
 | version marker | `packages/models/src/version.ts` | the value the smoke test asserts |
 
 ## Smallest validation command
 
     pnpm vitest run --project models
 
-Expected result: one file with one test, exit code 0 — the adoption run printed
-"Tests 1 passed (1)". It is a resolution check, not a provider check.
+Expected result: 7 test files and 30 tests pass, exit code 0. It is a resolution
+and wire-format check: every test drives an injected fetch against a recorded
+fixture, so no test reaches a live provider.
 
 ## Boundaries
 
@@ -30,10 +36,15 @@ implements, and the core must never import from here.
 
 ## Hazards
 
-- Nothing here talks to a network yet, so any adapter added later needs a
-  recorded fixture before a live call, or the suite starts needing a key.
+- Every test drives an injected fetch against a recorded fixture, so the suite
+  needs no key; an adapter added without one would be the first to need a live
+  call.
 - A provider format change is invisible until an adapter pins a fixture; treat
-  the first adapter as the one that creates that habit.
+  the first adapter as the one that created that habit, and re-record when a
+  provider moves.
+- The test tsconfig widens `rootDir`, because the base tsconfig maps
+  `@smolagents-ts/core` to its source and core's files then join this project's
+  program.
 
 ## Pointers to root rules
 

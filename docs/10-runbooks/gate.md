@@ -51,9 +51,9 @@ To keep a log for the report:
 
     pnpm gate *>&1 | Tee-Object -FilePath .superpowers/gate-output.txt
 
-A healthy tree returns exit code 0, with 31 test files and 277 tests passing,
-five packages built, and publint clean on five packages. Measured on
-2026-10-13 at commit `e4e4b5a`: all of the above.
+A healthy tree returns exit code 0, with every test file and test passing, five
+packages built, and publint clean on five packages. Measured on 2026-10-13 at
+commit `85f194e`: exit 0 with 38 files and 319 tests.
 
 ## Rollback
 

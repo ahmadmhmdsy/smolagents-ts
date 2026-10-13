@@ -34,6 +34,47 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-13T20:09:21+03:00 — S2a landed: the seam is closed and one real adapter ships
+
+**State.** `@smolagents-ts/models` holds a working provider adapter, and the core loop
+passes tool schemas while keeping streamed tool calls and usage. A caller can run a
+`ToolCallingAgent` against OpenAI or any endpoint that copies its wire format, in Node or in
+a browser tab, because the adapter reaches the network through an injected fetch and imports
+no Node builtin. Anthropic, Gemini and HuggingFace are unbuilt, so the model layer is partial
+by design rather than by omission.
+
+**Did.** Executed the nine tasks of
+`docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md` in eight code commits
+(`511f5e4`..`85f194e`) plus this record. Four core defects closed: the advertised schemas now reach the
+request, `toMessages()` renders an assistant tool call with its results, the streaming branch
+keeps what it accumulated, and `AgentSession` no longer drops a call reported as failed
+first. New files: `packages/models/src/transport.ts`, `sse.ts`, `openai-compatible.ts` and
+`custom.ts`; `tsconfig.base.json` gained a path mapping to the core source. T-2 and T-6
+moved to the archive and T-7 (S2b) opened.
+
+**Verified.** `pnpm gate` exit 0 — `.superpowers/gate-s2a.txt`: 38 files and 319 tests, lint,
+depcruise at 94 modules with the new `core-no-models` rule proven by a probe that was then
+deleted, build, publint, attw, and `pack-smoke OK: 5 packages installed and imported from
+tarballs`. The plan's pre-registered `workspace:*` risk did not materialize: one
+`npm install` resolved the sibling tarball. The context validator, run with the baseline
+after these records were written, reports no new findings.
+
+**Unverified / open.** No live provider call was made; every fixture is recorded, so the wire
+format is faithful to the documented shape rather than to an endpoint exercised today. The
+streaming path and `CustomModel` are covered by tests and by no shipped agent, because both
+shipped agents return `prefersStreaming = false`. The design record still sketches the
+capability field as `supports` where the shipped interface says `capabilities`; that drift
+is an owner decision and this plan deliberately left it alone. S2b has no plan yet.
+
+**Next.** Write the S2b plan for the Anthropic, Gemini and HuggingFace adapters (T-7).
+
+**Blockers.** T-5 waits on the owner: `docs/09-decisions/0003-pruning-surface-walker.md` is
+proposed, not accepted.
+
+**Artifacts.** `packages/models/src/openai-compatible.ts`,
+`packages/models/test/agent-e2e.test.ts`,
+`docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`.
+
 ## 2026-10-13T19:41:34+03:00 — the S2a plan is written; execution is the next step
 
 **State.** S2 is in progress and now has a plan it can be executed from. Nothing under
@@ -98,40 +139,6 @@ deviations; T-5 waits on the owner.
 
 **Artifacts.** `docs/09-decisions/0003-pruning-surface-walker.md`,
 `.superpowers/validate-before-prune.json`, `docs/01-project.md`.
-## 2026-10-13T18:47:31+03:00 — context pack adopted; S1 state recorded
-
-**State.** Branch `context-pack-adoption` off `main` at `e4e4b5a`: the context
-pack 2.0.0 is installed and its project facts are written. The library is where
-the S0/S1 report left it — core green, ToolCallingAgent not yet usable against
-a real provider.
-
-**Did.** Installed the pack (57 files copied, 3 skipped, 10 skeletons created),
-moved the five component entries to `packages/<id>/AGENTS.md` and rewrote the
-router's component table; wrote `docs/01-project.md`, `docs/02-environment.md`,
-`docs/06-glossary.md` and `docs/07-sources-of-truth.md` from measured facts; added
-one decision record, one runbook, one decision-index row and two lessons; merged
-three ignore lines into `.gitignore`; and patched `SKIP_TOP` so the pack's
-walker stays out of the gitignored vendored trees.
-
-**Verified.** `pnpm gate` at this tree: exit 0 — typecheck on 5 projects, lint,
-depcruise 85 modules / 173 dependencies, 31 test files / 277 tests, build on 5
-packages, publint clean on 5, attw, `ci:check`, pack:smoke. Per package: core
-273 tests, the other four 1 each. `setup.py markers` reports 0 home markers.
-`python scripts/validate_context.py --root .`: 0 errors, 14 warnings, all
-inherited from pre-existing documents.
-
-**Unverified / open.** No fresh session has answered the five boot questions from
-the repository alone, so documentation readability is unproven. Bun and Deno are
-not installed here, so those runtime legs are CI-only. The pack patch is a local
-deviation and needs the owner's confirmation (T-4).
-
-**Next.** Re-read this branch in a fresh session, answer the five boot questions
-from the repository alone, then record the S2/S4 order.
-
-**Blockers.** None for the adoption. T-3 waits on the owner's milestone choice,
-which is also the ground the ToolCallingAgent gaps sit on.
-
-**Artifacts.** `docs/02-environment.md`, `docs/09-decisions/0001-pack-walk-excludes-vendored-trees.md`, `docs/10-runbooks/gate.md`, `.superpowers/gate-output-adoption.txt`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.
