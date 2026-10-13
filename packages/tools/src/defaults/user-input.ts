@@ -12,7 +12,7 @@ export interface UserInputToolOptions {
  * Asks the person running the agent. Upstream reads from the process's standard input;
  * this package is isomorphic, so the host supplies the function that asks.
  */
-export function userInputTool(options: UserInputToolOptions): Tool {
+export function userInputTool(options: UserInputToolOptions): Tool<z.ZodType, string> {
   return tool({
     name: options.name ?? "user_input",
     description: options.description ?? "Asks the user for input.",

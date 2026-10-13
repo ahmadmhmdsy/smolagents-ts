@@ -1,0 +1,23 @@
+{
+  "AbstractText": "TypeScript is a programming language.",
+  "AbstractURL": "https://en.wikipedia.org/wiki/TypeScript",
+  "Answer": "",
+  "RelatedTopics": [
+    {
+      "Text": "TypeScript - Wikipedia",
+      "FirstURL": "https://en.wikipedia.org/wiki/TypeScript"
+    },
+    {
+      "Text": "TypeScript (disambiguation)",
+      "FirstURL": "https://en.wikipedia.org/wiki/TypeScript_(disambiguation)"
+    },
+    {
+      "Topics": [
+        {
+          "Text": "Deno - Wikipedia",
+          "FirstURL": "https://en.wikipedia.org/wiki/Deno_(software)"
+        }
+      ]
+    }
+  ]
+}
