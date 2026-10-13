@@ -12,6 +12,7 @@ import {
   type ToolCallRequest,
   type ToolSpec,
 } from "@smolagents-ts/core";
+import { parseSse } from "./sse.js";
 import { joinUrl, postJson, resolveFetch, type FetchLike } from "./transport.js";
 
 export interface GeminiOptions {
@@ -181,6 +182,59 @@ function fromWireUsage(usage: WireUsageMetadata | undefined): TokenUsage {
   };
 }
 
+/** One streamed response may carry text and a whole function call at once. */
+function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
+  const candidate = parsed.candidates?.[0];
+  const parts = candidate?.content?.parts ?? [];
+  let text = "";
+  const calls: { name: string; args: unknown }[] = [];
+  for (const part of parts) {
+    if (part.text !== undefined) text += part.text;
+    if (part.functionCall !== undefined) {
+      calls.push({ name: part.functionCall.name ?? "", args: part.functionCall.args });
+    }
+  }
+
+  const reason = candidate?.finishReason;
+  const chunk: ChatCompletionChunk = { delta: text };
+  const first = calls[0];
+  if (first !== undefined) {
+    chunk.toolCallDelta = {
+      index: 0,
+      id: "call-0",
+      name: first.name,
+      argumentsDelta: JSON.stringify(first.args ?? {}),
+    };
+  }
+  if (reason !== undefined) {
+    chunk.finishReason = calls.length > 0 ? "tool_calls" : toFinishReason(reason);
+  }
+  if (parsed.usageMetadata !== undefined) chunk.usage = fromWireUsage(parsed.usageMetadata);
+
+  if (
+    text !== "" ||
+    chunk.toolCallDelta !== undefined ||
+    chunk.finishReason !== undefined ||
+    chunk.usage !== undefined
+  ) {
+    yield chunk;
+  }
+  for (let index = 1; index < calls.length; index += 1) {
+    const extra = calls[index];
+    if (extra !== undefined) {
+      yield {
+        delta: "",
+        toolCallDelta: {
+          index,
+          id: "call-" + String(index),
+          name: extra.name,
+          argumentsDelta: JSON.stringify(extra.args ?? {}),
+        },
+      };
+    }
+  }
+}
+
 /** Google's generateContent: contents and parts, a system instruction, and no tool finish reason. */
 export class GeminiModel implements Model {
   readonly id: string;
@@ -230,17 +284,31 @@ export class GeminiModel implements Model {
     };
   }
 
-  /**
-   * The next task replaces this with the stream reader. It throws rather than yielding an
-   * empty stream, because an empty stream would look like a model that answered nothing.
-   */
-  generateStream(
+  async *generateStream(
     messages: readonly ChatMessage[],
     options: GenerateOptions = {},
-  ): AsyncIterable<ChatCompletionChunk> {
-    void messages;
-    void options;
-    throw new Error("GeminiModel cannot stream yet");
+  ): AsyncGenerator<ChatCompletionChunk> {
+    // Without alt=sse the provider answers with a JSON array that is not an event stream.
+    const url = methodUrl(this.baseUrl, this.id, "streamGenerateContent") + "?alt=sse";
+    const response = await this.post(
+      url,
+      this.payload(messages, options),
+      options.signal,
+      "text/event-stream",
+    );
+    if (response.body === null) {
+      throw new Error("The provider returned no body to stream");
+    }
+    for await (const event of parseSse(response.body)) {
+      if (event.data === "") continue;
+      let parsed: WireResponse;
+      try {
+        parsed = JSON.parse(event.data) as WireResponse;
+      } catch {
+        continue; // a keep-alive that is not JSON
+      }
+      for (const chunk of chunksFor(parsed)) yield chunk;
+    }
   }
 
   protected payload(
