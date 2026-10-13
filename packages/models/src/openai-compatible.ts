@@ -2,14 +2,18 @@ import {
   EMPTY_TOKEN_USAGE,
   modelCapabilities,
   type ChatCompletion,
+  type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
+  type Model,
   type ModelCapabilities,
   type TokenUsage,
+  type ToolCallDelta,
   type ToolCallRequest,
   type ToolSpec,
 } from "@smolagents-ts/core";
+import { parseSse } from "./sse.js";
 import { HttpError, joinUrl, resolveFetch, type FetchLike } from "./transport.js";
 
 export interface OpenAICompatibleOptions {
@@ -144,13 +148,50 @@ function toFinishReason(raw: string | null | undefined): FinishReason {
   }
 }
 
+function toToolCallDelta(call: WireToolCallDelta, fallbackIndex: number): ToolCallDelta {
+  return {
+    index: call.index ?? fallbackIndex,
+    ...(call.id === undefined ? {} : { id: call.id }),
+    ...(call.function?.name === undefined ? {} : { name: call.function.name }),
+    ...(call.function?.arguments === undefined ? {} : { argumentsDelta: call.function.arguments }),
+  };
+}
+
+/** One wire chunk may announce several calls, and the seam carries one delta per chunk. */
+function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
+  const choice = parsed.choices?.[0];
+  const delta = choice?.delta;
+  const deltas = delta?.tool_calls ?? [];
+  const content = delta?.content ?? "";
+  const reason = choice?.finish_reason;
+  const first = deltas[0];
+
+  const chunk: ChatCompletionChunk = { delta: content };
+  if (first !== undefined) chunk.toolCallDelta = toToolCallDelta(first, 0);
+  if (reason !== undefined && reason !== null) chunk.finishReason = toFinishReason(reason);
+  if (parsed.usage !== undefined) chunk.usage = fromWireUsage(parsed.usage);
+
+  if (
+    content !== "" ||
+    chunk.toolCallDelta !== undefined ||
+    chunk.finishReason !== undefined ||
+    chunk.usage !== undefined
+  ) {
+    yield chunk;
+  }
+  for (let index = 1; index < deltas.length; index += 1) {
+    const extra = deltas[index];
+    if (extra !== undefined) yield { delta: "", toolCallDelta: toToolCallDelta(extra, index) };
+  }
+}
+
 /**
  * Any provider that speaks the OpenAI chat-completions wire format: OpenAI itself,
  * Ollama, vLLM, llama.cpp, Groq, Together, OpenRouter, DeepSeek. One adapter covers them
  * because they agree on the request and response shape, not because they agree on the
  * host.
  */
-export class OpenAICompatibleModel {
+export class OpenAICompatibleModel implements Model {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
@@ -192,6 +233,31 @@ export class OpenAICompatibleModel {
       usage: fromWireUsage(body.usage),
       finishReason: toFinishReason(choice?.finish_reason),
     };
+  }
+
+  async *generateStream(
+    messages: readonly ChatMessage[],
+    options: GenerateOptions = {},
+  ): AsyncGenerator<ChatCompletionChunk> {
+    const response = await this.post(
+      "/chat/completions",
+      this.payload(messages, options, true),
+      options.signal,
+      "text/event-stream",
+    );
+    if (response.body === null) {
+      throw new Error("The provider returned no body to stream");
+    }
+    for await (const event of parseSse(response.body)) {
+      if (event.data === "[DONE]") return;
+      let parsed: WireResponse;
+      try {
+        parsed = JSON.parse(event.data) as WireResponse;
+      } catch {
+        continue; // a keep-alive that is not JSON
+      }
+      for (const chunk of chunksFor(parsed)) yield chunk;
+    }
   }
 
   private payload(
