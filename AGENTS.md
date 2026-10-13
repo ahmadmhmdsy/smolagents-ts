@@ -35,6 +35,7 @@ package should reach that component's entry without being told where to look.
 | exec-quickjs | `packages/exec-quickjs/` | `packages/exec-quickjs/AGENTS.md` | `rules/components/exec-quickjs.md` |
 | models | `packages/models/` | `packages/models/AGENTS.md` | `rules/components/models.md` |
 | react | `packages/react/` | `packages/react/AGENTS.md` | `rules/components/react.md` |
+| smolagents-ts | `packages/smolagents-ts/` | `packages/smolagents-ts/AGENTS.md` | `rules/components/smolagents-ts.md` |
 | tools | `packages/tools/` | `packages/tools/AGENTS.md` | `rules/components/tools.md` |
 
 Resolution and the scoped-entry contract are owned by `R-16.1`, `R-16.2`, and
