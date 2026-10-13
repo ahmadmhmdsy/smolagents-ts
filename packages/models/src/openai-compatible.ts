@@ -14,7 +14,7 @@ import {
   type ToolSpec,
 } from "@smolagents-ts/core";
 import { parseSse } from "./sse.js";
-import { HttpError, joinUrl, resolveFetch, type FetchLike } from "./transport.js";
+import { joinUrl, postJson, resolveFetch, type FetchLike } from "./transport.js";
 
 export interface OpenAICompatibleOptions {
   /** The provider's model id, for example "gpt-4o-mini". */
@@ -260,7 +260,11 @@ export class OpenAICompatibleModel implements Model {
     }
   }
 
-  private payload(
+  /**
+   * The request body. A subclass may extend it: the HuggingFace adapter adds one field
+   * to the streamed form.
+   */
+  protected payload(
     messages: readonly ChatMessage[],
     options: GenerateOptions,
     stream: boolean,
@@ -287,22 +291,16 @@ export class OpenAICompatibleModel implements Model {
     signal?: AbortSignal,
     accept?: string,
   ): Promise<Response> {
-    const url = joinUrl(this.baseUrl, path);
-    const response = await this.fetchImpl(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
+    return postJson(
+      this.fetchImpl,
+      joinUrl(this.baseUrl, path),
+      body,
+      {
         ...(accept === undefined ? {} : { accept }),
         ...(this.apiKey === undefined ? {} : { authorization: "Bearer " + this.apiKey }),
         ...this.headers,
       },
-      body: JSON.stringify(body),
-      ...(signal === undefined ? {} : { signal }),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      throw new HttpError(response.status, text, url);
-    }
-    return response;
+      signal,
+    );
   }
 }

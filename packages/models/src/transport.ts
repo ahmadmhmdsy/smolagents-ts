@@ -32,3 +32,24 @@ export class HttpError extends Error {
 export function joinUrl(baseUrl: string, path: string): string {
   return baseUrl.replace(/\/+$/, "") + path;
 }
+
+/** POSTs a JSON body and turns a rejected response into an HttpError. */
+export async function postJson(
+  fetchImpl: FetchLike,
+  url: string,
+  body: unknown,
+  headers: Readonly<Record<string, string>>,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const response = await fetchImpl(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new HttpError(response.status, text, url);
+  }
+  return response;
+}
