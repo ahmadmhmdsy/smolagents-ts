@@ -8,6 +8,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
+| T-9 | plan and execute S4: code execution | done | maintainer | `packages/exec-quickjs/`, `packages/core/`, `docs/` | a written S4 plan exists and its Definition of done holds | `docs/plans/2026-10-14-s4-quickjs-executor-plan.md` — seven tasks, commits `e3c1d5d`..`05c24a4`; `.superpowers/gate-s4.txt` — `pnpm gate` exit 0; exec-quickjs suite 6 files and 29 tests, core suite 28 files and 288 tests, exit 0; validator `new: 0`, 0 errors |
 | T-8 | plan and execute S3: the tool system | done | maintainer | `packages/tools/`, `docs/` | a written S3 plan exists and its Definition of done holds | `docs/plans/2026-10-14-s3-tool-system-plan.md` — seven tasks, commits `744b72d`..`a48bb40`; `.superpowers/gate-s3.txt` — `pnpm gate` exit 0; tools suite 7 files and 28 tests, exit 0; validator `new: 0`, 0 errors |
 
 ## Closed 2026-10-13

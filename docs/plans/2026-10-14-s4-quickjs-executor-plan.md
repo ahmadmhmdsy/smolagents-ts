@@ -572,3 +572,57 @@ not its correctness.
   development and a hazard in production, and Task 6's hazards section says so.
 - The engine pair was already declared in the package before this plan; Task 1 adds only
   the core dependency, and the install is what makes the link real.
+
+## Measured results
+
+Recorded in Task 7 on the tree the six S4 commits left. The predictions above are what the
+tasks expected; these are what the commands reported.
+
+| Task | Predicted | Measured | Command |
+|---|---|---|---|
+| 3 | 3 files, 18 tests | 3 files, 22 tests | `pnpm vitest run --project exec-quickjs` |
+| 4 | 4 files, 22 tests | 4 files, 26 tests | the same command after `test/code-agent.test.ts` |
+| 5 | 28 files, 287 tests | 28 files, 288 tests | `pnpm vitest run --project core` |
+| 6 | 5 files, 23 tests | 6 files, 29 tests | the exec-quickjs project after the early-stop test |
+| 7 | — | 55 files, 408 tests | `pnpm gate` — exit 0, `.superpowers/gate-s4.txt` |
+
+Every count is higher than predicted, because each task's tests cover more than its sketch
+listed; the plan's numbers were predictions, not budgets. The gate's other numbers:
+depcruise 127 modules and 301 dependencies with no violations, `ci:check OK`, and
+`pack-smoke OK: 5 packages installed and imported from tarballs` — five rather than six,
+because `exec-quickjs` already existed as a published stub, so S4 changed what the package
+contains and not how many packages there are. The build reports `dist/index.js` at
+13.63 KB and `dist/index.d.ts` at 4.35 KB.
+
+Deviations from the plan, each owned by the task that made it:
+
+- **Task 3, the prelude's declarations.** The prelude declares with `var` and installs tool
+  names as `globalThis` properties, where the sketch used `const`: a realm reused across
+  steps rejects a second script-level `const` with the same name (probe-measured).
+- **Task 3, the capture epilogue.** `collectDeclaredNames` and the per-name epilogue are
+  not in the sketch. Without them the async wrapper broke D-14 and the prompt's rule 10.
+  The choice is now `docs/09-decisions/0004-quickjs-declaration-capture.md`.
+- **Task 3, `capabilities.cpuTimeLimitMs`.** Left out, as the open question allowed: the
+  only budget is the caller's per-execute `timeoutMs`, and a second number would be a
+  claim nothing enforces.
+- **Task 4, one file the plan did not name.** The plan's file list held only the new test
+  file, and its third test failed against the shipped loop: a failed code step's
+  observation was empty. `packages/core/src/agent/code-agent.ts` now leads the
+  observation with the error text, with a core test beside it.
+- **Task 5, the shape of the wrap.** The run's body moved to a private `runStream` and
+  `stream` is a short wrapper, rather than re-indenting the body inside a `try`; the
+  hook's coverage is the same, and no terminal path can skip it.
+- **Task 6, one gap the component rule check found.** The load failure was not typed, where
+  `rules/components/exec-quickjs.md` requires it. `ensureGuest` now throws
+  `AgentExecutionError`, pinned by a test that replaces the engine's entry point.
+- **Task 6, the pinned surface.** Three names, not two: the executor, `VERSION` and
+  `buildGuestSource`.
+
+The two open questions, answered:
+
+- **An abandoned stream.** A `break` calls the generator's `return()`, so the release hook
+  runs, and a test pins that. An iterator dropped without `return()` never runs it — a
+  probe measured zero releases after the drop — so `dispose()` remains the caller's
+  backstop, and the hook's own doc comment says which exits it covers.
+- **`cpuTimeLimitMs`.** Absent, for the reason under Task 3 above.
+

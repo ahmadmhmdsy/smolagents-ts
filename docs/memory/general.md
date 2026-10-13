@@ -103,3 +103,46 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** adding `"@smolagents-ts/core": "workspace:*"` to a package's manifest does not create the link under its `node_modules`, and the tests and the typecheck can still pass through the path mapping and the vitest alias while the declaration build fails to resolve the bare specifier; run the install in the same commit as the manifest change, or the failure surfaces at the build step of a later task.
 - **Evidence:** `pnpm --filter @smolagents-ts/tools run build` failed with `TS2307: Cannot find module '@smolagents-ts/core'` in the DTS step until `pnpm install` created the link; fixed in commit `a48bb40`.
 
+## 2026-10-14 — a wrapper that unlocks top-level await also destroys the bindings it wraps
+
+- **Status:** validated
+- **Lesson:** generated code is wrapped in an async IIFE so that top-level `await` works, and that wrapper takes the code's own top-level declarations out of scope the moment it returns, so the guest program reads the names it can see out of the source and copies each one onto the global object before the wrapper ends; without that step the model's next turn cannot read a variable the previous turn defined, which is the persistence the prompt promises it.
+- **Evidence:** `packages/exec-quickjs/src/guest-source.ts` (`collectDeclaredNames`, the capture epilogue), pinned by `packages/exec-quickjs/test/guest-source.test.ts` and the cross-step test in `packages/exec-quickjs/test/code-agent.test.ts`; the choice is recorded in `docs/09-decisions/0004-quickjs-declaration-capture.md`.
+
+## 2026-10-14 — one realm per run turns a second top-level const into a redeclaration
+
+- **Status:** validated
+- **Lesson:** a realm reused across steps keeps a script's top-level lexical bindings, so the second step's prelude that declares the same `const` name is a syntax error before any of the model's code runs; the prelude declares with `var` and installs tool names as properties instead, which is the difference between a run that reaches its fifth step and one that dies on its second.
+- **Evidence:** measured with a probe during S4 Task 3 (`SyntaxError: redeclaration of 'render'`); the shipped prelude in `packages/exec-quickjs/src/guest-source.ts` is written that way.
+
+## 2026-10-14 — a release build that asserts on a leaked handle makes every handle a resource
+
+- **Status:** validated
+- **Lesson:** QuickJS's release build aborts the whole WASM module when a handle outlives its runtime, so a missing `dispose()` is not a leak that grows quietly but a process-wide failure; every handle is disposed on every path, the context goes before the runtime, and the executor catches the abort at disposal and reports it through its last logger, because no caller can act on it.
+- **Evidence:** the spike aborted with `Assertion failed: list_empty(&rt->gc_obj_list)`; `packages/exec-quickjs/src/executor.ts` (`dispose`, `installShims`) and `packages/exec-quickjs/test/executor.test.ts`.
+
+## 2026-10-14 — a declared optional hook nobody calls is a leak with a written apology
+
+- **Status:** validated
+- **Lesson:** the executor seam declares `dispose?()` and its own doc says the executor releases its guest at the end of a run, but the loop never called it, so every run left a realm behind while every test passed; an optional method is only a contract when a caller invokes it, so the loop now runs a release hook from the generator's `finally` and the agent that owns a sandbox overrides it.
+- **Evidence:** `packages/core/src/agent/multi-step-agent.ts` (`stream`, `releaseResources`) and `packages/core/src/agent/code-agent.ts`; pinned by the disposal test in `packages/core/test/code-agent.test.ts`.
+
+## 2026-10-14 — an empty observation is a failure the model cannot see
+
+- **Status:** validated
+- **Lesson:** the executor reports a failed step as an error beside the guest's output, and the loop's observation carried only that output, so a step that threw produced an empty observation and the model had nothing to react to while the reason reached only the event stream; a failed step's reason belongs in the observation the next turn reads.
+- **Evidence:** `packages/core/src/agent/code-agent.ts` (`describeExecution`); pinned by the observation test in `packages/core/test/code-agent.test.ts` and the recovery test in `packages/exec-quickjs/test/code-agent.test.ts`.
+
+## 2026-10-14 — a generator's finally runs on return(), not on abandonment
+
+- **Status:** validated
+- **Lesson:** a release hook placed in an async generator's `finally` runs when the run ends and when a consumer breaks out of the loop, because `break` calls `return()`; a consumer that drops the iterator without one leaves the generator suspended and the hook never runs, so an executor-backed agent keeps its own `dispose()` as the documented backstop rather than treating the hook as covering every exit.
+- **Evidence:** measured with a probe during S4 Task 7 — `break` released once, a dropped iterator released zero times; the break case is pinned by `packages/exec-quickjs/test/code-agent.test.ts`.
+
+## 2026-10-14 — a component rule the code contradicts is found by reading the rule
+
+- **Status:** validated
+- **Lesson:** `rules/components/exec-quickjs.md` requires a typed error when the platform has no usable WASM binary, and the executor passed the loader's own error through instead, which no test could see because the branch never runs where the binary loads; checking a component rule against the shipped code is part of a task, and a branch a suite cannot reach is still testable by replacing the engine's entry point for one file.
+- **Evidence:** `packages/exec-quickjs/src/executor.ts` (`ensureGuest`) and `packages/exec-quickjs/test/engine-load.test.ts`, which mocks `quickjs-emscripten-core`.
+
+
