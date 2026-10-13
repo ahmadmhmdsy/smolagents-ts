@@ -79,3 +79,27 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** an unused type-only import survives `tsc --noEmit` and vitest, because the compiler's unused checks cover values and the runner erases the import before it runs, so a per-package typecheck reports success on a file the repository linter rejects; run the lint step before calling a task finished, or the gate finds it at the end of the milestone instead of at the commit that introduced it.
 - **Evidence:** `packages/models/src/huggingface.ts` line 1 kept `ChatCompletionChunk` after the adapter stopped naming it; `pnpm --filter @smolagents-ts/models run typecheck` exited 0 and `pnpm lint` reported `@typescript-eslint/no-unused-vars`, failing the first S2b gate run.
 
+## 2026-10-14 — a group that only converts still earns its place
+
+- **Status:** validated
+- **Lesson:** `ToolCollection` adds no traversal path: the loop keeps reading the core's `ToolRegistry`, and the collection converts at that boundary, so naming and grouping arrive without a second place that can disagree about what a tool is. The duplicate check lives in the collection because a map keyed by name is where a collision actually happens.
+- **Evidence:** `packages/tools/src/collection.ts`; `packages/tools/test/collection.test.ts` pins `toRegistry()` to the same `Tool` objects and a repeated name to `ToolDefinitionError`.
+
+## 2026-10-14 — a package with no host takes the host as a parameter
+
+- **Status:** validated
+- **Lesson:** the tools package runs in a browser as well as in Node, so a default tool that needs something from its environment — a way to ask the user, a fetch it may override — receives that function as an argument instead of importing a host module; the context's `fetch` is the default and an injected one wins, which is also what lets the suite run without a network.
+- **Evidence:** `packages/tools/src/defaults/user-input.ts` takes `ask`; `packages/tools/src/defaults/visit-webpage.ts` and `duckduckgo-search.ts` prefer `options.fetch` over `ctx.fetch`, pinned by `packages/tools/test/visit-webpage.test.ts`.
+
+## 2026-10-14 — a documented JSON shape is not the page's shape
+
+- **Status:** validated
+- **Lesson:** upstream's search tool reads the rendered results page, and the endpoint's documented JSON answers a different question — a summary and related topics rather than ranked links — so a port that reads the JSON is a different tool wearing the same name, and saying so in the description is cheaper than a caller discovering it from an empty result.
+- **Evidence:** `packages/tools/src/defaults/duckduckgo-search.ts` reads the Instant Answer endpoint; the divergence is recorded in `docs/plans/2026-10-14-s3-tool-system-plan.md`.
+
+## 2026-10-14 — a workspace dependency needs an install before the declaration builds
+
+- **Status:** validated
+- **Lesson:** adding `"@smolagents-ts/core": "workspace:*"` to a package's manifest does not create the link under its `node_modules`, and the tests and the typecheck can still pass through the path mapping and the vitest alias while the declaration build fails to resolve the bare specifier; run the install in the same commit as the manifest change, or the failure surfaces at the build step of a later task.
+- **Evidence:** `pnpm --filter @smolagents-ts/tools run build` failed with `TS2307: Cannot find module '@smolagents-ts/core'` in the DTS step until `pnpm install` created the link; fixed in commit `a48bb40`.
+

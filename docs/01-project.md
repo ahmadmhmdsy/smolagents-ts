@@ -120,7 +120,7 @@ entry.
 | S0 | Foundations | pnpm monorepo, TypeScript and Vitest configuration, changesets, publint/attw and pack-smoke CI, licence and notice, boundary rules | done |
 | S1 | Core runtime | loop, memory, steps, events, RunResult, errors, monitoring, prompts, AgentSession, middleware | done |
 | S2 | Model layer | the `Model` interface plus OpenAI-compatible, Anthropic, Gemini and Hugging Face adapters | done |
-| S3 | Tool system | the `tool()` ecosystem, `ToolCollection`, default tools | pending |
+| S3 | Tool system | the `tool()` ecosystem, `ToolCollection`, default tools | done |
 | S4 | Code execution | `CodeExecutor` implementations, `exec-quickjs`, final-answer bridging, async tool-call bridging | pending |
 | S5 | React layer | L2 hooks, L3 headless primitives, examples | pending |
 | S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | pending |

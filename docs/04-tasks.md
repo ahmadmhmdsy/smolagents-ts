@@ -42,7 +42,8 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
-| T-8 | plan and execute S3: the tool system | in_progress | maintainer | `packages/tools/`, `docs/` | a written S3 plan exists and its Definition of done holds | - |
+| T-9 | plan and execute S4: code execution | in_progress | maintainer | `packages/exec-quickjs/`, `packages/core/`, `docs/` | a written S4 plan exists and its Definition of done holds | - |
+| T-10 | settle the handoff's cap debt | pending | owner | `docs/03-handoff.md`, `scripts/_packmodel.py` | the owner chooses between shortening the oversized past entry, raising the pack's per-entry cap, and leaving the inline region at two entries | - |
 <!-- rotate:end -->
 
 ## Blocked

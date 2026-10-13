@@ -4,6 +4,12 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 
 ---
 
+## Closed 2026-10-14
+
+| id | title | status | owner | scope | gate | evidence |
+|---|---|---|---|---|---|---|
+| T-8 | plan and execute S3: the tool system | done | maintainer | `packages/tools/`, `docs/` | a written S3 plan exists and its Definition of done holds | `docs/plans/2026-10-14-s3-tool-system-plan.md` — seven tasks, commits `744b72d`..`a48bb40`; `.superpowers/gate-s3.txt` — `pnpm gate` exit 0; tools suite 7 files and 28 tests, exit 0; validator `new: 0`, 0 errors |
+
 ## Closed 2026-10-13
 
 | id | title | status | owner | scope | gate | evidence |
