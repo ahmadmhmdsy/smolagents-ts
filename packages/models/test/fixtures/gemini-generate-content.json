@@ -1,0 +1,13 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [{ "functionCall": { "name": "get_weather", "args": { "city": "Paris" } } }]
+      },
+      "finishReason": "STOP"
+    }
+  ],
+  "usageMetadata": { "promptTokenCount": 42, "candidatesTokenCount": 7, "totalTokenCount": 49 },
+  "modelVersion": "gemini-2.5-flash"
+}
