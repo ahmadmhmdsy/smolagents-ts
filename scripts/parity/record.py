@@ -163,7 +163,7 @@ def main() -> int:
     for scenario in read_scenarios():
         payload = record(scenario)
         path = RECORDINGS / (scenario["id"] + ".json")
-        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
         meta = payload["meta"]
         print("wrote " + str(path.relative_to(ROOT)).replace("\\", "/")
               + " (upstream " + meta["upstreamVersion"] + ", python " + meta["pythonVersion"] + ")")

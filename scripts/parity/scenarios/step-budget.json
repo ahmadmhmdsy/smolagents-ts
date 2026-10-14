@@ -27,10 +27,20 @@
   "expect": {
     "parity": "divergent",
     "differsOn": [
-      "steps",
+      "actions",
+      "finalAnswer",
+      "modelCalls",
       "outcome",
-      "actions"
+      "steps"
     ],
-    "why": "upstream ends a max-steps run with a synthetic ActionStep and a FinalAnswerStep; ours emits run.maxStepsReached (F6, T-18)"
+    "why": "upstream ends a max-steps run by making one more model call, storing a third step whose tool-call list is empty and whose error is set, and reporting the last turn's raw text as the final answer; ours stops after the budget with run.maxStepsReached (F6, T-18)",
+    "ourTrace": {
+      "outcome": "max-steps",
+      "steps": [
+        "action",
+        "action"
+      ],
+      "finalAnswer": null
+    }
   }
 }

@@ -8,7 +8,7 @@
     {
       "intent": "code",
       "py": "```python\nimport math\nresult = math.sqrt(16)\nprint(result)\n```",
-      "ts": "```javascript\nconst result = Math.sqrt(16);\nprint(result);\n```",
+      "ts": "```javascript\nconst result = Math.sqrt(16);\nconsole.log(result);\n```",
       "observation": "4"
     },
     {
