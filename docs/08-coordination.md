@@ -33,6 +33,7 @@ renewable.
 <!-- rotate:begin -->
 | task | owner | scope | claimed_at | expires_at | state |
 |---|---|---|---|---|---|
+| T-13 L4/L5 (tasks 1 to 9), and the exec-remote review follow-up | this session | `packages/react-ui/**`, `packages/react/src/**`, `packages/exec-remote/**`, `examples/vite-app/**`, `scripts/pack-smoke.mjs`, and the doc rows for both layers | 2026-10-14T14:50+03:00 | 2026-10-14T17:30+03:00 | active |
 <!-- rotate:end -->
 
 1. Read the claims table before touching anything.

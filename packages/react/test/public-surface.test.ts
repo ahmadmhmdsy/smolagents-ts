@@ -20,6 +20,9 @@ const RUNTIME_EXPORTS = [
   "CodeBlock",
   "FinalAnswer",
   "ToolCall",
+  // L4 patterns
+  "RunInspector",
+  "ChatSurface",
 ] as const;
 
 describe("public surface", () => {
