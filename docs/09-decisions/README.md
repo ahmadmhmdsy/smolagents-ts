@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0007 | the parity harness compares structure and keeps its Python leg out of CI | accepted | 2026-10-14 |
 | 0006 | the distribution shape | accepted | 2026-10-14 |
 | 0005 | the React layer's public surface | accepted | 2026-10-14 |
 | 0004 | the guest program captures a step's declarations by scanning its source | accepted | 2026-10-14 |
