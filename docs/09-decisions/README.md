@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0015 | the MCP client is hand-rolled behind a transport seam | accepted | 2026-10-14 |
 | 0014 | the five internal packages stay implementation, with a signpost | accepted | 2026-10-14 |
 | 0013 | the CLI keeps its own version line | accepted | 2026-10-14 |
 | 0012 | the web surface: a Vite example and a static site on GitHub Pages | accepted | 2026-10-14 |
