@@ -32,14 +32,19 @@ is the one procedure that does, and it is the only one that needs a credential.
 
        pnpm build
 
-2. Put the key in the environment for this shell only. The value is never echoed:
+2. Put the key in the environment for this shell only. The value is never echoed.
+   Node can read the file itself, which is the shortest path and the one that was
+   last verified; the shell forms are for when the script is run another way:
+
+       node --env-file=.env scripts/live-smoke.mjs
 
        # bash
        set -a; . ./.env; set +a
        # PowerShell
        Get-Content .env | ForEach-Object { if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') { $n=$matches[1]; $v=$matches[2].Trim().Trim('"').Trim("'"); Set-Item -Path ("env:" + $n) -Value $v } }
 
-3. Run the smoke, optionally overriding the model:
+3. Run the smoke. The default model is `gemini-3.5-flash-lite`; `GEMINI_MODEL`
+   overrides it:
 
        pnpm live:smoke
        GEMINI_MODEL=gemini-2.5-flash pnpm live:smoke
@@ -49,6 +54,10 @@ is the one procedure that does, and it is the only one that needs a credential.
     # expect, in order: three "ok" lines and a final "live-smoke OK (<model>)"
     # expect, without the key: "live-smoke SKIPPED: GOOGLE_API_KEY is not set" and exit 0
     echo $LASTEXITCODE
+
+Last recorded run: 2026-10-14, `gemini-3.5-flash-lite`, the three checks ok and
+exit 0, with the streamed check reporting usage and the agent run reaching the
+executor once and answering `4`.
 
 ## Rollback
 
