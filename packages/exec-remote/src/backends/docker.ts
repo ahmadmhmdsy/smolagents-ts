@@ -143,10 +143,17 @@ export class DockerSandbox implements RemoteSandbox {
     const containerId = this.containerId;
     this.containerId = undefined;
     if (runtime === undefined || containerId === undefined) return;
+    // Teardown must not reject: a failed stop would otherwise replace the run's real result.
+    // The removal is still attempted, so a stop failure does not also skip it.
     try {
       await runtime.stopContainer(containerId);
-    } finally {
+    } catch {
+      // The container may already be gone.
+    }
+    try {
       await runtime.removeContainer(containerId);
+    } catch {
+      // The container may already be gone.
     }
   }
 }

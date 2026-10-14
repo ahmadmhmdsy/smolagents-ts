@@ -215,8 +215,11 @@ export class RemoteExecutor implements CodeExecutor {
     try {
       await sandbox.start({ shimSource });
     } catch (error) {
-      // A start() that threw may still hold a container or a vendor sandbox. Dispose it so the
-      // half-live resource is not leaked; a disposal failure must not replace the start error.
+      // A start() that threw may still hold a container or a vendor sandbox. Hand the next
+      // attempt a fresh backend from the factory, then dispose the old one so the half-live
+      // resource is not leaked; neither the factory nor a disposal failure may replace the
+      // start error the caller sees.
+      if (this.factory !== undefined) this.sandbox = this.factory();
       try {
         await sandbox.dispose();
       } catch {

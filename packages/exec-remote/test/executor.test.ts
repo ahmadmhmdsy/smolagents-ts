@@ -244,6 +244,32 @@ describe("the remote executor", () => {
     expect(sandbox.disposals).toBe(1);
   });
 
+  it("rebuilds from the factory after a failed start so a retry gets a fresh backend", async () => {
+    const built: FakeSandbox[] = [];
+    let attempts = 0;
+    const factory = (): FakeSandbox => {
+      const sandbox = new FakeSandbox(async () => answer("recovered"));
+      sandbox.start = async () => {
+        attempts += 1;
+        if (attempts === 1) throw new SandboxError("The sandbox could not start.");
+      };
+      built.push(sandbox);
+      return sandbox;
+    };
+    const executor = new RemoteExecutor({ sandbox: factory });
+    const first = await executor.execute("print('one')", options());
+    expect(first.isFinalAnswer).toBe(false);
+    expect(first.error?.message).toContain("The sandbox could not start.");
+    // The failed instance was disposed and the retry must run on the replacement the factory
+    // handed out, not on the disposed instance.
+    expect(built).toHaveLength(2);
+    expect(built[0]?.disposals).toBe(1);
+    const second = await executor.execute("print('two')", options());
+    expect(second.isFinalAnswer).toBe(true);
+    expect(second.value).toBe("recovered");
+    expect(second.error).toBeUndefined();
+  });
+
   it("drives a public factory through a timeout and then a successful step", async () => {
     const executor = createProcessExecutor({ gracePeriodMs: 50 });
     try {

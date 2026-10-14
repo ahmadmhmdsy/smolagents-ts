@@ -31,7 +31,11 @@ interface RecordingRuntime extends ContainerRuntime {
   readonly removes: string[];
 }
 
-function recordingRuntime(endpoint: { host: string; port: number }, failStart = false): RecordingRuntime {
+function recordingRuntime(
+  endpoint: { host: string; port: number },
+  failStart = false,
+  failStop = false,
+): RecordingRuntime {
   const builds: ImageBuildRequest[] = [];
   const creates: ContainerCreateRequest[] = [];
   const starts: string[] = [];
@@ -60,6 +64,7 @@ function recordingRuntime(endpoint: { host: string; port: number }, failStart = 
     },
     async stopContainer(containerId) {
       stops.push(containerId);
+      if (failStop) throw new Error("the daemon refused to stop the container");
     },
     async removeContainer(containerId) {
       removes.push(containerId);
@@ -126,5 +131,17 @@ describe("the Docker backend", () => {
       docker.run({ code: "1", timeoutMs: 100, signal: new AbortController().signal }),
     ).rejects.toThrow(SandboxError);
     expect(runtime.builds).toEqual([]);
+  });
+
+  it("resolves dispose and still removes the container when the stop fails", async () => {
+    server = await startJupyterLoopback({ token: "test-token" });
+    const runtime = recordingRuntime({ host: server.host, port: server.port }, false, true);
+    const docker = sandbox(runtime);
+    await docker.start({ shimSource: "print('prelude')" });
+    // A teardown failure must not replace the run's real result with a rejection.
+    await expect(docker.dispose()).resolves.toBeUndefined();
+    expect(runtime.stops).toEqual(["container-1"]);
+    expect(runtime.removes).toEqual(["container-1"]);
+    await expect(docker.dispose()).resolves.toBeUndefined();
   });
 });
