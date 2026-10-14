@@ -97,6 +97,13 @@ function readJson<T>(path: string, what: string): T {
 function readScenario(id: string): ParityScenario {
   const scenario = readJson<ParityScenario>(join(SCENARIOS, id + ".json"), "parity scenario");
   if (scenario.id !== id) throw new Error("Scenario " + id + " declares the id " + scenario.id);
+  if (!Array.isArray(scenario.tools)) throw new Error("Scenario " + id + " declares no tools list");
+  if (scenario.tools.length > 0) {
+    throw new Error(
+      "Scenario " + id + " declares tools, and neither leg wires them: both runs would ignore them"
+        + " and compare equal. Support them in both readers first.",
+    );
+  }
   if (!Array.isArray(scenario.turns) || scenario.turns.length === 0) {
     throw new Error("Scenario " + id + " has no turns");
   }

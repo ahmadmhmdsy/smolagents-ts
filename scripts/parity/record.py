@@ -111,6 +111,12 @@ def read_scenarios() -> list[dict]:
         for field in REQUIRED:
             if field not in scenario:
                 raise SystemExit(path + " is missing the field " + field)
+        if scenario["tools"]:
+            raise SystemExit(
+                path
+                + " declares tools, and this recorder builds no tool for them; a scenario"
+                + " with tools would compare two runs that both ignored them"
+            )
         scenarios.append(scenario)
     return scenarios
 
