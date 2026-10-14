@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0010 | the published name and the repository | accepted | 2026-10-14 |
 | 0009 | a local secrets file is not pack surface | accepted | 2026-10-14 |
 | 0008 | the handoff's over-cap entry stays as it stands | accepted | 2026-10-14 |
 | 0007 | the parity harness compares structure and keeps its Python leg out of CI | accepted | 2026-10-14 |

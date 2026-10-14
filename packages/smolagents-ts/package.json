@@ -6,6 +6,9 @@
   "description": "Agents that think in code, natively in TypeScript: the agent runtime, the provider adapters, the default tools, the QuickJS executor and the React layer under one name.",
   "keywords": ["smolagents", "agents", "ai", "llm", "typescript", "code-generation"],
   "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git" },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": { "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues" },
   "engines": { "node": ">=22.12" },
   "publishConfig": { "access": "public" },
   "exports": {

@@ -12,6 +12,15 @@
     "agents"
   ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
   "engines": {
     "node": ">=22.12"
   },

@@ -41,9 +41,9 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-12 | ship the runnable React example the S5 definition names | pending | owner | `examples/**` | T-13 picks the example's host and build | - |
-| T-13 | ship the v1.5 modules S6's design row names: CLI, MCP, remote executors, exec-pyodide, docs site, L4/L5 | pending | owner | new packages, `examples/**`, `apps/**` | the owner picks the next module and where it runs | - |
-| T-14 | publish 0.1.0 to the registry | pending | owner | `.changeset/**`, `packages/**` | registry credentials and a repository URL, neither of which this session has | - |
+| T-12 | ship the runnable React example the S5 definition names | pending | this session | `examples/**` | the host is decided with the docs site under T-13, on the owner's instruction | - |
+| T-13 | ship the v1.5 modules S6's design row names: CLI, MCP, remote executors, exec-pyodide, docs site, L4/L5 | in_progress | this session | new packages, `examples/**`, `apps/**` | the owner chose the sequence: the CLI first, then the docs site with the example's host, then MCP, exec-pyodide, remote executors and L4/L5 | - |
+| T-14 | publish 0.1.0 to the registry | pending | owner | `.changeset/**`, `packages/**` | the public repository exists and every manifest names it; the owner supplies registry credentials, then the release runs | - |
 | T-16 | decide our planning cadence: upstream plans before the first step, this loop plans after it | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the cadence; F7 in the S1.5 plan | - |
 | T-18 | decide a budget-exhausted run's ending: upstream reports the last model output as the final answer, this loop raises `AgentMaxStepsError` | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the ending; F6 in the S1.5 plan | - |
 | T-19 | grow the parity corpus a tool scenario | pending | next session | `scripts/parity/scenarios/*.json`, `scripts/parity/record.py`, `packages/core/test/parity.test.ts` | the owner deferred it; both readers must first learn to wire tools, because each refuses a non-empty tool list | - |
