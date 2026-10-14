@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "cli", "mcp"];
+const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "react-ui", "cli", "mcp"];
 /** The published name: its tarball is the only one that is not scoped. */
 const FACADE = "smolagents-ts";
 
@@ -97,6 +97,24 @@ try {
   );
 
   run("npm", ["install", "--no-audit", "--no-fund", ...tarballs, peerSpec(), pyodideSpec()], workspace);
+
+  // The styled layer ships its stylesheet as plain text rather than as an imported module, so
+  // "files" has to carry it into the tarball and dist/styles.css has to reach the consumer
+  // intact. The token block is the theming contract, so each token name is read from the
+  // installed copy rather than the workspace source.
+  const stylesPath = join(workspace, "node_modules", "@smolagents-ts", "react-ui", "dist", "styles.css");
+  if (!existsSync(stylesPath)) {
+    throw new Error("the packed react-ui carries no dist/styles.css");
+  }
+  const styles = readFileSync(stylesPath, "utf8");
+  if (styles.trim().length === 0) {
+    throw new Error("the packed react-ui dist/styles.css is empty");
+  }
+  for (const token of ["--smol-surface", "--smol-text", "--smol-accent", "--smol-radius", "--smol-gap"]) {
+    if (!styles.includes(token)) {
+      throw new Error("the packed react-ui dist/styles.css is missing " + token);
+    }
+  }
 
   const imports = [];
   const assertions = [];
