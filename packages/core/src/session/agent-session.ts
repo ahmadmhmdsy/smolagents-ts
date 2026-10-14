@@ -118,14 +118,20 @@ function emptyRun(): RunDraft {
 /**
  * The framework-agnostic run store (design spec 5.3, layer L1).
  *
- * React's useSyncExternalStore needs subscribe + getSnapshot, so this class is the whole
- * integration surface. It never imports React, and it works in Vue, Svelte, or a plain
- * event listener just as well.
+ * React's useSyncExternalStore needs subscribe + getSnapshot + getServerSnapshot, so this
+ * class is the whole integration surface. It never imports React, and it works in Vue, Svelte,
+ * or a plain event listener just as well.
  */
 export class AgentSession<TOut = unknown> {
   private agent: MultiStepAgent<TOut>;
   private draft: RunDraft = emptyRun();
-  private snapshot: AgentSessionSnapshot = freezeRun(this.draft, null);
+  /**
+   * The snapshot a server render starts from. Built once from the initial empty draft and never
+   * reassigned: React reads it while rendering on the server and again while hydrating, so its
+   * identity must not move however far a run has travelled.
+   */
+  private readonly serverSnapshot: AgentSessionSnapshot = freezeRun(this.draft, null);
+  private snapshot: AgentSessionSnapshot = this.serverSnapshot;
   private readonly listeners = new Set<() => void>();
   private controller: AbortController | null = null;
 
@@ -136,6 +142,14 @@ export class AgentSession<TOut = unknown> {
   /** Stable while nothing changed. This identity is the contract useSyncExternalStore relies on. */
   getSnapshot(): AgentSessionSnapshot {
     return this.snapshot;
+  }
+
+  /**
+   * The initial snapshot, for useSyncExternalStore's third argument. Frozen and referentially
+   * stable across calls, and it stays the idle, stepless snapshot however far a run has moved.
+   */
+  getServerSnapshot(): AgentSessionSnapshot {
+    return this.serverSnapshot;
   }
 
   subscribe(listener: () => void): () => void {

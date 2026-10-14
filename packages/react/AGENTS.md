@@ -30,10 +30,11 @@ package publishes beside the facade like the other internal ones;
 
     pnpm vitest run --project react
 
-Expected result: 10 test files and 46 tests pass, exit code 0. Measured on
-2026-10-14 as "Test Files 10 passed (10)" and "Tests 46 passed (46)". The
+Expected result: 11 test files and 48 tests pass, exit code 0. Measured on
+2026-10-14 as "Test Files 11 passed (11)" and "Tests 48 passed (48)". The
 adoption revision reported one file and one test; the surface test is what
-remains of that smoke test, and the rest is the layer.
+remains of that smoke test, the rest is the layer, and the server-render test
+added the eleventh file and its two cases.
 
 ## Boundaries
 

@@ -36,6 +36,35 @@ describe("AgentSession", () => {
     expect(session.getSnapshot()).toBe(first);
   });
 
+  it("returns the initial snapshot from getServerSnapshot before any run", () => {
+    const session = new AgentSession(buildAgent([]));
+    const snapshot = session.getServerSnapshot();
+    expect(snapshot.status).toBe("idle");
+    expect(snapshot.isRunning).toBe(false);
+    expect(snapshot.steps).toEqual([]);
+    expect(snapshot.output).toBeUndefined();
+    expect(snapshot.lastEventType).toBeNull();
+    expect(Object.isFrozen(snapshot)).toBe(true);
+  });
+
+  it("keeps getServerSnapshot stable and initial while a run starts and completes", async () => {
+    const executor = new ScriptedExecutor({ results: { "final_answer(1)": finalAnswerResult(1) } });
+    const session = new AgentSession(buildAgent([fenced("final_answer(1)")], executor));
+    const first = session.getServerSnapshot();
+    expect(session.getServerSnapshot()).toBe(first);
+
+    const running = session.send("Q");
+    expect(session.getSnapshot().status).toBe("running");
+    expect(session.getServerSnapshot()).toBe(first);
+    expect(session.getServerSnapshot().status).toBe("idle");
+
+    await running;
+    expect(session.getSnapshot().status).toBe("success");
+    expect(session.getServerSnapshot()).toBe(first);
+    expect(session.getServerSnapshot().status).toBe("idle");
+    expect(session.getServerSnapshot().steps).toEqual([]);
+  });
+
   it("respects the useSyncExternalStore contract: getSnapshot is cheap and stable", () => {
     const session = new AgentSession(buildAgent([]));
     let reads = 0;
