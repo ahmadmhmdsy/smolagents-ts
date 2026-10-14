@@ -43,6 +43,6 @@ as raw bytes; the host never executes pickle opcodes.
 pnpm vitest run --project exec-remote
 ```
 
-No test reaches a network, a daemon or a credential. The process suite runs a real short-lived
+No test reaches an external network, a daemon or a credential. The process suite runs a real short-lived
 child interpreter; Docker is driven through an injected `ContainerRuntime` double plus a
 loopback HTTP/WebSocket Jupyter server; E2B is driven through a doubled `E2BClient`.

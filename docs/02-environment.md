@@ -63,8 +63,8 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 
 | Tool | Version | Verified by | Notes |
 |---|---|---|---|
-| Node.js runtime | v24.18.0 | `node --version` | `engines` requires 22.12 or newer; CI runs 22, 24 and 26 |
-| pnpm package manager | 12.3.4 | `pnpm --version` | lockfile kind: `pnpm-lock.yaml`; the `packageManager` field in `package.json` is canonical and `scripts/check-ci.mjs` fails when the workflow disagrees; a release-age quarantine is on by default and is a behaviour rather than a surfaced setting, so `pnpm config get minimumReleaseAge` answers `undefined` on a machine where it is plainly active (decision 0017) |
+| Node.js runtime | v24.18.0 | `node --version` | `engines` requires 22.12 or newer; CI runs 22, 24 and 26. The E2B subpath of `@smolagents-ts/exec-remote` enforces a higher floor of 22.19.0 at construction and refuses with a typed error below it, so a consumer on 22.12 satisfies the manifest and is still refused by that backend |
+| pnpm package manager | 12.3.4 | `pnpm --version` | lockfile kind: `pnpm-lock.yaml`; the `packageManager` field in `package.json` is canonical and `scripts/check-ci.mjs` fails when the workflow disagrees; a release-age quarantine is on by default and is a behaviour rather than a surfaced setting, so `pnpm config get minimumReleaseAge` answers `undefined` on a machine where it is plainly active (decision 0017). Measured on this machine on 2026-10-14: `pnpm config get minimumReleaseAge` printed `undefined` while the exact-version exclusions pnpm had written into `pnpm-workspace.yaml` were in force |
 | TypeScript | 6.0.3 | `pnpm exec tsc --version` | `strict` plus `noUncheckedIndexedAccess` |
 | Build tool | tsup 8.5.1 | `pnpm exec tsup --version` | one `tsup.config.ts` per package |
 | Test runner | Vitest 5.0.3 | `pnpm exec vitest --version` | projects resolved from `packages/*`, `examples/*` and `apps/*` |
@@ -80,10 +80,12 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 
 | Service | Where | Port | Started by |
 |---|---|---|---|
-| none | everything the build, the tests and the gate do runs in-process | — | — |
+| none | everything the build, the tests and the gate do runs in-process, apart from the loopback listener below | — | — |
+| loopback Jupyter stand-in | the `exec-remote` suite binds `127.0.0.1` on an ephemeral port and speaks the kernel-gateway subset to it over the loopback interface | ephemeral, chosen by the operating system | `packages/exec-remote/test/ws-server.ts` |
 
-No daemon, port or external service is opened by a build, a test run or the
-gate.
+No daemon and no external service is opened by a build, a test run or the gate.
+The only socket any test opens is the `exec-remote` suite's own loopback
+listener, and that traffic never leaves this host.
 
 ## Credentials
 
@@ -92,17 +94,21 @@ Never record values here. Record only the **name**, the **location**, and the
 
 | Variable | Required for | Where it lives | Committed? |
 |---|---|---|---|
+| `GOOGLE_API_KEY` | the live provider smoke and any live Gemini run — never the gate, the tests or the build | the gitignored `.env` at the repository root, loaded with `node --env-file=.env` | no |
 | none | the gate, the tests and the build all run offline | not applicable | no |
 
-Nothing is required today, because no provider adapter ships yet. When the S2
-adapters land, each provider variable is recorded here by name and location
-before the first live call, and never by value.
+The gate needs no credential. A live call needs `GOOGLE_API_KEY`, which lives
+only in the gitignored `.env` and is read from the environment by
+`scripts/live-smoke.mjs`, which never prints it. Every further provider variable
+is recorded here by name and location before its first live call, and never by
+value.
 
 ## Network and access
 
 The gate is offline: `pnpm install --frozen-lockfile` needs the npm registry
-once, and CI needs GitHub, but nothing in the build or the test run reaches the
-network. Two gitignored trees at the repository root, `smolagents/` and
+once, and CI needs GitHub, but nothing in the build or the test run reaches an
+external network. The `exec-remote` suite opens its own loopback listener and
+connects to it over `127.0.0.1`; that traffic never leaves this host. Two gitignored trees at the repository root, `smolagents/` and
 `reference/`, are read-only local clones kept for upstream comparison; neither
 is committed and neither is part of the project's own surface.
 

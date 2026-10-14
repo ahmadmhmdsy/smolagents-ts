@@ -118,7 +118,9 @@ carries the backend's own words and, where the backend attached one, the cause b
 
 3. If a container survived, remove it by the image the backend built:
 
-       docker ps -a --filter ancestor=$(docker images -q --filter reference='smolagents*')
+       foreach ($image in docker images -q --filter 'reference=smolagents*') {
+         docker ps -a --filter "ancestor=$image"
+       }
        docker rm -f <id>
 
 4. If an E2B sandbox survived a hard kill, end it from the vendor's own listing; it bills
@@ -134,6 +136,7 @@ carries the backend's own words and, where the backend attached one, the cause b
 | `MissingPeerDependencyError` naming `dockerode` or the E2B client | the optional peer was never installed | `pnpm install`; the error names the package and the subpath that wanted it |
 | five `FAIL` lines with no error line | the step ran but produced no answer | read the printed logs; the guest's own output is the run buffer |
 | the process path fails to spawn | no interpreter on `PATH` under either name | install Python 3 and confirm `python --version` |
+| exit 2 with a usage line and no check output | the backend argument is not one of the three | pass `process`, `docker` or `e2b`; the script prints its usage and exits 2 |
 
 ## What this does not prove
 
