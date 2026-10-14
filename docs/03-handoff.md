@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T03:20:00+03:00 — the v1 roadmap is closed: S3, S4, S5, S6's v1 share and S1.5 are reached
+
+**State.** Every v1 milestone the design record names is reached. S3, S4 and S5 read `done`;
+S1.5 reads `done` (entry above); S6 reads `in_progress` because its design row also names the
+v1.5 modules — the six packages' publish shape, the facade, the tarball smoke and 0.1.0 are
+delivered, and T-13 owns the rest. Nothing is published, and no owner row was closed for the owner.
+
+**Did.** Executed `docs/plans/2026-10-14-s6-distribution-plan.md` (`aa0589a`) task by task:
+publish metadata and the licence copy (`e04733d`), the facade (`cba0db4`), its component record
+(`13fa0f6`), pack-smoke coverage (`95e2b4c`), the changesets release (`a27bee1`), the runnable
+Node example (`191fb1c`), the README sections (`78cc03f`), per-changelog notes (`3484794`), and
+the records with decision 0006 (`49bd15d`). Then delegated S1.5 and reviewed it commit by commit.
+
+**Verified.** PASS — `pnpm gate` exit 0 on this revision (`.superpowers/gate-verify.txt`): 66
+files and 453 tests, depcruise 158 modules and 395 dependencies with no violations, six publint
+"All good!", `ci:check OK`, `pack-smoke OK: 6 packages`. PASS — the validator reports `new: []`,
+14 baselined, 0 errors, 0 warnings; `rotate.py --check` exits 0; the tree is clean.
+
+**Unverified / open.** No publish was attempted: T-14 waits on registry credentials and a
+repository URL this tree has none of. S1.5's two measured divergences are open owner decisions.
+
+**Next.** The owner answers T-5, T-10, T-12, T-14, T-16 and T-18, or picks the first T-13 module.
+
+**Blockers.** T-5, T-10, T-12, T-13, T-14, T-16 and T-18 wait on the owner.
+
+**Artifacts.** `docs/01-project.md:118`, `docs/plans/2026-10-14-s6-distribution-plan.md`,
+`docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/`.
+
 ## 2026-10-14T03:10:32+03:00 — S1.5 is complete: the parity harness compares our loop with upstream
 
 **State.** A differential harness now holds this loop against the release it is derived from.
@@ -65,6 +93,7 @@ choose the first T-13 module.
 **Artifacts.** `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`,
 `docs/10-runbooks/record-parity-traces.md`, `docs/09-decisions/0007-parity-harness-scope.md`,
 `packages/core/test/parity.test.ts`.
+
 ## 2026-10-14T02:45:00+03:00 — S6 is complete: the six packages are publishable
 
 **State.** The project is installable: six packages at 0.1.0, a `smolagents-ts`
@@ -125,38 +154,6 @@ package stays private, so its changeset line is inert until S6 picks a version l
 **Blockers.** T-5, T-10 and T-12 stay with the owner.
 
 **Artifacts.** `packages/react/AGENTS.md`, `docs/09-decisions/0005-react-layer-surface.md`.
-
-## 2026-10-14T01:22:29+03:00 — S4 is complete: agent code runs in QuickJS
-
-**State.** `@smolagents-ts/exec-quickjs` exports `QuickJSExecutor`, and `CodeAgent` now
-releases its executor when a run ends. S4 is done; S5 (the React layer) has no plan yet.
-
-**Did.** Executed the seven tasks of `docs/plans/2026-10-14-s4-quickjs-executor-plan.md`
-in six commits (`e3c1d5d`..`05c24a4`): the guest program, the executor over one synchronous
-QuickJS-WASM realm, the end-to-end tests under a real `CodeAgent`, the core release hook,
-the barrel with a pinned surface test, and this record. Four findings the plan did not
-name, each recorded in its Notes: a failed step's observation now carries the error text;
-a platform with no usable WASM binary fails with a typed error, per
-`rules/components/exec-quickjs.md`; the prelude declares with `var` and captures a step's
-declarations in an epilogue; and a dropped stream iterator releases nothing.
-
-**Verified.** `pnpm gate` exit 0 on the final tree — `.superpowers/gate-s4.txt`. The
-exec-quickjs suite is six files and twenty-nine tests, the core suite 28 files and 288
-tests; the validator reports `new: 0` with 0 errors and 0 warnings against the baseline,
-and `rotate.py --check` exits 0.
-
-**Unverified / open.** No live model call: the loop ran on `MockModel` and the golden
-transcript. `capabilities.cpuTimeLimitMs` is deliberately absent, since the only budget is
-the caller's `timeoutMs`. A consumer that abandons `agent.stream()` without `return()`
-keeps the guest alive until it calls `dispose()` — measured, not assumed.
-
-**Next.** Write and execute the S5 plan: the React layer's hooks and headless primitives.
-
-**Blockers.** T-5 (the pruning-walker decision is still proposed) and T-10 (a past handoff
-entry is over the pack's per-entry cap) stay with the owner.
-
-**Artifacts.** `packages/exec-quickjs/src/executor.ts`, `packages/exec-quickjs/AGENTS.md`,
-`docs/plans/2026-10-14-s4-quickjs-executor-plan.md`, `.changeset/s4-exec-quickjs.md`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.

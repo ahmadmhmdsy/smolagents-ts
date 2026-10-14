@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T01:22:29+03:00 — S4 is complete: agent code runs in QuickJS
+
+**State.** `@smolagents-ts/exec-quickjs` exports `QuickJSExecutor`, and `CodeAgent` now
+releases its executor when a run ends. S4 is done; S5 (the React layer) has no plan yet.
+
+**Did.** Executed the seven tasks of `docs/plans/2026-10-14-s4-quickjs-executor-plan.md`
+in six commits (`e3c1d5d`..`05c24a4`): the guest program, the executor over one synchronous
+QuickJS-WASM realm, the end-to-end tests under a real `CodeAgent`, the core release hook,
+the barrel with a pinned surface test, and this record. Four findings the plan did not
+name, each recorded in its Notes: a failed step's observation now carries the error text;
+a platform with no usable WASM binary fails with a typed error, per
+`rules/components/exec-quickjs.md`; the prelude declares with `var` and captures a step's
+declarations in an epilogue; and a dropped stream iterator releases nothing.
+
+**Verified.** `pnpm gate` exit 0 on the final tree — `.superpowers/gate-s4.txt`. The
+exec-quickjs suite is six files and twenty-nine tests, the core suite 28 files and 288
+tests; the validator reports `new: 0` with 0 errors and 0 warnings against the baseline,
+and `rotate.py --check` exits 0.
+
+**Unverified / open.** No live model call: the loop ran on `MockModel` and the golden
+transcript. `capabilities.cpuTimeLimitMs` is deliberately absent, since the only budget is
+the caller's `timeoutMs`. A consumer that abandons `agent.stream()` without `return()`
+keeps the guest alive until it calls `dispose()` — measured, not assumed.
+
+**Next.** Write and execute the S5 plan: the React layer's hooks and headless primitives.
+
+**Blockers.** T-5 (the pruning-walker decision is still proposed) and T-10 (a past handoff
+entry is over the pack's per-entry cap) stay with the owner.
+
+**Artifacts.** `packages/exec-quickjs/src/executor.ts`, `packages/exec-quickjs/AGENTS.md`,
+`docs/plans/2026-10-14-s4-quickjs-executor-plan.md`, `.changeset/s4-exec-quickjs.md`.
+
 ## 2026-10-14T00:29:15+03:00 — S3 is complete: the tool ecosystem ships
 
 **State.** `@smolagents-ts/tools` exports `ToolCollection`, `htmlToText`, `userInputTool`,
