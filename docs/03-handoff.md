@@ -33,6 +33,44 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T15:35:00+03:00 — the gate was green while CI was red
+
+**State.** The gate exits 0 locally at 114 test files and 800 tests — and it was
+green locally while CI was red. Both commits this session failed the `CI`
+workflow at `pnpm typecheck`: `examples/vite-app` could not resolve
+`@smolagents-ts/react-ui`, because the example's compiler `paths` mapped every
+workspace package to source except that one, and the workflow typechecks before it
+builds. The `context` and `Pages` workflows passed throughout.
+
+**Did.** Added the missing entry, then brought the example's `paths` in line with
+its two alias configs: a mapped source file imports its siblings by scoped name, so
+`@smolagents-ts/react` was missing as well. Pinned all three resolver configs to
+each other with `examples/vite-app/test/resolution.test.ts`, because the same
+omission had now been made in two of the three. Closed the owner's decision batch:
+items 8 and 9 are implemented, and 10, 11, 12 and 13 were already answered by
+decisions 0014 and 0010 and by T-20. Item 9's premise was stale — streamed usage
+shipped at 10:03 today in `2ac32fe` — and what was still wrong in that path is that
+OpenAI sends `"usage": null` on every non-final chunk and the adapter threw on it.
+
+**Verified.** `pnpm gate` exit 0 at the counts above. With all twelve `dist/`
+directories moved away, `pnpm typecheck` exits 0; that is CI's own condition, and
+it is the check that catches this class. The capability drift is gone from every
+source file, and exec-remote reads 11 files and 73 tests, models 13 and 64.
+
+**Unverified / open.** The new guard reads the three configs as text and compares
+their coverage; it does not check that an alias points at the right package.
+`gemini.ts` has the same null-shape the models fix closed and was left alone.
+
+**Next.** Push, then watch `CI` on the pushed commit, because the local gate
+cannot see this defect.
+
+**Blockers.** T-14 needs registry credentials; T-16, T-18, T-21 and T-25 need
+decisions; T-19 and T-24 are deferred by the owner and by decision 0016.
+
+**Artifacts.** `examples/vite-app/test/resolution.test.ts`;
+`examples/vite-app/tsconfig.json`; `packages/exec-remote/src/sandbox.ts`;
+`packages/models/src/openai-compatible.ts`; `docs/memory/general.md`.
+
 ## 2026-10-14T15:40:00+03:00 — probe C is measured, and the close of T-13 is verified
 
 **State.** T-13's last two gaps are filled and the numbers in the entry below are

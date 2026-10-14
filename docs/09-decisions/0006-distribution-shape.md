@@ -72,5 +72,5 @@ why this record exists.
 
 ## Follow-up
 
-- [ ] Decide whether the internal packages are documented as first-class or stay implementation — owner: owner.
+- [x] Decide whether the internal packages are documented as first-class or stay implementation — answered by `docs/09-decisions/0014-internal-packages-stay-implementation.md`: they stay implementation, and each gains a short README that signposts the facade. The comparison behind it is `docs/research/2026-10-14-implementation-vs-first-class.md`.
 - [ ] Publish 0.1.0 once a repository URL and registry credentials exist — owner: owner (T-14).
