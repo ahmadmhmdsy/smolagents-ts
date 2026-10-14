@@ -1,24 +1,23 @@
 /**
- * The log buffer and upstream's truncation, shared by every backend. Mirrors the Pyodide
- * executor's module of the same name so the two Python executors report logs identically.
+ * The log buffer and upstream's truncation, shared by every backend. The marker and the
+ * head-and-tail shape match the Pyodide executor's module of the same name, but here the cap
+ * bounds the whole result: the notice is counted inside `maxLength`, so the marker's own claim
+ * stays true instead of the result overshooting the cap by the length of the notice.
  */
 
 /** Upstream's `DEFAULT_MAX_LEN_OUTPUT`, the cap the print buffer is clipped to. */
 export const MAX_PRINT_OUTPUT_LENGTH = 50_000;
 
-/** Upstream's head-and-tail clip. */
+/** Upstream's head-and-tail clip, with the notice counted inside the cap. */
 export function truncateContent(content: string, maxLength: number = MAX_PRINT_OUTPUT_LENGTH): string {
   if (content.length <= maxLength) {
     return content;
   }
-  const half = Math.floor(maxLength / 2);
-  return (
-    content.slice(0, half) +
-    "\n..._This content has been truncated to stay below " +
-    String(maxLength) +
-    " characters_...\n" +
-    content.slice(content.length - half)
-  );
+  const notice =
+    "\n..._This content has been truncated to stay below " + String(maxLength) + " characters_...\n";
+  const half = Math.floor((maxLength - notice.length) / 2);
+  if (half <= 0) return content.slice(0, maxLength);
+  return content.slice(0, half) + notice + content.slice(content.length - half);
 }
 
 /** One run's output. `write` forwards a line live; `text` is the truncated join. */

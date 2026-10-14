@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DOCKERFILE,
   DockerSandbox,
@@ -6,9 +6,15 @@ import {
   type ContainerRuntime,
   type ImageBuildRequest,
 } from "../src/backends/docker.js";
-import { SandboxError } from "../src/errors.js";
+import { MissingPeerDependencyError, SandboxError } from "../src/errors.js";
 import { globalWebSocketFactory } from "../src/jupyter.js";
 import { startJupyterLoopback, type LoopbackJupyter } from "./ws-server.js";
+
+// Force the optional peer's dynamic import to fail, so the typed missing-peer refusal is
+// exercised even though the peer is installed in this workspace.
+vi.mock("dockerode", () => {
+  throw new Error("dockerode is not installed");
+});
 
 let server: LoopbackJupyter | undefined;
 
@@ -106,6 +112,11 @@ describe("the Docker backend", () => {
     await docker.dispose();
     expect(runtime.stops).toEqual(["container-1"]);
     expect(runtime.removes).toEqual(["container-1"]);
+  });
+
+  it("refuses a missing optional peer with the typed error instead of burying it", async () => {
+    const docker = new DockerSandbox({ token: "test-token" });
+    await expect(docker.start({ shimSource: "print('prelude')" })).rejects.toThrow(MissingPeerDependencyError);
   });
 
   it("refuses a run before start", async () => {

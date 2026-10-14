@@ -1,6 +1,8 @@
+import { ToolRegistry, noopLogger } from "@smolagents-ts/core";
 import { describe, expect, it } from "vitest";
 import { ProcessSandbox } from "../src/backends/process.js";
 import { SandboxError } from "../src/errors.js";
+import { createProcessExecutor } from "../src/process.js";
 import { buildShimSource } from "../src/shim-source.js";
 
 const shim = buildShimSource({ tools: [], allowToolCalls: false });
@@ -52,6 +54,26 @@ describe("the process backend", () => {
     expect(result.exitStatus).toBe(3);
     expect(result.frames).toEqual([]);
     await sandbox.dispose();
+  });
+
+  it("surfaces that kill through the executor as an execution failure rather than an empty step", async () => {
+    const executor = createProcessExecutor();
+    try {
+      const result = await executor.execute("import os\nos._exit(3)", {
+        tools: new ToolRegistry([]),
+        finalAnswer: { name: "final_answer", submit: () => undefined },
+        signal: new AbortController().signal,
+        timeoutMs: 5_000,
+        stepIndex: 0,
+        logger: noopLogger,
+      });
+      expect(result.isFinalAnswer).toBe(false);
+      expect(result.error?.name).toBe("SandboxError");
+      expect(result.error?.code).toBe("AGENT_EXECUTION");
+      expect(result.error?.message).toContain("3");
+    } finally {
+      await executor.dispose?.();
+    }
   });
 
   it("leaves no child behind after dispose", async () => {

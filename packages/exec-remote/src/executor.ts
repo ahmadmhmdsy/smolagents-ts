@@ -181,6 +181,26 @@ export class RemoteExecutor implements CodeExecutor {
     }
     if (answer !== undefined) return { kind: "answer", value: answer.value };
     if (failure !== undefined) return { kind: "failure", error: failure };
+    // A guest that kills its own interpreter mid-step (for example `os._exit(3)`) emits no
+    // frame at all: the run settles with a non-zero exit and neither an answer nor an error.
+    // Report that as a failure instead of a successful empty step.
+    const exitStatus = outcome.exitStatus;
+    if (exitStatus !== null && exitStatus !== 0) {
+      return {
+        kind: "failure",
+        error: {
+          name: "SandboxError",
+          message:
+            "The interpreter exited with code " +
+            String(exitStatus) +
+            " before step " +
+            String(options.stepIndex) +
+            " produced a final answer.",
+          code: "AGENT_EXECUTION",
+          stepIndex: options.stepIndex,
+        },
+      };
+    }
     return { kind: "done" };
   }
 
@@ -191,7 +211,19 @@ export class RemoteExecutor implements CodeExecutor {
       tools: options.tools.toSpecs(),
       allowToolCalls: this.sandbox.supportsToolRoundTrip,
     });
-    await this.sandbox.start({ shimSource });
+    const sandbox = this.sandbox;
+    try {
+      await sandbox.start({ shimSource });
+    } catch (error) {
+      // A start() that threw may still hold a container or a vendor sandbox. Dispose it so the
+      // half-live resource is not leaked; a disposal failure must not replace the start error.
+      try {
+        await sandbox.dispose();
+      } catch {
+        // The backend was already gone.
+      }
+      throw error;
+    }
     this.started = true;
   }
 

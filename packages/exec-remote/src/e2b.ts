@@ -25,7 +25,8 @@ export interface E2BExecutorOptions extends E2BSandboxOptions {
 export function createE2BExecutor(options: E2BExecutorOptions = {}): CodeExecutor {
   const { fetch, ...sandboxOptions } = options;
   return new RemoteExecutor({
-    sandbox: new E2BSandbox(sandboxOptions),
+    // A thunk, so a step that loses the deadline race gets a fresh sandbox.
+    sandbox: () => new E2BSandbox(sandboxOptions),
     ...(fetch === undefined ? {} : { fetch }),
   });
 }

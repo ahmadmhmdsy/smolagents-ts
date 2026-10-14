@@ -48,11 +48,14 @@ export function buildStepLoopSource(): string {
  * one-shot form a backend with no REPL runs as a whole program.
  */
 export function buildStepSource(code: string): string {
-  const body = code.trim() === "" ? "    pass" : code.split("\n").map((line) => "    " + line).join("\n");
+  // The guest code is embedded as one Python string literal and executed. Indenting it line by
+  // line would silently change the interior of a multi-line string literal.
   return (
     "try:\n" +
-    body +
-    "\nexcept _FinalAnswerSignal:\n" +
+    "    exec(compile(" +
+    JSON.stringify(code) +
+    ', "<smolagent-step>", "exec"), globals())\n' +
+    "except _FinalAnswerSignal:\n" +
     "    pass\n" +
     "except BaseException as _exc:\n" +
     '    _emit({"type": "error", "name": type(_exc).__name__, "message": str(_exc), "traceback": _traceback.format_exc()})\n' +
@@ -223,11 +226,13 @@ const PYTHON_PRELUDE: readonly string[] = [
   "",
   "",
   "def _request_tool(_name, _args):",
+  "    # Emit the request frame first: a backend with no channel refuses it with its typed",
+  "    # error, and a backend with a channel answers it below.",
+  "    _emit({\"type\": \"tool_call\", \"callId\": _next_call_id(), \"name\": _name, \"args\": _encode(_args)})",
   "    if not _TOOL_CALLS_ENABLED:",
   "        raise RuntimeError(",
   "            \"smolagents: this backend has no mid-run call channel, so the tool '\" + _name + \"' cannot be called; call final_answer() instead\"",
   "        )",
-  "    _emit({\"type\": \"tool_call\", \"callId\": _next_call_id(), \"name\": _name, \"args\": _encode(_args)})",
   "    try:",
   "        _line = input()",
   "    except EOFError:",

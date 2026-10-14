@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { SandboxError } from "../src/errors.js";
-import { JupyterGateway, globalWebSocketFactory } from "../src/jupyter.js";
+import { JupyterGateway, JupyterKernel, globalWebSocketFactory, type WebSocketLike } from "../src/jupyter.js";
 import { RpcTimeoutError } from "../src/rpc.js";
 import { startJupyterLoopback, type LoopbackJupyter } from "./ws-server.js";
 
@@ -88,6 +88,59 @@ describe("the Jupyter Kernel Gateway driver", () => {
     await expect(
       kernel.run({ code: "HANG", timeoutMs: 30, signal: new AbortController().signal }),
     ).rejects.toThrow(RpcTimeoutError);
+    kernel.dispose();
+  });
+
+  it("rejects ready when the socket closes before it opens", async () => {
+    const listeners = new Map<string, (event: { data?: unknown }) => void>();
+    const socket: WebSocketLike = {
+      send: () => undefined,
+      close: () => undefined,
+      addEventListener: (type, listener) => {
+        listeners.set(type, listener);
+      },
+    };
+    const kernel = new JupyterKernel(socket, { requestTimeoutMs: 1_000 });
+    const pending = kernel.run({ code: "1", timeoutMs: 1_000, signal: new AbortController().signal });
+    listeners.get("close")?.({});
+    await expect(pending).rejects.toThrow(SandboxError);
+    kernel.dispose();
+  });
+
+  it("bounds the handshake wait by the request timeout", async () => {
+    const socket: WebSocketLike = {
+      send: () => undefined,
+      close: () => undefined,
+      addEventListener: () => undefined,
+    };
+    const kernel = new JupyterKernel(socket, { requestTimeoutMs: 20 });
+    await expect(
+      kernel.run({ code: "1", timeoutMs: 1_000, signal: new AbortController().signal }),
+    ).rejects.toThrow(SandboxError);
+    kernel.dispose();
+  });
+
+  it("answers an input_request that arrives before its tool_call frame", async () => {
+    server = await startJupyterLoopback();
+    const client = gateway();
+    const kernelId = await client.createKernel();
+    const kernel = client.connect(kernelId);
+    const calls: unknown[] = [];
+    const result = await kernel.run({
+      code: "CALL_TOOL_REVERSED",
+      timeoutMs: 5_000,
+      signal: new AbortController().signal,
+      callTool: (call) => {
+        calls.push({ callId: call.callId, name: call.name, args: call.args });
+        return "echoed:hi";
+      },
+    });
+    expect(calls).toEqual([{ callId: "call-1", name: "echo", args: { text: "hi" } }]);
+    expect(result.frames.find((frame) => frame.type === "final_answer")).toEqual({
+      type: "final_answer",
+      value: "echoed:hi",
+    });
+    expect(server.inputReplies[0]).toContain("echoed:hi");
     kernel.dispose();
   });
 });

@@ -5,10 +5,11 @@ import { buildStepSource, parseFrameLine } from "../src/shim-source.js";
 import type { RemoteSandbox } from "../src/sandbox.js";
 
 describe("the sandbox seam", () => {
-  it("is satisfied by the process backend", () => {
+  it("is satisfied by the process backend", async () => {
     const sandbox: RemoteSandbox = new ProcessSandbox();
     expect(sandbox.supportsToolRoundTrip).toBe(true);
     expect(sandbox.capabilities).toEqual({ isolation: "process", network: "none", timers: false });
+    await sandbox.dispose();
   });
 
   it("treats a line without the sentinel as output", () => {
@@ -24,8 +25,11 @@ describe("the sandbox seam", () => {
     );
   });
 
-  it("wraps an empty step so a try block is never empty", () => {
+  it("embeds the step as one string literal rather than indenting every line", () => {
     expect(buildStepSource("")).toContain("    pass");
-    expect(buildStepSource("x = 1")).toContain("    x = 1");
+    // The literal form preserves the interior of a multi-line string, so the code is not
+    // re-indented; the trailing 4-space quote would only exist in the old indented form.
+    expect(buildStepSource("x = 1")).toContain('compile("x = 1", "<smolagent-step>", "exec")');
+    expect(buildStepSource("x = 1")).not.toContain('    x = 1');
   });
 });

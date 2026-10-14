@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   E2BSandbox,
   E2B_NODE_FLOOR,
@@ -6,8 +6,14 @@ import {
   type E2BClient,
   type E2BSandboxLike,
 } from "../src/backends/e2b.js";
-import { SandboxError, UnsupportedNodeVersionError } from "../src/errors.js";
+import { MissingPeerDependencyError, SandboxError, UnsupportedNodeVersionError } from "../src/errors.js";
 import { FRAME_PREFIX } from "../src/shim-source.js";
+
+// Force the optional peer's dynamic import to fail, so the typed missing-peer refusal is
+// exercised even though the peer is installed in this workspace.
+vi.mock("@e2b/code-interpreter", () => {
+  throw new Error("@e2b/code-interpreter is not installed");
+});
 
 interface FakeClient extends E2BClient {
   readonly codes: string[];
@@ -15,7 +21,14 @@ interface FakeClient extends E2BClient {
   readonly creates: number;
 }
 
-function fakeClient(options: { readonly failCreate?: boolean; readonly failRun?: boolean } = {}): FakeClient {
+function fakeClient(
+  options: {
+    readonly failCreate?: boolean;
+    readonly failRun?: boolean;
+    readonly failKill?: boolean;
+    readonly emitToolCall?: boolean;
+  } = {},
+): FakeClient {
   const codes: string[] = [];
   const kills: string[] = [];
   let creates = 0;
@@ -24,6 +37,15 @@ function fakeClient(options: { readonly failCreate?: boolean; readonly failRun?:
     async runCode(code, runOptions) {
       if (options.failRun === true && code !== "PRELUDE") throw new Error("the vendor sandbox died");
       codes.push(code);
+      if (options.emitToolCall === true && code.includes("REFUSE_TOOL")) {
+        // The shim emits the request frame before refusing; the backend must type it.
+        runOptions?.onStdout?.(
+          FRAME_PREFIX + JSON.stringify({ type: "tool_call", callId: "call-1", name: "echo", args: { text: "hi" } }),
+        );
+        runOptions?.onStdout?.(FRAME_PREFIX + JSON.stringify({ type: "error", name: "RuntimeError", message: "no mid-run call channel" }));
+        runOptions?.onStdout?.(FRAME_PREFIX + JSON.stringify({ type: "step_end" }));
+        return {};
+      }
       if (code.includes("print(") || code.startsWith("try:")) {
         runOptions?.onStdout?.(FRAME_PREFIX + JSON.stringify({ type: "final_answer", value: 42 }));
         runOptions?.onStdout?.("hello");
@@ -32,6 +54,7 @@ function fakeClient(options: { readonly failCreate?: boolean; readonly failRun?:
       return {};
     },
     async kill() {
+      if (options.failKill === true) throw new Error("the vendor sandbox would not die");
       kills.push("sbx-1");
     },
   };
@@ -106,5 +129,35 @@ describe("the E2B backend", () => {
     await sandbox.dispose();
     await sandbox.dispose();
     expect(client.kills).toEqual([]);
+  });
+
+  it("lets a missing optional peer surface as the typed refusal", async () => {
+    const sandbox = new E2BSandbox({ nodeVersion: "24.0.0" });
+    await expect(sandbox.start({ shimSource: "PRELUDE" })).rejects.toThrow(MissingPeerDependencyError);
+  });
+
+  it("resolves dispose even when the vendor kill fails, so teardown cannot mask a result", async () => {
+    const client = fakeClient({ failKill: true });
+    const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0" });
+    await sandbox.start({ shimSource: "PRELUDE" });
+    await expect(sandbox.dispose()).resolves.toBeUndefined();
+    await expect(sandbox.dispose()).resolves.toBeUndefined();
+  });
+
+  it("turns a guest tool request into the typed refusal the rule promises", async () => {
+    const client = fakeClient({ emitToolCall: true });
+    const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0" });
+    await sandbox.start({ shimSource: "PRELUDE" });
+    const result = await sandbox.run({
+      code: "REFUSE_TOOL",
+      timeoutMs: 1_000,
+      signal: new AbortController().signal,
+    });
+    const refusal = result.frames.find((frame) => frame.type === "error") as
+      | { name: string; message: string }
+      | undefined;
+    expect(refusal?.name).toBe("ToolRoundTripUnsupportedError");
+    expect(refusal?.message).toContain('"echo"');
+    await sandbox.dispose();
   });
 });

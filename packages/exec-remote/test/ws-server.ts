@@ -186,6 +186,30 @@ export async function startJupyterLoopback(options: { token?: string } = {}): Pr
       const code = typeof envelope.content?.["code"] === "string" ? (envelope.content["code"] as string) : "";
       requests.push(code);
       if (code.includes("HANG")) return;
+      if (code.includes("CALL_TOOL_REVERSED")) {
+        // stdin arrives before the iopub tool frame, exercising the cross-channel race.
+        emit(id, "input_request", { prompt: "", password: false });
+        emit(id, "stream", {
+          name: "stdout",
+          text:
+            FRAME_PREFIX +
+            JSON.stringify({ type: "tool_call", callId: "call-1", name: "echo", args: { text: "hi" } }) +
+            "\n",
+        });
+        const value = await new Promise<string>((resolve) => {
+          pendingInput = resolve;
+        });
+        let answer: string;
+        try {
+          const reply = JSON.parse(value) as { ok?: unknown; value?: unknown };
+          answer = reply.ok === true ? String(reply.value) : "failed";
+        } catch {
+          answer = "failed";
+        }
+        emit(id, "stream", { name: "stdout", text: FRAME_PREFIX + JSON.stringify({ type: "final_answer", value: answer }) + "\n" });
+        emit(id, "status", { execution_state: "idle" });
+        return;
+      }
       if (code.includes("CALL_TOOL")) {
         emit(
           id,

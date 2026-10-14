@@ -96,8 +96,9 @@ export class ProcessSandbox implements RemoteSandbox {
     });
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    // EPIPE on a child that died is expected and already reported through "close".
-    child.stdin.on("error", () => undefined);
+    // A stdin failure is a lost step: settle the pending run instead of dropping it and
+    // leaving the caller to wait for its deadline.
+    child.stdin.on("error", (error) => this.failPendingWrite(error));
     child.stdout.on("data", (chunk: string) => this.onChunk("stdout", chunk));
     child.stderr.on("data", (chunk: string) => this.onChunk("stderr", chunk));
     child.on("error", (error) => {
@@ -123,7 +124,6 @@ export class ProcessSandbox implements RemoteSandbox {
       this.queue = this.queue.then(() => this.settleAfterExit());
     });
     await spawned;
-    this.write(options.shimSource + "\n");
   }
 
   async run(options: SandboxRunOptions): Promise<SandboxRunResult> {
@@ -183,15 +183,29 @@ export class ProcessSandbox implements RemoteSandbox {
 
   private write(text: string): void {
     const child = this.child;
-    if (child === undefined || this.exited !== null || child.stdin.destroyed) return;
-    try {
-      child.stdin.write(text);
-    } catch (error) {
-      const pending = this.pending;
-      if (pending !== undefined) {
-        this.finish(pending, new SandboxError("Writing to the interpreter failed.", { cause: error }));
-      }
+    if (child === undefined || this.exited !== null || child.stdin.destroyed) {
+      this.failPendingWrite(new SandboxError("The interpreter's stdin is not writable."));
+      return;
     }
+    try {
+      child.stdin.write(text, (error?: Error | null) => {
+        if (error !== null && error !== undefined) this.failPendingWrite(error);
+      });
+    } catch (error) {
+      this.failPendingWrite(error);
+    }
+  }
+
+  /** A write that never reached the interpreter would leave the step waiting for its deadline. */
+  private failPendingWrite(error: unknown): void {
+    const pending = this.pending;
+    if (pending === undefined) return;
+    this.finish(
+      pending,
+      error instanceof SandboxError
+        ? error
+        : new SandboxError("Writing to the interpreter failed.", { cause: error }),
+    );
   }
 
   private onChunk(stream: "stdout" | "stderr", chunk: string): void {

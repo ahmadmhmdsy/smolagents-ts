@@ -150,7 +150,13 @@ export class RpcPeer {
         signal.addEventListener("abort", pending.onAbort, { once: true });
       }
     });
-    this.send({ id, type, content });
+    try {
+      this.send({ id, type, content });
+    } catch (error) {
+      // A transport that throws must reject the returned promise rather than raise here and
+      // leave the pending entry and its timer alive.
+      this.fail(id, error);
+    }
     return promise;
   }
 

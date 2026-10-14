@@ -32,6 +32,16 @@ describe("the request/response peer", () => {
     expect(exchange.messages.map((message) => message.content["text"])).toEqual(["one", "two"]);
   });
 
+  it("rejects instead of throwing when the transport's send raises", async () => {
+    const peer = new RpcPeer({
+      send: () => {
+        throw new Error("the transport is down");
+      },
+    });
+    await expect(peer.request("ping", {}, { timeoutMs: 1_000 })).rejects.toThrow("the transport is down");
+    expect(peer.pendingCount).toBe(0);
+  });
+
   it("times out a request that is never answered", async () => {
     const [caller] = pair();
     await expect(caller.request("silent", {}, { timeoutMs: 20 })).rejects.toThrow(RpcTimeoutError);

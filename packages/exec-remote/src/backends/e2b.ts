@@ -187,8 +187,9 @@ export class E2BSandbox implements RemoteSandbox {
     if (sandbox === undefined) return;
     try {
       await sandbox.kill();
-    } catch (error) {
-      throw new SandboxError("The E2B sandbox could not be killed.", { cause: error });
+    } catch {
+      // A teardown failure must not replace the run's real result. dispose() resolves, exactly
+      // as the process backend's does; the vendor sandbox is already unreachable from here.
     }
   }
 }

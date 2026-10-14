@@ -75,14 +75,37 @@ export class JupyterKernel {
       },
     });
     this.ready = new Promise<void>((resolve, reject) => {
-      socket.addEventListener("open", () => resolve());
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const settle = (error?: SandboxError): void => {
+        if (settled) return;
+        settled = true;
+        if (timer !== undefined) clearTimeout(timer);
+        if (error === undefined) resolve();
+        else reject(error);
+      };
+      // Bound the handshake by the request timeout: a stub that never opens must not leave a
+      // run awaiting `ready` forever.
+      if (this.requestTimeoutMs > 0) {
+        timer = setTimeout(() => {
+          settle(
+            new SandboxError(
+              "The kernel WebSocket did not open within " + String(this.requestTimeoutMs) + " ms.",
+            ),
+          );
+        }, this.requestTimeoutMs);
+      }
+      socket.addEventListener("open", () => settle());
       socket.addEventListener("error", () => {
-        if (!this.closed) reject(new SandboxError("The kernel WebSocket failed to open."));
+        if (!this.closed) settle(new SandboxError("The kernel WebSocket failed to open."));
       });
       socket.addEventListener("message", (event) => this.onMessage(event.data));
       socket.addEventListener("close", () => {
         this.closed = true;
         this.peer.dispose();
+        // A close before the handshake rejects `ready` instead of leaving the run pending; after
+        // the handshake it is a no-op because `ready` already resolved.
+        settle(new SandboxError("The kernel WebSocket closed before it opened."));
       });
     });
   }
@@ -97,6 +120,11 @@ export class JupyterKernel {
     const outputs: SandboxOutput[] = [];
     const startedAt = Date.now();
     let pendingToolReply: Promise<string> | undefined;
+    const toolCallWaiters: (() => void)[] = [];
+    const notifyToolCall = (): void => {
+      const waiters = toolCallWaiters.splice(0);
+      for (const waiter of waiters) waiter();
+    };
 
     const pushOutput = (stream: "stdout" | "stderr", text: string): void => {
       const output: SandboxOutput = { stream, text };
@@ -120,18 +148,23 @@ export class JupyterKernel {
         return;
       }
       frames.push(frame);
-      if (frame.type === "tool_call") pendingToolReply = this.answerToolCall(frame, options.callTool);
+      if (frame.type === "tool_call") {
+        pendingToolReply = this.answerToolCall(frame, options.callTool);
+        notifyToolCall();
+      }
     };
 
     const unsubscribe = this.peer.onRequest("input_request", async (): Promise<RpcReply> => {
+      // The gateway carries iopub and stdin over separate sockets, so an input_request can
+      // arrive before the tool_call frame it belongs to. Wait for the matching frame rather
+      // than failing a legitimate call with "no tool call is pending".
+      while (pendingToolReply === undefined) {
+        await new Promise<void>((resolve) => {
+          toolCallWaiters.push(resolve);
+        });
+      }
       const pending = pendingToolReply;
       pendingToolReply = undefined;
-      if (pending === undefined) {
-        return {
-          type: "input_reply",
-          content: { value: JSON.stringify({ ok: false, error: "The host saw an input request with no tool call." }) },
-        };
-      }
       return { type: "input_reply", content: { value: await pending } };
     });
 

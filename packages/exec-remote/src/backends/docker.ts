@@ -120,7 +120,9 @@ export class DockerSandbox implements RemoteSandbox {
         signal: new AbortController().signal,
       });
     } catch (error) {
-      throw error instanceof SandboxError
+      // A missing optional peer is already a typed refusal naming the peer; do not bury it
+      // inside a SandboxError the way an untyped start failure is bundled.
+      throw error instanceof SandboxError || error instanceof MissingPeerDependencyError
         ? error
         : new SandboxError("The Docker sandbox could not start.", { cause: error });
     }

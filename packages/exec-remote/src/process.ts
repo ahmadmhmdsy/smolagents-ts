@@ -16,7 +16,8 @@ export interface ProcessExecutorOptions extends ProcessSandboxOptions {
 export function createProcessExecutor(options: ProcessExecutorOptions = {}): CodeExecutor {
   const { fetch, ...sandboxOptions } = options;
   return new RemoteExecutor({
-    sandbox: new ProcessSandbox(sandboxOptions),
+    // A thunk, so a step that loses the deadline race gets a fresh interpreter.
+    sandbox: () => new ProcessSandbox(sandboxOptions),
     ...(fetch === undefined ? {} : { fetch }),
   });
 }

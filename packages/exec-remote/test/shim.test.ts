@@ -2,7 +2,7 @@ import type { ToolSpec } from "@smolagents-ts/core";
 import { describe, expect, it } from "vitest";
 import { ProcessSandbox } from "../src/backends/process.js";
 import { PickleRefusedError } from "../src/errors.js";
-import { buildShimSource } from "../src/shim-source.js";
+import { buildShimSource, buildStepSource } from "../src/shim-source.js";
 
 const echo: ToolSpec = {
   name: "echo",
@@ -62,7 +62,7 @@ describe("the guest shim", () => {
     await sandbox.dispose();
   });
 
-  it("refuses a tool call with a named error rather than hanging when the shim has no channel", async () => {
+  it("emits the tool frame before refusing it, so a channel-less host can type the refusal", async () => {
     const sandbox = new ProcessSandbox();
     await sandbox.start({ shimSource: buildShimSource({ tools: [echo], allowToolCalls: false }) });
     const result = await sandbox.run({
@@ -70,10 +70,28 @@ describe("the guest shim", () => {
       timeoutMs: 5_000,
       signal: signal(),
     });
-    expect(result.frames[0]).toMatchObject({ type: "error", name: "RuntimeError" });
-    const error = result.frames[0] as { message: string };
-    expect(error.message).toContain("no mid-run call channel");
+    // The request frame reaches the host even with no mid-run channel, so a backend that cannot
+    // answer it replaces it with its typed refusal instead of the branch staying dead.
+    expect(result.frames[0]).toMatchObject({ type: "tool_call", name: "echo" });
+    const error = result.frames.find((frame) => frame.type === "error") as { message: string } | undefined;
+    expect(error?.message).toContain("no mid-run call channel");
     expect(result.frames.at(-1)).toEqual({ type: "step_end" });
+    await sandbox.dispose();
+  });
+
+  it("keeps a multi-line string literal intact through buildStepSource", async () => {
+    const sandbox = new ProcessSandbox();
+    await sandbox.start({ shimSource: buildShimSource({ tools: [], allowToolCalls: false }) });
+    const guest = 'value = """first line\nsecond line\n    indented"""\nfinal_answer(value)';
+    const result = await sandbox.run({
+      code: buildStepSource(guest),
+      timeoutMs: 5_000,
+      signal: signal(),
+    });
+    expect(result.frames.find((frame) => frame.type === "final_answer")).toEqual({
+      type: "final_answer",
+      value: "first line\nsecond line\n    indented",
+    });
     await sandbox.dispose();
   });
 

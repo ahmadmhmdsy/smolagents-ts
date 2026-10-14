@@ -24,9 +24,9 @@ export {
  * blocking tool read, so the tool round trip works here as it does in the process backend.
  */
 export function createDockerExecutor(options: DockerSandboxOptions = {}): CodeExecutor {
-  const sandbox = new DockerSandbox(options);
   return new RemoteExecutor({
-    sandbox,
+    // A thunk, so a step that loses the deadline race gets a fresh container.
+    sandbox: () => new DockerSandbox(options),
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { SandboxError } from "../src/errors.js";
 import { RemoteExecutor } from "../src/executor.js";
+import { createProcessExecutor } from "../src/process.js";
 import type {
   RemoteSandbox,
   SandboxCapabilities,
@@ -200,6 +201,63 @@ describe("the remote executor", () => {
     expect(sandbox.disposals).toBe(1);
   });
 
+  it("reports a non-zero interpreter exit with no frames as a failure, not an empty success", async () => {
+    const sandbox = new FakeSandbox(async () => ({
+      frames: [],
+      outputs: [],
+      exitStatus: 3,
+      durationMs: 1,
+    }));
+    const executor = new RemoteExecutor({ sandbox });
+    const result = await executor.execute("import os; os._exit(3)", options({ stepIndex: 2 }));
+    expect(result.isFinalAnswer).toBe(false);
+    expect(result.error).toEqual({
+      name: "SandboxError",
+      message: "The interpreter exited with code 3 before step 2 produced a final answer.",
+      code: "AGENT_EXECUTION",
+      stepIndex: 2,
+    });
+  });
+
+  it("leaves a clean zero exit with no frames as a plain done result", async () => {
+    const sandbox = new FakeSandbox(async () => ({
+      frames: [],
+      outputs: [],
+      exitStatus: 0,
+      durationMs: 1,
+    }));
+    const executor = new RemoteExecutor({ sandbox });
+    const result = await executor.execute("pass", options());
+    expect(result.isFinalAnswer).toBe(false);
+    expect(result.error).toBeUndefined();
+  });
+
+  it("disposes a sandbox whose start threw so the half-live resource does not leak", async () => {
+    const sandbox = new FakeSandbox(async () => answer("unreachable"));
+    sandbox.start = async () => {
+      throw new SandboxError("The sandbox could not start.");
+    };
+    const executor = new RemoteExecutor({ sandbox });
+    const result = await executor.execute("print()", options());
+    expect(result.isFinalAnswer).toBe(false);
+    expect(result.error?.message).toContain("The sandbox could not start.");
+    expect(sandbox.disposals).toBe(1);
+  });
+
+  it("drives a public factory through a timeout and then a successful step", async () => {
+    const executor = createProcessExecutor({ gracePeriodMs: 50 });
+    try {
+      const timedOut = await executor.execute("while True: pass", options({ timeoutMs: 100 }));
+      expect(timedOut.isFinalAnswer).toBe(false);
+      expect(timedOut.error?.code).toBe("AGENT_TIMEOUT");
+      const next = await executor.execute('final_answer("alive")', options());
+      expect(next.isFinalAnswer).toBe(true);
+      expect(next.value).toBe("alive");
+    } finally {
+      await executor.dispose?.();
+    }
+  });
+
   it("truncates logs to the 50,000-character cap", async () => {
     const sandbox = new FakeSandbox(async (runOptions) => {
       runOptions.onOutput?.({ stream: "stdout", text: "x".repeat(70_000) });
@@ -207,7 +265,10 @@ describe("the remote executor", () => {
     });
     const executor = new RemoteExecutor({ sandbox });
     const result = await executor.execute("print()", options());
-    expect(result.logs.length).toBeLessThan(70_000);
+    // The cap bounds the whole result, notice included; 70,000 characters must be clipped to
+    // the cap rather than to something merely smaller than the input.
+    expect(result.logs.length).toBeLessThanOrEqual(50_000);
+    expect(result.logs.length).toBeGreaterThanOrEqual(49_900);
     expect(result.logs).toContain("truncated");
   });
 
