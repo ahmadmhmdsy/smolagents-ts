@@ -20,6 +20,7 @@ rediscovery of the same failure.
 |---|---|---|
 | _template.md | (form) | — |
 | gate.md | before committing, or before reporting a gate result | 2026-10-13 |
+| record-parity-traces.md | when a parity scenario is added or edited, or the pinned upstream release changes | 2026-10-14 |
 
 ## What belongs here
 
