@@ -47,7 +47,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-18 | decide a budget-exhausted run's ending: upstream reports the last model output as the final answer, this loop raises `AgentMaxStepsError` | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the ending; the investigation prices both, including the call that falls outside the budget | `docs/research/2026-10-14-t18-max-steps-ending.md` |
 | T-19 | grow the parity corpus a tool scenario | pending | next session | `scripts/parity/scenarios/*.json`, `scripts/parity/record.py`, `packages/core/test/parity.test.ts` | the owner deferred it; both readers must first learn to wire tools, because each refuses a non-empty tool list | - |
 | T-21 | decide which upstream the parity recordings track | pending | owner | `scripts/parity/recordings/*.json`, `scripts/parity/record.py` | the design record pins 1.27.0.dev0 and the recordings pin 1.14.0; they differ on this session's two investigations | - |
-| T-23 | give the CLI package a README, because its npm page is empty and it is a documented entry point | pending | next session | `packages/cli/**` | decision 0014's follow-up; a signpost is not enough for a name the documentation installs | - |
+| T-23 | give the CLI package a README, because its npm page is empty and it is a documented entry point | done | this session | `packages/cli/**` | decision 0014's follow-up; a signpost is not enough for a name the documentation installs | `packages/cli/README.md` |
 <!-- rotate:end -->
 
 ## Blocked
