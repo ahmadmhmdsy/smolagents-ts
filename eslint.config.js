@@ -35,6 +35,9 @@ export default defineConfig(
   // Throwaway probe trees live under .superpowers/ (the Task 3 tsconfig probe, reviewer scratch) and are
   // gitignored, so they must never be linted: measured, `eslint .` picks up .superpowers/**/*.ts and fails
   // on it, which would make Task 8's gate depend on scratch files that happen to be lying around.
+  // The agent harness's own .dsh/ tree is the same case, and it recurred: measured on 2026-10-14, a scratch
+  // browser probe under .dsh/probe-c/ failed the lint stage with six no-undef errors while a second gate
+  // run was in flight, which is precisely the coupling the paragraph above exists to prevent.
   // The docs site's generated output is gitignored for the same reason, and it carries the example's
   // bundled JavaScript: measured, `eslint .` reports no-unused-expressions inside apps/docs-site/site/
   // once a site build has run, which would make a second `pnpm gate` fail on a tree the first one wrote.
@@ -43,6 +46,7 @@ export default defineConfig(
       "**/dist/**",
       "**/coverage/**",
       "**/.superpowers/**",
+      "**/.dsh/**",
       "smolagents/**",
       "reference/**",
       "**/*.d.ts",

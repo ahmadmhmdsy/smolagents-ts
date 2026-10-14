@@ -307,6 +307,12 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** the remote-executor package's process suite spawns a real interpreter, so the gate acquired a dependency on Python that no manifest in the repository states, and the environment document still claimed the build and the gate did not use it. Nothing failed, because the machine had one — which is exactly why an undeclared host dependency survives: the only contributor who learns about it is the one who lacks it. A test that leaves the process should say so in the document that describes the machine.
 - **Evidence:** `packages/exec-remote/test/process.test.ts:9,26,44,57` each spawn an interpreter with no skip guard, the suite passes as 11 files and 57 tests, and `docs/02-environment.md` carried the contradicting claim until it was corrected in the same session.
 
+## 2026-10-14 — a second resolver config repeats the first one's omission
+
+- **Status:** validated
+- **Lesson:** a workspace package whose dependency is itself built resolves that dependency through the dependency's `dist/`, so every config that resolves it needs the same mapping to source that the build config already carries; the identical omission landed twice in one session, once in a package's test tsconfig and once in the example's vitest config, and each time the suite passed locally because a `dist/` happened to be there. CI runs the test stage before the build stage, so the defect is invisible on a warm machine and fatal on a fresh checkout, and the check that catches it is to move the dependency's `dist/` away and re-run rather than to read the config again.
+- **Evidence:** measured on 2026-10-14: with `packages/react/dist` moved away, `pnpm --filter @smolagents-ts/react-ui run typecheck` exits 0 only once `packages/react-ui/tsconfig.test.json` declares the `paths` block; with `packages/react-ui/dist` moved away, `pnpm vitest run --project example-vite-app` passes its 3 tests only once `examples/vite-app/vitest.config.ts` carries the alias its sibling `vite.config.ts` already had.
+
 
 
 

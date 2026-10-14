@@ -74,7 +74,7 @@ measured.
 | G2 | the action language is code, sandboxed by construction | a CodeAgent run whose generated JavaScript executes in QuickJS | the default executor is QuickJS, not `eval` |
 | G3 | upstream vocabulary and prompt semantics survive the port | a name diff against upstream plus the prompt-fidelity checklist test | every ported name is present and the checklist test passes |
 | G4 | the core is framework-agnostic and isomorphic | `pnpm depcruise` and `packages/core/test/architecture-guard.test.ts` | zero violations and no `node:` import under `packages/core/src` |
-| G5 | a run inspector and a chat surface are both buildable from shipped primitives | composing the L3 primitives in `packages/react` | both render from `AgentSession` alone |
+| G5 | a run inspector and a chat surface are both buildable from shipped primitives | composing the L3 primitives in `packages/react`, then the L4 patterns and the L5 styled layer over them | both render from `AgentSession` alone |
 | G6 | behaviour is verifiable against upstream | ported suites plus golden transcripts driven by `MockModel` | the full gate is green at the revision under test |
 | G7 | the library extends without forking | middleware, component overrides, and the executor, model and tool seams | every seam has a documented extension point |
 
@@ -105,7 +105,8 @@ only; the rest follow the milestones below.
 | `@smolagents-ts/exec-pyodide` | a `CodeExecutor` implemented on WASM CPython (Pyodide), in-process on Node and in a page |
 | `@smolagents-ts/exec-quickjs` | a `CodeExecutor` implemented on QuickJS-WASM |
 | `@smolagents-ts/exec-remote` | three Python executors behind one seam — a child process on this host, a Docker-hosted Jupyter kernel gateway and an E2B sandbox — each reached through its own subpath |
-| `@smolagents-ts/react` | L2 hooks and L3 headless primitives over `AgentSession` |
+| `@smolagents-ts/react` | L2 hooks, L3 headless primitives over `AgentSession`, and the L4 patterns that compose them into a run inspector and a chat surface |
+| `@smolagents-ts/react-ui` | the L5 styled layer: four wrappers over the headless primitives and patterns, and a plain stylesheet a consumer copies and then owns |
 | `@smolagents-ts/cli` | the Node command line: upstream `cli.py`'s arguments and interactive questions, the model and tool factories over this port's adapters, and a renderer for the event stream |
 | `@smolagents-ts/mcp` | the MCP client: JSON-RPC 2.0 over a transport seam, Streamable HTTP and stdio transports, and an adapter that exposes a server's tools as this port's tools |
 
@@ -140,8 +141,11 @@ eighth, `@smolagents-ts/mcp`, and the Python executor as a ninth,
 in-process; the docs site publishes the documents with the example's build beside
 them. The remote executors ship as a tenth, `@smolagents-ts/exec-remote`, whose
 three backends share one host-owned frame protocol and whose optional container
-and vendor clients are resolved only by the subpath that needs them. L4/L5 is
-what T-13 still carries.
+and vendor clients are resolved only by the subpath that needs them. L4 ships
+inside the react package as the patterns that compose the primitives, and L5 as
+an eleventh, `@smolagents-ts/react-ui`, the styled layer over both, so the run
+inspector and the chat surface are shipped as components and as a stylesheet a
+consumer copies.
 S1.5's harness is
 reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
 committed, and a suite that replays them through our loop inside the gate. The two
@@ -180,3 +184,4 @@ Append-only. Newest last.
 | 2026-10-14 | 5 | the first T-13 module lands: the key-components list gains `@smolagents-ts/cli` and the S6 note lists the modules that remain | owner (the T-13 sequence) |
 | 2026-10-14 | 6 | the second T-13 module lands: the S6 note records that the docs site publishes the documents and the example's build, and names the four modules that remain | owner (the T-13 sequence) |
 | 2026-10-14 | 7 | the third T-13 module lands: the key-components list gains `@smolagents-ts/mcp` and the S6 note names the three modules that remain | owner (the T-13 sequence) |
+| 2026-10-14 | 8 | the fourth T-13 module lands: the key-components list gains `@smolagents-ts/react-ui` and the react row gains the L4 patterns, G5's evaluation names them, and the S6 note records that L4 and L5 shipped | owner (the T-13 sequence) |

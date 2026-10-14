@@ -10,6 +10,8 @@ smolagents/
 reference/
 # context-pack local state (locks, atomic writes, python caches)
 docs/.locks/
+# harness local state (session handoff archives, scratch commit messages)
+.dsh/
 *.tmp
 .pytest_cache/
 

@@ -175,3 +175,6 @@ Append-only.
 | 2026-10-14 | the remote-executor package's own suite | `pnpm vitest run --project exec-remote` | 11 files and 57 tests passed |
 | 2026-10-14 | the live process path, outside the suite | `node scripts/exec-remote-smoke.mjs process` | five checks ok, 334 ms, exit 0; the Docker and E2B paths were attempted and failed for want of a daemon and a credential |
 | 2026-10-14 | the Pyodide browser cold start and bundle | the scratch Vite page in `docs/10-runbooks/exec-pyodide-browser-probe.md` | 2,912 ms from headless Chrome against the jsDelivr v314.0.7 base; the page's own bundle is 29,375 B with the runtime external |
+| 2026-10-14 | the react package's own suite after L4 | `pnpm vitest run --project react` | 10 files and 46 tests passed |
+| 2026-10-14 | the styled package's own suite | `pnpm vitest run --project react-ui` | 4 files and 19 tests passed |
+| 2026-10-14 | the full gate with L4 and L5 | `pnpm gate` from the repository root | exit 0; 112 test files and 793 tests passed; 278 modules and 708 dependencies cruised; publint clean on eleven packages; `pack-smoke OK` on eleven packages; the site built 69 pages |

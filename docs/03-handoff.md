@@ -33,6 +33,59 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T15:00:00+03:00 — L4 and L5 land, and T-13 closes
+
+**State.** T-13's last module is delivered, so every module S6's design row names
+is present and the row is `done`. L4 ships inside `@smolagents-ts/react` as the
+two patterns that compose the primitives — `RunInspector` and `ChatSurface` —
+and L5 as the eleventh package, `@smolagents-ts/react-ui`, a styled layer of
+four wrappers over both plus one stylesheet a consumer copies and then owns. The
+full gate exits 0: 112 test files and 793 tests, 278 modules and 708 dependencies
+cruised, publint clean on eleven packages, pack-smoke installing and importing
+eleven packages, the site at 69 pages.
+
+**Did.** Added the two patterns to the react barrel, taking its pinned surface
+from ten names to twelve. Built the styled package: one wrapper file per part of
+the tree, each rendering a single owned `smol-` element around the component it
+composes and authoring no accessibility of its own, plus a 140-line sheet whose
+five tokens read distinct input names because a token referring to itself is
+invalid rather than a fallback. Registered the component — router row, scoped
+entry and rule file, which the pack requires in one change — and corrected the
+react entry, which still recorded ten runtime names, an 8-file suite and the
+claim that every element carries a class name; that last is true of the
+primitives and false of the patterns. The example page now renders the styled
+layer, so the copy-in path is exercised in a browser. Closed the exec-remote
+review's fifteen findings across two commits. Recorded one lesson: the same
+resolver-config omission landed twice, in a package's test tsconfig and in the
+example's vitest config.
+
+**Verified.** `pnpm gate` exit 0 with the counts above; `pnpm vitest run
+--project react` 10 files and 46 tests; `--project react-ui` 4 files and 19
+tests; `--project example-vite-app` 3 tests; the validator 0 errors, 0 warnings,
+15 baselined, `new: []`. The copy-in claim was measured in a real browser rather
+than jsdom: with no override the token resolves to `#ffffff`, and a consumer
+sheet setting `--smol-surface` afterwards wins by source order. The two resolver
+gaps were each proven by moving the dependency's `dist/` away and re-running,
+which is the check that catches them, because CI tests before it builds.
+
+**Unverified / open.** The keyboard drive of the example in a real browser is
+still running as this entry is written. The L4/L5 plan's four open questions are
+the owner's: whether the styled layer ships a dark theme, whether the corpus
+grows a tool scenario, whether core exposes its step list publicly, and how the
+five internal packages are described. No live provider call was made this
+session.
+
+**Next.** Take the owner's decision batch: T-14's publish, the T-16 and T-18
+investigations, T-19, T-21, T-25, and the four plan questions above.
+
+**Blockers.** T-14 needs registry credentials and stays the owner's. T-16, T-18,
+T-19, T-21 and T-25 each wait on an owner decision, not on work.
+
+**Artifacts.** `packages/react-ui/src/index.ts`; `packages/react-ui/src/styles.css`;
+`packages/react/src/run-inspector.tsx`; `packages/react/src/chat-surface.tsx`;
+`examples/vite-app/src/App.tsx`; `rules/components/react-ui.md`;
+`docs/plans/2026-10-14-t13-l4-l5-plan.md`.
+
 ## 2026-10-14T14:40:00+03:00 — the remote executors land as the tenth package
 
 **State.** T-13's fifth module is delivered: `@smolagents-ts/exec-remote` is the tenth
@@ -101,68 +154,3 @@ decisions.
 `docs/09-decisions/0016-pyodide-in-process-and-fidelity.md`,
 `docs/plans/2026-10-14-t13-remote-executors-plan.md`,
 `docs/10-runbooks/exec-pyodide-browser-probe.md`.
-
-## 2026-10-14T12:25:00+03:00 — the MCP client lands, live-checked, and Pyodide is measured
-
-**State.** T-13's third module is delivered: `@smolagents-ts/mcp` builds, typechecks,
-lints and cruises clean, its suite is 9 files and 106 tests, and the full gate exits 0
-(86 files, 634 tests, 205 modules and 517 dependencies cruised, publint clean on eight
-packages). The live check passed against
-`@modelcontextprotocol/server-everything@1.0.0`: the root entry refused a stdio
-parameter, the client negotiated `2025-11-25`, listed 13 tools and answered the echo
-call. Task 4's reconnaissance is filed: Pyodide 314.0.7 installs 13.24 MiB, loads in
-about two seconds in Node, has no teardown API, and can be interrupted only from a
-worker.
-
-**Did.** Reviewed the delegated package, then fixed what the live check exposed: a
-transport error or close now settles everything in flight on its connection and the
-connection remembers why, so a spawn that fails reports in milliseconds instead of
-leaving the process to exit on an unsettled top-level await. Corrected the runbook:
-Windows cannot spawn `npx` (ENOENT) or `npx.cmd` (EINVAL), so it installs the pinned
-server and spawns `process.execPath` with its entry. Wrote the reconnaissance, two
-memory lessons, the plan's measured results, the T-13 row and this entry.
-
-**Verified.** PASS — `pnpm gate` exit 0 on the tree. PASS — the live check's four lines
-and exit 0. PASS — the validator `new: []`, 14 baselined, 0 errors, 0 warnings, and
-`rotate.py --check` exit 0.
-
-**Unverified / open.** No browser loaded Pyodide; the reconnaissance names the
-unmeasured numbers. The package is unpublished (T-14).
-
-**Next.** Write Task 4's plan for `exec-pyodide` from the reconnaissance, then build it.
-
-**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 on the owner.
-
-**Artifacts.** `packages/mcp/`, `docs/10-runbooks/mcp-live-check.md`,
-`docs/research/2026-10-14-pyodide-recon.md`.
-
-## 2026-10-14T11:45:00+03:00 — the docs site is live, and T-20 retires the parity cast
-
-**State.** The pushed revision is green everywhere, and the site answers at
-https://ahmadmhmdsy.github.io/smolagents-ts/ : the numbered documents render with a sidebar,
-decision 0014 has its own page, and the browser example is served under `example/` with its
-assets. T-20 is done: `MultiStepAgent.steps` is public, so the parity suite reads the loop's
-typed steps with no cast, and the failed-run case is covered.
-
-**Did.** Committed the alias fix (`3ac484e`), the docs site with the records (`699e3b7`) and
-the dropped test tsconfig (`11d774d`); the entry above called the deployment unverified, and
-the fetch below supersedes that line. Then exposed `steps` on the loop, replaced the parity
-test's cast, added the failed-run assertion, closed T-20, and wrote the deployment lesson.
-
-**Verified.** PASS — `pnpm gate` exit 0 on a tree with every `dist/` deleted, and `pnpm test`
-alone exits 0 there, which is what the two CI-only failures were about. PASS — the CI, Pages
-and context workflows are all `success` on `11d774d`. PASS — the site root, the decision page
-and the example each answer 200. PASS — the core suite is 30 files and 297 tests, exit 0.
-
-**Unverified / open.** No browser drove the deployed example: a 200 and a relative asset path
-are not a rendered page. Nothing is published to npm.
-
-**Next.** Task 3 of the v1.5 plan: write the MCP client's plan, then build it.
-
-**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 wait on the owner.
-
-**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`, `apps/docs-site/`,
-`docs/plans/2026-10-14-s1.5-parity-harness-plan.md`.
-<!-- rotate:end -->
-
-Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.
