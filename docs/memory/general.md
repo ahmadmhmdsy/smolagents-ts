@@ -205,6 +205,18 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** `Path.write_text` follows the platform's newline, so a generator wrote CRLF into a checkout whose `.gitattributes` promises LF and git announced the conversion as it staged the files; a writer that produces files meant for version control passes the newline explicitly rather than trusting the platform.
 - **Evidence:** `git add scripts/parity/recordings` warned "CRLF will be replaced by LF" for all five recordings on 2026-10-14, and the warning is gone since `record.py` writes with `newline="\n"`.
 
+## 2026-10-14 — a record that calls a branch a port can be that branch's origin
+
+- **Status:** validated
+- **Lesson:** both of the S1.5 plan's behavioural findings trace to one place: the design record's loop pseudocode, which adds a guard upstream's planning condition does not have and replaces upstream's budget-exhausted ending with a throw, under a heading that calls the whole loop a port. A record that names its source is making a checkable claim, so the branch a finding turns on gets read in both trees before the record's word is taken for it.
+- **Evidence:** `docs/design/2026-10-12-smolagents-ts-v1-design.md` against upstream `agents.py` in the vendored clone and in the tag the recordings pin; the investigations are `docs/research/2026-10-14-t16-planning-cadence.md` and `docs/research/2026-10-14-t18-max-steps-ending.md`.
+
+## 2026-10-14 — two pinned upstreams are two different comparisons
+
+- **Status:** validated
+- **Lesson:** the design record pins one upstream revision and every parity recording pins another, and the two disagree on the very things both investigations turn on, so a finding read against the wrong one is wrong in a way no test catches. The version a comparison actually runs belongs beside the comparison, and the design's pin belongs beside the design.
+- **Evidence:** the vendored clone's own version marker and the tag `v1.14.0`, against the recordings' metadata and the design's pin; the mismatch is tracked as T-21.
+
 ## 2026-10-14 — a plan's carried review point goes stale
 
 - **Status:** validated
