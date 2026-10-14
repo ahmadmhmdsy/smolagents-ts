@@ -13,3 +13,9 @@ primitive that needs a framework assumption keeps it inside this package.
 A primitive that renders a live region sets the ARIA attributes its behaviour
 implies, and the component test asserts those attributes rather than the markup
 around them.
+
+**A pattern composes the primitives and adds no styling of its own.**
+`RunInspector` and `ChatSurface` render the primitives rather than markup of
+their own, and neither takes a class name, so a consumer that styles one wraps
+it. A pattern that began carrying class names would move the styling contract
+into this package, which the styled layer beside it owns.

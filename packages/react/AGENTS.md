@@ -4,21 +4,25 @@
 
 `@smolagents-ts/react` renders a run from `AgentSession`. It holds the L2
 hooks that read the session's snapshot — `useAgentSession`, `useAgentRun`,
-`useAgentEvent`, `useAgentRunSnapshot` — and the L3 headless primitives that
+`useAgentEvent`, `useAgentRunSnapshot` — the L3 headless primitives that
 render it: `AgentRun` with `Status`, `Steps`, `Cancel` and `FinalAnswer`,
 and `AgentStep` with `Action`, `Planning`, `FinalAnswer`, `Code`,
-`ToolCalls`, `Logs` and `Observation`. Nothing is styled: every element
-carries a class name and the stylesheet belongs to the caller. The package
-publishes beside the facade like the other internal ones;
+`ToolCalls`, `Logs` and `Observation` — and the L4 patterns that compose the
+primitives into a whole view: `RunInspector` for a run and `ChatSurface` for a
+transcript with a composer. Nothing is styled: the primitives carry class names
+and the stylesheet belongs to the caller. The patterns carry none, so a consumer
+that styles one wraps it, which is what the package beside this one does. The
+package publishes beside the facade like the other internal ones;
 `docs/09-decisions/0006-distribution-shape.md` owns that shape.
 
 ## Entry points
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/react/src/index.ts` | the ten runtime names pinned by `packages/react/test/public-surface.test.ts` |
+| public barrel | `packages/react/src/index.ts` | the twelve runtime names pinned by `packages/react/test/public-surface.test.ts` |
 | hooks | `packages/react/src/session.ts`, `use-agent-run.ts`, `use-agent-event.ts` | one hook per file |
-| run primitives | `packages/react/src/agent-run.tsx`, `agent-step.tsx` | |
+| run primitives | `packages/react/src/agent-run.tsx`, `agent-step.tsx` | each renders a class name the caller styles |
+| run patterns | `packages/react/src/run-inspector.tsx`, `chat-surface.tsx` | compose the primitives into a whole view; carry no class name |
 | composition context | `packages/react/src/context.ts` | internal: only `useAgentRunSnapshot` and the override-map type reach the barrel |
 | version marker | `packages/react/src/version.ts` | |
 
@@ -26,8 +30,8 @@ publishes beside the facade like the other internal ones;
 
     pnpm vitest run --project react
 
-Expected result: 8 test files and 35 tests pass, exit code 0. Measured on
-2026-10-14 as "Test Files 8 passed (8)" and "Tests 35 passed (35)". The
+Expected result: 10 test files and 46 tests pass, exit code 0. Measured on
+2026-10-14 as "Test Files 10 passed (10)" and "Tests 46 passed (46)". The
 adoption revision reported one file and one test; the surface test is what
 remains of that smoke test, and the rest is the layer.
 
@@ -58,6 +62,8 @@ peer; `react-dom` is not a dependency of this package.
   word by word, and `AgentRun` does not cancel its run when it unmounts.
 - A step's logs come only from the executor's `onLog` callback, so a test
   double that never calls it renders an empty logs region.
+- The run patterns render no class name and take none, so a consumer styles one
+  by wrapping it rather than by targeting it.
 
 ## Pointers to root rules
 
