@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "models", "tools", "exec-quickjs", "react", "cli", "mcp"];
+const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "react", "cli", "mcp"];
 /** The published name: its tarball is the only one that is not scoped. */
 const FACADE = "smolagents-ts";
 
@@ -53,6 +53,22 @@ function peerSpec() {
   return "react@" + pathToFileURL(found).href;
 }
 
+/**
+ * Pyodide is a regular dependency of exec-pyodide and installs about 13 MiB of wasm and
+ * stdlib, so the consumer resolves it from the workspace's own installed copy through a
+ * "file:" spec rather than the registry, exactly as react is. The consumer import check
+ * only imports each barrel, and the barrel's pyodide import is lazy, so a "file:" install
+ * that leaves pyodide's own dependencies unresolved is enough for this smoke.
+ */
+function pyodideSpec() {
+  const found = [
+    join(ROOT, "packages", "exec-pyodide", "node_modules", "pyodide"),
+    join(ROOT, "node_modules", "pyodide"),
+  ].find((dir) => existsSync(join(dir, "package.json")));
+  if (found === undefined) throw new Error("pyodide is not installed in the workspace");
+  return "pyodide@" + pathToFileURL(found).href;
+}
+
 const workspace = mkdtempSync(join(tmpdir(), "smolagents-pack-smoke-"));
 
 try {
@@ -80,7 +96,7 @@ try {
     JSON.stringify({ name: "consumer", private: true, type: "module" }, null, 2),
   );
 
-  run("npm", ["install", "--no-audit", "--no-fund", ...tarballs, peerSpec()], workspace);
+  run("npm", ["install", "--no-audit", "--no-fund", ...tarballs, peerSpec(), pyodideSpec()], workspace);
 
   const imports = [];
   const assertions = [];

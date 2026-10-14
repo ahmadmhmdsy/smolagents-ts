@@ -33,6 +33,43 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T14:05:00+03:00 — the Pyodide executor lands, and the remote executors are planned
+
+**State.** T-13's fourth module is delivered: `@smolagents-ts/exec-pyodide` is the
+ninth package, its suite is 9 files and 55 tests, and the full gate exits 0 (95
+files, 689 tests, 227 modules and 566 dependencies cruised, publint clean on nine
+packages, the site at 65 pages). Task 5's plan is filed; exec-remote is next, then
+L4/L5.
+
+**Did.** Built the package: an injectable loader, one runtime per run, a Python
+prelude with a `BaseException` answer signal, a JSON tool bridge, the import
+allow-list, batched stream capture, and a deadline race that poisons the runtime
+when a stop wins. Filed decision 0016 (in-process, fidelity not security) and T-24
+(the worker interrupt path). Added the scoped entry, the component rule, the router
+row, the attribution row, the browser-probe runbook and the measured results, and
+wrote the remote-executor plan on the client reconnaissance.
+
+**Verified.** `pnpm gate` exit 0 on this tree; probe A measured a guest awaiting a
+host tool settled by a real timer, so `asyncToolCalls` is true; probe B measured a
+2,912 ms browser cold start and a 29,375 B page bundle with the runtime external;
+probe C confirmed the pack smoke reaches no registry for `pyodide`; the validator
+reports `new: []`, 0 errors and 0 warnings.
+
+**Unverified / open.** No live remote backend was exercised and no injected double
+exists yet; the cold start is one headless Chrome against one CDN.
+`timers` stays false: nothing on the host can interrupt a synchronous guest loop.
+
+**Next.** Execute `docs/plans/2026-10-14-t13-remote-executors-plan.md`: the process
+backend, then Docker, then E2B.
+
+**Blockers.** T-14 awaits registry credentials; T-16, T-18 and T-21 await owner
+decisions.
+
+**Artifacts.** `packages/exec-pyodide/src/executor.ts`,
+`docs/09-decisions/0016-pyodide-in-process-and-fidelity.md`,
+`docs/plans/2026-10-14-t13-remote-executors-plan.md`,
+`docs/10-runbooks/exec-pyodide-browser-probe.md`.
+
 ## 2026-10-14T12:25:00+03:00 — the MCP client lands, live-checked, and Pyodide is measured
 
 **State.** T-13's third module is delivered: `@smolagents-ts/mcp` builds, typechecks,
@@ -126,40 +163,6 @@ nothing is published.
 
 **Artifacts.** `apps/docs-site/`, `docs/09-decisions/0014-internal-packages-stay-implementation.md`,
 `docs/plans/2026-10-14-v1.5-modules-plan.md`.
-
-## 2026-10-14T10:45:00+03:00 — the first v1.5 module lands and the browser example runs
-
-**State.** T-13's first module is delivered: `@smolagents-ts/cli`, a seventh workspace
-package with a `smolagent` bin, upstream's flags and factories, and no third-party
-dependency. T-12 is done: `examples/vite-app` runs the React layer over a real QuickJS
-executor in a browser tab, and the engine bundles as a WASM asset, retiring the plan's
-fallback. Decision 0012 fixes the host: the example is a Vite SPA and the docs site
-publishes its build beside the documents. MCP, `exec-pyodide`, the remote executors and
-L4/L5 remain.
-
-**Did.** Wrote decision 0012 and the T-12 plan; built `examples/vite-app` (twelve files,
-two tests) and wired it into the workspace; added the README's browser section. Delegated
-T-13's CLI to a subagent and reviewed it: twelve modules, six test files and 49 tests in
-`packages/cli/`, its scoped entry and component rule, the router row, the pack smoke's
-seventh package, and `.changeset/v1-5-cli-package.md`. Closed T-12 and recorded results in
-both plans.
-
-**Verified.** PASS — `pnpm vitest run --project example-vite-app`: one file, two tests,
-exit 0. PASS — `pnpm --filter example-vite-app run build`: 179 modules, exit 0, the engine
-emitted as a 503.13 kB `.wasm` asset. PASS — `pnpm vitest run --project cli`: six files, 49
-tests, exit 0. PASS — the validator reports `new: []`, 14 baselined, 0 errors, 0 warnings.
-
-**Unverified / open.** No browser was driven: the example's evidence is a jsdom test and a
-production build, not a clicked page. The CLI sits outside the fixed group at 0.0.0, so its
-`minor` changeset cuts 0.1.0 alone. Nothing is published.
-
-**Next.** Task 2 of the v1.5 plan: the docs site that renders the documents and publishes
-the example's build.
-
-**Blockers.** T-14 waits on registry credentials; T-16, T-18 to T-22 wait on the owner.
-
-**Artifacts.** `docs/09-decisions/0012-web-surface-host.md`,
-`docs/plans/2026-10-14-v1.5-modules-plan.md`, `examples/vite-app/`, `packages/cli/`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.

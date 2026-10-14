@@ -17,7 +17,7 @@ ported; a module is not "done" until its row is accurate.
 | src/smolagents/utils.py | port subset | packages/core/src/utils/* |
 | src/smolagents/agent_types.py | port subset | packages/core/src/types.ts |
 | src/smolagents/prompts/*.yaml | port, translated to the JS dialect | packages/core/src/prompts/* |
-| src/smolagents/local_python_executor.py | replace | packages/exec-quickjs |
+| src/smolagents/local_python_executor.py | replace | packages/exec-pyodide, packages/exec-quickjs |
 | src/smolagents/gradio_ui.py | replace | packages/react |
 | src/smolagents/_function_type_hints_utils.py | drop (replaced by Zod) | — |
 | src/smolagents/tool_validation.py | drop (replaced by Zod + guards) | — |

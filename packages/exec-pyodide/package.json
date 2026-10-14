@@ -1,0 +1,55 @@
+{
+  "name": "@smolagents-ts/exec-pyodide",
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "The Python CodeExecutor: agent-authored Python in a Pyodide-WASM runtime, in-process on Node and in the browser.",
+  "keywords": [
+    "smolagents",
+    "code-execution",
+    "python",
+    "pyodide",
+    "wasm"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/exec-pyodide"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
+  },
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "pyodide": "314.0.7",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  }
+}

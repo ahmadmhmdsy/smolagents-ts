@@ -316,3 +316,121 @@ claim are pasted into the measured results beside the validator's final JSON.
 ## Measured results
 
 Results are appended here by the session that executes the plan.
+
+
+### 2026-10-14 — tasks 1–7 measured (executing session)
+
+**Package.** packages/exec-pyodide created and wired into the pack smoke.
+pnpm --filter @smolagents-ts/exec-pyodide run build emits dist/index.js 17.98 KB,
+dist/index.d.ts 5.02 KB and dist/index.js.map 49.70 KB; the dynamic
+import("pyodide") survives into the bundle, so a page that never calls the
+default loader downloads none of the runtime.
+
+**Task 4 — the import guard, against the real runtime.** imports.test.ts passes
+8 tests. All eleven upstream modules import and work (datetime.datetime.now(),
+Counter, statistics.mean). A disallowed module is refused with upstream's exact
+sentence, and the refusal covers a submodule (import os.path), a from-import
+(from socket import socket) and a relative import. The restore is recorded as
+the known bypass, not asserted as a defence.
+
+**Measured correction — the guard's scope.** The plan's literal shape replaces
+the guest's builtins.__import__ globally. Measured against the real runtime that
+breaks import datetime, import queue and import statistics with
+ImportError: Import of _io is not allowed, because an authorized module's own
+internal imports are routed through the replacement. The implementation captures
+the guest's globals at install time (_TS_GUEST_GLOBALS = globals()) and raises
+only when the caller's globals is that dict, while still refusing every
+guest-level import above. The fidelity goal is unchanged, and the bypass
+(restoring __import__, or calling it with explicit non-guest globals) stays
+recorded in imports.test.ts and the src comment.
+
+**Task 5 — the executor, against the real runtime.** executor.integration.test.ts
+passes 7 tests: print capture in logs and onLog, a variable that survives across
+two execute() calls, an awaited host tool plus final_answer, a failed tool caught
+by except Exception while final_answer still escapes it, a deliberate raise mapped
+to AGENT_EXECUTION, a refused import, and a run past its deadline whose abandoned
+runtime is poisoned — the call after it loads a second runtime and its logs is
+exactly "second", so no abandoned line leaks.
+
+**Measured correction — the answer arrives as a rejection.** final_answer raises
+_FinalAnswerSignal, a BaseException, so runPythonAsync rejects and the answer
+reaches the host as the attempt's error. The executor must read
+_final_answer_raised before the error, or every final_answer call reports
+AGENT_EXECUTION. A unit test now pins the rejected-signal path.
+
+**Task 6 — surface and isomorphism.** public-surface.test.ts pins the sorted
+exports ["DEFAULT_AUTHORIZED_IMPORTS", "PyodideExecutor", "VERSION"];
+architecture.test.ts walks the root entry's graph, fails on any node: specifier,
+and proves the walker fails on a fixture that names node:child_process.
+
+**Task 7, Probe A — async host tool calls: positive.** A Python guest under
+runPythonAsync awaited a host callable whose JavaScript implementation returns a
+promise that a real setTimeout(120) settles; the guest received "pinged p" with
+elapsed greater than 120 ms. capabilities.asyncToolCalls is therefore true. The
+capability object, verbatim:
+
+    { language: "python", isolation: "wasm", asyncToolCalls: true, timers: false, network: "host-mediated" }
+
+timers stays false because it describes what the executor offers the guest (no
+host scheduler, no interrupt), not what Pyodide's own asyncio can do: the timeout
+test uses asyncio.sleep and it works.
+
+**Task 7, Probe B — the browser bundle and cold start: measured.** The scratch
+page lives outside the repository and is reproduced by the new runbook
+docs/10-runbooks/exec-pyodide-browser-probe.md. Built with Vite 6.4.4:
+
+- optimizeDeps.exclude: ["pyodide"] with pyodide resolvable: index.html 266 B,
+  assets/index 29,156 B, a lazy assets/pyodide chunk 22,977 B, an
+  externalized-Node shim 81 B — 52,480 B on disk.
+- The CDN deployment, pyodide also marked rollupOptions.external: 29,375 B total
+  (index.html 266, assets/index 29,109), 8.5 kB gzipped.
+- Headless Chrome 155.0.8059.40 against
+  https://cdn.jsdelivr.net/pyodide/v314.0.7/full/: status "ok",
+  coldStartMs 2912, logs "hello from the guest". Five CDN resources, 6,289,377 B
+  over the wire and 13,531,207 B decoded: pyodide.mjs 7,599 / 17,931;
+  pyodide-lock.json 25,008 / 119,077; python_stdlib.zip 2,505,613 / 2,545,637;
+  pyodide.asm.wasm 3,438,816 / 9,598,218; pyodide.asm.mjs 262,341 / 1,250,344.
+
+The runtime is in neither build's app bundle. The page's own code costs about
+29 kB and the runtime is a CDN cost. Against exec-quickjs's 52,891-byte dist,
+V15-R4 is answered: the new package's own code does not dwarf the sibling.
+
+**Task 7, Probe C — the pack smoke reaches no registry for pyodide: confirmed.**
+Run with its consumer kept for inspection, the consumer's package-lock.json
+contains no pyodide URL at all; its entry is node_modules/pyodide with link true
+resolved to the workspace store
+E:/python_projects/smolagents_ts/node_modules/.pnpm/pyodide@314.0.7/node_modules/pyodide,
+and the installed consumer copy is a junction to that path reporting version
+314.0.7. The lockfile's only registry resolutions belong to other packages (zod,
+quickjs's wasmfile packages).
+
+**The commands, from the repository root.**
+
+1. pnpm --filter @smolagents-ts/exec-pyodide run typecheck — exit 0, no output.
+2. pnpm --filter @smolagents-ts/exec-pyodide run build — exit 0; ESM dist/index.js
+   17.98 KB, dist/index.js.map 49.70 KB, DTS dist/index.d.ts 5.02 KB.
+3. pnpm vitest run --project exec-pyodide — exit 0; Test Files 9 passed (9),
+   Tests 55 passed (55), Duration 13.31s.
+4. pnpm lint — exit 0; "$ eslint ." with no findings.
+5. pnpm depcruise — exit 0; no dependency violations found (227 modules, 566
+   dependencies cruised).
+6. pnpm typecheck — exit 0; Scope: 12 of 13 workspace projects.
+7. pnpm pack:smoke — exit 0; pack-smoke OK: 9 packages installed and imported;
+   the cli bin ran.
+8. pnpm gate — exit 0. typecheck 12 of 13; lint clean; depcruise 227 modules /
+   566 dependencies; test 95 files passed, 689 tests passed, 60.21s; build 9 of
+   13; publint "All good!" for all nine packages including
+   @smolagents-ts/exec-pyodide; attw green (node16-from-ESM, bundler) for the
+   new package with node10 and node16-cjs ignored by the esm-only profile;
+   ci:check OK; pack-smoke OK 9 packages; site:build 65 page(s), 64 document(s).
+
+**Anything undone, or any test disabled:** nothing. No test is skipped, and the
+only ignored attw resolutions are the profile's own node10 and node16-cjs
+columns, which every sibling shares.
+
+**A third measured correction — the bridge's error attribution.** A rejected
+JavaScript promise surfaced in Python as pyodide.ffi.JsException, not as
+RuntimeError. The bridge therefore answers with a JSON envelope and the emitted
+wrapper raises RuntimeError from the envelope's error, so guest code that catches
+the failure sees a RuntimeError naming the tool, as the plan's Task 3 text
+promises.

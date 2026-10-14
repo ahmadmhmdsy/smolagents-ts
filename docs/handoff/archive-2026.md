@@ -4,6 +4,40 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T10:45:00+03:00 — the first v1.5 module lands and the browser example runs
+
+**State.** T-13's first module is delivered: `@smolagents-ts/cli`, a seventh workspace
+package with a `smolagent` bin, upstream's flags and factories, and no third-party
+dependency. T-12 is done: `examples/vite-app` runs the React layer over a real QuickJS
+executor in a browser tab, and the engine bundles as a WASM asset, retiring the plan's
+fallback. Decision 0012 fixes the host: the example is a Vite SPA and the docs site
+publishes its build beside the documents. MCP, `exec-pyodide`, the remote executors and
+L4/L5 remain.
+
+**Did.** Wrote decision 0012 and the T-12 plan; built `examples/vite-app` (twelve files,
+two tests) and wired it into the workspace; added the README's browser section. Delegated
+T-13's CLI to a subagent and reviewed it: twelve modules, six test files and 49 tests in
+`packages/cli/`, its scoped entry and component rule, the router row, the pack smoke's
+seventh package, and `.changeset/v1-5-cli-package.md`. Closed T-12 and recorded results in
+both plans.
+
+**Verified.** PASS — `pnpm vitest run --project example-vite-app`: one file, two tests,
+exit 0. PASS — `pnpm --filter example-vite-app run build`: 179 modules, exit 0, the engine
+emitted as a 503.13 kB `.wasm` asset. PASS — `pnpm vitest run --project cli`: six files, 49
+tests, exit 0. PASS — the validator reports `new: []`, 14 baselined, 0 errors, 0 warnings.
+
+**Unverified / open.** No browser was driven: the example's evidence is a jsdom test and a
+production build, not a clicked page. The CLI sits outside the fixed group at 0.0.0, so its
+`minor` changeset cuts 0.1.0 alone. Nothing is published.
+
+**Next.** Task 2 of the v1.5 plan: the docs site that renders the documents and publishes
+the example's build.
+
+**Blockers.** T-14 waits on registry credentials; T-16, T-18 to T-22 wait on the owner.
+
+**Artifacts.** `docs/09-decisions/0012-web-surface-host.md`,
+`docs/plans/2026-10-14-v1.5-modules-plan.md`, `examples/vite-app/`, `packages/cli/`.
+
 ## 2026-10-14T03:20:00+03:00 — the v1 roadmap is closed: S3, S4, S5, S6's v1 share and S1.5 are reached
 
 **State.** Every v1 milestone the design record names is reached. S3, S4 and S5 read `done`;

@@ -265,6 +265,24 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** on Windows Node resolves no extensionless `npx` for a spawn (`ENOENT`) and refuses to spawn `npx.cmd` without a shell (`EINVAL`), so a runbook whose check spawns a package manager's shim fails before it exercises the client at all. A procedure that needs a child process installs the package first and spawns `process.execPath` with the resolved entry, which is also what makes the run reproducible instead of network-dependent.
 - **Evidence:** both errors measured on 2026-10-14 from the MCP live check; after switching to `process.execPath` with the installed `dist/index.js` the same check connected in 410 ms, listed 13 tools and answered the echo call, and `docs/10-runbooks/mcp-live-check.md` carries the corrected steps.
 
+## 2026-10-14 — a hook over a builtin sees the interpreter's own traffic
+
+- **Status:** validated
+- **Lesson:** replacing `builtins.__import__` to enforce an allow-list looks like a check on the guest, but CPython routes every module's own import statements through the same hook, so a global replacement refuses the internals of the very modules the list authorises. The check has to name its caller: capture the guest's globals at install time and refuse only when the import came from there, which is what upstream's AST check achieves by inspecting the code instead of the runtime.
+- **Evidence:** measured on 2026-10-14 against `pyodide@314.0.7`: the global replacement failed `import datetime`, `import queue` and `import statistics` with `ImportError: Import of _io is not allowed`, and the caller-scoped form passes all eleven authorised modules while still refusing `os`, `os.path` and a relative import; `packages/exec-pyodide/test/imports.test.ts` pins both halves.
+
+## 2026-10-14 — an answer that arrives as a rejection
+
+- **Status:** validated
+- **Lesson:** a guest-side signal that subclasses `BaseException` escapes a guest's `except Exception`, and it also ends the call that raised it, so the host receives a successful `final_answer` as the run's failure. The host therefore records the answer where it can read it afterwards — a module global the prelude resets at the start of every run — and consults that flag before it maps the rejection to an error.
+- **Evidence:** measured on 2026-10-14: with the flag read after the error branch every `final_answer` call reported `AGENT_EXECUTION`; with the flag read first, `packages/exec-pyodide/test/executor.test.ts` and the package's integration file both pass, including a guest that wraps the call in `except Exception`.
+
+## 2026-10-14 — a rejected JavaScript promise is not a Python exception
+
+- **Status:** validated
+- **Lesson:** when a host callable returns a promise that rejects, the guest does not see the host's error type: Pyodide hands Python a `JsException`, so a bridge that promises a `RuntimeError` naming the tool has to catch the rejection on the JavaScript side and answer with a payload the emitted wrapper turns into that error.
+- **Evidence:** measured on 2026-10-14 against `pyodide@314.0.7`; the bridge now returns a JSON envelope, and `packages/exec-pyodide/test/bridge.test.ts` asserts the `RuntimeError` a guest catches.
+
 
 
 

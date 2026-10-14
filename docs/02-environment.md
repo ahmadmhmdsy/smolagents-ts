@@ -164,3 +164,6 @@ Append-only.
 | 2026-10-14 | the docs site app and its dependency | `pnpm --filter docs-site why marked` | marked 18.1.1, the only dependency of `docs-site` |
 | 2026-10-14 | the full gate at commit a41578f | `pnpm gate` from the repository root | exit 0; 86 test files and 634 tests passed; 205 modules and 517 dependencies cruised; publint clean on eight packages; the site built 60 pages |
 | 2026-10-14 | the MCP package's own suite | `pnpm vitest run --project mcp` | 9 files and 106 tests passed |
+| 2026-10-14 | the full gate with `exec-pyodide` | `pnpm gate` from the repository root | exit 0; 95 test files and 689 tests passed; 227 modules and 566 dependencies cruised; publint clean on nine packages; the site built 65 pages |
+| 2026-10-14 | the Pyodide package's own suite | `pnpm vitest run --project exec-pyodide` | 9 files and 55 tests passed |
+| 2026-10-14 | the Pyodide browser cold start and bundle | the scratch Vite page in `docs/10-runbooks/exec-pyodide-browser-probe.md` | 2,912 ms from headless Chrome against the jsDelivr v314.0.7 base; the page's own bundle is 29,375 B with the runtime external |

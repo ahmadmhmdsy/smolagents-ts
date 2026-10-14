@@ -102,6 +102,7 @@ only; the rest follow the milestones below.
 | `@smolagents-ts/core` | the ReAct loop (`CodeAgent`, `ToolCallingAgent`), memory and steps, the event stream, typed errors, the prompt templates, the tool and executor interfaces, `AgentSession`, middleware, the `Monitor`, and the testing doubles |
 | `@smolagents-ts/models` | the `Model` seam and its provider adapters |
 | `@smolagents-ts/tools` | the `tool()` ecosystem and default tools |
+| `@smolagents-ts/exec-pyodide` | a `CodeExecutor` implemented on WASM CPython (Pyodide), in-process on Node and in a page |
 | `@smolagents-ts/exec-quickjs` | a `CodeExecutor` implemented on QuickJS-WASM |
 | `@smolagents-ts/react` | L2 hooks and L3 headless primitives over `AgentSession` |
 | `@smolagents-ts/cli` | the Node command line: upstream `cli.py`'s arguments and interactive questions, the model and tool factories over this port's adapters, and a renderer for the event stream |
@@ -133,9 +134,10 @@ names builds and runs in a browser tab at `examples/vite-app`. S6's v1 share is
 done: the six packages carry the metadata a registry reads, the facade
 re-exports them, the packed tarballs install and import, and 0.1.0 is cut. The
 CLI now ships as a seventh package, `@smolagents-ts/cli`, the MCP client as an
-eighth, `@smolagents-ts/mcp`, and the docs site publishes the documents with the
-example's build beside them; the remote executors, `exec-pyodide` and L4/L5 are
-what T-13 still carries.
+eighth, `@smolagents-ts/mcp`, and the Python executor as a ninth,
+`@smolagents-ts/exec-pyodide`, which runs agent-authored Python on WASM CPython
+in-process; the docs site publishes the documents with the example's build beside
+them. The remote executors and L4/L5 are what T-13 still carries.
 S1.5's harness is
 reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
 committed, and a suite that replays them through our loop inside the gate. The two
