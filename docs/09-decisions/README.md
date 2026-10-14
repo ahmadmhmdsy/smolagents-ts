@@ -28,11 +28,13 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0009 | a local secrets file is not pack surface | accepted | 2026-10-14 |
+| 0008 | the handoff's over-cap entry stays as it stands | accepted | 2026-10-14 |
 | 0007 | the parity harness compares structure and keeps its Python leg out of CI | accepted | 2026-10-14 |
 | 0006 | the distribution shape | accepted | 2026-10-14 |
 | 0005 | the React layer's public surface | accepted | 2026-10-14 |
 | 0004 | the guest program captures a step's declarations by scanning its source | accepted | 2026-10-14 |
-| 0003 | the pack's surface walk prunes skipped trees | proposed | 2026-10-13 |
+| 0003 | the pack's surface walk prunes skipped trees | accepted | 2026-10-14 |
 | 0002 | the pack baseline records pre-existing document warnings | accepted | 2026-10-13 |
 | 0001 | the pack walker excludes vendored third-party trees | accepted | 2026-10-13 |
 

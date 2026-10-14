@@ -41,13 +41,13 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-5 | confirm the pruning-walker pack patch | pending | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | the decision record moves from proposed to accepted | - |
 | T-12 | ship the runnable React example the S5 definition names | pending | owner | `examples/**` | T-13 picks the example's host and build | - |
-| T-10 | settle the handoff's cap debt | pending | owner | `docs/03-handoff.md`, `docs/handoff/archive-2026.md`, `scripts/_packmodel.py` | the S2 entry (2598 bytes) now sits in the archive, because rotation refuses to move an entry over the per-entry cap; the owner chooses between shortening it there, raising the cap in `scripts/_packmodel.py`, and leaving it as it stands | - |
 | T-13 | ship the v1.5 modules S6's design row names: CLI, MCP, remote executors, exec-pyodide, docs site, L4/L5 | pending | owner | new packages, `examples/**`, `apps/**` | the owner picks the next module and where it runs | - |
 | T-14 | publish 0.1.0 to the registry | pending | owner | `.changeset/**`, `packages/**` | registry credentials and a repository URL, neither of which this session has | - |
 | T-16 | decide our planning cadence: upstream plans before the first step, this loop plans after it | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the cadence; F7 in the S1.5 plan | - |
 | T-18 | decide a budget-exhausted run's ending: upstream reports the last model output as the final answer, this loop raises `AgentMaxStepsError` | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the ending; F6 in the S1.5 plan | - |
+| T-19 | grow the parity corpus a tool scenario | pending | next session | `scripts/parity/scenarios/*.json`, `scripts/parity/record.py`, `packages/core/test/parity.test.ts` | the owner deferred it; both readers must first learn to wire tools, because each refuses a non-empty tool list | - |
+| T-20 | expose the loop's step list publicly so the parity test needs no cast | pending | this session | `packages/core/src/**`, `packages/core/test/parity.test.ts` | the S1.5 open question; a narrow public read that also covers a failed run | - |
 <!-- rotate:end -->
 
 ## Blocked

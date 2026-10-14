@@ -52,7 +52,11 @@ SKIP_TOP = {"_dev", ".git", ".superpowers", "__pycache__", ".venv", ".locks", "s
 # makes placeholders() and c00_adapt() raise PermissionError on read. Excluded by the
 # same mechanism as the pack's own build scaffolding. The decision is recorded in
 # docs/09-decisions/; reverse it by deleting the three names below.
-SKIP_TOP |= {"node_modules", "reference", "smolagents"}
+# The owner keeps a local, gitignored secrets file at the repository root
+# (`.env`), and a secrets file is not pack surface by definition: the pack must
+# never copy it, report on it, or count it. Without this, c12_secrets fails the
+# whole gate on the file's mere presence. Recorded in docs/09-decisions/0009.
+SKIP_TOP |= {"node_modules", "reference", "smolagents", ".env", ".env.local"}
 
 def iter_surface(root: Path):
     """Every file the pack owns, pruning skipped trees instead of walking them.

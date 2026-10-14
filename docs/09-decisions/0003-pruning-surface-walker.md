@@ -8,9 +8,9 @@
   before wondering why the validator finishes in under a second.
 - **Update when:** never. A reversal is a new record.
 
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-10-13
-- **Decided by:** the adoption session, pending the owner's confirmation
+- **Decided by:** the owner, 2026-10-14, on the adoption session's recommendation
 - **Supersedes:** none
 
 ## Context
