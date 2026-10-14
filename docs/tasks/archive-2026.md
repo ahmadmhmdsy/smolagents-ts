@@ -15,6 +15,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-8 | plan and execute S3: the tool system | done | maintainer | `packages/tools/`, `docs/` | a written S3 plan exists and its Definition of done holds | `docs/plans/2026-10-14-s3-tool-system-plan.md` — seven tasks, commits `744b72d`..`a48bb40`; `.superpowers/gate-s3.txt` — `pnpm gate` exit 0; tools suite 7 files and 28 tests, exit 0; validator `new: 0`, 0 errors |
 | T-5 | confirm the pruning-walker pack patch | done | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | accepted; any pack upgrade re-applies the patch | `docs/09-decisions/0003-pruning-surface-walker.md` |
 | T-10 | settle the handoff's cap debt | done | owner | `docs/03-handoff.md`, `docs/handoff/archive-2026.md`, `scripts/_packmodel.py` | left as it stands: the archive is hand-curated for this entry, and neither rewriting history nor a third pack patch was taken | `docs/09-decisions/0008-handoff-cap-debt.md` |
+| T-12 | ship the runnable React example the S5 definition names | done | this session | `examples/**` | `examples/vite-app` builds for a browser and its two tests pass; the engine bundles as a WASM asset, so the plan's fallback is retired | `docs/plans/2026-10-14-react-example-plan.md` |
 
 ## Closed 2026-10-13
 

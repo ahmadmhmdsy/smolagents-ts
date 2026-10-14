@@ -104,6 +104,7 @@ only; the rest follow the milestones below.
 | `@smolagents-ts/tools` | the `tool()` ecosystem and default tools |
 | `@smolagents-ts/exec-quickjs` | a `CodeExecutor` implemented on QuickJS-WASM |
 | `@smolagents-ts/react` | L2 hooks and L3 headless primitives over `AgentSession` |
+| `@smolagents-ts/cli` | the Node command line: upstream `cli.py`'s arguments and interactive questions, the model and tool factories over this port's adapters, and a renderer for the event stream |
 
 Data moves one way through a run: the model returns text, the parser extracts a
 code block, a `CodeExecutor` runs it against the tool registry, the observation
@@ -126,11 +127,13 @@ entry.
 | S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | in_progress |
 | S1.5 | Parity harness | Python-to-TypeScript differential tests | done |
 
-S5's hooks and primitives are done; the runnable example its definition also
-names waits on T-13, which picks where it runs. S6's v1 share is done: the six
-packages carry the metadata a registry reads, the facade re-exports them, the
-packed tarballs install and import, and 0.1.0 is cut. The CLI, MCP, the remote
-executors, `exec-pyodide`, the docs site and L4/L5 are T-13's. S1.5's harness is
+S5's hooks and primitives are done, and the runnable example its definition also
+names builds and runs in a browser tab at `examples/vite-app`. S6's v1 share is
+done: the six packages carry the metadata a registry reads, the facade
+re-exports them, the packed tarballs install and import, and 0.1.0 is cut. The
+CLI now ships as a seventh package, `@smolagents-ts/cli`; MCP, the remote
+executors, `exec-pyodide`, the docs site and L4/L5 are what T-13 still carries.
+S1.5's harness is
 reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
 committed, and a suite that replays them through our loop inside the gate. The two
 divergences it measured are T-16 and T-18, both waiting on the owner.
@@ -165,3 +168,4 @@ Append-only. Newest last.
 | 2026-10-13 | 2 | context pack adopted; spec transcribed without new scope | maintainer |
 | 2026-10-13 | 3 | owner chose S2 after S1 and placed the ToolCallingAgent gaps inside it; both open questions above closed; no other scope change | owner |
 | 2026-10-13 | 4 | S2 split into S2a (model seam, OpenAI-compatible adapter, custom escape hatch) and S2b (the other three adapters); the S2a plan is written and no code has been executed from it | maintainer |
+| 2026-10-14 | 5 | the first T-13 module lands: the key-components list gains `@smolagents-ts/cli` and the S6 note lists the modules that remain | owner (the T-13 sequence) |

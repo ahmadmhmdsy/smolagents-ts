@@ -223,5 +223,17 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** the S1 plan carried two review points into the whole-branch review and neither became a task or a decision, so four milestones later a session read the note, reported that the streamed chunk carries no usage as a live gap, and was wrong: the field, all four adapters' population of it and the per-adapter tests had shipped in S2a and S2b. A plan is history, so a carried point is a claim about the revision that wrote it; before repeating one as current, read the code it names, and when it is still live give it a task or a decision.
 - **Evidence:** `docs/plans/2026-10-12-s1-core-runtime-plan.md` (the two carried points) against `packages/core/src/model.ts` (usage on the streamed chunk), `packages/models/src/anthropic.ts`, `packages/models/src/gemini.ts` and `packages/models/src/openai-compatible.ts`; the name half is decision 0011 and the still-live request gap is fixed in `packages/models/src/openai-compatible.ts`.
 
+## 2026-10-14 — a second target is proven by a build, not by a test in the first
+
+- **Status:** validated
+- **Lesson:** the executor package's whole suite runs under Node, so nothing in the gate had ever bundled it for a browser, and the plan for the browser example named that gap as its highest risk; the first `vite build` retired it in under two seconds, emitting the engine as a 503 kB `.wasm` asset with the browser build of its loader beside it. A claim about a second target needs an artifact built for that target, and an example is what builds it.
+- **Evidence:** `pnpm --filter example-vite-app run build` exits 0 on 2026-10-14 with `dist/assets/emscripten-module-uFzwHH0Y.wasm` (503.13 kB) and `dist/assets/emscripten-module.browser-DeQ2xOmI.js`, while `pnpm vitest run --project exec-quickjs` exercises the same engine only under Node.
+
+## 2026-10-14 — the lockfile ties a new package and a new app to one commit
+
+- **Status:** observed
+- **Lesson:** one session added a workspace package while another added a workspace app, and both importers landed in the single `pnpm-lock.yaml`, so committing either deliverable alone leaves a revision whose lockfile names a directory that revision does not contain. A new workspace member and the lockfile that records it are one commit, however unrelated the two members are.
+- **Evidence:** `pnpm-lock.yaml` carries both the `packages/cli` and the `examples/vite-app` importers on 2026-10-14, so the two deliverables share a commit.
+
 
 

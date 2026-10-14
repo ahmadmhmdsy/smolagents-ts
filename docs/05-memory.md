@@ -18,4 +18,4 @@ This registry lists topics, never individual lessons.
 
 | topic | shard | entries | date range | last updated |
 |---|---|---|---|---|
-| general | `docs/memory/general.md` | 37 | 2026-10-13 to 2026-10-14 | 2026-10-14 |
+| general | `docs/memory/general.md` | 39 | 2026-10-13 to 2026-10-14 | 2026-10-14 |

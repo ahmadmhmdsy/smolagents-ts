@@ -8,8 +8,9 @@ hooks that read the session's snapshot — `useAgentSession`, `useAgentRun`,
 render it: `AgentRun` with `Status`, `Steps`, `Cancel` and `FinalAnswer`,
 and `AgentStep` with `Action`, `Planning`, `FinalAnswer`, `Code`,
 `ToolCalls`, `Logs` and `Observation`. Nothing is styled: every element
-carries a class name and the stylesheet belongs to the caller. The package stays
-private at this revision, so nothing ships from it yet.
+carries a class name and the stylesheet belongs to the caller. The package
+publishes beside the facade like the other internal ones;
+`docs/09-decisions/0006-distribution-shape.md` owns that shape.
 
 ## Entry points
 

@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0012 | the web surface: a Vite example and a static site on GitHub Pages | accepted | 2026-10-14 |
 | 0011 | the model's capability bag is capabilities | accepted | 2026-10-14 |
 | 0010 | the published name and the repository | accepted | 2026-10-14 |
 | 0009 | a local secrets file is not pack surface | accepted | 2026-10-14 |

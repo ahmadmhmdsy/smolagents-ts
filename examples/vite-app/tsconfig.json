@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@smolagents-ts/core": ["../../packages/core/src/index.ts"],
+      "smolagents-ts": ["../../packages/core/src/index.ts"],
+      "smolagents-ts/models": ["../../packages/models/src/index.ts"],
+      "smolagents-ts/tools": ["../../packages/tools/src/index.ts"],
+      "smolagents-ts/exec/quickjs": ["../../packages/exec-quickjs/src/index.ts"],
+      "smolagents-ts/react": ["../../packages/react/src/index.ts"]
+    }
+  },
+  "include": ["src", "test", "vite.config.ts", "vitest.config.ts"]
+}

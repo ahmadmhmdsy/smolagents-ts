@@ -1,0 +1,66 @@
+{
+  "name": "@smolagents-ts/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "The command line over the agent loop: upstream cli.py's arguments and interactive setup, this port's model and tool adapters, and a verbosity-aware renderer for the run's event stream.",
+  "keywords": [
+    "smolagents",
+    "agents",
+    "cli",
+    "command-line",
+    "code-generation"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "smolagent": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
+  },
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "@smolagents-ts/models": "workspace:*",
+    "@smolagents-ts/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@smolagents-ts/exec-quickjs": "workspace:*"
+  },
+  "peerDependencies": {
+    "@smolagents-ts/exec-quickjs": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@smolagents-ts/exec-quickjs": {
+      "optional": true
+    }
+  }
+}

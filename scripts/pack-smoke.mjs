@@ -7,13 +7,13 @@
  * map, an ESM/CJS mismatch, a .d.ts that does not resolve.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "models", "tools", "exec-quickjs", "react"];
+const PACKAGES = ["core", "models", "tools", "exec-quickjs", "react", "cli"];
 /** The published name: its tarball is the only one that is not scoped. */
 const FACADE = "smolagents-ts";
 
@@ -115,7 +115,22 @@ try {
   if (!output.includes("pack-smoke OK")) {
     throw new Error("consumer check did not report OK");
   }
-  console.log("pack-smoke OK: " + (PACKAGES.length + 1) + " packages installed and imported from tarballs");
+
+  // The CLI's published entry point is its bin, not its barrel, so the smoke runs the
+  // installed bin once. --help exercises the parser and the usage text without a model.
+  const cliDir = join(workspace, "node_modules", "@smolagents-ts", "cli");
+  const cliManifest = JSON.parse(readFileSync(join(cliDir, "package.json"), "utf8"));
+  const binField = cliManifest.bin;
+  const binPath = typeof binField === "string" ? binField : binField?.smolagent;
+  if (typeof binPath !== "string") {
+    throw new Error("the packed cli manifest declares no smolagent bin");
+  }
+  const help = run("node", [join(cliDir, binPath), "--help"], workspace);
+  if (!help.includes("Usage:")) {
+    throw new Error("the installed smolagent bin did not print its usage");
+  }
+
+  console.log("pack-smoke OK: " + (PACKAGES.length + 1) + " packages installed and imported; the cli bin ran");
 } finally {
   rmSync(workspace, { recursive: true, force: true });
 }

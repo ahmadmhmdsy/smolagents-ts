@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // The exec-quickjs path below sits outside this package, so the program's root
+    // has to contain packages/. The emitter is tsup's, not this project's.
+    "rootDir": "../..",
+    "outDir": "dist",
+    // @smolagents-ts/exec-quickjs is an optional peer, so it is not linked into
+    // node_modules for the workspace build. The lazy import in src/run.ts still has
+    // to typecheck, so this project points at its source. Declaring paths here
+    // replaces the base map; core, models and tools then resolve through their
+    // published dist, which is what the emitted declarations should reference.
+    "paths": {
+      "@smolagents-ts/exec-quickjs": ["../exec-quickjs/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

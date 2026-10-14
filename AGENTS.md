@@ -31,6 +31,7 @@ package should reach that component's entry without being told where to look.
 
 | id | path scope | scoped entry | component rule |
 |---|---|---|---|
+| cli | `packages/cli/` | `packages/cli/AGENTS.md` | `rules/components/cli.md` |
 | core | `packages/core/` | `packages/core/AGENTS.md` | `rules/components/core.md` |
 | exec-quickjs | `packages/exec-quickjs/` | `packages/exec-quickjs/AGENTS.md` | `rules/components/exec-quickjs.md` |
 | models | `packages/models/` | `packages/models/AGENTS.md` | `rules/components/models.md` |

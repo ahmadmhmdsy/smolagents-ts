@@ -58,6 +58,19 @@ This is the body of [examples/node-script/index.mjs](examples/node-script/index.
 the snippet is code that runs. `MockModel` scripts the model, which is why the
 snippet needs no provider and no key; swap it for an adapter from
 `smolagents-ts/models` to talk to a provider.
+
+## In the browser
+
+The same loop and the React layer run in a browser tab:
+
+    pnpm install
+    pnpm --filter example-vite-app run dev
+
+[examples/vite-app](examples/vite-app) renders a `CodeAgent` run with
+`@smolagents-ts/react` while the model's program executes in the same QuickJS
+sandbox the Node example uses. Its model is scripted as well, so the page needs
+no key either.
+
 ## Licence
 
 Apache-2.0. Derived from [smolagents](https://github.com/huggingface/smolagents); see [NOTICE](NOTICE).

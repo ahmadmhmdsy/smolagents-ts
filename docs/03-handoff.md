@@ -33,6 +33,40 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T10:45:00+03:00 — the first v1.5 module lands and the browser example runs
+
+**State.** T-13's first module is delivered: `@smolagents-ts/cli`, a seventh workspace
+package with a `smolagent` bin, upstream's flags and factories, and no third-party
+dependency. T-12 is done: `examples/vite-app` runs the React layer over a real QuickJS
+executor in a browser tab, and the engine bundles as a WASM asset, retiring the plan's
+fallback. Decision 0012 fixes the host: the example is a Vite SPA and the docs site
+publishes its build beside the documents. MCP, `exec-pyodide`, the remote executors and
+L4/L5 remain.
+
+**Did.** Wrote decision 0012 and the T-12 plan; built `examples/vite-app` (twelve files,
+two tests) and wired it into the workspace; added the README's browser section. Delegated
+T-13's CLI to a subagent and reviewed it: twelve modules, six test files and 49 tests in
+`packages/cli/`, its scoped entry and component rule, the router row, the pack smoke's
+seventh package, and `.changeset/v1-5-cli-package.md`. Closed T-12 and recorded results in
+both plans.
+
+**Verified.** PASS — `pnpm vitest run --project example-vite-app`: one file, two tests,
+exit 0. PASS — `pnpm --filter example-vite-app run build`: 179 modules, exit 0, the engine
+emitted as a 503.13 kB `.wasm` asset. PASS — `pnpm vitest run --project cli`: six files, 49
+tests, exit 0. PASS — the validator reports `new: []`, 14 baselined, 0 errors, 0 warnings.
+
+**Unverified / open.** No browser was driven: the example's evidence is a jsdom test and a
+production build, not a clicked page. The CLI sits outside the fixed group at 0.0.0, so its
+`minor` changeset cuts 0.1.0 alone. Nothing is published.
+
+**Next.** Task 2 of the v1.5 plan: the docs site that renders the documents and publishes
+the example's build.
+
+**Blockers.** T-14 waits on registry credentials; T-16, T-18 to T-22 wait on the owner.
+
+**Artifacts.** `docs/09-decisions/0012-web-surface-host.md`,
+`docs/plans/2026-10-14-v1.5-modules-plan.md`, `examples/vite-app/`, `packages/cli/`.
+
 ## 2026-10-14T03:20:00+03:00 — the v1 roadmap is closed: S3, S4, S5, S6's v1 share and S1.5 are reached
 
 **State.** Every v1 milestone the design record names is reached. S3, S4 and S5 read `done`;
@@ -127,33 +161,6 @@ tracks the over-cap S2 entry there.
 
 **Artifacts.** `docs/plans/2026-10-14-s6-distribution-plan.md`,
 `docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/AGENTS.md`.
-
-## 2026-10-14T02:31:12+03:00 — S5 is complete: the React layer renders a run
-
-**State.** `@smolagents-ts/react` exports four hooks and two compound primitives over
-`AgentSession`, and the core's snapshot carries a `planning` lane. S5 is done; the runnable
-example its definition also names is T-12, gated on S6's docs site. S6 and S1.5 have no plan.
-
-**Did.** Executed the nine tasks of `docs/plans/2026-10-14-s5-react-layer-plan.md` in ten
-commits (`c0d3690`..`cc7daa8`, then this record): the toolchain, `useAgentSession`,
-`useAgentRun`, `useAgentEvent`, the core planning lane, `AgentRun` and `AgentStep` with
-three leaf primitives, the composition and accessibility tests, and the pinned barrel. Four
-findings the plan did not name, and decision 0005's three divergences from design section 10,
-are in the plan's Measured results and the memory shard.
-
-**Verified.** `pnpm gate` exit 0 — `.superpowers/gate-s5.txt`: 63 files and 444 tests, lint,
-depcruise at 149 modules and 379 dependencies with no violations, build, publint, attw,
-`ci:check OK`, `pack-smoke OK: 5 packages`. The react project alone is 8 files and 35 tests,
-the core 29 and 290.
-
-**Unverified / open.** No example app, no live model call, and no released artifact: the
-package stays private, so its changeset line is inert until S6 picks a version line.
-
-**Next.** Plan S6 (distribution), leaving the publish itself as the owner's gate.
-
-**Blockers.** T-5, T-10 and T-12 stay with the owner.
-
-**Artifacts.** `packages/react/AGENTS.md`, `docs/09-decisions/0005-react-layer-surface.md`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.
