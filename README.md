@@ -6,23 +6,36 @@
 
 Agents that think in code, natively in TypeScript.
 
-An agent whose action **is** a program: the model composes tools, control flow and intermediate
-values in JavaScript, executed in a sandbox, and returns a final answer.
+An agent whose action **is** a program: the model composes tools, control flow and
+intermediate values in JavaScript, executed in a sandbox, and returns a final
+answer. The same loop runs on Node, Bun, Deno and in a browser tab, because the
+core is isomorphic by contract.
 
-## Status
-
-Pre-release. Scope is specified in [docs/design/2026-10-12-smolagents-ts-v1-design.md](docs/design/2026-10-12-smolagents-ts-v1-design.md).
+**Try it in a browser, no install and no key:**
+[the live demo](https://ahmadmhmdsy.github.io/smolagents-ts/example/index.html)
+runs an agent in the real sandbox and renders the run as typed steps.
 
 ## Install
 
-Until the first release is on the registry, run the example in this repository:
+Until 0.1.0 is on the registry, run it from this repository:
 
     pnpm install
+    pnpm build
     pnpm example:node
 
-The published name is `smolagents-ts`. The internal packages are published
-beside it because its declarations name them; they are not the entry point, and
-the README does not document them.
+That last command runs a complete agent — a real sandbox, a real tool, and a
+scripted model, so it needs no provider and no key.
+
+The published name is `smolagents-ts`. Its five entries re-export the internal
+packages, so one install carries the whole stack and every declaration resolves:
+
+| entry | what it carries |
+|---|---|
+| `smolagents-ts` | the runtime: the agents, the loop, memory and steps, the event stream, the errors, the tool and executor interfaces |
+| `smolagents-ts/models` | the provider adapters |
+| `smolagents-ts/tools` | the built-in tools |
+| `smolagents-ts/exec/quickjs` | the sandbox the agent's programs run in |
+| `smolagents-ts/react` | the React layer over a run |
 
 ## Quick start
 
@@ -54,22 +67,123 @@ try {
 }
 ```
 
-This is the body of [examples/node-script/index.mjs](examples/node-script/index.mjs), so
-the snippet is code that runs. `MockModel` scripts the model, which is why the
-snippet needs no provider and no key; swap it for an adapter from
-`smolagents-ts/models` to talk to a provider.
+This is the body of [examples/node-script/index.mjs](examples/node-script), so the
+snippet is code that runs. `MockModel` scripts the model, which is why it needs
+no key; swap it for an adapter from `smolagents-ts/models` to talk to a provider.
+
+## What an agent does here
+
+A run is not a chat. The model answers with a **thought** and a **program**; the
+program runs in a sandbox and calls the tools you declared; whatever it prints
+comes back as an observation; the loop repeats until the program calls
+`final_answer(...)` or the step budget ends.
+
+Every turn is a typed step — `TaskStep`, `SystemPromptStep`, `PlanningStep`,
+`ActionStep`, `FinalAnswerStep` — and every transition is an event. That is what
+makes the process renderable rather than reconstructable: a UI shows the steps a
+run actually took, in order, with the code and the result beside them.
+
+## What you can build
+
+| you want | use | runnable |
+|---|---|---|
+| an agent that writes code | `CodeAgent` | [examples/node-script](examples/node-script) |
+| an agent that calls tools as JSON | `ToolCallingAgent` | [examples/tool-calling](examples/tool-calling) |
+| a run you can read back afterwards | the typed step list | [examples/multi-step](examples/multi-step) |
+| to watch a run while it happens | `Monitor`, `AgentEvent`, `AgentSession` | [examples/events](examples/events) |
+| to talk to a real provider | `GeminiModel`, `OpenAICompatibleModel`, `AnthropicModel`, `HuggingFaceModel`, `CustomModel` | [examples/live-provider](examples/live-provider) |
+| to declare your own tools | `tool()` with a zod schema | [examples/multi-step](examples/multi-step) |
+| the built-in web tools | `duckDuckGoSearchTool`, `visitWebpageTool`, `userInputTool` | [examples/tool-calling](examples/tool-calling) |
+| a run inspector in React | `AgentRun`, `RunInspector`, `useAgentSession` | [examples/vite-app](examples/vite-app) |
+| a styled inspector with no design work | the layer over those primitives | [examples/vite-app](examples/vite-app) |
+| a command line | `smolagent` | see below |
+
+The other executors, the MCP client and the remote backends are described in
+[docs/design/2026-10-12-smolagents-ts-v1-design.md](docs/design/2026-10-12-smolagents-ts-v1-design.md)
+and their plans under [docs/plans/](docs/plans).
+
+## The command line
+
+    pnpm build
+    node packages/cli/dist/main.js --help
+
+With a prompt it runs an agent; with none it asks for the configuration and then
+for the task:
+
+    node packages/cli/dist/main.js "How many people live in Iceland?"
+
+`--action-type` picks `code` (the default) or `tool_calling`, `--model-type` picks
+`InferenceClientModel` (the default) or `OpenAIModel`, and the key comes from
+`--api-key`, or from `HF_TOKEN` for the first and `OPENAI_API_KEY` for the second.
+The port never prompts for a key. The command ships as its own package, so the
+invocation above is the repository one.
 
 ## In the browser
 
-The same loop and the React layer run in a browser tab:
-
-    pnpm install
     pnpm --filter example-vite-app run dev
 
-[examples/vite-app](examples/vite-app) renders a `CodeAgent` run with
-`@smolagents-ts/react` while the model's program executes in the same QuickJS
-sandbox the Node example uses. Its model is scripted as well, so the page needs
-no key either.
+[examples/vite-app](examples/vite-app) renders a `CodeAgent` run with the React
+layer while the model's program executes in the same QuickJS sandbox the Node
+example uses. Its model is scripted too, so the page needs no key. The same build
+is published as
+[the live demo](https://ahmadmhmdsy.github.io/smolagents-ts/example/index.html).
+
+## Documentation
+
+This repository keeps its own context pack, and the site publishes it:
+
+- [docs/01-project.md](docs/01-project.md) — what the project is, and what it is not.
+- [docs/design/2026-10-12-smolagents-ts-v1-design.md](docs/design/2026-10-12-smolagents-ts-v1-design.md) — the design record.
+- [docs/03-handoff.md](docs/03-handoff.md) — where the work stands right now.
+- [docs/04-tasks.md](docs/04-tasks.md) — what is next.
+- [docs/06-glossary.md](docs/06-glossary.md) — the vocabulary, including the upstream terms this port keeps.
+
+For building on or contributing to the repository itself, read
+[AGENTS.md](AGENTS.md) first: it is the entry point to the rules, the plans and
+the one command that proves a change.
+
+## Status
+
+Pre-release, and not yet on the registry — see
+[docs/04-tasks.md](docs/04-tasks.md) for the publish task and its gate. Scope is
+specified in
+[docs/design/2026-10-12-smolagents-ts-v1-design.md](docs/design/2026-10-12-smolagents-ts-v1-design.md).
+
+What the test suite proves and does not prove is recorded rather than implied:
+the unit tests drive injected transports against recorded fixtures, so a green
+suite says nothing about a live provider, a real Docker or E2B daemon, or a
+browser. The checks that do reach those are the runbooks under
+[docs/10-runbooks/](docs/10-runbooks).
+
+## Working on this repository
+
+    pnpm install
+    pnpm gate
+
+`pnpm gate` is the one command that proves a change: it typechecks, lints,
+enforces the dependency boundaries, runs the test suite, builds every package,
+checks the packed tarballs, and builds the site. Each step is also available on
+its own — `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm site:build` — and one
+project's tests run with `pnpm vitest run --project core`.
+
+The repository also keeps a context pack, and its consistency is checked with
+Python:
+
+    python scripts/validate_context.py --root . --baseline docs/.baseline.json
+
+Where things live:
+
+| directory | holds |
+|---|---|
+| `packages/` | the library, one package per component |
+| `examples/` | the runnable examples this README links |
+| `apps/docs-site/` | the site that publishes `docs/` and the browser example |
+| `docs/` | the project's records: design, plans, reports, decisions, runbooks |
+| `rules/`, `SOUL.md`, `AGENTS.md` | the pack that governs how the work is done |
+
+[AGENTS.md](AGENTS.md) is the entry point to that pack, and
+[docs/10-runbooks/gate.md](docs/10-runbooks/gate.md) explains the gate step by
+step.
 
 ## Licence
 

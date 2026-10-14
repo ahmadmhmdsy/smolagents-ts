@@ -4,6 +4,97 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T14:05:00+03:00 — the Pyodide executor lands, and the remote executors are planned
+
+**State.** T-13's fourth module is delivered: `@smolagents-ts/exec-pyodide` is the
+ninth package, its suite is 9 files and 55 tests, and the full gate exits 0 (95
+files, 689 tests, 227 modules and 566 dependencies cruised, publint clean on nine
+packages, the site at 65 pages). Task 5's plan is filed; exec-remote is next, then
+L4/L5.
+
+**Did.** Built the package: an injectable loader, one runtime per run, a Python
+prelude with a `BaseException` answer signal, a JSON tool bridge, the import
+allow-list, batched stream capture, and a deadline race that poisons the runtime
+when a stop wins. Filed decision 0016 (in-process, fidelity not security) and T-24
+(the worker interrupt path). Added the scoped entry, the component rule, the router
+row, the attribution row, the browser-probe runbook and the measured results, and
+wrote the remote-executor plan on the client reconnaissance.
+
+**Verified.** `pnpm gate` exit 0 on this tree; probe A measured a guest awaiting a
+host tool settled by a real timer, so `asyncToolCalls` is true; probe B measured a
+2,912 ms browser cold start and a 29,375 B page bundle with the runtime external;
+probe C confirmed the pack smoke reaches no registry for `pyodide`; the validator
+reports `new: []`, 0 errors and 0 warnings.
+
+**Unverified / open.** No live remote backend was exercised and no injected double
+exists yet; the cold start is one headless Chrome against one CDN.
+`timers` stays false: nothing on the host can interrupt a synchronous guest loop.
+
+**Next.** Execute `docs/plans/2026-10-14-t13-remote-executors-plan.md`: the process
+backend, then Docker, then E2B.
+
+**Blockers.** T-14 awaits registry credentials; T-16, T-18 and T-21 await owner
+decisions.
+
+**Artifacts.** `packages/exec-pyodide/src/executor.ts`,
+`docs/09-decisions/0016-pyodide-in-process-and-fidelity.md`,
+`docs/plans/2026-10-14-t13-remote-executors-plan.md`,
+`docs/10-runbooks/exec-pyodide-browser-probe.md`.
+
+## 2026-10-14T15:00:00+03:00 — L4 and L5 land, and T-13 closes
+
+**State.** T-13's last module is delivered, so every module S6's design row names
+is present and the row is `done`. L4 ships inside `@smolagents-ts/react` as the
+two patterns that compose the primitives — `RunInspector` and `ChatSurface` —
+and L5 as the eleventh package, `@smolagents-ts/react-ui`, a styled layer of
+four wrappers over both plus one stylesheet a consumer copies and then owns. The
+full gate exits 0: 112 test files and 793 tests, 278 modules and 708 dependencies
+cruised, publint clean on eleven packages, pack-smoke installing and importing
+eleven packages, the site at 69 pages.
+
+**Did.** Added the two patterns to the react barrel, taking its pinned surface
+from ten names to twelve. Built the styled package: one wrapper file per part of
+the tree, each rendering a single owned `smol-` element around the component it
+composes and authoring no accessibility of its own, plus a 140-line sheet whose
+five tokens read distinct input names because a token referring to itself is
+invalid rather than a fallback. Registered the component — router row, scoped
+entry and rule file, which the pack requires in one change — and corrected the
+react entry, which still recorded ten runtime names, an 8-file suite and the
+claim that every element carries a class name; that last is true of the
+primitives and false of the patterns. The example page now renders the styled
+layer, so the copy-in path is exercised in a browser. Closed the exec-remote
+review's fifteen findings across two commits. Recorded one lesson: the same
+resolver-config omission landed twice, in a package's test tsconfig and in the
+example's vitest config.
+
+**Verified.** `pnpm gate` exit 0 with the counts above; `pnpm vitest run
+--project react` 10 files and 46 tests; `--project react-ui` 4 files and 19
+tests; `--project example-vite-app` 3 tests; the validator 0 errors, 0 warnings,
+15 baselined, `new: []`. The copy-in claim was measured in a real browser rather
+than jsdom: with no override the token resolves to `#ffffff`, and a consumer
+sheet setting `--smol-surface` afterwards wins by source order. The two resolver
+gaps were each proven by moving the dependency's `dist/` away and re-running,
+which is the check that catches them, because CI tests before it builds.
+
+**Unverified / open.** The keyboard drive of the example in a real browser is
+still running as this entry is written. The L4/L5 plan's four open questions are
+the owner's: whether the styled layer ships a dark theme, whether the corpus
+grows a tool scenario, whether core exposes its step list publicly, and how the
+five internal packages are described. No live provider call was made this
+session.
+
+**Next.** Take the owner's decision batch: T-14's publish, the T-16 and T-18
+investigations, T-19, T-21, T-25, and the four plan questions above.
+
+**Blockers.** T-14 needs registry credentials and stays the owner's. T-16, T-18,
+T-19, T-21 and T-25 each wait on an owner decision, not on work.
+
+**Artifacts.** `packages/react-ui/src/index.ts`; `packages/react-ui/src/styles.css`;
+`packages/react/src/run-inspector.tsx`; `packages/react/src/chat-surface.tsx`;
+`examples/vite-app/src/App.tsx`; `rules/components/react-ui.md`;
+`docs/plans/2026-10-14-t13-l4-l5-plan.md`.
+
+
 ## 2026-10-14T12:25:00+03:00 — the MCP client lands, live-checked, and Pyodide is measured
 
 **State.** T-13's third module is delivered: `@smolagents-ts/mcp` builds, typechecks,

@@ -150,6 +150,17 @@ try {
     throw new Error("consumer check did not report OK");
   }
 
+  // Importing a barrel is not running it. The consumer that matters is the one that
+  // builds an agent out of the installed tarballs and executes a real program in the
+  // real sandbox, so the smoke does what examples/node-script does, against the packed
+  // artifact rather than the workspace source. This is the only check that proves the
+  // published package works rather than merely resolves.
+  writeFileSync(join(workspace, "run.mjs"), "import { CODE_FENCE, CodeAgent, MockModel, tool } from 'smolagents-ts';\nimport { QuickJSExecutor } from 'smolagents-ts/exec/quickjs';\nimport { z } from 'zod';\n\nconst greet = tool({\n  name: 'greet',\n  description: 'Greet one person by name.',\n  inputSchema: z.object({ name: z.string() }),\n  execute: ({ name }) => 'Hello, ' + name + '!',\n});\nconst program = \"const message = await greet({ name: \\\"world\\\" });\\nfinal_answer(message);\";\nconst model = new MockModel([\n  \"Thought: greet the caller, then answer with the greeting.\\nCode:\\n\" + CODE_FENCE + \"\\n\" + program + \"\\n\" + CODE_FENCE,\n]);\nconst executor = new QuickJSExecutor();\ntry {\n  const agent = new CodeAgent({ model, executor, tools: [greet] });\n  const result = await agent.run('Greet the world.');\n  if (result.output !== 'Hello, world!') {\n    throw new Error('the installed package returned ' + JSON.stringify(result.output));\n  }\n  console.log('pack-smoke run OK: ' + result.output);\n} finally {\n  await executor.dispose();\n}\n");
+  const runOutput = run("node", ["run.mjs"], workspace);
+  if (!runOutput.includes("pack-smoke run OK: Hello, world!")) {
+    throw new Error("the installed package did not run an agent");
+  }
+
   // The CLI's published entry point is its bin, not its barrel, so the smoke runs the
   // installed bin once. --help exercises the parser and the usage text without a model.
   const cliDir = join(workspace, "node_modules", "@smolagents-ts", "cli");
@@ -164,7 +175,12 @@ try {
     throw new Error("the installed smolagent bin did not print its usage");
   }
 
-  console.log("pack-smoke OK: " + (PACKAGES.length + 1) + " packages installed and imported; the cli bin ran");
+  // Name the run's own output in the summary: a silent check that never executed
+  // looks exactly like one that passed.
+  const runLine = runOutput.trim().split("\n").pop();
+  console.log(
+    "pack-smoke OK: " + (PACKAGES.length + 1) + " packages installed and imported; the cli bin ran; " + runLine,
+  );
 } finally {
   rmSync(workspace, { recursive: true, force: true });
 }

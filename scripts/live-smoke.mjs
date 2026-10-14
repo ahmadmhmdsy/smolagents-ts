@@ -9,7 +9,7 @@
  * needs one.
  *
  * Run:  pnpm build && node scripts/live-smoke.mjs
- *       GEMINI_MODEL=gemini-2.5-flash node scripts/live-smoke.mjs
+ *       GEMINI_MODEL=<model-id> node scripts/live-smoke.mjs
  */
 const KEY_ENV = "GOOGLE_API_KEY";
 const MODEL_ID = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";

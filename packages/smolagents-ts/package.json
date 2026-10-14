@@ -42,6 +42,8 @@
   },
   "peerDependenciesMeta": {
     "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react-dom": { "optional": true },
+    "quickjs-emscripten-core": { "optional": true },
+    "@jitl/quickjs-wasmfile-release-sync": { "optional": true }
   }
 }
