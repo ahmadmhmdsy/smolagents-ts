@@ -49,6 +49,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-21 | decide which upstream the parity recordings track | pending | owner | `scripts/parity/recordings/*.json`, `scripts/parity/record.py` | the design record pins 1.27.0.dev0 and the recordings pin 1.14.0; they differ on this session's two investigations | - |
 | T-24 | give the Pyodide executor a worker-backed interrupt path | pending | next session | `packages/exec-pyodide/**` | decision 0016 defers it: a hard wall-clock timeout needs a worker entry and cross-origin isolation headers, which changes the deployment story | `docs/09-decisions/0016-pyodide-in-process-and-fidelity.md` |
 | T-25 | confirm the supply-chain posture decision 0017 records | pending | owner | `pnpm-workspace.yaml`, `pnpm-lock.yaml` | the implementing agent kept the release-age quarantine and the three exact-version exclusions the install required, and declined three native builds; the owner confirms or reverses it, and a reversal is a new record rather than an edit | `docs/09-decisions/0017-release-age-quarantine.md` |
+| T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | the models fix on 2026-10-14 closed this exact shape in the OpenAI adapter, where OpenAI documents sending `"usage": null` on every chunk but the last; Gemini documents no such null, so this waits on evidence that a provider sends one rather than being fixed speculatively | - |
 <!-- rotate:end -->
 
 ## Blocked
