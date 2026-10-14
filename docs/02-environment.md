@@ -43,6 +43,9 @@ re-derives it.
     # dependencies, from the lockfile
     pnpm install --frozen-lockfile
 
+    # the docs site's runtime dependency
+    pnpm --filter docs-site why marked
+
 ## Machine
 
 Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
@@ -64,7 +67,8 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 | pnpm package manager | 12.3.4 | `pnpm --version` | lockfile kind: `pnpm-lock.yaml`; the `packageManager` field in `package.json` is canonical and `scripts/check-ci.mjs` fails when the workflow disagrees |
 | TypeScript | 6.0.3 | `pnpm exec tsc --version` | `strict` plus `noUncheckedIndexedAccess` |
 | Build tool | tsup 8.5.1 | `pnpm exec tsup --version` | one `tsup.config.ts` per package |
-| Test runner | Vitest 5.0.3 | `pnpm exec vitest --version` | projects resolved from `packages/*` |
+| Test runner | Vitest 5.0.3 | `pnpm exec vitest --version` | projects resolved from `packages/*`, `examples/*` and `apps/*` |
+| Markdown renderer | marked 18.1.1 | `pnpm --filter docs-site why marked` | the `docs-site` app's only dependency; MIT, no transitive dependencies, declared `^18.0.0` |
 | Linter | ESLint 10.12.0 | `pnpm exec eslint --version` | configuration in `eslint.config.js` |
 | Architecture check | dependency-cruiser 18.5.0 | `pnpm exec depcruise --version` | rule set in `.dependency-cruiser.cjs` |
 | Package shape check | publint 0.3.25 and attw 0.18.5 | `pnpm exec publint --version`; `pnpm exec attw --version` | both run inside the gate, after the build |
@@ -134,8 +138,9 @@ The exact sequence to rebuild this environment from nothing.
 
 - `pnpm gate` is not read-only: it writes `dist/` in each package and a
   throwaway consumer directory under the system temp folder.
-- Vitest discovers its projects from `packages/*`, so a new package directory
-  with no `vitest.config.ts` is silently tested by nobody.
+- Vitest discovers its projects from `packages/*`, `examples/*` and `apps/*`, so a
+  new package or app directory with no `vitest.config.ts` is silently tested by
+  nobody.
 - A checkout with `core.autocrlf=true` stores CRLF on disk while the pack's byte
   caps count LF-normalized bytes, so the validator here and CI agree only if
   files are committed with LF endings.
@@ -156,3 +161,4 @@ Append-only.
 | 2026-10-13 | the full gate at commit e4e4b5a | `pnpm gate` from the repository root | exit 0; 31 test files and 277 tests passed; 85 modules and 173 dependencies cruised; publint clean on five packages |
 | 2026-10-13 | per-package test counts | `pnpm vitest run --project <id>` for each of the five packages | core 27 files / 273 tests, the other four 1 test each |
 | 2026-10-13 | the full gate after S2a | `pnpm gate` from the repository root | exit 0; 38 test files and 319 tests passed; 94 modules and 200 dependencies cruised; `pack-smoke OK` on five tarballs |
+| 2026-10-14 | the docs site app and its dependency | `pnpm --filter docs-site why marked` | marked 18.1.1, the only dependency of `docs-site` |

@@ -16,6 +16,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-5 | confirm the pruning-walker pack patch | done | owner | `scripts/_packmodel.py`, `scripts/checks.py`, `docs/09-decisions/0003-pruning-surface-walker.md` | accepted; any pack upgrade re-applies the patch | `docs/09-decisions/0003-pruning-surface-walker.md` |
 | T-10 | settle the handoff's cap debt | done | owner | `docs/03-handoff.md`, `docs/handoff/archive-2026.md`, `scripts/_packmodel.py` | left as it stands: the archive is hand-curated for this entry, and neither rewriting history nor a third pack patch was taken | `docs/09-decisions/0008-handoff-cap-debt.md` |
 | T-12 | ship the runnable React example the S5 definition names | done | this session | `examples/**` | `examples/vite-app` builds for a browser and its two tests pass; the engine bundles as a WASM asset, so the plan's fallback is retired | `docs/plans/2026-10-14-react-example-plan.md` |
+| T-22 | decide whether the five internal packages are documented first-class or stay implementation | done | this session | `packages/*/README.md`, `docs/09-decisions/**` | the owner took the analysis's Option C: the posture stays implementation, and each of the five gains a signpost README naming the facade as the entry point | `docs/09-decisions/0014-internal-packages-stay-implementation.md` |
 
 ## Closed 2026-10-13
 

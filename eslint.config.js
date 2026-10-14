@@ -35,7 +35,20 @@ export default defineConfig(
   // Throwaway probe trees live under .superpowers/ (the Task 3 tsconfig probe, reviewer scratch) and are
   // gitignored, so they must never be linted: measured, `eslint .` picks up .superpowers/**/*.ts and fails
   // on it, which would make Task 8's gate depend on scratch files that happen to be lying around.
-  { ignores: ["**/dist/**", "**/coverage/**", "**/.superpowers/**", "smolagents/**", "reference/**", "**/*.d.ts"] },
+  // The docs site's generated output is gitignored for the same reason, and it carries the example's
+  // bundled JavaScript: measured, `eslint .` reports no-unused-expressions inside apps/docs-site/site/
+  // once a site build has run, which would make a second `pnpm gate` fail on a tree the first one wrote.
+  {
+    ignores: [
+      "**/dist/**",
+      "**/coverage/**",
+      "**/.superpowers/**",
+      "smolagents/**",
+      "reference/**",
+      "**/*.d.ts",
+      "apps/docs-site/site/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // Upstream-derived code and the S1 code blocks use a leading underscore for deliberately unused bindings

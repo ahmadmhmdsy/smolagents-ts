@@ -33,6 +33,7 @@ package should reach that component's entry without being told where to look.
 |---|---|---|---|
 | cli | `packages/cli/` | `packages/cli/AGENTS.md` | `rules/components/cli.md` |
 | core | `packages/core/` | `packages/core/AGENTS.md` | `rules/components/core.md` |
+| docs-site | `apps/docs-site/` | `apps/docs-site/AGENTS.md` | `rules/components/docs-site.md` |
 | exec-quickjs | `packages/exec-quickjs/` | `packages/exec-quickjs/AGENTS.md` | `rules/components/exec-quickjs.md` |
 | models | `packages/models/` | `packages/models/AGENTS.md` | `rules/components/models.md` |
 | react | `packages/react/` | `packages/react/AGENTS.md` | `rules/components/react.md` |

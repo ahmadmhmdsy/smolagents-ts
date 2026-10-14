@@ -1,6 +1,7 @@
 packages:
   - "packages/*"
   - "examples/*"
+  - "apps/*"
 
 # Fail loudly instead of silently guessing peer dependency versions.
 strictPeerDependencies: true

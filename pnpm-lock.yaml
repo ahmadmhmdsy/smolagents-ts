@@ -155,6 +155,12 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
 
+  apps/docs-site:
+    dependencies:
+      marked:
+        specifier: ^18.0.0
+        version: 18.1.1
+
   examples/node-script:
     dependencies:
       '@jitl/quickjs-wasmfile-release-sync':
@@ -1829,6 +1835,11 @@ packages:
     engines: {node: '>=16.0.0'}
     peerDependencies:
       marked: '>=1 <16'
+
+  marked@18.1.1:
+    resolution: {integrity: sha512-zEGgrtUG8crk+TrMacJSVABU4DYDDkS8uqgU3ohrn/2fW9C2AEfUrO3m6IhpIpQpl7YcVpiXXC9cSMWDANT3dg==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   marked@9.1.6:
     resolution: {integrity: sha512-jcByLnIFkd5gSXZmjNvS1TlmRhCXZjIzHYlaGkPlLIekG55JDR2Z4va9tZwCiP+/RDERiNhMOFu01xd6O5ct1Q==}
@@ -3825,6 +3836,8 @@ snapshots:
       marked: 9.1.6
       node-emoji: 2.2.0
       supports-hyperlinks: 3.2.0
+
+  marked@18.1.1: {}
 
   marked@9.1.6: {}
 

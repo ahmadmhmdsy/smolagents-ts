@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T11:35:00+03:00 — the docs site lands, and two CI-only defects are fixed
+
+**State.** T-13's second module is delivered: `apps/docs-site` renders `README.md` and
+every `docs/**/*.md` into `apps/docs-site/site/`, copies the browser example's build
+beside them, published by `.github/workflows/pages.yml`. T-22 is closed: decision
+0014 keeps the five internal packages implementation, and each gained a signpost README.
+CI was red on two defects no local run could see, and both are fixed. MCP, `exec-pyodide`, the remote executors and L4/L5 remain.
+
+**Did.** Delegated Task 2 to a subagent and reviewed it: ten modules, four test files and
+22 tests, the Pages workflow, the router row, `rules/components/docs-site.md`, the
+`site:build` stage, and the ESLint ignore the built tree needed. Fixed the two CI
+failures: the facade's test project and both examples' configs never aliased the internal
+sources, so the test stage resolved a `dist/` a fresh checkout lacks; and
+`pnpm -r --filter ./packages/*` died on bash, which expands the glob before pnpm sees it.
+Wrote decision 0014 and the five READMEs, closed T-22, filed T-23, and added two lessons.
+
+**Verified.** PASS — a clean-tree run with every `dist/` deleted: `pnpm test` and the
+full `pnpm gate` exit 0. PASS — the alias is load-bearing: a config pointing it at a
+missing path fails to resolve, and the real one passes. PASS — the validator reports
+`new: []`, 14 baselined, 0 errors, 0 warnings; `rotate.py --check` exits 0.
+
+**Unverified / open.** The Pages deployment has not run: the site's evidence is its own
+suite and a built tree, not a fetched page. No frozen-lockfile install was made, and
+nothing is published.
+
+**Next.** Task 3 of the v1.5 plan: write the MCP client package's plan, then build it.
+
+**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 wait on the owner.
+
+**Artifacts.** `apps/docs-site/`, `docs/09-decisions/0014-internal-packages-stay-implementation.md`,
+`docs/plans/2026-10-14-v1.5-modules-plan.md`.
+
 ## 2026-10-14T10:45:00+03:00 — the first v1.5 module lands and the browser example runs
 
 **State.** T-13's first module is delivered: `@smolagents-ts/cli`, a seventh workspace
@@ -127,40 +159,6 @@ choose the first T-13 module.
 **Artifacts.** `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`,
 `docs/10-runbooks/record-parity-traces.md`, `docs/09-decisions/0007-parity-harness-scope.md`,
 `packages/core/test/parity.test.ts`.
-
-## 2026-10-14T02:45:00+03:00 — S6 is complete: the six packages are publishable
-
-**State.** The project is installable: six packages at 0.1.0, a `smolagents-ts`
-facade that re-exports the five internal ones, tarballs that install and import,
-and a runnable Node example. S5 was complete before this session. The CLI, MCP,
-the remote executors, `exec-pyodide`, the docs site and L4/L5 are T-13's, and
-nothing has been published.
-
-**Did.** Executed `docs/plans/2026-10-14-s6-distribution-plan.md`'s eight tasks:
-registry metadata and a licence copier for the five packages (`e04733d`); the
-facade under `packages/smolagents-ts/**` (`cba0db4`); its component registration
-(`13fa0f6`); the pack smoke over its subpaths (`95e2b4c`); the fixed group and
-0.1.0 (`a27bee1`, `3484794`); `examples/node-script` (`191fb1c`); the README's
-install and quick-start sections (`78cc03f`); and this record.
-
-**Verified.** PASS — `pnpm gate` exit 0 (`.superpowers/gate-s6.txt`): 65 files and
-447 tests, depcruise 157 modules and 388 dependencies with no violations, six
-"All good!" from publint, `ci:check OK`, `pack-smoke OK: 6 packages`. PASS — the
-context validator against the baseline reports no new finding, 0 errors, 0
-warnings. PASS — `pnpm example:node` prints `Hello, world!`.
-
-**Unverified / open.** The publish itself: no registry credentials and no
-repository URL, so no manifest names one (T-14). The React example waits on
-T-13's host choice (T-12). Rotation refuses an entry over its per-entry cap, so
-the two oldest entries moved to `docs/handoff/archive-2026.md` by hand; T-10
-tracks the over-cap S2 entry there.
-
-**Next.** Choose the first module in T-13 and write its plan.
-
-**Blockers.** T-13 and T-14 wait on the owner.
-
-**Artifacts.** `docs/plans/2026-10-14-s6-distribution-plan.md`,
-`docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/AGENTS.md`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.

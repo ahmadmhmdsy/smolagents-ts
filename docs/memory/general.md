@@ -235,5 +235,17 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** one session added a workspace package while another added a workspace app, and both importers landed in the single `pnpm-lock.yaml`, so committing either deliverable alone leaves a revision whose lockfile names a directory that revision does not contain. A new workspace member and the lockfile that records it are one commit, however unrelated the two members are.
 - **Evidence:** `pnpm-lock.yaml` carries both the `packages/cli` and the `examples/vite-app` importers on 2026-10-14, so the two deliverables share a commit.
 
+## 2026-10-14 — a green gate on a dirty tree
+
+- **Status:** validated
+- **Lesson:** the gate runs its test stage before its build stage, and every package's tests reach a sibling through the workspace link, which points at a `dist/` a fresh checkout does not have; a local run passed because earlier builds had left those directories in place, while the same revision failed in CI with "Failed to resolve entry for package @smolagents-ts/core". A green gate is evidence about the tree it ran in, so a resolution fix is verified with every `dist/` removed first.
+- **Evidence:** CI run 38525353943 on commit 211b94f: `gate (node 26)` failed inside `pnpm test` on `examples/node-script/test/example.test.ts` and `packages/smolagents-ts/test/surface.test.ts`, and `runtime (node)` failed inside `pnpm build`; the same gate was green locally on the same revision.
+
+## 2026-10-14 — a filter glob the shell expands first
+
+- **Status:** validated
+- **Lesson:** `pnpm -r --filter ./packages/* run build` works in PowerShell, which hands the glob through, and fails in bash, which expands it into seven positional arguments before pnpm sees it — so the build, publint and attw stages ran locally and died on the CI runner with `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT`. A script that passes a glob to a tool quotes it.
+- **Evidence:** reproduced locally under Git bash on 2026-10-14: the unquoted form reports `None of the selected packages has a "./packages/core" script`, and the quoted form selects seven packages and exits 0; CI run 38525353943 shows the unquoted failure in `runtime (node)`.
+
 
 

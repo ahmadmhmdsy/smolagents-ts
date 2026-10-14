@@ -1,0 +1,19 @@
+{
+  "name": "docs-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The static documentation site: it renders the repository's own Markdown under docs/ (and README.md as the home page) and copies the React example's built output beside it. Nothing here is published.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsup && node dist/build.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "marked": "^18.0.0"
+  }
+}
