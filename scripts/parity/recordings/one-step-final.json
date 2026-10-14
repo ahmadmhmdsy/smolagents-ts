@@ -1,0 +1,31 @@
+{
+  "scenario": "one-step-final",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-10-14T03:01:20+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "one-step-final",
+    "outcome": "final-answer",
+    "finalAnswer": 42,
+    "steps": [
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      }
+    ],
+    "modelCalls": [
+      [
+        "system",
+        "user"
+      ]
+    ]
+  }
+}

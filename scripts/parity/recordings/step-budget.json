@@ -1,0 +1,58 @@
+{
+  "scenario": "step-budget",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-10-14T03:01:20+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "step-budget",
+    "outcome": "final-answer",
+    "finalAnswer": "```python\nx = 3\n```",
+    "steps": [
+      "action",
+      "action",
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      },
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      },
+      {
+        "toolCalls": [],
+        "error": true
+      }
+    ],
+    "modelCalls": [
+      [
+        "system",
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "observation"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "observation",
+        "assistant",
+        "observation",
+        "user"
+      ]
+    ]
+  }
+}

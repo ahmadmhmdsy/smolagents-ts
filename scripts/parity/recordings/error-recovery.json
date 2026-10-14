@@ -1,0 +1,44 @@
+{
+  "scenario": "error-recovery",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-10-14T03:01:11+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "error-recovery",
+    "outcome": "final-answer",
+    "finalAnswer": "recovered",
+    "steps": [
+      "action",
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": true
+      },
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      }
+    ],
+    "modelCalls": [
+      [
+        "system",
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "observation"
+      ]
+    ]
+  }
+}

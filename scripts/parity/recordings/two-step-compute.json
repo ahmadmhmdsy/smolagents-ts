@@ -1,0 +1,44 @@
+{
+  "scenario": "two-step-compute",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-10-14T03:01:20+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "two-step-compute",
+    "outcome": "final-answer",
+    "finalAnswer": "sqrt is 4",
+    "steps": [
+      "action",
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      },
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      }
+    ],
+    "modelCalls": [
+      [
+        "system",
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "observation"
+      ]
+    ]
+  }
+}
