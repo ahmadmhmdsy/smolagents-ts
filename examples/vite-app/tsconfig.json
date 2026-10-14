@@ -7,8 +7,17 @@
       "smolagents-ts": ["../../packages/core/src/index.ts"],
       "smolagents-ts/models": ["../../packages/models/src/index.ts"],
       "smolagents-ts/tools": ["../../packages/tools/src/index.ts"],
-      "smolagents-ts/exec/quickjs": ["../../packages/exec-quickjs/src/index.ts"],
-      "smolagents-ts/react": ["../../packages/react/src/index.ts"]
+      "smolagents-ts/exec/quickjs": [
+        "../../packages/exec-quickjs/src/index.ts"
+      ],
+      "smolagents-ts/react": ["../../packages/react/src/index.ts"],
+      "@smolagents-ts/models": ["../../packages/models/src/index.ts"],
+      "@smolagents-ts/tools": ["../../packages/tools/src/index.ts"],
+      "@smolagents-ts/exec-quickjs": [
+        "../../packages/exec-quickjs/src/index.ts"
+      ],
+      "@smolagents-ts/react-ui": ["../../packages/react-ui/src/index.ts"],
+      "@smolagents-ts/react": ["../../packages/react/src/index.ts"]
     }
   },
   "include": ["src", "test", "vite.config.ts", "vitest.config.ts"]
