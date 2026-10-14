@@ -247,5 +247,11 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** `pnpm -r --filter ./packages/* run build` works in PowerShell, which hands the glob through, and fails in bash, which expands it into seven positional arguments before pnpm sees it — so the build, publint and attw stages ran locally and died on the CI runner with `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT`. A script that passes a glob to a tool quotes it.
 - **Evidence:** reproduced locally under Git bash on 2026-10-14: the unquoted form reports `None of the selected packages has a "./packages/core" script`, and the quoted form selects seven packages and exits 0; CI run 38525353943 shows the unquoted failure in `runtime (node)`.
 
+## 2026-10-14 — a green deploy proves the upload, not the address
+
+- **Status:** validated
+- **Lesson:** the publishing job succeeded and the built tree held its pages, and neither fact says a reader can open the result; only fetching the deployed address does. The address is the builder's, not the source tree's, so guessing the path a directory has in the repository answers 404 for a page that is served elsewhere.
+- **Evidence:** on 2026-10-14 the Pages run 38534571343 succeeded; the site root answers 200 with the numbered documents in its sidebar, the decision 0014 page answers 200, and the example answers 200 at `example/index.html` with its relative `assets/` entries, while the same example's repository path answers 404.
+
 
 

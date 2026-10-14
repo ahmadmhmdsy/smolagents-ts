@@ -20,7 +20,6 @@ import { describe, expect, it } from "vitest";
 
 import { CodeAgent } from "../src/agent/code-agent.js";
 import type { AgentErrorInfo } from "../src/errors.js";
-import type { ActionStep, AnyAgentStep } from "../src/memory/steps.js";
 import { finalAnswerResult, ScriptedExecutor } from "../src/testing/scripted-executor.js";
 import { MockModel } from "../src/testing/mock-model.js";
 import type { ChatMessage } from "../src/types.js";
@@ -143,15 +142,6 @@ function normalizeRoles(messages: readonly ChatMessage[]): string[] {
   return roles;
 }
 
-/**
- * The loop keeps its steps protected and the public alternatives do not cover every outcome:
- * RunResult.steps exists only on a successful run, and AgentSession's step view carries no
- * per-step error. This is the test's analogue of the recorder's `memory.steps` read.
- */
-function readSteps(agent: CodeAgent): readonly AnyAgentStep[] {
-  return (agent as unknown as { memory: { items: readonly AnyAgentStep[] } }).memory.items;
-}
-
 async function replay(scenario: ParityScenario): Promise<ParityTrace> {
   // Only the turns that produce an action reach the executor, in scenario order: a
   // prose turn is recorded by the loop as a parsing error and never executes.
@@ -203,14 +193,15 @@ async function replay(scenario: ParityScenario): Promise<ParityTrace> {
 
   const steps: string[] = [];
   const actions: { toolCalls: string[]; error: boolean }[] = [];
-  for (const step of readSteps(agent)) {
+  // The same read the recorder makes of upstream's memory.steps: T-20 made it public.
+  for (const step of agent.steps) {
     if (step.kind === "planning") {
       steps.push("planning");
       continue;
     }
     if (step.kind !== "action") continue;
     steps.push("action");
-    const action = step as ActionStep;
+    const action = step;
     // Upstream records the code-execution call as python_interpreter on tool_calls; our loop
     // records it on codeAction. Both normalize to one label.
     const toolCalls = action.codeAction === null ? [] : [CODE_LABEL];

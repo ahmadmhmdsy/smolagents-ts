@@ -283,6 +283,17 @@ describe("MultiStepAgent", () => {
     expect(types(events).at(-1)).toBe("run.failed");
   });
 
+  it("keeps the run's typed steps readable after a failed run", async () => {
+    const { agent } = buildAgent({ responses: [fenced("boom()")], results: {} });
+    const events = await collect(agent, "Q");
+    expect(types(events).at(-1)).toBe("run.failed");
+    // The public read a failed run leaves behind: no RunResult is built and the session's
+    // step view carries no typed step, so agent.steps is what a reader can still inspect.
+    expect(agent.steps.map((step) => step.kind)).toEqual(["task", "system_prompt", "action"]);
+    const action = agent.steps.at(-1);
+    expect(action?.kind === "action" && action.error?.code).toBe("AGENT_EXECUTION");
+  });
+
   it("lets middleware veto an action and inject its own outcome", async () => {
     const { agent, executor } = buildAgent({
       responses: [fenced("a()"), fenced("final_answer(1)")],

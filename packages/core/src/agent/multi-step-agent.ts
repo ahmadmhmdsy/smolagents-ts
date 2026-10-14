@@ -13,6 +13,7 @@ import {
   PlanningStep,
   SystemPromptStep,
   TaskStep,
+  type AnyAgentStep,
 } from "../memory/steps.js";
 import { type AgentMiddleware, type MiddlewareContext, composeMiddleware } from "../middleware.js";
 import {
@@ -108,6 +109,17 @@ export abstract class MultiStepAgent<TOut = unknown> {
   /** The prompt sent on every turn. Computed once per access so tools stay in sync. */
   get systemPrompt(): string {
     return this.explicitSystemPrompt ?? this.buildSystemPrompt();
+  }
+
+  /**
+   * The run's typed steps, in the order the loop recorded them, as a frozen snapshot: the same
+   * read upstream exposes as `memory.steps`. It is the one public view that covers every
+   * outcome — `RunResult.steps` exists only where a result was built, and the session's step
+   * list is a UI projection — so a run that threw, one that spent its budget and one that
+   * finished all leave their steps readable here.
+   */
+  get steps(): readonly AnyAgentStep[] {
+    return this.memory.steps;
   }
 
   /** Subscribe to every event. Returns an unsubscribe function. Mirrors design spec 6.4. */

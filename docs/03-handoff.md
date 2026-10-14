@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T11:45:00+03:00 — the docs site is live, and T-20 retires the parity cast
+
+**State.** The pushed revision is green everywhere, and the site answers at
+https://ahmadmhmdsy.github.io/smolagents-ts/ : the numbered documents render with a sidebar,
+decision 0014 has its own page, and the browser example is served under `example/` with its
+assets. T-20 is done: `MultiStepAgent.steps` is public, so the parity suite reads the loop's
+typed steps with no cast, and the failed-run case is covered.
+
+**Did.** Committed the alias fix (`3ac484e`), the docs site with the records (`699e3b7`) and
+the dropped test tsconfig (`11d774d`); the entry above called the deployment unverified, and
+the fetch below supersedes that line. Then exposed `steps` on the loop, replaced the parity
+test's cast, added the failed-run assertion, closed T-20, and wrote the deployment lesson.
+
+**Verified.** PASS — `pnpm gate` exit 0 on a tree with every `dist/` deleted, and `pnpm test`
+alone exits 0 there, which is what the two CI-only failures were about. PASS — the CI, Pages
+and context workflows are all `success` on `11d774d`. PASS — the site root, the decision page
+and the example each answer 200. PASS — the core suite is 30 files and 297 tests, exit 0.
+
+**Unverified / open.** No browser drove the deployed example: a 200 and a relative asset path
+are not a rendered page. Nothing is published to npm.
+
+**Next.** Task 3 of the v1.5 plan: write the MCP client's plan, then build it.
+
+**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 wait on the owner.
+
+**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`, `apps/docs-site/`,
+`docs/plans/2026-10-14-s1.5-parity-harness-plan.md`.
+
 ## 2026-10-14T11:35:00+03:00 — the docs site lands, and two CI-only defects are fixed
 
 **State.** T-13's second module is delivered: `apps/docs-site` renders `README.md` and
@@ -126,39 +154,6 @@ repository URL this tree has none of. S1.5's two measured divergences are open o
 
 **Artifacts.** `docs/01-project.md:118`, `docs/plans/2026-10-14-s6-distribution-plan.md`,
 `docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/`.
-
-## 2026-10-14T03:10:32+03:00 — S1.5 is complete: the parity harness compares our loop with upstream
-
-**State.** A differential harness now holds this loop against the release it is derived from.
-Five scenarios replay through both sides: the Python leg records upstream 1.14.0 on Python
-3.13.7 into committed traces, and `pnpm gate` replays the same corpus through our `CodeAgent`
-offline. It measured two real divergences, both owner-gated. S6 is unchanged: T-13 and T-14
-still wait on the owner.
-
-**Did.** Executed `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`'s seven tasks: the plan
-(`cf2fcf8`); the shared corpus (`f73957b`); the recorder and its five recordings (`9540402`);
-the differential suite, plus the corpus corrections its first measurement forced (`2ad7d8f`);
-a guard refusing a scenario that declares tools (`c9f21fe`); the re-recording runbook
-(`792fbec`); the decision record (`8053e62`); and this record.
-
-**Verified.** PASS — `pnpm gate` exit 0 (`.superpowers/gate-s1.5.txt`): 66 files and 453
-tests, depcruise 158 modules and 395 dependencies with no violations, six "All good!" from
-publint, `ci:check OK`, `pack-smoke OK: 6 packages`. PASS — the core suite alone: 30 files and
-296 tests, exit 0, six of them the parity cases. PASS — the validator reports `new: 0`, 0
-errors, 0 warnings; `rotate.py --check` exits 0.
-
-**Unverified / open.** The Python leg is not in CI, so nothing detects upstream drifting
-between two recordings; re-recording is a runbook procedure. Our scripted executor returns the
-corpus's observation rather than computing it, so executor semantics stay with S4's tests.
-
-**Next.** The owner decides T-16 (planning cadence) and T-18 (max-steps ending); otherwise
-choose the first T-13 module.
-
-**Blockers.** T-13, T-14, T-16 and T-18 wait on the owner.
-
-**Artifacts.** `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`,
-`docs/10-runbooks/record-parity-traces.md`, `docs/09-decisions/0007-parity-harness-scope.md`,
-`packages/core/test/parity.test.ts`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.

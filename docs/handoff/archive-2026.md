@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T03:10:32+03:00 — S1.5 is complete: the parity harness compares our loop with upstream
+
+**State.** A differential harness now holds this loop against the release it is derived from.
+Five scenarios replay through both sides: the Python leg records upstream 1.14.0 on Python
+3.13.7 into committed traces, and `pnpm gate` replays the same corpus through our `CodeAgent`
+offline. It measured two real divergences, both owner-gated. S6 is unchanged: T-13 and T-14
+still wait on the owner.
+
+**Did.** Executed `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`'s seven tasks: the plan
+(`cf2fcf8`); the shared corpus (`f73957b`); the recorder and its five recordings (`9540402`);
+the differential suite, plus the corpus corrections its first measurement forced (`2ad7d8f`);
+a guard refusing a scenario that declares tools (`c9f21fe`); the re-recording runbook
+(`792fbec`); the decision record (`8053e62`); and this record.
+
+**Verified.** PASS — `pnpm gate` exit 0 (`.superpowers/gate-s1.5.txt`): 66 files and 453
+tests, depcruise 158 modules and 395 dependencies with no violations, six "All good!" from
+publint, `ci:check OK`, `pack-smoke OK: 6 packages`. PASS — the core suite alone: 30 files and
+296 tests, exit 0, six of them the parity cases. PASS — the validator reports `new: 0`, 0
+errors, 0 warnings; `rotate.py --check` exits 0.
+
+**Unverified / open.** The Python leg is not in CI, so nothing detects upstream drifting
+between two recordings; re-recording is a runbook procedure. Our scripted executor returns the
+corpus's observation rather than computing it, so executor semantics stay with S4's tests.
+
+**Next.** The owner decides T-16 (planning cadence) and T-18 (max-steps ending); otherwise
+choose the first T-13 module.
+
+**Blockers.** T-13, T-14, T-16 and T-18 wait on the owner.
+
+**Artifacts.** `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`,
+`docs/10-runbooks/record-parity-traces.md`, `docs/09-decisions/0007-parity-harness-scope.md`,
+`packages/core/test/parity.test.ts`.
+
 ## 2026-10-14T02:45:00+03:00 — S6 is complete: the six packages are publishable
 
 **State.** The project is installable: six packages at 0.1.0, a `smolagents-ts`
