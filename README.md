@@ -124,8 +124,10 @@ invocation above is the repository one.
 
 [examples/vite-app](examples/vite-app) renders a `CodeAgent` run with the React
 layer while the model's program executes in the same QuickJS sandbox the Node
-example uses. Its model is scripted too, so the page needs no key. The same build
-is published as
+example uses. Its model is scripted by default, so the page needs no key, and
+its dev server adds a **live Gemini** mode: type a task and a real model solves
+it, with the key held by the dev server and never sent to the browser. The same
+build is published as
 [the live demo](https://ahmadmhmdsy.github.io/smolagents-ts/example/index.html).
 
 ## Documentation
