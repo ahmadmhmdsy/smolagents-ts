@@ -5,14 +5,15 @@
 `@smolagents-ts/exec-remote` is the Python `CodeExecutor` for three remote
 backends behind one seam: a local child process, a Docker-hosted Jupyter kernel,
 and an E2B sandbox. Each backend is a subpath, so a consumer that wants the
-process backend never resolves a container client. The root entry carries
-backend-neutral types only.
+process backend never resolves a container client. The root entry carries the
+seam, the host-side executor and the typed refusals, and resolves no vendor
+client.
 
 ## Entry points
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/exec-remote/src/index.ts` | backend-neutral types and `VERSION`; the surface test pins all four entries |
+| public barrel | `packages/exec-remote/src/index.ts` | the seam, the executor, the typed refusals and `VERSION`; the surface test pins all four entries |
 | seam | `packages/exec-remote/src/sandbox.ts` | `RemoteSandbox`, the host-owned frame vocabulary and the capability shape |
 | process backend | `packages/exec-remote/src/backends/process.ts` | a real child interpreter; this host's filesystem and network |
 | Docker and E2B backends | `packages/exec-remote/src/backends/` | the Jupyter protocol over the Engine API, and the vendor sandbox |
