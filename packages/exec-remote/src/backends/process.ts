@@ -52,8 +52,12 @@ function stripCarriageReturn(line: string): string {
  * a deadline enforceable at the run level.
  */
 export class ProcessSandbox implements RemoteSandbox {
-  readonly supportsToolRoundTrip = true;
-  readonly capabilities: SandboxCapabilities = { isolation: "process", network: "none", timers: false };
+  readonly capabilities: SandboxCapabilities = {
+    isolation: "process",
+    network: "none",
+    timers: false,
+    toolRoundTrip: true,
+  };
 
   private readonly options: ProcessSandboxOptions;
   private child: ChildProcessWithoutNullStreams | undefined;

@@ -110,10 +110,6 @@ export class JupyterKernel {
     });
   }
 
-  get supportsToolRoundTrip(): boolean {
-    return true;
-  }
-
   async run(options: SandboxRunOptions): Promise<SandboxRunResult> {
     await this.ready;
     const frames: SandboxFrame[] = [];

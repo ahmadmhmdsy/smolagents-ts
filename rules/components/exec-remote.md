@@ -20,10 +20,11 @@ the peer, the subpath and the alternative. It never falls back to another
 backend and never degrades into a silent no-op.
 
 **A round trip is claimed only where one exists.**
-`supportsToolRoundTrip` is true for the backends whose guest pauses on its
-stdin and awaits the host, and false for the one whose execution is a single
-shot. A guest that reaches for a tool where the flag is false receives a typed
-refusal naming the tool, and no backend pretends a round trip it cannot finish.
+The seam's `toolRoundTrip` capability is true for the backends whose guest
+pauses on its stdin and awaits the host, and false for the one whose execution
+is a single shot. A guest that reaches for a tool where the capability is false
+receives a typed refusal naming the tool, and no backend pretends a round trip
+it cannot finish.
 Separately, the executor reports the core's `asyncToolCalls` as false for every
 backend, because a guest blocked on its stdin leaves no awaited host promise to
 settle.

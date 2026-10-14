@@ -7,8 +7,12 @@ import type { RemoteSandbox } from "../src/sandbox.js";
 describe("the sandbox seam", () => {
   it("is satisfied by the process backend", async () => {
     const sandbox: RemoteSandbox = new ProcessSandbox();
-    expect(sandbox.supportsToolRoundTrip).toBe(true);
-    expect(sandbox.capabilities).toEqual({ isolation: "process", network: "none", timers: false });
+    expect(sandbox.capabilities).toEqual({
+      isolation: "process",
+      network: "none",
+      timers: false,
+      toolRoundTrip: true,
+    });
     await sandbox.dispose();
   });
 

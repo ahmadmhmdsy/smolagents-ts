@@ -14,7 +14,6 @@ import type {
 import { FRAME_PREFIX, parseFrameLine } from "../src/shim-source.js";
 
 class FakeSandbox implements RemoteSandbox {
-  readonly supportsToolRoundTrip: boolean;
   readonly capabilities: SandboxCapabilities;
   starts = 0;
   disposals = 0;
@@ -24,11 +23,15 @@ class FakeSandbox implements RemoteSandbox {
 
   constructor(
     impl: (options: SandboxRunOptions) => Promise<SandboxRunResult>,
-    settings: { readonly supportsToolRoundTrip?: boolean } = {},
+    settings: { readonly toolRoundTrip?: boolean } = {},
   ) {
     this.impl = impl;
-    this.supportsToolRoundTrip = settings.supportsToolRoundTrip ?? true;
-    this.capabilities = { isolation: "process", network: "none", timers: false };
+    this.capabilities = {
+      isolation: "process",
+      network: "none",
+      timers: false,
+      toolRoundTrip: settings.toolRoundTrip ?? true,
+    };
   }
 
   async start(options: SandboxStartOptions): Promise<void> {

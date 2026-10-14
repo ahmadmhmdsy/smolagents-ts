@@ -209,7 +209,7 @@ export class RemoteExecutor implements CodeExecutor {
     if (this.started) return;
     const shimSource = buildShimSource({
       tools: options.tools.toSpecs(),
-      allowToolCalls: this.sandbox.supportsToolRoundTrip,
+      allowToolCalls: this.sandbox.capabilities.toolRoundTrip,
     });
     const sandbox = this.sandbox;
     try {

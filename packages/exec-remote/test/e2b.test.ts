@@ -86,8 +86,12 @@ describe("the E2B backend", () => {
   it("installs the prelude once, runs a one-shot step and reports the frames and output", async () => {
     const client = fakeClient();
     const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0" });
-    expect(sandbox.supportsToolRoundTrip).toBe(false);
-    expect(sandbox.capabilities).toEqual({ isolation: "remote", network: "direct", timers: true });
+    expect(sandbox.capabilities).toEqual({
+      isolation: "remote",
+      network: "direct",
+      timers: true,
+      toolRoundTrip: false,
+    });
     await sandbox.start({ shimSource: "PRELUDE" });
     expect(client.creates).toBe(1);
     expect(client.codes[0]).toBe("PRELUDE");

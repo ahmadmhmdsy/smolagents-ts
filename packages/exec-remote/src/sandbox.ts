@@ -32,6 +32,8 @@ export interface SandboxCapabilities {
   readonly isolation: ExecutorIsolation;
   readonly network: ExecutorNetwork;
   readonly timers: boolean;
+  /** False only where the backend has no mid-run channel the host can answer on. */
+  readonly toolRoundTrip: boolean;
 }
 
 /** What a sandbox needs once, at start: the generated Python prelude. */
@@ -58,12 +60,8 @@ export interface SandboxRunResult {
   readonly durationMs: number;
 }
 
-/**
- * The one seam every backend satisfies. `supportsToolRoundTrip` is false only where the
- * backend has no mid-run channel the host can answer on.
- */
+/** The one seam every backend satisfies. */
 export interface RemoteSandbox {
-  readonly supportsToolRoundTrip: boolean;
   readonly capabilities: SandboxCapabilities;
   start(options: SandboxStartOptions): Promise<void>;
   run(options: SandboxRunOptions): Promise<SandboxRunResult>;

@@ -13,8 +13,8 @@ import { buildStepSource, parseFrameLine } from "../shim-source.js";
 /**
  * The E2B backend. The vendor client is reached through the `E2BClient` seam, so a test drives
  * the whole backend with a double and no network. A hosted kernel has no stdin channel the host
- * can answer, so the shim is built with tool stubs that refuse by name and `supportsToolRoundTrip`
- * is false: a guest reaches `final_answer` and nothing else.
+ * can answer, so the shim is built with tool stubs that refuse by name and
+ * `capabilities.toolRoundTrip` is false: a guest reaches `final_answer` and nothing else.
  */
 
 /** The floor `@e2b/code-interpreter@2.9.0` declares, above this package's own `>=22.12`. */
@@ -74,8 +74,12 @@ export function satisfiesNodeFloor(actual: string, required: string): boolean {
 }
 
 export class E2BSandbox implements RemoteSandbox {
-  readonly supportsToolRoundTrip = false;
-  readonly capabilities: SandboxCapabilities = { isolation: "remote", network: "direct", timers: true };
+  readonly capabilities: SandboxCapabilities = {
+    isolation: "remote",
+    network: "direct",
+    timers: true,
+    toolRoundTrip: false,
+  };
 
   private readonly options: E2BSandboxOptions;
   private client: E2BClient | undefined;

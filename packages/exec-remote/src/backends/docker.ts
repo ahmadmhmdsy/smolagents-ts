@@ -66,8 +66,12 @@ const DEFAULT_CONTAINER_PORT = 8888;
 
 /** A Docker-hosted Jupyter Kernel Gateway. */
 export class DockerSandbox implements RemoteSandbox {
-  readonly supportsToolRoundTrip = true;
-  readonly capabilities: SandboxCapabilities = { isolation: "remote", network: "direct", timers: true };
+  readonly capabilities: SandboxCapabilities = {
+    isolation: "remote",
+    network: "direct",
+    timers: true,
+    toolRoundTrip: true,
+  };
 
   private readonly options: DockerSandboxOptions;
   private readonly token: string;
