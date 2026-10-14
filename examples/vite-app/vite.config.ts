@@ -19,6 +19,14 @@ export default defineConfig({
       { find: /^smolagents-ts\/tools$/, replacement: at("../../packages/tools/src/index.ts") },
       { find: /^smolagents-ts\/exec\/quickjs$/, replacement: at("../../packages/exec-quickjs/src/index.ts") },
       { find: /^smolagents-ts\/react$/, replacement: at("../../packages/react/src/index.ts") },
+      // The sources above import each other by package name, so the internal names need the
+      // same mapping: without them the executor's first import resolves to a dist/ that a
+      // fresh checkout does not have, and this page is supposed to start without one.
+      { find: /^@smolagents-ts\/core$/, replacement: at("../../packages/core/src/index.ts") },
+      { find: /^@smolagents-ts\/models$/, replacement: at("../../packages/models/src/index.ts") },
+      { find: /^@smolagents-ts\/tools$/, replacement: at("../../packages/tools/src/index.ts") },
+      { find: /^@smolagents-ts\/exec-quickjs$/, replacement: at("../../packages/exec-quickjs/src/index.ts") },
+      { find: /^@smolagents-ts\/react$/, replacement: at("../../packages/react/src/index.ts") },
     ],
   },
 });

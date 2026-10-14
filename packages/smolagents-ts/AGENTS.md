@@ -39,10 +39,10 @@ defect.
 
 ## Hazards
 
-- The build config resolves the internal packages through `node_modules` while
-  the typecheck config maps them to their sources, because the gate typechecks
-  before it builds. One of the two stops resolving the moment the other is
-  edited alone.
+- Three configs resolve the internal packages: the build goes through
+  `node_modules`, while the typecheck config's paths and the test project's
+  aliases map them to their sources, because the gate typechecks and tests
+  before it builds. Editing one of the three alone stops another resolving.
 - `react-dom` is an optional peer that nothing imports; the pack smoke installs
   React from the workspace but not `react-dom`, whose `scheduler` dependency
   would need the registry.
