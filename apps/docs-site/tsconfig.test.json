@@ -1,6 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  // The same program as tsconfig.json, kept so this app has the test-config file
-  // the packages carry. tsc -p tsconfig.test.json typechecks src and test.
-  "include": ["src", "test"]
-}
