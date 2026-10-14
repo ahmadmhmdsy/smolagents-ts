@@ -1,0 +1,93 @@
+{
+  "name": "@smolagents-ts/exec-remote",
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "Remote Python CodeExecutor backends for the core seam: a local child process, a Docker-hosted Jupyter kernel and an E2B sandbox. Node-only.",
+  "keywords": [
+    "smolagents",
+    "code-execution",
+    "python",
+    "docker",
+    "e2b",
+    "jupyter"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/exec-remote"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./process": {
+      "node": {
+        "types": "./dist/process.d.ts",
+        "default": "./dist/process.js"
+      },
+      "types": "./dist/process.d.ts",
+      "default": "./dist/process.js"
+    },
+    "./docker": {
+      "node": {
+        "types": "./dist/docker.d.ts",
+        "default": "./dist/docker.js"
+      },
+      "types": "./dist/docker.d.ts",
+      "default": "./dist/docker.js"
+    },
+    "./e2b": {
+      "node": {
+        "types": "./dist/e2b.d.ts",
+        "default": "./dist/e2b.js"
+      },
+      "types": "./dist/e2b.d.ts",
+      "default": "./dist/e2b.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
+  },
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "peerDependencies": {
+    "dockerode": "^5.0.1",
+    "@e2b/code-interpreter": "^2.9.0"
+  },
+  "peerDependenciesMeta": {
+    "dockerode": {
+      "optional": true
+    },
+    "@e2b/code-interpreter": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "dockerode": "^5.0.1",
+    "@e2b/code-interpreter": "^2.9.0"
+  }
+}

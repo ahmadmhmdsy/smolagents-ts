@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T11:35:00+03:00 — the docs site lands, and two CI-only defects are fixed
+
+**State.** T-13's second module is delivered: `apps/docs-site` renders `README.md` and
+every `docs/**/*.md` into `apps/docs-site/site/`, copies the browser example's build
+beside them, published by `.github/workflows/pages.yml`. T-22 is closed: decision
+0014 keeps the five internal packages implementation, and each gained a signpost README.
+CI was red on two defects no local run could see, and both are fixed. MCP, `exec-pyodide`, the remote executors and L4/L5 remain.
+
+**Did.** Delegated Task 2 to a subagent and reviewed it: ten modules, four test files and
+22 tests, the Pages workflow, the router row, `rules/components/docs-site.md`, the
+`site:build` stage, and the ESLint ignore the built tree needed. Fixed the two CI
+failures: the facade's test project and both examples' configs never aliased the internal
+sources, so the test stage resolved a `dist/` a fresh checkout lacks; and
+`pnpm -r --filter ./packages/*` died on bash, which expands the glob before pnpm sees it.
+Wrote decision 0014 and the five READMEs, closed T-22, filed T-23, and added two lessons.
+
+**Verified.** PASS — a clean-tree run with every `dist/` deleted: `pnpm test` and the
+full `pnpm gate` exit 0. PASS — the alias is load-bearing: a config pointing it at a
+missing path fails to resolve, and the real one passes. PASS — the validator reports
+`new: []`, 14 baselined, 0 errors, 0 warnings; `rotate.py --check` exits 0.
+
+**Unverified / open.** The Pages deployment has not run: the site's evidence is its own
+suite and a built tree, not a fetched page. No frozen-lockfile install was made, and
+nothing is published.
+
+**Next.** Task 3 of the v1.5 plan: write the MCP client package's plan, then build it.
+
+**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 wait on the owner.
+
+**Artifacts.** `apps/docs-site/`, `docs/09-decisions/0014-internal-packages-stay-implementation.md`,
+`docs/plans/2026-10-14-v1.5-modules-plan.md`.
+
 ## 2026-10-14T10:45:00+03:00 — the first v1.5 module lands and the browser example runs
 
 **State.** T-13's first module is delivered: `@smolagents-ts/cli`, a seventh workspace

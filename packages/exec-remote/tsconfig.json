@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The Docker backend derives its image tag and its gateway token with node:crypto, and the
+    // base config sets types: [] so no package sees Node's globals by accident.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": [
+    "src"
+  ]
+}

@@ -13,4 +13,11 @@ preferFrozenLockfile: true
 # Recording it explicitly stops pnpm from appending a placeholder to this checked-in file
 # on every non-interactive install (pnpm issue 11574).
 allowBuilds:
+  cpu-features: false
   esbuild: true
+  protobufjs: false
+  ssh2: false
+minimumReleaseAgeExclude:
+  - '@e2b/code-interpreter@2.9.0'
+  - '@e2b/dockerfile-utils@0.1.1'
+  - e2b@2.56.0

@@ -283,6 +283,31 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** when a host callable returns a promise that rejects, the guest does not see the host's error type: Pyodide hands Python a `JsException`, so a bridge that promises a `RuntimeError` naming the tool has to catch the rejection on the JavaScript side and answer with a payload the emitted wrapper turns into that error.
 - **Evidence:** measured on 2026-10-14 against `pyodide@314.0.7`; the bridge now returns a JSON envelope, and `packages/exec-pyodide/test/bridge.test.ts` asserts the `RuntimeError` a guest catches.
 
+## 2026-10-14 — one seam, two capability layers
+
+- **Status:** validated
+- **Lesson:** a remote-executor seam can honestly claim it carries a mid-run tool round trip and report the core's `asyncToolCalls` as false at the same time, because the two fields answer different questions: one asks whether the guest can pause and wait for the host, the other whether the host holds an awaited promise that something could still settle. Reading a plan's shorthand for the second as a statement about the first produced a component rule that contradicted the code, and the two need separate sentences or a reader takes one for the other.
+- **Evidence:** measured on 2026-10-14 — `packages/exec-remote/src/backends/process.ts:55` and `src/backends/docker.ts:69` set `supportsToolRoundTrip = true`, while the seam's own capability type (`src/sandbox.ts:32-33`) has no `asyncToolCalls` field at all; that field belongs to `packages/core/src/executor.ts:17`, a different type in a different package, which is where the conflation happened.
+
+## 2026-10-14 — a capability value describes the mediator, not the world
+
+- **Status:** validated
+- **Lesson:** a backend can report `network: "none"` while the code it runs inherits the host's own network, because the field records what the package mediates rather than what the guest can reach; only a backend whose traffic this package actually routes reports `"direct"`. A reader who takes the value as a denial forms a false picture of the least isolated backend in the package, so the field's meaning has to be stated where it is surfaced and the prose around it must not lean on the value.
+- **Evidence:** `packages/exec-remote/src/backends/process.ts:50,56` carries both the comment and the value, `src/backends/docker.ts:70` reports `"direct"`, and the plan states the same split at `docs/plans/2026-10-14-t13-remote-executors-plan.md:63-64`; `rules/components/exec-remote.md` now forbids reading the value as a denial.
+
+## 2026-10-14 — a package manager's default can be a behaviour, not a config value
+
+- **Status:** validated
+- **Lesson:** pnpm held three vendor versions back on a fresh install and wrote their exact versions into the workspace file itself, while `pnpm config get minimumReleaseAge` answered `undefined` on the same machine, because the threshold is a default behaviour rather than a surfaced setting. Reading the config and concluding the quarantine was off was wrong in the direction that matters: it would have shipped a policy nobody had reviewed. The artifact that proved it was the exclusion list pnpm wrote, so when a tool's own output contradicts a config read, the output is the evidence.
+- **Evidence:** measured on 2026-10-14 with pnpm 12.3.4 — `pnpm --version` answered 12.3.4, `pnpm config get minimumReleaseAge` answered `undefined`, and `pnpm-workspace.yaml` carried the three exclusions pnpm appended for `@e2b/code-interpreter@2.9.0`, `@e2b/dockerfile-utils@0.1.1` and `e2b@2.56.0`; the posture and its costs are recorded in `docs/09-decisions/0017-release-age-quarantine.md`.
+
+## 2026-10-14 — a green gate can rest on a host tool the package never declares
+
+- **Status:** validated
+- **Lesson:** the remote-executor package's process suite spawns a real interpreter, so the gate acquired a dependency on Python that no manifest in the repository states, and the environment document still claimed the build and the gate did not use it. Nothing failed, because the machine had one — which is exactly why an undeclared host dependency survives: the only contributor who learns about it is the one who lacks it. A test that leaves the process should say so in the document that describes the machine.
+- **Evidence:** `packages/exec-remote/test/process.test.ts:9,26,44,57` each spawn an interpreter with no skip guard, the suite passes as 11 files and 57 tests, and `docs/02-environment.md` carried the contradicting claim until it was corrected in the same session.
+
+
 
 
 

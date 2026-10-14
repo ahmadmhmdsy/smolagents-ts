@@ -104,6 +104,7 @@ only; the rest follow the milestones below.
 | `@smolagents-ts/tools` | the `tool()` ecosystem and default tools |
 | `@smolagents-ts/exec-pyodide` | a `CodeExecutor` implemented on WASM CPython (Pyodide), in-process on Node and in a page |
 | `@smolagents-ts/exec-quickjs` | a `CodeExecutor` implemented on QuickJS-WASM |
+| `@smolagents-ts/exec-remote` | three Python executors behind one seam — a child process on this host, a Docker-hosted Jupyter kernel gateway and an E2B sandbox — each reached through its own subpath |
 | `@smolagents-ts/react` | L2 hooks and L3 headless primitives over `AgentSession` |
 | `@smolagents-ts/cli` | the Node command line: upstream `cli.py`'s arguments and interactive questions, the model and tool factories over this port's adapters, and a renderer for the event stream |
 | `@smolagents-ts/mcp` | the MCP client: JSON-RPC 2.0 over a transport seam, Streamable HTTP and stdio transports, and an adapter that exposes a server's tools as this port's tools |
@@ -137,7 +138,10 @@ CLI now ships as a seventh package, `@smolagents-ts/cli`, the MCP client as an
 eighth, `@smolagents-ts/mcp`, and the Python executor as a ninth,
 `@smolagents-ts/exec-pyodide`, which runs agent-authored Python on WASM CPython
 in-process; the docs site publishes the documents with the example's build beside
-them. The remote executors and L4/L5 are what T-13 still carries.
+them. The remote executors ship as a tenth, `@smolagents-ts/exec-remote`, whose
+three backends share one host-owned frame protocol and whose optional container
+and vendor clients are resolved only by the subpath that needs them. L4/L5 is
+what T-13 still carries.
 S1.5's harness is
 reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
 committed, and a suite that replays them through our loop inside the gate. The two

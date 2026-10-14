@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+import {
+  E2BSandbox,
+  E2B_NODE_FLOOR,
+  satisfiesNodeFloor,
+  type E2BClient,
+  type E2BSandboxLike,
+} from "../src/backends/e2b.js";
+import { SandboxError, UnsupportedNodeVersionError } from "../src/errors.js";
+import { FRAME_PREFIX } from "../src/shim-source.js";
+
+interface FakeClient extends E2BClient {
+  readonly codes: string[];
+  readonly kills: string[];
+  readonly creates: number;
+}
+
+function fakeClient(options: { readonly failCreate?: boolean; readonly failRun?: boolean } = {}): FakeClient {
+  const codes: string[] = [];
+  const kills: string[] = [];
+  let creates = 0;
+  const sandbox: E2BSandboxLike = {
+    sandboxId: "sbx-1",
+    async runCode(code, runOptions) {
+      if (options.failRun === true && code !== "PRELUDE") throw new Error("the vendor sandbox died");
+      codes.push(code);
+      if (code.includes("print(") || code.startsWith("try:")) {
+        runOptions?.onStdout?.(FRAME_PREFIX + JSON.stringify({ type: "final_answer", value: 42 }));
+        runOptions?.onStdout?.("hello");
+        runOptions?.onStdout?.(FRAME_PREFIX + JSON.stringify({ type: "step_end" }));
+      }
+      return {};
+    },
+    async kill() {
+      kills.push("sbx-1");
+    },
+  };
+  return {
+    codes,
+    kills,
+    get creates() {
+      return creates;
+    },
+    async create() {
+      creates += 1;
+      if (options.failCreate === true) throw new Error("no api key");
+      return sandbox;
+    },
+  };
+}
+
+describe("the E2B backend", () => {
+  it("refuses at construction when the host is below the vendor's Node floor", () => {
+    expect(() => new E2BSandbox({ client: fakeClient(), nodeVersion: "22.12.0" })).toThrow(
+      UnsupportedNodeVersionError,
+    );
+    expect(() => new E2BSandbox({ client: fakeClient(), nodeVersion: E2B_NODE_FLOOR })).not.toThrow();
+    expect(satisfiesNodeFloor("22.19.0", "22.19.0")).toBe(true);
+    expect(satisfiesNodeFloor("22.18.1", "22.19.0")).toBe(false);
+    expect(satisfiesNodeFloor("24.0.0", "22.19.0")).toBe(true);
+  });
+
+  it("installs the prelude once, runs a one-shot step and reports the frames and output", async () => {
+    const client = fakeClient();
+    const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0" });
+    expect(sandbox.supportsToolRoundTrip).toBe(false);
+    expect(sandbox.capabilities).toEqual({ isolation: "remote", network: "direct", timers: true });
+    await sandbox.start({ shimSource: "PRELUDE" });
+    expect(client.creates).toBe(1);
+    expect(client.codes[0]).toBe("PRELUDE");
+    const result = await sandbox.run({
+      code: "print('hi')",
+      timeoutMs: 1_000,
+      signal: new AbortController().signal,
+    });
+    expect(result.outputs.map((output) => output.text)).toEqual(["hello"]);
+    expect(result.frames.find((frame) => frame.type === "final_answer")).toEqual({
+      type: "final_answer",
+      value: 42,
+    });
+    expect(result.frames.at(-1)).toEqual({ type: "step_end" });
+    expect(result.exitStatus).toBeNull();
+    await sandbox.dispose();
+    expect(client.kills).toEqual(["sbx-1"]);
+  });
+
+  it("wraps a vendor create failure and a vendor run failure as SandboxError", async () => {
+    const failingCreate = fakeClient({ failCreate: true });
+    const refused = new E2BSandbox({ client: failingCreate, nodeVersion: "24.0.0" });
+    await expect(refused.start({ shimSource: "PRELUDE" })).rejects.toThrow(SandboxError);
+
+    const failingRun = fakeClient({ failRun: true });
+    const dead = new E2BSandbox({ client: failingRun, nodeVersion: "24.0.0" });
+    await dead.start({ shimSource: "PRELUDE" });
+    await expect(
+      dead.run({ code: "1", timeoutMs: 100, signal: new AbortController().signal }),
+    ).rejects.toThrow(SandboxError);
+  });
+
+  it("refuses a run before start and disposes once", async () => {
+    const client = fakeClient();
+    const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0" });
+    await expect(
+      sandbox.run({ code: "1", timeoutMs: 100, signal: new AbortController().signal }),
+    ).rejects.toThrow(SandboxError);
+    await sandbox.dispose();
+    await sandbox.dispose();
+    expect(client.kills).toEqual([]);
+  });
+});

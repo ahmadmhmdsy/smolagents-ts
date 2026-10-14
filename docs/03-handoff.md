@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T14:40:00+03:00 — the remote executors land as the tenth package
+
+**State.** T-13's fifth module is delivered: `@smolagents-ts/exec-remote` is the tenth
+published package and its suite is 11 files and 57 tests. The full gate exits 0 — 106
+test files, 746 tests, 262 modules and 650 dependencies cruised, publint clean on ten
+packages, the site at 69 pages. The docs site landed earlier, so T-13 has L4/L5 left.
+
+**Did.** Built the package: a `RemoteSandbox` seam with three backends, a host-owned
+frame protocol over the child's stdio for the process path, the Jupyter stdin channel for
+Docker, and E2B refusing the round trip by name. Added the scoped entry, the component
+rule, the router row, the attribution rows, the changeset and the runbook with its check
+script. Fixed a defect the live run exposed: the executor's host-error mapping dropped the
+`cause` each backend attaches, so a missing daemon reported only that the sandbox could
+not start; it now walks a bounded cause chain, with a test. Filed decision 0017 and T-25.
+
+**Verified.** `pnpm gate` exit 0; the package suite 11 files and 57 tests; the live
+process check five ok in 334 ms; the validator `new: []`, 14 baselined, 0 errors. Both
+live Docker and E2B paths were attempted and failed, for want of a daemon and a
+credential.
+
+**Unverified / open.** Both live paths are unexecuted and the runbook says so; the Docker
+round trip is exercised only against a fake kernel; decision 0017 is not yet the owner's;
+the gate now needs Python on `PATH`, which no manifest declares.
+
+**Next.** Build L4/L5 per its filed plan, starting with the first three tasks. `react-ui`
+is an eleventh package, and the workspace may not grow one until this commit lands.
+
+**Blockers.** None. T-14, T-16, T-18, T-19, T-21 and T-25 stay owner-gated.
+
+**Artifacts.** `docs/plans/2026-10-14-t13-remote-executors-plan.md`,
+`docs/10-runbooks/exec-remote-live-backends.md`, `docs/09-decisions/0017-release-age-quarantine.md`.
+
 ## 2026-10-14T14:05:00+03:00 — the Pyodide executor lands, and the remote executors are planned
 
 **State.** T-13's fourth module is delivered: `@smolagents-ts/exec-pyodide` is the
@@ -131,38 +163,6 @@ are not a rendered page. Nothing is published to npm.
 
 **Artifacts.** `packages/core/src/agent/multi-step-agent.ts`, `apps/docs-site/`,
 `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`.
-
-## 2026-10-14T11:35:00+03:00 — the docs site lands, and two CI-only defects are fixed
-
-**State.** T-13's second module is delivered: `apps/docs-site` renders `README.md` and
-every `docs/**/*.md` into `apps/docs-site/site/`, copies the browser example's build
-beside them, published by `.github/workflows/pages.yml`. T-22 is closed: decision
-0014 keeps the five internal packages implementation, and each gained a signpost README.
-CI was red on two defects no local run could see, and both are fixed. MCP, `exec-pyodide`, the remote executors and L4/L5 remain.
-
-**Did.** Delegated Task 2 to a subagent and reviewed it: ten modules, four test files and
-22 tests, the Pages workflow, the router row, `rules/components/docs-site.md`, the
-`site:build` stage, and the ESLint ignore the built tree needed. Fixed the two CI
-failures: the facade's test project and both examples' configs never aliased the internal
-sources, so the test stage resolved a `dist/` a fresh checkout lacks; and
-`pnpm -r --filter ./packages/*` died on bash, which expands the glob before pnpm sees it.
-Wrote decision 0014 and the five READMEs, closed T-22, filed T-23, and added two lessons.
-
-**Verified.** PASS — a clean-tree run with every `dist/` deleted: `pnpm test` and the
-full `pnpm gate` exit 0. PASS — the alias is load-bearing: a config pointing it at a
-missing path fails to resolve, and the real one passes. PASS — the validator reports
-`new: []`, 14 baselined, 0 errors, 0 warnings; `rotate.py --check` exits 0.
-
-**Unverified / open.** The Pages deployment has not run: the site's evidence is its own
-suite and a built tree, not a fetched page. No frozen-lockfile install was made, and
-nothing is published.
-
-**Next.** Task 3 of the v1.5 plan: write the MCP client package's plan, then build it.
-
-**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 wait on the owner.
-
-**Artifacts.** `apps/docs-site/`, `docs/09-decisions/0014-internal-packages-stay-implementation.md`,
-`docs/plans/2026-10-14-v1.5-modules-plan.md`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.

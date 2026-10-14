@@ -332,3 +332,65 @@ exits 0 with the suite's file and test counts pasted into the measured results.
 ## Measured results
 
 Results are appended here by the session that executes the plan.
+
+### Tasks 1 to 7 — executed 2026-10-14
+
+Built by a delegated session; the delegating session ran the gate and owns Task 8.
+
+| command | result |
+|---|---|
+| `pnpm --filter @smolagents-ts/exec-remote run typecheck` | exit 0 |
+| `pnpm --filter @smolagents-ts/exec-remote run build` | ESM success in 247 ms, DTS success in 2,878 ms, exit 0 |
+| `pnpm vitest run --project exec-remote` | 11 files, 56 tests, exit 0 |
+| `pnpm lint` | exit 0 |
+| `pnpm depcruise` | 262 modules and 649 dependencies cruised, no violations |
+| `pnpm pack:smoke` | ten packages installed and imported; the CLI bin ran |
+
+### Where the plan was wrong or silent
+
+1. **Task 1's root-config edit was unnecessary.** The root `vitest.config.ts`
+   already globs `packages/*`, so `packages/exec-remote/vitest.config.ts` is
+   discovered with no root change. No root edit was made.
+2. **Task 4's Docker proof is stronger than the plan described.** The plan named
+   a fake Engine API; the package drives an injected recording `ContainerRuntime`
+   double *and* a real loopback HTTP and WebSocket Jupyter server built in
+   `test/ws-server.ts` with a hand-rolled RFC 6455 codec. The double asserts the
+   Dockerfile bytes, the auth token in the create body, the 8888/tcp bindings and
+   one stop-and-remove after a failed start; the loopback server exercises the
+   real wire path. The non-negotiable — no daemon in the gate — holds.
+3. **Files the plan's lists omitted.** `src/rpc.ts`, `src/jupyter.ts`,
+   `src/backends/{docker,e2b}.ts` and their subdirectory barrels,
+   `src/streams.ts` and `test/ws-server.ts` were needed and added.
+4. **The process transport changed shape.** CPython runs a piped program only at
+   end of input, so feeding the step program over stdin produced no output. The
+   backend now spawns `python -u -c <prelude and step loop>` and feeds each step
+   as a JSON line on the same pipe that carries tool replies.
+5. **`allowPickle` was missing from the executor.** Task 6 listed it in the
+   constructor's options and the first pass hard-coded it false, so the one
+   agent-facing seam could never carry a pickled payload. It is now an option
+   that defaults to false and passes through; a test pins both halves.
+6. **The root barrel needed the seam types.** Task 7 asked for the backend-neutral
+   names; the first pass exported only `VERSION`. `RemoteExecutor` and its
+   options, the six typed refusals and the ten seam types now ship from the root,
+   and the isomorphism test enforces that no `node:` specifier or vendor package
+   is reachable from it.
+7. **`tsconfig.json` needed `"types": ["node"]`.** The shared base sets an empty
+   `types` list and the Docker backend uses `node:crypto`, so the declaration
+   build failed with TS2591 until it was added, as `packages/mcp` already does.
+8. **`pnpm-workspace.yaml` gained two policy blocks.** pnpm 11.7.0 refuses to
+   guess about install scripts and appends placeholders until each is answered:
+   `allowBuilds` now denies `cpu-features`, `protobufjs` and `ssh2` (dockerode's
+   optional native builds) beside the existing `esbuild` entry. The same version
+   quarantines a version published in the last 24 hours, and the three E2B
+   packages were published inside that window, so pnpm auto-appended them to
+   `minimumReleaseAgeExclude` at exact versions. Both blocks are recorded in
+   decision 0017.
+
+### The live boundary
+
+Nothing in the suite starts a container, opens a socket to a hosted service or
+reads a credential: the Docker and E2B backends are driven through doubles, and
+the process suite spawns a real interpreter on this host. The three live paths
+are procedures in `docs/10-runbooks/exec-remote-live-backends.md`, and none of
+them is a gate stage.
+

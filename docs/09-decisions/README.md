@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0017 | the release-age quarantine stays on, with three vendor versions excluded by name | accepted | 2026-10-14 |
 | 0016 | the Pyodide executor is in-process, and its guard is fidelity, not security | accepted | 2026-10-14 |
 | 0015 | the MCP client is hand-rolled behind a transport seam | accepted | 2026-10-14 |
 | 0014 | the five internal packages stay implementation, with a signpost | accepted | 2026-10-14 |

@@ -36,6 +36,7 @@ package should reach that component's entry without being told where to look.
 | docs-site | `apps/docs-site/` | `apps/docs-site/AGENTS.md` | `rules/components/docs-site.md` |
 | exec-pyodide | `packages/exec-pyodide/` | `packages/exec-pyodide/AGENTS.md` | `rules/components/exec-pyodide.md` |
 | exec-quickjs | `packages/exec-quickjs/` | `packages/exec-quickjs/AGENTS.md` | `rules/components/exec-quickjs.md` |
+| exec-remote | `packages/exec-remote/` | `packages/exec-remote/AGENTS.md` | `rules/components/exec-remote.md` |
 | mcp | `packages/mcp/` | `packages/mcp/AGENTS.md` | `rules/components/mcp.md` |
 | models | `packages/models/` | `packages/models/AGENTS.md` | `rules/components/models.md` |
 | react | `packages/react/` | `packages/react/AGENTS.md` | `rules/components/react.md` |

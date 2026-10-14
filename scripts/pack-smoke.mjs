@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "react", "cli", "mcp"];
+const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "cli", "mcp"];
 /** The published name: its tarball is the only one that is not scoped. */
 const FACADE = "smolagents-ts";
 

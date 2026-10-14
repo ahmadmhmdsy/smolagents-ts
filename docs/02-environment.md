@@ -64,7 +64,7 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 | Tool | Version | Verified by | Notes |
 |---|---|---|---|
 | Node.js runtime | v24.18.0 | `node --version` | `engines` requires 22.12 or newer; CI runs 22, 24 and 26 |
-| pnpm package manager | 12.3.4 | `pnpm --version` | lockfile kind: `pnpm-lock.yaml`; the `packageManager` field in `package.json` is canonical and `scripts/check-ci.mjs` fails when the workflow disagrees |
+| pnpm package manager | 12.3.4 | `pnpm --version` | lockfile kind: `pnpm-lock.yaml`; the `packageManager` field in `package.json` is canonical and `scripts/check-ci.mjs` fails when the workflow disagrees; a release-age quarantine is on by default and is a behaviour rather than a surfaced setting, so `pnpm config get minimumReleaseAge` answers `undefined` on a machine where it is plainly active (decision 0017) |
 | TypeScript | 6.0.3 | `pnpm exec tsc --version` | `strict` plus `noUncheckedIndexedAccess` |
 | Build tool | tsup 8.5.1 | `pnpm exec tsup --version` | one `tsup.config.ts` per package |
 | Test runner | Vitest 5.0.3 | `pnpm exec vitest --version` | projects resolved from `packages/*`, `examples/*` and `apps/*` |
@@ -74,7 +74,7 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 | Package shape check | publint 0.3.25 and attw 0.18.5 | `pnpm exec publint --version`; `pnpm exec attw --version` | both run inside the gate, after the build |
 | Formatter | Prettier 3.9.10 | `pnpm exec prettier --version` | installed; no gate stage calls it |
 | Git | 2.47.1.windows.1 | `git --version` | the adoption branch is `context-pack-adoption` |
-| Python | 3.13.7 | `python --version` | only the context-pack scripts under `scripts/` use it; the build and the gate do not |
+| Python | 3.13.7 | `python --version` | the context-pack scripts under `scripts/` use it, and so does the remote-executor package's process suite, which spawns a real interpreter — `python` on Windows, `python3` elsewhere; the gate therefore needs an interpreter on `PATH`, and the GitHub runner images supply one |
 
 ## Services and ports
 
@@ -166,4 +166,6 @@ Append-only.
 | 2026-10-14 | the MCP package's own suite | `pnpm vitest run --project mcp` | 9 files and 106 tests passed |
 | 2026-10-14 | the full gate with `exec-pyodide` | `pnpm gate` from the repository root | exit 0; 95 test files and 689 tests passed; 227 modules and 566 dependencies cruised; publint clean on nine packages; the site built 65 pages |
 | 2026-10-14 | the Pyodide package's own suite | `pnpm vitest run --project exec-pyodide` | 9 files and 55 tests passed |
+| 2026-10-14 | the remote-executor package's own suite | `pnpm vitest run --project exec-remote` | 11 files and 57 tests passed |
+| 2026-10-14 | the live process path, outside the suite | `node scripts/exec-remote-smoke.mjs process` | five checks ok, 334 ms, exit 0; the Docker and E2B paths were attempted and failed for want of a daemon and a credential |
 | 2026-10-14 | the Pyodide browser cold start and bundle | the scratch Vite page in `docs/10-runbooks/exec-pyodide-browser-probe.md` | 2,912 ms from headless Chrome against the jsDelivr v314.0.7 base; the page's own bundle is 29,375 B with the runtime external |
