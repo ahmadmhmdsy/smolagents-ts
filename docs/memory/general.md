@@ -205,5 +205,11 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** `Path.write_text` follows the platform's newline, so a generator wrote CRLF into a checkout whose `.gitattributes` promises LF and git announced the conversion as it staged the files; a writer that produces files meant for version control passes the newline explicitly rather than trusting the platform.
 - **Evidence:** `git add scripts/parity/recordings` warned "CRLF will be replaced by LF" for all five recordings on 2026-10-14, and the warning is gone since `record.py` writes with `newline="\n"`.
 
+## 2026-10-14 — a plan's carried review point goes stale
+
+- **Status:** validated
+- **Lesson:** the S1 plan carried two review points into the whole-branch review and neither became a task or a decision, so four milestones later a session read the note, reported that the streamed chunk carries no usage as a live gap, and was wrong: the field, all four adapters' population of it and the per-adapter tests had shipped in S2a and S2b. A plan is history, so a carried point is a claim about the revision that wrote it; before repeating one as current, read the code it names, and when it is still live give it a task or a decision.
+- **Evidence:** `docs/plans/2026-10-12-s1-core-runtime-plan.md` (the two carried points) against `packages/core/src/model.ts` (usage on the streamed chunk), `packages/models/src/anthropic.ts`, `packages/models/src/gemini.ts` and `packages/models/src/openai-compatible.ts`; the name half is decision 0011 and the still-live request gap is fixed in `packages/models/src/openai-compatible.ts`.
+
 
 

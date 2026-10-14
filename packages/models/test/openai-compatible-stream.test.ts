@@ -70,6 +70,18 @@ describe("OpenAICompatibleModel.generateStream", () => {
     expect(body.stream).toBe(true);
   });
 
+  it("asks the provider for usage while streaming", async () => {
+    const { fetch, calls } = recording(streamed(transcript));
+    const model = new OpenAICompatibleModel({ model: "gpt-4o-mini", fetch });
+
+    await collectCompletion(model.generateStream([{ role: "user", content: "Q" }]));
+
+    const body = JSON.parse(String(calls[0]?.init.body)) as {
+      stream_options?: { include_usage: boolean };
+    };
+    expect(body.stream_options).toEqual({ include_usage: true });
+  });
+
   it("survives the transcript arriving in small pieces", async () => {
     const model = new OpenAICompatibleModel({ model: "m", fetch: streamed(transcript, 7) });
 

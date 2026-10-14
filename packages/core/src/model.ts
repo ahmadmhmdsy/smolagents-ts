@@ -52,6 +52,11 @@ export class ToolCallAccumulator {
   }
 }
 
+/**
+ * The capability bag. The design record's section 7 spells this `supports`; the
+ * name here is `capabilities`, for the same reason the executor seam's bag is
+ * `ExecutorCapabilities`. Decision 0011 owns the choice.
+ */
 export interface ModelCapabilities {
   streaming: boolean;
   toolCalls: boolean;

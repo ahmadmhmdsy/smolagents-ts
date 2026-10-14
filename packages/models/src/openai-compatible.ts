@@ -260,10 +260,7 @@ export class OpenAICompatibleModel implements Model {
     }
   }
 
-  /**
-   * The request body. A subclass may extend it: the HuggingFace adapter adds one field
-   * to the streamed form.
-   */
+  /** The request body. A subclass may extend it. */
   protected payload(
     messages: readonly ChatMessage[],
     options: GenerateOptions,
@@ -278,6 +275,10 @@ export class OpenAICompatibleModel implements Model {
       model: this.id,
       messages: toWireMessages(messages, systemPrompt),
       stream,
+      // A provider reports no tokens on a streamed response unless the request asks
+      // for them; the final chunk then carries `usage` with an empty `choices`, which
+      // chunksFor already yields. Without this a streamed run cannot be priced.
+      ...(stream ? { stream_options: { include_usage: true } } : {}),
       ...(tools === undefined || tools.length === 0 ? {} : { tools: toWireTools(tools) }),
       ...(temperature === undefined ? {} : { temperature }),
       ...(maxTokens === undefined ? {} : { max_tokens: maxTokens }),

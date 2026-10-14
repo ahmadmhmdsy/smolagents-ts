@@ -29,7 +29,7 @@ which is the OpenAI adapter pointed at the Inference Providers router, and
 
     pnpm vitest run --project models
 
-Expected result: 13 test files and 62 tests pass, exit code 0. It is a resolution
+Expected result: 13 test files and 63 tests pass, exit code 0. It is a resolution
 and wire-format check: every test drives an injected fetch against a recorded
 fixture, so no test reaches a live provider.
 
@@ -50,6 +50,10 @@ implements, and the core must never import from here.
 - A fixture is hand-shaped from the provider's published documentation and never
   a live capture, and the test that reads it says so; a comment claiming a
   recording is a provenance claim that nothing in the repository can support.
+- A streamed request asks the provider for usage (`stream_options.include_usage`),
+  because a provider that is not asked reports no tokens on a streamed response and
+  the run cannot be priced; a host that rejects the field needs an option rather
+  than a silent drop.
 - The test tsconfig widens `rootDir`, because the base tsconfig maps
   `@smolagents-ts/core` to its source and core's files then join this project's
   program.

@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0011 | the model's capability bag is capabilities | accepted | 2026-10-14 |
 | 0010 | the published name and the repository | accepted | 2026-10-14 |
 | 0009 | a local secrets file is not pack surface | accepted | 2026-10-14 |
 | 0008 | the handoff's over-cap entry stays as it stands | accepted | 2026-10-14 |
