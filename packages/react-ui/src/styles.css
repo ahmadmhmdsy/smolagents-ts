@@ -1,0 +1,140 @@
+/*
+ * @smolagents-ts/react-ui — the copy-in stylesheet.
+ *
+ * This is plain text the package ships verbatim; nothing imports it, so nothing
+ * here applies itself. Copy it into a stylesheet you own and edit it there.
+ *
+ * The token block below is the whole theming contract. Each token is declared
+ * with a var() fallback, so an unset token still resolves to the package default
+ * while a consumer sheet that sets --smol-surface on :root and loads after this
+ * one wins by source order (or sets the --smol-color-* input it reads).
+ *
+ * Every rule below is scoped to a .smol-* class this package owns. The L4
+ * patterns carry no class names of their own, so their internals are reached
+ * with element selectors under the wrapper class; no .agent-* class is named
+ * here, so this sheet cannot collide with the primitives' own styles.
+ */
+:root {
+  --smol-surface: var(--smol-color-surface, #ffffff);
+  --smol-text: var(--smol-color-text, #1f2328);
+  --smol-accent: var(--smol-color-accent, #0969da);
+  --smol-radius: var(--smol-shape-radius, 8px);
+  --smol-gap: var(--smol-space-gap, 0.5rem);
+}
+
+/* The two patterns share one surface treatment. */
+.smol-run-inspector,
+.smol-chat-surface {
+  padding: calc(var(--smol-gap) * 2);
+  border: 1px solid color-mix(in srgb, var(--smol-text) 15%, transparent);
+  border-radius: var(--smol-radius);
+  background: var(--smol-surface);
+  color: var(--smol-text);
+}
+
+.smol-run-inspector > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--smol-gap);
+}
+
+.smol-run-inspector p[role="status"] {
+  margin: 0;
+  font-weight: 600;
+}
+
+.smol-run-inspector button,
+.smol-chat-surface button {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--smol-text) 25%, transparent);
+  border-radius: var(--smol-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.smol-run-inspector button:disabled,
+.smol-chat-surface button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.smol-run-inspector button:focus-visible,
+.smol-chat-surface button:focus-visible,
+.smol-chat-surface input:focus-visible {
+  outline: 2px solid var(--smol-accent);
+  outline-offset: 2px;
+}
+
+.smol-run-inspector ol {
+  display: grid;
+  gap: var(--smol-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.smol-run-inspector ol > li {
+  padding: calc(var(--smol-gap) * 1.5);
+  border: 1px solid color-mix(in srgb, var(--smol-text) 15%, transparent);
+  border-radius: var(--smol-radius);
+}
+
+.smol-run-inspector ol > li:focus-visible {
+  outline: 2px solid var(--smol-accent);
+  outline-offset: 2px;
+}
+
+.smol-run-inspector pre,
+.smol-tool-call pre,
+.smol-code-block pre {
+  margin: 0;
+  padding: var(--smol-gap);
+  border-radius: var(--smol-radius);
+  background: color-mix(in srgb, var(--smol-text) 8%, transparent);
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.smol-tool-call > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--smol-gap);
+}
+
+.smol-chat-surface > section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--smol-gap);
+}
+
+.smol-chat-surface ol {
+  display: grid;
+  gap: var(--smol-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.smol-chat-surface ol > li {
+  padding: var(--smol-gap);
+  border-radius: var(--smol-radius);
+  background: color-mix(in srgb, var(--smol-text) 6%, transparent);
+}
+
+.smol-chat-surface form {
+  display: flex;
+  align-items: center;
+  gap: var(--smol-gap);
+}
+
+.smol-chat-surface input {
+  flex: 1;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--smol-text) 25%, transparent);
+  border-radius: var(--smol-radius);
+  font: inherit;
+}

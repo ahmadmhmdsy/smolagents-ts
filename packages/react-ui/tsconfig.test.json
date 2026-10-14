@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true,
+    // This package consumes another package that is itself built, so its two halves resolve
+    // that dependency differently: the declaration build reads @smolagents-ts/react through
+    // its published types and so needs the react build to have run, while the typecheck runs
+    // before any build in CI and must resolve the source instead. Both mappings are
+    // re-declared because `paths` replaces rather than merges across `extends`. rootDir has
+    // to contain the mapped sources; noEmit means nothing is emitted anyway.
+    "paths": {
+      "@smolagents-ts/core": ["../core/src/index.ts"],
+      "@smolagents-ts/react": ["../react/src/index.ts"]
+    },
+    "rootDir": "../.."
+  },
+  "include": ["src", "test"]
+}
