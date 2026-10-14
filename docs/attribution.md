@@ -22,7 +22,7 @@ ported; a module is not "done" until its row is accurate.
 | src/smolagents/_function_type_hints_utils.py | drop (replaced by Zod) | — |
 | src/smolagents/tool_validation.py | drop (replaced by Zod + guards) | — |
 | src/smolagents/serialization.py | defer to v1.5 | planned packages/core/src/serialization |
-| src/smolagents/mcp_client.py | defer to v1.5 | planned packages/mcp |
+| src/smolagents/mcp_client.py | port | packages/mcp/src/* |
 | src/smolagents/remote_executors.py | defer to v1.5 | planned packages/exec-remote |
-| src/smolagents/cli.py | defer to v1.5 | planned packages/cli |
+| src/smolagents/cli.py | port, with two model names refused by design | packages/cli/src/* |
 | src/smolagents/vision_web_browser.py | defer to v2 | — |

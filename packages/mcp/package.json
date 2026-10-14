@@ -1,0 +1,59 @@
+{
+  "name": "@smolagents-ts/mcp",
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "The MCP client: JSON-RPC 2.0 over a transport seam, Streamable HTTP and stdio transports, and an adapter that turns an MCP server's tools into this port's tools.",
+  "keywords": [
+    "smolagents",
+    "agents",
+    "mcp",
+    "model-context-protocol",
+    "tools",
+    "json-rpc"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./stdio": {
+      "types": "./dist/transports/stdio.d.ts",
+      "default": "./dist/transports/stdio.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
+  },
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  }
+}

@@ -253,5 +253,18 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** the publishing job succeeded and the built tree held its pages, and neither fact says a reader can open the result; only fetching the deployed address does. The address is the builder's, not the source tree's, so guessing the path a directory has in the repository answers 404 for a page that is served elsewhere.
 - **Evidence:** on 2026-10-14 the Pages run 38534571343 succeeded; the site root answers 200 with the numbered documents in its sidebar, the decision 0014 page answers 200, and the example answers 200 at `example/index.html` with its relative `assets/` entries, while the same example's repository path answers 404.
 
+## 2026-10-14 — a transport failure that only logged
+
+- **Status:** validated
+- **Lesson:** the MCP client's transport-error handler wrote a warning and nothing else, so a handshake against a process that never started waited for a reply that could not come; because the request timer is deliberately unref'd, a Node process with no other handle exited 13 with "Detected unsettled top-level await" instead of reporting the failure. A transport that reports an error or a close settles everything in flight on that connection, and the connection remembers why so the next request refuses at once rather than waiting again.
+- **Evidence:** the live check on 2026-10-14 against `command: "npx"` exited 13 before the fix and `failed after 8 ms: Error: spawn npx ENOENT` after it; two cases in `packages/mcp/test/client.test.ts` pin the error and the close path.
+
+## 2026-10-14 — a package-manager shim is not a spawnable command
+
+- **Status:** validated
+- **Lesson:** on Windows Node resolves no extensionless `npx` for a spawn (`ENOENT`) and refuses to spawn `npx.cmd` without a shell (`EINVAL`), so a runbook whose check spawns a package manager's shim fails before it exercises the client at all. A procedure that needs a child process installs the package first and spawns `process.execPath` with the resolved entry, which is also what makes the run reproducible instead of network-dependent.
+- **Evidence:** both errors measured on 2026-10-14 from the MCP live check; after switching to `process.execPath` with the installed `dist/index.js` the same check connected in 410 ms, listed 13 tools and answered the echo call, and `docs/10-runbooks/mcp-live-check.md` carries the corrected steps.
+
+
 
 

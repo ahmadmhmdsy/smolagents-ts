@@ -328,4 +328,98 @@ commands are pasted into the measured results.
 
 ## Measured results
 
-(empty until execution)
+### The seam accepts an SDK transport (measured 2026-10-14, part of task 10)
+
+A scratch directory outside the repository (`%TEMP%\mcp-seam-check`) installed
+`@modelcontextprotocol/sdk@1.32.1` and `typescript@6`, then compiled two files
+under this repository's strictness (`strict`, `exactOptionalPropertyTypes`):
+
+- A mirror of the SDK's transport with `result: Record<string, unknown>` and the
+  required `jsonrpc`, `id` and `method` members compiles as the assignment
+  `const ours: McpTransport = sdkTransport`; the compiler exited 0 with no
+  diagnostics.
+- A loose mirror, everything optional and `result?: unknown`, fails the same
+  assignment, which that run proves by carrying `@ts-expect-error` on it: had it
+  compiled, the compiler would have reported the unused directive.
+
+Two facts follow for the implementation. A JSON-RPC response's `result` is a
+record rather than `unknown`, and the seam's eight members are enough for the
+SDK's own transport to be injected with no adapter. The package's suite pins both
+directions against a local mirror of the SDK declaration, because the dependency
+
+### The package's five commands (measured 2026-10-14, tasks 1 to 7 and 9)
+
+| command | exit | result |
+|---|---|---|
+| `pnpm --filter @smolagents-ts/mcp run build` | 0 | ESM `dist/index.js`, `dist/transports/stdio.js` and a shared chunk, with a declaration file for each |
+| `pnpm --filter @smolagents-ts/mcp run typecheck` | 0 | clean |
+| `pnpm vitest run --project mcp` | 0 | 9 files, 106 tests, 0 failures |
+| `pnpm exec eslint packages/mcp` | 0 | clean |
+| `pnpm exec depcruise packages --config .dependency-cruiser.cjs` | 0 | no violations, 205 modules and 517 dependencies cruised |
+
+The root entry reaches no Node builtin, and the architecture test holds that: only
+`dist/transports/stdio.js` imports one.
+
+### Four defects the first full suite exposed (measured 2026-10-14)
+
+- A handshake that failed leaked its transport, because `connect()` assigned the
+  connection's transport only after `start()` returned; the assignment now precedes
+  the start, so the failure path has something to close.
+- The stdio close could skip its kill: the 200 ms timer was cleared as soon as the
+  old floor resolved. The close now ends stdin, waits, kills, and bounds its wait
+  for the exit.
+- `start()` latched its started flag before the spawn, so a spawn that threw could
+  never be retried.
+- Three fixtures were missing their `initialize` step and one had no second page,
+  which is why the first run failed 13 of 101 cases.
+
+### A transport failure must settle what is in flight (measured 2026-10-14, task 10)
+
+The live check's first run ended at exit 13 with "Detected unsettled top-level
+await": the client's transport-error handler wrote a warning and nothing else, and
+the request timer is unref'd on purpose, so a handshake against a process that
+never started had nothing left to keep the process alive. The client now records
+the failure on the connection, rejects everything in flight on it, and refuses the
+next request immediately. The same command then failed in 8 ms carrying the spawn
+error, and two cases in `packages/mcp/test/client.test.ts` pin the error path and
+the close path.
+
+### The live check (measured 2026-10-14, task 10)
+
+    root refused a subprocess: MCPParameterError
+    connected in 410 ms, protocol 2025-11-25
+    tools (13): echo, get_annotated_message, get_env, get_resource_links,
+      get_resource_reference, get_structured_content, get_sum, get_tiny_image,
+      gzip_file_as_resource, toggle_simulated_logging, toggle_subscriber_updates,
+      trigger_long_running_operation, simulate_research_query
+    echo "Echo: hello from the live check"
+
+Two of this task's own steps were wrong and are recorded here rather than
+rewritten. It said the check drives the server through `npx`; measured, Windows
+resolves no extensionless `npx` for a spawn and refuses `npx.cmd` without a
+shell, so the check installs the pinned server into a scratch directory and spawns
+`process.execPath` with its entry. It also said the transcript lands under
+`packages/mcp/test/fixtures/`; the recorded transcript is the runbook's
+last-recorded-run line instead, because the fixture suite records protocol shapes
+rather than a live server's own output.
+
+### The schema fidelity table (measured 2026-10-14, task 4)
+
+Eight input schemas were put through `z.fromJSONSchema` on zod 4.6.6 and none was
+refused: an object with a string property; `$defs` with a `$ref` to a definition;
+`anyOf` over a string and a number; an `enum`; `format: "date-time"` with
+`additionalProperties: false`; an empty property list with
+`additionalProperties: true`; the empty schema, which becomes a permissive
+`ZodAny`; and `additionalProperties` carrying an integer schema. The table is now
+a test, so a zod upgrade that starts refusing one of them fails by name instead of
+silently dropping a tool. The skip path stays as it is; the refusals seen so far
+are a bigint type, an unknown type, a `$ref` with no target, and an invalid
+pattern.
+
+### The documents (measured 2026-10-14, task 8)
+
+`python scripts/validate_context.py --root . --json --baseline docs/.baseline.json`
+reports `new: []`, 14 baselined, zero errors and zero warnings, and
+`python scripts/rotate.py --check` exits 0.
+
+itself stays out of the lockfile.

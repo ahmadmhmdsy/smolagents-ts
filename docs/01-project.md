@@ -105,6 +105,7 @@ only; the rest follow the milestones below.
 | `@smolagents-ts/exec-quickjs` | a `CodeExecutor` implemented on QuickJS-WASM |
 | `@smolagents-ts/react` | L2 hooks and L3 headless primitives over `AgentSession` |
 | `@smolagents-ts/cli` | the Node command line: upstream `cli.py`'s arguments and interactive questions, the model and tool factories over this port's adapters, and a renderer for the event stream |
+| `@smolagents-ts/mcp` | the MCP client: JSON-RPC 2.0 over a transport seam, Streamable HTTP and stdio transports, and an adapter that exposes a server's tools as this port's tools |
 
 Data moves one way through a run: the model returns text, the parser extracts a
 code block, a `CodeExecutor` runs it against the tool registry, the observation
@@ -131,9 +132,10 @@ S5's hooks and primitives are done, and the runnable example its definition also
 names builds and runs in a browser tab at `examples/vite-app`. S6's v1 share is
 done: the six packages carry the metadata a registry reads, the facade
 re-exports them, the packed tarballs install and import, and 0.1.0 is cut. The
-CLI now ships as a seventh package, `@smolagents-ts/cli`, and the docs site
-publishes the documents with the example's build beside them; MCP, the remote
-executors, `exec-pyodide` and L4/L5 are what T-13 still carries.
+CLI now ships as a seventh package, `@smolagents-ts/cli`, the MCP client as an
+eighth, `@smolagents-ts/mcp`, and the docs site publishes the documents with the
+example's build beside them; the remote executors, `exec-pyodide` and L4/L5 are
+what T-13 still carries.
 S1.5's harness is
 reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
 committed, and a suite that replays them through our loop inside the gate. The two
@@ -171,3 +173,4 @@ Append-only. Newest last.
 | 2026-10-13 | 4 | S2 split into S2a (model seam, OpenAI-compatible adapter, custom escape hatch) and S2b (the other three adapters); the S2a plan is written and no code has been executed from it | maintainer |
 | 2026-10-14 | 5 | the first T-13 module lands: the key-components list gains `@smolagents-ts/cli` and the S6 note lists the modules that remain | owner (the T-13 sequence) |
 | 2026-10-14 | 6 | the second T-13 module lands: the S6 note records that the docs site publishes the documents and the example's build, and names the four modules that remain | owner (the T-13 sequence) |
+| 2026-10-14 | 7 | the third T-13 module lands: the key-components list gains `@smolagents-ts/mcp` and the S6 note names the three modules that remain | owner (the T-13 sequence) |

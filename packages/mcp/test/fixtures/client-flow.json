@@ -1,0 +1,87 @@
+{
+  "steps": [
+    {
+      "expect": {
+        "method": "initialize"
+      },
+      "reply": {
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": true
+            }
+          },
+          "serverInfo": {
+            "name": "fixture-server",
+            "version": "1.0.0"
+          }
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/list"
+      },
+      "reply": {
+        "result": {
+          "tools": [
+            {
+              "name": "echo",
+              "description": "Echo a string back.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "description": "Text to echo."
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "name": "add",
+              "description": "Add two numbers.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "a": {
+                    "type": "number"
+                  },
+                  "b": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "a",
+                  "b"
+                ],
+                "additionalProperties": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "echo"
+      },
+      "reply": {
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "hi"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

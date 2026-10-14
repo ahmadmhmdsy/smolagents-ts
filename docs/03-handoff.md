@@ -33,6 +33,40 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T12:25:00+03:00 — the MCP client lands, live-checked, and Pyodide is measured
+
+**State.** T-13's third module is delivered: `@smolagents-ts/mcp` builds, typechecks,
+lints and cruises clean, its suite is 9 files and 106 tests, and the full gate exits 0
+(86 files, 634 tests, 205 modules and 517 dependencies cruised, publint clean on eight
+packages). The live check passed against
+`@modelcontextprotocol/server-everything@1.0.0`: the root entry refused a stdio
+parameter, the client negotiated `2025-11-25`, listed 13 tools and answered the echo
+call. Task 4's reconnaissance is filed: Pyodide 314.0.7 installs 13.24 MiB, loads in
+about two seconds in Node, has no teardown API, and can be interrupted only from a
+worker.
+
+**Did.** Reviewed the delegated package, then fixed what the live check exposed: a
+transport error or close now settles everything in flight on its connection and the
+connection remembers why, so a spawn that fails reports in milliseconds instead of
+leaving the process to exit on an unsettled top-level await. Corrected the runbook:
+Windows cannot spawn `npx` (ENOENT) or `npx.cmd` (EINVAL), so it installs the pinned
+server and spawns `process.execPath` with its entry. Wrote the reconnaissance, two
+memory lessons, the plan's measured results, the T-13 row and this entry.
+
+**Verified.** PASS — `pnpm gate` exit 0 on the tree. PASS — the live check's four lines
+and exit 0. PASS — the validator `new: []`, 14 baselined, 0 errors, 0 warnings, and
+`rotate.py --check` exit 0.
+
+**Unverified / open.** No browser loaded Pyodide; the reconnaissance names the
+unmeasured numbers. The package is unpublished (T-14).
+
+**Next.** Write Task 4's plan for `exec-pyodide` from the reconnaissance, then build it.
+
+**Blockers.** T-14 waits on registry credentials; T-16, T-18 and T-21 on the owner.
+
+**Artifacts.** `packages/mcp/`, `docs/10-runbooks/mcp-live-check.md`,
+`docs/research/2026-10-14-pyodide-recon.md`.
+
 ## 2026-10-14T11:45:00+03:00 — the docs site is live, and T-20 retires the parity cast
 
 **State.** The pushed revision is green everywhere, and the site answers at
@@ -126,34 +160,6 @@ the example's build.
 
 **Artifacts.** `docs/09-decisions/0012-web-surface-host.md`,
 `docs/plans/2026-10-14-v1.5-modules-plan.md`, `examples/vite-app/`, `packages/cli/`.
-
-## 2026-10-14T03:20:00+03:00 — the v1 roadmap is closed: S3, S4, S5, S6's v1 share and S1.5 are reached
-
-**State.** Every v1 milestone the design record names is reached. S3, S4 and S5 read `done`;
-S1.5 reads `done` (entry above); S6 reads `in_progress` because its design row also names the
-v1.5 modules — the six packages' publish shape, the facade, the tarball smoke and 0.1.0 are
-delivered, and T-13 owns the rest. Nothing is published, and no owner row was closed for the owner.
-
-**Did.** Executed `docs/plans/2026-10-14-s6-distribution-plan.md` (`aa0589a`) task by task:
-publish metadata and the licence copy (`e04733d`), the facade (`cba0db4`), its component record
-(`13fa0f6`), pack-smoke coverage (`95e2b4c`), the changesets release (`a27bee1`), the runnable
-Node example (`191fb1c`), the README sections (`78cc03f`), per-changelog notes (`3484794`), and
-the records with decision 0006 (`49bd15d`). Then delegated S1.5 and reviewed it commit by commit.
-
-**Verified.** PASS — `pnpm gate` exit 0 on this revision (`.superpowers/gate-verify.txt`): 66
-files and 453 tests, depcruise 158 modules and 395 dependencies with no violations, six publint
-"All good!", `ci:check OK`, `pack-smoke OK: 6 packages`. PASS — the validator reports `new: []`,
-14 baselined, 0 errors, 0 warnings; `rotate.py --check` exits 0; the tree is clean.
-
-**Unverified / open.** No publish was attempted: T-14 waits on registry credentials and a
-repository URL this tree has none of. S1.5's two measured divergences are open owner decisions.
-
-**Next.** The owner answers T-5, T-10, T-12, T-14, T-16 and T-18, or picks the first T-13 module.
-
-**Blockers.** T-5, T-10, T-12, T-13, T-14, T-16 and T-18 wait on the owner.
-
-**Artifacts.** `docs/01-project.md:118`, `docs/plans/2026-10-14-s6-distribution-plan.md`,
-`docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/`.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.

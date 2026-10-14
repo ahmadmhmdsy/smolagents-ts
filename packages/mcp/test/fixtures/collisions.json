@@ -1,0 +1,58 @@
+{
+  "steps": [
+    {
+      "expect": {
+        "method": "initialize"
+      },
+      "reply": {
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": true
+            }
+          },
+          "serverInfo": {
+            "name": "fixture-server",
+            "version": "1.0.0"
+          }
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/list"
+      },
+      "reply": {
+        "result": {
+          "tools": [
+            {
+              "name": "read-file",
+              "description": "Read a file.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "name": "read.file",
+              "description": "Read a file, spelled with a dot.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

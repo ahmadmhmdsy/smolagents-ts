@@ -4,6 +4,34 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T03:20:00+03:00 — the v1 roadmap is closed: S3, S4, S5, S6's v1 share and S1.5 are reached
+
+**State.** Every v1 milestone the design record names is reached. S3, S4 and S5 read `done`;
+S1.5 reads `done` (entry above); S6 reads `in_progress` because its design row also names the
+v1.5 modules — the six packages' publish shape, the facade, the tarball smoke and 0.1.0 are
+delivered, and T-13 owns the rest. Nothing is published, and no owner row was closed for the owner.
+
+**Did.** Executed `docs/plans/2026-10-14-s6-distribution-plan.md` (`aa0589a`) task by task:
+publish metadata and the licence copy (`e04733d`), the facade (`cba0db4`), its component record
+(`13fa0f6`), pack-smoke coverage (`95e2b4c`), the changesets release (`a27bee1`), the runnable
+Node example (`191fb1c`), the README sections (`78cc03f`), per-changelog notes (`3484794`), and
+the records with decision 0006 (`49bd15d`). Then delegated S1.5 and reviewed it commit by commit.
+
+**Verified.** PASS — `pnpm gate` exit 0 on this revision (`.superpowers/gate-verify.txt`): 66
+files and 453 tests, depcruise 158 modules and 395 dependencies with no violations, six publint
+"All good!", `ci:check OK`, `pack-smoke OK: 6 packages`. PASS — the validator reports `new: []`,
+14 baselined, 0 errors, 0 warnings; `rotate.py --check` exits 0; the tree is clean.
+
+**Unverified / open.** No publish was attempted: T-14 waits on registry credentials and a
+repository URL this tree has none of. S1.5's two measured divergences are open owner decisions.
+
+**Next.** The owner answers T-5, T-10, T-12, T-14, T-16 and T-18, or picks the first T-13 module.
+
+**Blockers.** T-5, T-10, T-12, T-13, T-14, T-16 and T-18 wait on the owner.
+
+**Artifacts.** `docs/01-project.md:118`, `docs/plans/2026-10-14-s6-distribution-plan.md`,
+`docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/`.
+
 ## 2026-10-14T03:10:32+03:00 — S1.5 is complete: the parity harness compares our loop with upstream
 
 **State.** A differential harness now holds this loop against the release it is derived from.

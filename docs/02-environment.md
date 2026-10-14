@@ -162,3 +162,5 @@ Append-only.
 | 2026-10-13 | per-package test counts | `pnpm vitest run --project <id>` for each of the five packages | core 27 files / 273 tests, the other four 1 test each |
 | 2026-10-13 | the full gate after S2a | `pnpm gate` from the repository root | exit 0; 38 test files and 319 tests passed; 94 modules and 200 dependencies cruised; `pack-smoke OK` on five tarballs |
 | 2026-10-14 | the docs site app and its dependency | `pnpm --filter docs-site why marked` | marked 18.1.1, the only dependency of `docs-site` |
+| 2026-10-14 | the full gate on the revision that adds `@smolagents-ts/mcp` | `pnpm gate` from the repository root | exit 0; 86 test files and 634 tests passed; 205 modules and 517 dependencies cruised; publint clean on eight packages; the site built 60 pages |
+| 2026-10-14 | the MCP package's own suite | `pnpm vitest run --project mcp` | 9 files and 106 tests passed |

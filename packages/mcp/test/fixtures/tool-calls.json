@@ -1,0 +1,182 @@
+{
+  "steps": [
+    {
+      "expect": {
+        "method": "initialize"
+      },
+      "reply": {
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": true
+            }
+          },
+          "serverInfo": {
+            "name": "fixture-server",
+            "version": "1.0.0"
+          }
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/list"
+      },
+      "reply": {
+        "result": {
+          "tools": [
+            {
+              "name": "echo",
+              "description": "Echo a string back.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              }
+            },
+            {
+              "name": "structured",
+              "description": "A structured result.",
+              "inputSchema": {
+                "type": "object"
+              }
+            },
+            {
+              "name": "broken",
+              "description": "Always fails.",
+              "inputSchema": {
+                "type": "object"
+              }
+            },
+            {
+              "name": "noSchema",
+              "description": "Sends no input schema."
+            },
+            {
+              "name": "rich",
+              "description": "Returns text and an image.",
+              "inputSchema": {
+                "type": "object"
+              }
+            },
+            {
+              "name": "jsonError",
+              "description": "Fails at the protocol layer.",
+              "inputSchema": {
+                "type": "object"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "echo"
+      },
+      "reply": {
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "hi"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "structured"
+      },
+      "reply": {
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"total\":3}"
+            }
+          ],
+          "structuredContent": {
+            "total": 3
+          }
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "broken"
+      },
+      "reply": {
+        "result": {
+          "isError": true,
+          "content": [
+            {
+              "type": "text",
+              "text": "the server refused: bad input"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "noSchema"
+      },
+      "reply": {
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "called with no schema"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "rich"
+      },
+      "reply": {
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "before"
+            },
+            {
+              "type": "image",
+              "data": "aGk=",
+              "mimeType": "image/png"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "expect": {
+        "method": "tools/call",
+        "name": "jsonError"
+      },
+      "reply": {
+        "error": {
+          "code": -32603,
+          "message": "the server blew up"
+        }
+      }
+    }
+  ]
+}

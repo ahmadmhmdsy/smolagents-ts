@@ -21,6 +21,8 @@ rediscovery of the same failure.
 | _template.md | (form) | — |
 | gate.md | before committing, or before reporting a gate result | 2026-10-13 |
 | record-parity-traces.md | when a parity scenario is added or edited, or the pinned upstream release changes | 2026-10-14 |
+| live-provider-smoke.md | after a model adapter changes, or before a release, to prove one adapter against its real provider | 2026-10-14 |
+| mcp-live-check.md | after a change to the MCP client, a transport or the tool adapter, or before a release | 2026-10-14 |
 
 ## What belongs here
 
