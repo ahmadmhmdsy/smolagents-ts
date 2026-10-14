@@ -56,7 +56,13 @@ SKIP_TOP = {"_dev", ".git", ".superpowers", "__pycache__", ".venv", ".locks", "s
 # (`.env`), and a secrets file is not pack surface by definition: the pack must
 # never copy it, report on it, or count it. Without this, c12_secrets fails the
 # whole gate on the file's mere presence. Recorded in docs/09-decisions/0009.
-SKIP_TOP |= {"node_modules", "reference", "smolagents", ".env", ".env.local"}
+# The agent harness keeps its own gitignored scratch in `.dsh/` (session handoff
+# archives, throwaway probe scripts, a browser profile). It is the same case as
+# `.superpowers/` and it recurred: measured on 2026-10-14, a headless browser
+# profile left there made c12_secrets raise UnicodeDecodeError on a PNG and take
+# the whole validator down, rather than report a finding. Excluded by the same
+# mechanism, and `.dsh/` is ignored by git and by eslint for the same reason.
+SKIP_TOP |= {"node_modules", "reference", "smolagents", ".env", ".env.local", ".dsh"}
 
 def iter_surface(root: Path):
     """Every file the pack owns, pruning skipped trees instead of walking them.

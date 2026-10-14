@@ -33,6 +33,41 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-14T15:40:00+03:00 — probe C is measured, and the close of T-13 is verified
+
+**State.** T-13's last two gaps are filled and the numbers in the entry below are
+superseded. The styled package's suite is now 5 files and 22 tests, because Task
+6's probe test landed; the full gate exits 0 at 113 test files and 796 tests, 279
+modules and 712 dependencies cruised, eleven packages packed and installed, and
+the site at 70 pages, one more than before because this session added a report.
+
+**Did.** Drove the example's production build in headless Edge over the DevTools
+Protocol by keyboard alone, and read its accessibility tree. Wrote the report and
+pasted the measured results into the plan. Added the probe test that pins the
+sheet's shape: five tokens, each reading an input name that is not its own, and
+every selector scoped to a class this package owns. Fixed two things the harness's
+own scratch directory caused — the linter linted it, and the pack walker crashed
+on a browser profile it found there — so `.dsh/` is now ignored by both, on the
+precedent `.superpowers/` already set.
+
+**Verified.** `pnpm gate` exit 0 with the counts above; `--project react-ui` 5
+files and 22 tests; the validator 0 errors, 0 warnings, 14 baselined, `new: []`.
+In the browser both styled wrappers report `role: none` and `ignored: true`, so
+they add nothing to the accessibility tree at all; the live cancel button is a tab
+stop and the disabled composer is skipped.
+
+**Unverified / open.** No screen reader was run — the accessibility tree is the
+browser's own computation. The plan's four open questions are still the owner's.
+
+**Next.** Take the owner's decision batch.
+
+**Blockers.** Unchanged: T-14 needs registry credentials, and T-16, T-18, T-19,
+T-21 and T-25 each wait on a decision rather than on work.
+
+**Artifacts.** `docs/reports/2026-10-14-t13-probe-c-keyboard.md`;
+`packages/react-ui/test/stylesheet.probe.test.ts`;
+`docs/plans/2026-10-14-t13-l4-l5-plan.md`.
+
 ## 2026-10-14T15:00:00+03:00 — L4 and L5 land, and T-13 closes
 
 **State.** T-13's last module is delivered, so every module S6's design row names

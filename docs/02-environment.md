@@ -178,3 +178,5 @@ Append-only.
 | 2026-10-14 | the react package's own suite after L4 | `pnpm vitest run --project react` | 10 files and 46 tests passed |
 | 2026-10-14 | the styled package's own suite | `pnpm vitest run --project react-ui` | 4 files and 19 tests passed |
 | 2026-10-14 | the full gate with L4 and L5 | `pnpm gate` from the repository root | exit 0; 112 test files and 793 tests passed; 278 modules and 708 dependencies cruised; publint clean on eleven packages; `pack-smoke OK` on eleven packages; the site built 69 pages |
+| 2026-10-14 | the styled package's suite after the probe test | `pnpm vitest run --project react-ui` | 5 files and 22 tests passed |
+| 2026-10-14 | the full gate at the L4/L5 close | `pnpm gate` from the repository root | exit 0; 113 test files and 796 tests passed; 279 modules and 712 dependencies cruised; publint clean on eleven packages; `pack-smoke OK` on eleven packages; the site built 70 pages |
