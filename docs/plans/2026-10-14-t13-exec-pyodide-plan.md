@@ -252,8 +252,13 @@ upstream map stops treating the Python executor as QuickJS's row.
 **Files:** `packages/exec-pyodide/AGENTS.md`, a new component rule in the form
 `rules/components/<id>.md`, `AGENTS.md` (one row), `docs/attribution.md`,
 `docs/04-tasks.md` (the T-13 row), `docs/03-handoff.md` (a new entry),
-`docs/02-environment.md`, and `docs/05-memory.md` with
-`docs/memory/general.md` only if a lesson lands.
+`docs/02-environment.md`, `docs/01-project.md` (the Key components table and the
+S6 row), and `docs/05-memory.md` with `docs/memory/general.md` only if a lesson
+lands.
+
+**Measured addition (2026-10-14, before task 8 ran):** the ownership list at the
+top of this plan misses `docs/01-project.md`, whose Key components table names
+every package; task 8 updates it too.
 
 **Notes:** the scoped entry follows `packages/exec-quickjs/AGENTS.md`; the
 component rule follows `rules/components/exec-quickjs.md` and must state that
