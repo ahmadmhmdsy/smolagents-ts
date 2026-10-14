@@ -24,6 +24,7 @@ rediscovery of the same failure.
 | live-provider-smoke.md | after a model adapter changes, or before a release, to prove one adapter against its real provider | 2026-10-14 |
 | mcp-live-check.md | after a change to the MCP client, a transport or the tool adapter, or before a release | 2026-10-14 |
 | exec-pyodide-browser-probe.md | after a change to the exec-pyodide loader, executor or capabilities, or before a release that ships a browser bundle | 2026-10-14 |
+| publish-0.1.0.md | when the owner supplies registry credentials and a release is due | never executed |
 
 ## What belongs here
 
