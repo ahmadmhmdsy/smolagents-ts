@@ -1,0 +1,18 @@
+{
+  "id": "one-step-final",
+  "task": "What is 6 times 7? Answer with final_answer.",
+  "tools": [],
+  "planningInterval": 0,
+  "maxSteps": 3,
+  "turns": [
+    {
+      "intent": "final-answer",
+      "py": "```python\nfinal_answer(42)\n```",
+      "ts": "```javascript\nfinal_answer(42);\n```",
+      "value": 42
+    }
+  ],
+  "expect": {
+    "parity": "equal"
+  }
+}

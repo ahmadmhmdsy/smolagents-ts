@@ -1,0 +1,36 @@
+{
+  "id": "step-budget",
+  "task": "Keep improving the estimate.",
+  "tools": [],
+  "planningInterval": 0,
+  "maxSteps": 2,
+  "turns": [
+    {
+      "intent": "code",
+      "py": "```python\nx = 1\n```",
+      "ts": "```javascript\nconst x = 1;\n```",
+      "observation": "ok"
+    },
+    {
+      "intent": "code",
+      "py": "```python\nx = 2\n```",
+      "ts": "```javascript\nconst x = 2;\n```",
+      "observation": "ok"
+    },
+    {
+      "intent": "code",
+      "py": "```python\nx = 3\n```",
+      "ts": "```javascript\nconst x = 3;\n```",
+      "observation": "ok"
+    }
+  ],
+  "expect": {
+    "parity": "divergent",
+    "differsOn": [
+      "steps",
+      "outcome",
+      "actions"
+    ],
+    "why": "upstream ends a max-steps run with a synthetic ActionStep and a FinalAnswerStep; ours emits run.maxStepsReached (F6, T-18)"
+  }
+}

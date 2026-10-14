@@ -1,0 +1,23 @@
+{
+  "id": "no-code-block",
+  "task": "Say hello, then answer.",
+  "tools": [],
+  "planningInterval": 0,
+  "maxSteps": 3,
+  "turns": [
+    {
+      "intent": "text",
+      "py": "I will not write any code.",
+      "ts": "I will not write any code."
+    },
+    {
+      "intent": "final-answer",
+      "py": "```python\nfinal_answer(\"hello\")\n```",
+      "ts": "```javascript\nfinal_answer(\"hello\");\n```",
+      "value": "hello"
+    }
+  ],
+  "expect": {
+    "parity": "equal"
+  }
+}

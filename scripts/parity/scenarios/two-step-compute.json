@@ -1,0 +1,24 @@
+{
+  "id": "two-step-compute",
+  "task": "What is the square root of 16?",
+  "tools": [],
+  "planningInterval": 0,
+  "maxSteps": 4,
+  "turns": [
+    {
+      "intent": "code",
+      "py": "```python\nimport math\nresult = math.sqrt(16)\nprint(result)\n```",
+      "ts": "```javascript\nconst result = Math.sqrt(16);\nprint(result);\n```",
+      "observation": "4"
+    },
+    {
+      "intent": "final-answer",
+      "py": "```python\nfinal_answer(\"sqrt is 4\")\n```",
+      "ts": "```javascript\nfinal_answer(\"sqrt is 4\");\n```",
+      "value": "sqrt is 4"
+    }
+  ],
+  "expect": {
+    "parity": "equal"
+  }
+}

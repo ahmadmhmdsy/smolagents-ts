@@ -1,0 +1,27 @@
+{
+  "id": "error-recovery",
+  "task": "Compute the answer, recovering from any failure.",
+  "tools": [],
+  "planningInterval": 0,
+  "maxSteps": 4,
+  "turns": [
+    {
+      "intent": "code",
+      "py": "```python\nraise ValueError(\"boom\")\n```",
+      "ts": "```javascript\nthrow new Error(\"boom\");\n```",
+      "error": {
+        "code": "AGENT_EXECUTION",
+        "message": "boom"
+      }
+    },
+    {
+      "intent": "final-answer",
+      "py": "```python\nfinal_answer(\"recovered\")\n```",
+      "ts": "```javascript\nfinal_answer(\"recovered\");\n```",
+      "value": "recovered"
+    }
+  ],
+  "expect": {
+    "parity": "equal"
+  }
+}
