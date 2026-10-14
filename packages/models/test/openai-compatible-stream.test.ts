@@ -70,6 +70,30 @@ describe("OpenAICompatibleModel.generateStream", () => {
     expect(body.stream).toBe(true);
   });
 
+  it("ignores the null usage OpenAI puts on every chunk before the final one", async () => {
+    // With stream_options.include_usage every chunk carries a usage field; only the
+    // final one has a value, the rest report null. A null is not a usage report.
+    const withNullUsage = [
+      'data: {"choices":[{"delta":{"content":"hi"}}],"usage":null}',
+      "",
+      'data: {"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}',
+      "",
+      "data: [DONE]",
+      "",
+      "",
+    ].join("\n");
+    const model = new OpenAICompatibleModel({ model: "m", fetch: streamed(withNullUsage) });
+
+    const chunks = [];
+    for await (const chunk of model.generateStream([{ role: "user", content: "Q" }])) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks.map((chunk) => chunk.delta).join("")).toBe("hi");
+    expect(chunks.filter((chunk) => chunk.usage !== undefined)).toHaveLength(1);
+    expect(chunks.at(-1)?.usage).toEqual({ inputTokens: 5, outputTokens: 2, totalTokens: 7 });
+  });
+
   it("asks the provider for usage while streaming", async () => {
     const { fetch, calls } = recording(streamed(transcript));
     const model = new OpenAICompatibleModel({ model: "gpt-4o-mini", fetch });

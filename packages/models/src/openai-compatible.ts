@@ -67,7 +67,8 @@ interface WireUsage {
 
 interface WireResponse {
   choices?: WireChoice[];
-  usage?: WireUsage;
+  /** A null is the field present with no report; include_usage sends one per chunk. */
+  usage?: WireUsage | null;
 }
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
@@ -123,8 +124,8 @@ function fromWireToolCalls(calls: WireToolCall[] | undefined): ToolCallRequest[]
   }));
 }
 
-function fromWireUsage(usage: WireUsage | undefined): TokenUsage {
-  if (usage === undefined) return EMPTY_TOKEN_USAGE;
+function fromWireUsage(usage: WireUsage | null | undefined): TokenUsage {
+  if (usage === undefined || usage === null) return EMPTY_TOKEN_USAGE;
   const inputTokens = usage.prompt_tokens ?? 0;
   const outputTokens = usage.completion_tokens ?? 0;
   return {
@@ -169,7 +170,10 @@ function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
   const chunk: ChatCompletionChunk = { delta: content };
   if (first !== undefined) chunk.toolCallDelta = toToolCallDelta(first, 0);
   if (reason !== undefined && reason !== null) chunk.finishReason = toFinishReason(reason);
-  if (parsed.usage !== undefined) chunk.usage = fromWireUsage(parsed.usage);
+  // A null is the field present with no report, not a usage of zero.
+  if (parsed.usage !== undefined && parsed.usage !== null) {
+    chunk.usage = fromWireUsage(parsed.usage);
+  }
 
   if (
     content !== "" ||
