@@ -6,6 +6,12 @@ import { CODE_FENCE } from "../prompts/templates.js";
  * Line-based rather than regex-based: a regex that is permissive enough to accept an
  * unterminated trailing block is hard to reason about, and upstream's behaviour here is
  * "the first block wins, and a block may be the whole tail of the message".
+ *
+ * A fence counts wherever it sits on its line, not only at the start. Upstream's pattern
+ * carries no line anchor for the same reason: a model that opens its fence mid-sentence
+ * ("Thought: ... {{fence}}js") is asking to be understood, and treating that as no block
+ * at all throws away an answer that is already in the message. The remainder of the
+ * opening line is the language tag, so the code itself starts on the next line.
  */
 export function extractCodeBlock(text: string, fence: string = CODE_FENCE): string | null {
   const lines = text.split("\n");
@@ -13,14 +19,14 @@ export function extractCodeBlock(text: string, fence: string = CODE_FENCE): stri
   let inside = false;
 
   for (const line of lines) {
-    const trimmed = line.trim();
+    const at = line.indexOf(fence);
     if (!inside) {
-      if (trimmed.startsWith(fence)) {
+      if (at !== -1) {
         inside = true;
       }
       continue;
     }
-    if (trimmed.startsWith(fence)) {
+    if (at !== -1) {
       return collected.join("\n");
     }
     collected.push(line);

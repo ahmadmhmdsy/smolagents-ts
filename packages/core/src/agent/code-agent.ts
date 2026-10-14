@@ -8,7 +8,7 @@ import type { ChatCompletion } from "../model.js";
 import { buildCodeAgentSystemPrompt } from "../prompts/system-prompt.js";
 import type { ToolCall } from "../types.js";
 import { createAsyncQueue } from "../utils/async-queue.js";
-import { extractCodeBlock } from "../utils/parse-code-blocks.js";
+import { extractCodeBlock, hasFinalAnswerCall } from "../utils/parse-code-blocks.js";
 
 export interface CodeAgentOptions extends AgentOptions {
   executor: CodeExecutor;
@@ -38,7 +38,14 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
   protected override interpret(completion: ChatCompletion): InterpretedAction {
     const raw = completion.content;
     const code = extractCodeBlock(raw);
-    return code === null ? { kind: "empty", raw } : { kind: "code", raw, code };
+    if (code !== null) return { kind: "code", raw, code };
+    // A model that answers with unfenced code has still answered. The prompt asks for a
+    // fence, but a message that calls final_answer is unambiguous, and failing the step
+    // would discard an answer that is already in hand. The executor stays the authority
+    // on whether final_answer was really invoked, so a wrong guess costs one step, not
+    // the run.
+    if (hasFinalAnswerCall(raw)) return { kind: "code", raw, code: raw };
+    return { kind: "empty", raw };
   }
 
   protected override async *executeAction(

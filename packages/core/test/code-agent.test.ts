@@ -64,6 +64,36 @@ describe("CodeAgent", () => {
     expect(agent.systemPrompt).toContain("Always answer in French.");
   });
 
+  it("runs an answer whose fence opens mid-sentence", async () => {
+    const executor = new ScriptedExecutor({
+      handler: (code) =>
+        code.includes("final_answer(7)")
+          ? finalAnswerResult(7)
+          : { logs: "", isFinalAnswer: false, durationMs: 0, toolCallCount: 0 },
+    });
+    const agent = new CodeAgent({
+      model: new MockModel(["Thought: ready. " + CODE_FENCE + "javascript\nfinal_answer(7)\n" + CODE_FENCE]),
+      executor,
+    });
+    const { result } = await drain(agent, "answer");
+    expect(result?.output).toBe(7);
+  });
+
+  it("runs an unfenced answer that calls final_answer", async () => {
+    const executor = new ScriptedExecutor({
+      handler: (code) =>
+        code.includes("final_answer(9)")
+          ? finalAnswerResult(9)
+          : { logs: "", isFinalAnswer: false, durationMs: 0, toolCallCount: 0 },
+    });
+    const agent = new CodeAgent({
+      model: new MockModel(["Thought: ready.\nfinal_answer(9)"]),
+      executor,
+    });
+    const { result } = await drain(agent, "answer");
+    expect(result?.output).toBe(9);
+  });
+
   it("passes the extracted code to the executor with the right step index", async () => {
     const seen: { code: string; stepIndex: number }[] = [];
     const executor = new ScriptedExecutor({

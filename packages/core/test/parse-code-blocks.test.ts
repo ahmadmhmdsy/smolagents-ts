@@ -43,6 +43,20 @@ describe("extractCodeBlock", () => {
   it("honours a custom fence", () => {
     expect(extractCodeBlock("~~~\n1+1\n~~~", "~~~")).toBe("1+1");
   });
+
+  it("accepts a fence that opens mid-sentence", () => {
+    const text = "Thought: ready. " + CODE_FENCE + "javascript\nfinal_answer(7)\n" + CODE_FENCE;
+    expect(extractCodeBlock(text)).toBe("final_answer(7)");
+  });
+
+  it("accepts a closing fence with trailing prose", () => {
+    const text = "Here it is: " + CODE_FENCE + "\nfinal_answer(7)\n" + CODE_FENCE + " and that is all.";
+    expect(extractCodeBlock(text)).toBe("final_answer(7)");
+  });
+
+  it("still returns null for unfenced prose that mentions no block", () => {
+    expect(extractCodeBlock("Thought: I will think about it.")).toBeNull();
+  });
 });
 
 describe("extractThought", () => {
