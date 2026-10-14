@@ -124,13 +124,16 @@ entry.
 | S4 | Code execution | `CodeExecutor` implementations, `exec-quickjs`, final-answer bridging, async tool-call bridging | done |
 | S5 | React layer | L2 hooks, L3 headless primitives, examples | done |
 | S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | in_progress |
-| S1.5 | Parity harness | Python-to-TypeScript differential tests | pending |
+| S1.5 | Parity harness | Python-to-TypeScript differential tests | done |
 
 S5's hooks and primitives are done; the runnable example its definition also
 names waits on T-13, which picks where it runs. S6's v1 share is done: the six
 packages carry the metadata a registry reads, the facade re-exports them, the
 packed tarballs install and import, and 0.1.0 is cut. The CLI, MCP, the remote
-executors, `exec-pyodide`, the docs site and L4/L5 are T-13's.
+executors, `exec-pyodide`, the docs site and L4/L5 are T-13's. S1.5's harness is
+reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
+committed, and a suite that replays them through our loop inside the gate. The two
+divergences it measured are T-16 and T-18, both waiting on the owner.
 
 ## Risks and mitigations
 

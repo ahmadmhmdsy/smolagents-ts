@@ -46,6 +46,8 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-10 | settle the handoff's cap debt | pending | owner | `docs/03-handoff.md`, `docs/handoff/archive-2026.md`, `scripts/_packmodel.py` | the S2 entry (2598 bytes) now sits in the archive, because rotation refuses to move an entry over the per-entry cap; the owner chooses between shortening it there, raising the cap in `scripts/_packmodel.py`, and leaving it as it stands | - |
 | T-13 | ship the v1.5 modules S6's design row names: CLI, MCP, remote executors, exec-pyodide, docs site, L4/L5 | pending | owner | new packages, `examples/**`, `apps/**` | the owner picks the next module and where it runs | - |
 | T-14 | publish 0.1.0 to the registry | pending | owner | `.changeset/**`, `packages/**` | registry credentials and a repository URL, neither of which this session has | - |
+| T-16 | decide our planning cadence: upstream plans before the first step, this loop plans after it | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the cadence; F7 in the S1.5 plan | - |
+| T-18 | decide a budget-exhausted run's ending: upstream reports the last model output as the final answer, this loop raises `AgentMaxStepsError` | pending | owner | `packages/core/src/agent/multi-step-agent.ts` | the owner picks the ending; F6 in the S1.5 plan | - |
 <!-- rotate:end -->
 
 ## Blocked

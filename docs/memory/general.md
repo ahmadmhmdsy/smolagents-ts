@@ -181,4 +181,29 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** dependency-cruiser reports a package that is only a runtime peer as `npm-dev` and `npm-no-pkg` beside `npm-peer`, so the rule that forbade `npm-dev` from `packages/*/src` rejected every React import in the new package although the manifest declares the peer; an import is undeclared only when it is neither a dependency nor a peer, and the rule now says so with `dependencyTypesNot`.
 - **Evidence:** `pnpm gate` failed at depcruise with 10 `no-undeclared-deps-from-src` errors on 2026-10-14, and `pnpm depcruise --output-type json` shows `["npm-peer","npm-no-pkg","npm-dev"]` for `react`; after the rule in `.dependency-cruiser.cjs` changed, `pnpm depcruise` reported `no dependency violations found (149 modules, 379 dependencies cruised)`.
 
+## 2026-10-14 — a differential harness must refuse what it cannot wire
+
+- **Status:** validated
+- **Lesson:** the parity corpus declares a `tools` list that neither leg builds, so a scenario with tools would have run two tool-less agents that compared equal and went green while measuring the wrong thing; an input the harness cannot exercise is refused with a named error, because an equal trace and a skipped feature look identical in the report.
+- **Evidence:** `scripts/parity/record.py` and `packages/core/test/parity.test.ts` both exit on a non-empty `tools`, added after the recorder and the suite were already green on five scenarios.
+
+## 2026-10-14 — a test double that throws ends the run instead of failing the step
+
+- **Status:** validated
+- **Lesson:** a `ScriptedExecutor` handler that throws produces `AgentError` with no result, while returning a `CodeResult` carrying an `error` is a recoverable step that reaches the next model call; an error-recovery fixture scripts the returned error, and only a test that wants the fatal path expects the throw.
+- **Evidence:** measured while building the corpus: the thrown variant gave `AgentError: boom` with no `RunResult`, and the returned variant gave two action steps and then the final answer, recorded in `scripts/parity/recordings/error-recovery.json`.
+
+## 2026-10-14 — a divergence that covers every field pins nothing
+
+- **Status:** validated
+- **Lesson:** the max-steps scenario differs on all five compared fields at once, so an expectation that only listed them would have asserted nothing about either side; a divergence earns its place by also stating what the side we control must still do, which is why that scenario carries the values our run has to end with.
+- **Evidence:** `scripts/parity/scenarios/step-budget.json` — `differsOn` names five fields and the expectation requires `max-steps` after two actions, while the recorded upstream run ends with a final answer after three steps.
+
+## 2026-10-14 — Python's text mode writes CRLF on Windows
+
+- **Status:** validated
+- **Lesson:** `Path.write_text` follows the platform's newline, so a generator wrote CRLF into a checkout whose `.gitattributes` promises LF and git announced the conversion as it staged the files; a writer that produces files meant for version control passes the newline explicitly rather than trusting the platform.
+- **Evidence:** `git add scripts/parity/recordings` warned "CRLF will be replaced by LF" for all five recordings on 2026-10-14, and the warning is gone since `record.py` writes with `newline="\n"`.
+
+
 
