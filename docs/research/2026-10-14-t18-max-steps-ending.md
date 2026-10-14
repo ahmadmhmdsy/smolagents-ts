@@ -117,3 +117,58 @@ provider's post-budget failure is handled well by either version.
 - [ ] lesson shard and its registry row
 - [ ] the T-18 row in `docs/04-tasks.md`
 - [ ] artifacts kept per rules/09
+
+## Addendum — the diff, the options and the recommendation
+
+### The diff
+
+The endings are structurally different rather than a one-line change: upstream finishes a Python `while` by calling the model once more and returning its text, while this port finishes a `for` loop by emitting an event that `run()` turns into a throw — `smolagents/src/smolagents/agents.py:545,606-611,625-637` against `packages/core/src/agent/multi-step-agent.ts:249,354,183-187`.
+
+```diff
+--- smolagents/src/smolagents/agents.py:545,606-611,625-637
++++ packages/core/src/agent/multi-step-agent.ts:249,354,183-187
+@@ budget exhausted
+-while not returned_final_answer and self.step_number <= max_steps:      # agents.py:545
+-    ...                                                                 # one ActionStep per pass
+-if not returned_final_answer and self.step_number == max_steps + 1:     # agents.py:606
+-    final_answer = self._handle_max_steps_reached(task)                 # agents.py:607
+-yield final_answer_step                                                 # agents.py:611
+-def _handle_max_steps_reached(self, task):                              # agents.py:625
+-    final_answer = self.provide_final_answer(task)                      # agents.py:627
+-    final_memory_step = ActionStep(error=AgentMaxStepsError("Reached max steps."),
+-        token_usage=final_answer.token_usage)                           # agents.py:628-632
+-    final_memory_step.action_output = final_answer.content              # agents.py:634
+-    self.memory.steps.append(final_memory_step)                         # agents.py:636
+-    return final_answer.content
++for (let stepIndex = 0; stepIndex < this.maxSteps; stepIndex += 1) {    # multi-step-agent.ts:249
++  ...                                                                   // one action step per pass
++}
++yield this.emit({ type: "run.maxStepsReached", steps: this.maxSteps }); // multi-step-agent.ts:354
++case "run.maxStepsReached":                                             // multi-step-agent.ts:183
++  failure = new AgentMaxStepsError(
++    "Reached the maximum number of steps (" + String(event.steps) + ")");
+```
+
+### The full picture
+
+Upstream's `while` counts action steps (`agents.py:545`); past the budget it spends one more model call through `provide_final_answer` (`agents.py:627`), appends a synthetic `ActionStep` carrying `AgentMaxStepsError` and the answer's usage (`agents.py:628-636`), and returns that text, so `run()` reports `state = "max_steps_error"` (`agents.py:523-526`). This port's `for` header is the whole budget (`multi-step-agent.ts:249`), emits `run.maxStepsReached` at `:354`, and throws at `:183-187`, as design D8 demands (`docs/design/2026-10-12-smolagents-ts-v1-design.md:424-428`).
+
+The record's `## Results` measures upstream as "the scripted turns plus one 'get unstuck' call" storing "task, action, action, synthetic action", and this port as "the scripted turns, two action steps, no answer"; the recording shows `"outcome": "final-answer"` with a third action whose `"toolCalls"` is empty and `"error"` true, while `scripts/parity/scenarios/step-budget.json:37-44` pins our `"max-steps"` and null answer. A caller here gets a rejection with no output; there, the extra call's text, and `state: "max_steps_error"` under `return_full_result=True`; and the `"max_steps_reached"` state declared at `run-result.ts:4` is never produced.
+
+### The options
+
+| option | what changes | pros | cons | gaps |
+|---|---|---|---|---|
+| match upstream | post-budget `provide_final_answer` call, synthetic error `ActionStep`, return its text, no throw | the recorded divergence disappears at the source | one call lands outside `maxSteps`; overturns D8 | `packages/core/test/multi-step-agent.test.ts:160,173` pin the event and throw; `scripts/parity/scenarios/step-budget.json` must change; `scripts/parity/record.py:158` records the installed distribution, not the clone |
+| keep ours and document it | no loop change; the dead `RunState` at `run-result.ts:4` and the 14.1 row corrected | keeps D8 and the tested throw (`multi-step-agent.test.ts:173`) | a caller still gets no answer where upstream returns one | no test asserts `"max_steps_reached"` (`packages/core/test/events.test.ts:31`); `docs/04-tasks.md` and design 14.1 go stale |
+| a flag that selects either | an `AgentOptions` toggle branching at `multi-step-agent.ts:354` and in `run()` | a caller chooses without forking the loop | two terminal branches for a choice the project can state once | no recording covers the answer branch; a new public type must join `packages/core/test/public-surface.test.ts:16` |
+
+### Recommendation
+
+Keep ours and document it: D8 already forbids the extra call, `run()` throws under test at `multi-step-agent.test.ts:173`, and `parity.test.ts:10-12` commits recordings so a named divergence is acceptable. Smallest change: leave `multi-step-agent.ts:354` and `run()` at `:183-187` alone, delete `"max_steps_reached"` from `RunState` at `packages/core/src/agent/run-result.ts:4`, and correct design 14.1 at line 974; no test or recording moves. Reverse if `run()` must never throw on a spent budget, or if upstream brings the extra call inside the budget.
+
+### The owner's decision
+
+Question: T-18 — should a run that spends its last step keep this port's thrown `AgentMaxStepsError`, or return upstream's extra model call and its reported text?
+Options: match upstream | keep ours and document it | a flag that selects either.
+

@@ -113,3 +113,59 @@ tried.
 - [ ] lesson shard and its registry row
 - [ ] the T-16 row in `docs/04-tasks.md`
 - [ ] artifacts kept per rules/09
+
+## Addendum — the diff, the options and the recommendation
+
+### The diff
+
+The cadence difference is one condition; the input difference is a whole construction, so the block shows both. Upstream's condition and its two input branches are at `smolagents/src/smolagents/agents.py:550-552,639-657,684-713`; this port's condition and its one shared builder are at `packages/core/src/agent/multi-step-agent.ts:257,390-407`.
+
+```diff
+--- smolagents/src/smolagents/agents.py:550-552,639-657,684-713
++++ packages/core/src/agent/multi-step-agent.ts:257,390-407
+@@ before the first action
+-if self.planning_interval is not None and (                            # agents.py:550
+-    self.step_number == 1 or (self.step_number - 1) % self.planning_interval == 0
+-):                                                                     # agents.py:551
+-    self.memory.steps.append(planning_step)                            # agents.py:567
++if (this.planningInterval > 0 && stepIndex > 0 &&
++    stepIndex % this.planningInterval === 0) {                          // multi-step-agent.ts:257
++  const planning = yield* this.runPlanningStep(stepIndex, context);     // :258
++}
+@@ what the planner receives
+-if is_first_step:                                                       # agents.py:643
+-    input_messages = [ChatMessage(USER,
+-        populate_template(self.prompt_templates["planning"]["initial_plan"],
+-            variables={"task": task, "tools": self.tools, ...}))]       # agents.py:644-657
+-else:
+-    memory_messages = self.write_memory_to_messages(summary_mode=True)  # agents.py:684
+-    input_messages = [plan_update_pre] + memory_messages + [plan_update_post]
++const messages = this.transcript();                                     # multi-step-agent.ts:395
++messages.push({ role: "user", content: PLANNING_INSTRUCTION });         // :396
++const completion = yield* this.streamCompletion(
++    messages, stepIndex, context, "planning");                          // :398
+```
+
+### The full picture
+
+Upstream's condition has two arms — the counter is 1, or one past a multiple of the interval (`agents.py:550-552`) — so a planning-enabled run always plans before its first action. `is_first_step` is whether the task step is alone in memory (`agents.py:556`): the initial plan is one user template with tools and task (`agents.py:644-657`), the update plan a system prelude, summary-mode memory and a user postlude carrying `remaining_steps` (`agents.py:684-713`). This port adds `stepIndex > 0` (`multi-step-agent.ts:257`) and feeds both plans from the full transcript plus `PLANNING_INSTRUCTION` (`:395-398`, `:66-67`), the same guard the design pseudocode carries (`docs/design/2026-10-12-smolagents-ts-v1-design.md:391`).
+
+The record's `## Results` measures planning at "the first, then every N+1" upstream and "every N+1, never the first" here, pinning the first plan to step index 1 at `packages/core/test/agent-session-planning.test.ts:38`; that assertion holds only because the loop runs the first action at index 0. It also measures upstream's planning section at 112 lines against none: `packages/core/src/prompts/templates.ts` holds no planning text and `packages/core/src/model.ts:80-89` has no `generateForPlanning`, so the seams at design `:393` were never built. A consumer here gets no plan before the first action and a first plan already containing the first observation; upstream's update plan drops the system prompt, the thoughts and the earlier plans in summary mode (`memory.py:174-183`). All five `scripts/parity/scenarios/*.json` declare `"planningInterval": 0`.
+
+### The options
+
+| option | what changes | pros | cons | gaps |
+|---|---|---|---|---|
+| match upstream in full | drop `stepIndex > 0`; port the initial and update templates and the model and memory seams | restores cadence and input split | large, and no recording covers the lane | no planning goldens in `packages/core/src/prompts/templates.ts`; `packages/core/test/agent-session-planning.test.ts:38` must move; the per-turn schema change was never tried |
+| match the cadence only | delete `stepIndex > 0` at `multi-step-agent.ts:257` | closes the one positional difference the record names | both plans still share one input, so no parity assertion follows | `packages/core/test/agent-session-planning.test.ts:38` moves 1 to 0; design 391 goes stale; no recording covers the new call |
+| keep ours and document it | no loop change; correct design 391 and add a 14.1 row | the shipped lane and its test stay untouched | the first action stays unplanned, with no decision record behind that | must supersede the record's `## Conclusion`; `packages/core/test/agent-session-planning.test.ts` still pins only index 1 |
+
+### Recommendation
+
+Match the cadence only: the guard is upstream's second arm without its first, no decision record chooses the later plan, and one line at `multi-step-agent.ts:257` restores the rule. Blast radius: `packages/core/test/agent-session-planning.test.ts:38` moves from 1 to 0, and design line 391 needs correcting; no recording moves, because the corpus pins `"planningInterval": 0`. Leave the prompt content to a separate decision, since porting `initial_plan` and summary-mode memory is larger and no recording can assert it yet. Reverse if the owner wants the prompts matched first, or if a decision records the later plan as deliberate.
+
+### The owner's decision
+
+Question: T-16 — should a planning-enabled run plan before its first action, or keep this port's plan after it?
+Options: match upstream in full | match the cadence only | keep ours and document it.
+
