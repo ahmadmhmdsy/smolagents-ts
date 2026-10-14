@@ -347,6 +347,14 @@ record rather than `unknown`, and the seam's eight members are enough for the
 SDK's own transport to be injected with no adapter. The package's suite pins both
 directions against a local mirror of the SDK declaration, because the dependency
 
+### A naming change the frozen text does not carry (measured 2026-10-14)
+
+The tasks above name the seam `McpTransport` and the helper `withMcpClient`, and the
+implementation ships `MCPTransport` and `withMCPClient`: the acronym is capitalised in
+types, classes and helpers, and stays lowercase only in properties and log text
+(`mcpName`, `mcp: ...`). Decision 0015's frozen line keeps the old spelling; the code
+and its documents carry the shipped one.
+
 ### The package's five commands (measured 2026-10-14, tasks 1 to 7 and 9)
 
 | command | exit | result |

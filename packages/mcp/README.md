@@ -16,10 +16,10 @@ one of the SDK's with no adapter.
 A Streamable HTTP server, through the composition helper:
 
 ```ts
-import { mcpTools, withMcpClient } from "@smolagents-ts/mcp";
+import { mcpTools, withMCPClient } from "@smolagents-ts/mcp";
 
-await withMcpClient({ url: "http://localhost:8000/mcp" }, async (tools) => {
-  // tools is Tool[] from @smolagents-ts/core
+await withMCPClient({ url: "http://localhost:8000/mcp" }, async (tools, client) => {
+  // tools is Tool[] from @smolagents-ts/core; client is the live MCPClient
 });
 
 // Or the Tool[] directly, once the server is trusted:
@@ -31,29 +31,36 @@ A stdio server — the only entry point that imports a Node builtin:
 ```ts
 import { stdioClient } from "@smolagents-ts/mcp/stdio";
 
-const client = await stdioClient({ command: "npx", args: ["-y", "some-mcp-server"] });
+const client = await stdioClient({ command: "node", args: ["/path/to/some-mcp-server/index.js"] });
 try {
   const tools = await client.getTools();
 } finally {
   client.disconnect();
 }
 ```
+
+Pass the server's own executable rather than a package manager's shim: a command a
+terminal accepts is not always a command a spawn can start, so point `command` at the
+interpreter and put the server's installed entry in `args`.
 
 Several servers at once, and the manual lifecycle, are on `MCPClient`:
 
 ```ts
 import { MCPClient } from "@smolagents-ts/mcp";
 
-const client = await new MCPClient([
+const client = await MCPClient.create([
   { url: "http://localhost:8000/mcp" },
-  { command: "npx", args: ["-y", "another-server"] },
-]).connect();
+  { command: "node", args: ["/path/to/another-server/index.js"] },
+]);
 try {
   const tools = await client.getTools();
 } finally {
   client.disconnect();
 }
 ```
+
+The constructor is private: `MCPClient.create(...)` connects during construction, as
+upstream does, and a construction that cannot connect closes what it opened.
 
 ## What is not supported
 
