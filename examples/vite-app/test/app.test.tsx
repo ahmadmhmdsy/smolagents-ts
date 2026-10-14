@@ -59,4 +59,34 @@ describe("the browser example", () => {
     expect(document.querySelectorAll("section.agent-step-action")).toHaveLength(2);
     expect(document.querySelectorAll(".agent-tool-call")).toHaveLength(1);
   });
+
+  it("renders the styled layers over the run and disables the composer with a reason", async () => {
+    await renderApp();
+
+    // The styled inspector wraps the run, and inside it the primitives' own markup is
+    // unchanged: the wrapper adds a class and forwards the props, nothing else.
+    const inspector = document.querySelector(".smol-run-inspector");
+    expect(inspector).not.toBeNull();
+    expect(inspector?.querySelector(".agent-run")).not.toBeNull();
+    expect(inspector?.querySelector(".agent-final-answer")?.textContent).toContain("Hello, world!");
+
+    // The chat surface carries the fixed transcript in message order.
+    const surface = document.querySelector(".smol-chat-surface");
+    expect(surface).not.toBeNull();
+    const roles = [...(surface?.querySelectorAll("li") ?? [])].map((item) =>
+      item.getAttribute("data-role"),
+    );
+    expect(roles).toEqual(["user", "assistant"]);
+
+    // No handler is supplied, so the composer is disabled and its reason is reachable from the
+    // input through aria-describedby: visible text, not a second live region.
+    const input = screen.getByLabelText("Message");
+    expect(input.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Send" }).hasAttribute("disabled")).toBe(true);
+    const reasonId = input.getAttribute("aria-describedby");
+    expect(reasonId).toBeTruthy();
+    const reason = document.getElementById(reasonId ?? "");
+    expect(reason?.textContent).toBe("This page fixes the transcript, so there is nothing to send.");
+    expect(reason?.getAttribute("aria-live")).toBeNull();
+  });
 });

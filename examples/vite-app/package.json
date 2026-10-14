@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@jitl/quickjs-wasmfile-release-sync": "^0.32.0",
+    "@smolagents-ts/react-ui": "workspace:*",
     "quickjs-emscripten-core": "^0.32.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

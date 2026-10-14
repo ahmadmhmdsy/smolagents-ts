@@ -20,6 +20,9 @@ export default defineProject({
       { find: /^@smolagents-ts\/models$/, replacement: at("../../packages/models/src/index.ts") },
       { find: /^@smolagents-ts\/tools$/, replacement: at("../../packages/tools/src/index.ts") },
       { find: /^@smolagents-ts\/exec-quickjs$/, replacement: at("../../packages/exec-quickjs/src/index.ts") },
+      // The styled package's name extends the headless one, so its entry is written first,
+      // exactly as the dev server and the build write it.
+      { find: /^@smolagents-ts\/react-ui$/, replacement: at("../../packages/react-ui/src/index.ts") },
       { find: /^@smolagents-ts\/react$/, replacement: at("../../packages/react/src/index.ts") },
     ],
   },

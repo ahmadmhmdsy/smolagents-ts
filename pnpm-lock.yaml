@@ -181,6 +181,9 @@ importers:
       '@jitl/quickjs-wasmfile-release-sync':
         specifier: ^0.32.0
         version: 0.32.0
+      '@smolagents-ts/react-ui':
+        specifier: workspace:*
+        version: link:../../packages/react-ui
       quickjs-emscripten-core:
         specifier: ^0.32.0
         version: 0.32.0

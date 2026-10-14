@@ -7,6 +7,19 @@
   --accent: #2b6cb0;
   --ok: #1f7a4d;
   --busy: #a8620a;
+  /*
+   * The styled layer's token contract, mapped onto the page's palette. The package sets each
+   * of these with a fallback, so these lines are the consumer's override and not a patch: they
+   * resolve through the page's own variables, so the dark scheme below follows for free.
+   */
+  --smol-surface: var(--panel);
+  --smol-text: var(--ink);
+  --smol-accent: var(--accent);
+}
+
+/* The page owns the sheet after the package's copy, so a local spacing rule is fair game. */
+.smol-chat-surface {
+  margin-top: 1rem;
 }
 
 @media (prefers-color-scheme: dark) {
