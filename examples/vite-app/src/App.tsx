@@ -139,14 +139,14 @@ export function App() {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
             />
-            <button type="button" onClick={startLive} disabled={draft.trim() === ""}>
+            <button type="button" className="run" onClick={startLive} disabled={draft.trim() === ""}>
               Run
             </button>
           </div>
         ) : (
           <>
             <p className="task">{DEMO_TASK}</p>
-            <button type="button" onClick={startScripted}>
+            <button type="button" className="run" onClick={startScripted}>
               Run it again
             </button>
           </>

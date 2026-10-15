@@ -11,8 +11,8 @@
  *
  * Every rule below is scoped to a .smol-* class this package owns. The L4
  * patterns carry no class names of their own, so their internals are reached
- * with element selectors under the wrapper class; no .agent-* class is named
- * here, so this sheet cannot collide with the primitives' own styles.
+ * with element and attribute selectors under the wrapper class; no .agent-*
+ * class is named here, so this sheet cannot collide with the primitives' styles.
  */
 :root {
   --smol-surface: var(--smol-color-surface, #ffffff);
@@ -26,38 +26,81 @@
 .smol-run-inspector,
 .smol-chat-surface {
   padding: calc(var(--smol-gap) * 2);
-  border: 1px solid color-mix(in srgb, var(--smol-text) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--smol-text) 14%, transparent);
   border-radius: var(--smol-radius);
   background: var(--smol-surface);
   color: var(--smol-text);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* A chat surface nested in a run inspector shares its surface, so the common
+ * composition stays one card rather than a card inside a card. */
+.smol-run-inspector .smol-chat-surface {
+  padding: calc(var(--smol-gap) * 1.5) 0 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--smol-text) 12%, transparent);
+  background: none;
+}
+
+.smol-run-inspector ::selection,
+.smol-chat-surface ::selection {
+  background: color-mix(in srgb, var(--smol-accent) 28%, transparent);
 }
 
 .smol-run-inspector > div {
   display: flex;
   flex-direction: column;
-  gap: var(--smol-gap);
+  gap: calc(var(--smol-gap) * 1.5);
 }
 
+/* The status reads as a quiet cap, not a headline. */
 .smol-run-inspector p[role="status"] {
   margin: 0;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--smol-text) 72%, transparent);
 }
 
+/* One button vocabulary, with default, hover, active, focus and disabled states. */
 .smol-run-inspector button,
 .smol-chat-surface button {
-  padding: 0.35rem 0.8rem;
-  border: 1px solid color-mix(in srgb, var(--smol-text) 25%, transparent);
+  padding: 0.4rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--smol-text) 22%, transparent);
   border-radius: var(--smol-radius);
-  background: transparent;
+  background: color-mix(in srgb, var(--smol-text) 5%, transparent);
   color: inherit;
   font: inherit;
+  font-weight: 550;
+  line-height: 1.2;
   cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+/* Cancellation is a control beside the status, not a full-width bar. */
+.smol-run-inspector > div > button {
+  align-self: flex-start;
+}
+
+.smol-run-inspector button:hover:not(:disabled),
+.smol-chat-surface button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--smol-text) 10%, transparent);
+  border-color: color-mix(in srgb, var(--smol-text) 34%, transparent);
+}
+
+.smol-run-inspector button:active:not(:disabled),
+.smol-chat-surface button:active:not(:disabled) {
+  background: color-mix(in srgb, var(--smol-text) 15%, transparent);
 }
 
 .smol-run-inspector button:disabled,
 .smol-chat-surface button:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .smol-run-inspector button:focus-visible,
@@ -67,18 +110,21 @@
   outline-offset: 2px;
 }
 
+/* Steps: one quiet card each. */
 .smol-run-inspector ol {
   display: grid;
-  gap: var(--smol-gap);
+  gap: calc(var(--smol-gap) * 1.5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .smol-run-inspector ol > li {
+  min-width: 0;
   padding: calc(var(--smol-gap) * 1.5);
-  border: 1px solid color-mix(in srgb, var(--smol-text) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--smol-text) 12%, transparent);
   border-radius: var(--smol-radius);
+  background: color-mix(in srgb, var(--smol-text) 3%, transparent);
 }
 
 .smol-run-inspector ol > li:focus-visible {
@@ -86,29 +132,75 @@
   outline-offset: 2px;
 }
 
-.smol-run-inspector pre,
-.smol-tool-call pre,
-.smol-code-block pre {
-  margin: 0;
-  padding: var(--smol-gap);
-  border-radius: var(--smol-radius);
-  background: color-mix(in srgb, var(--smol-text) 8%, transparent);
-  overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
-  font-size: 0.85rem;
+.smol-run-inspector ol > li > section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--smol-gap) * 1.25);
 }
 
-.smol-tool-call > div {
+/* Tool calls: a short list of one-line summaries. */
+.smol-run-inspector ul {
+  display: grid;
+  gap: var(--smol-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.smol-tool-call [data-tool],
+.smol-run-inspector [data-tool] {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--smol-gap);
 }
 
+.smol-tool-call [data-tool] > span:first-child,
+.smol-run-inspector [data-tool] > span:first-child {
+  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* The live status reads as a pill, so "done" is scannable at a glance. */
+.smol-tool-call [data-tool] > span[aria-live],
+.smol-run-inspector [data-tool] > span[aria-live] {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--smol-text) 10%, transparent);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--smol-text) 72%, transparent);
+}
+
+/* Code and output share one monospace treatment; a tool's output takes its own line. */
+.smol-run-inspector pre,
+.smol-tool-call pre,
+.smol-code-block pre {
+  margin: 0;
+  padding: calc(var(--smol-gap) * 1.25) calc(var(--smol-gap) * 1.5);
+  border: 1px solid color-mix(in srgb, var(--smol-text) 10%, transparent);
+  border-radius: var(--smol-radius);
+  background: color-mix(in srgb, var(--smol-text) 6%, transparent);
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.smol-tool-call [data-tool] > pre,
+.smol-run-inspector [data-tool] > pre {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+/* The transcript: a role label over its content, never jammed into it. */
 .smol-chat-surface > section {
   display: flex;
   flex-direction: column;
-  gap: var(--smol-gap);
+  gap: calc(var(--smol-gap) * 1.5);
 }
 
 .smol-chat-surface ol {
@@ -120,21 +212,64 @@
 }
 
 .smol-chat-surface ol > li {
-  padding: var(--smol-gap);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.2rem;
+  padding: calc(var(--smol-gap) * 1.25) calc(var(--smol-gap) * 1.5);
   border-radius: var(--smol-radius);
-  background: color-mix(in srgb, var(--smol-text) 6%, transparent);
+  background: color-mix(in srgb, var(--smol-text) 5%, transparent);
 }
 
+.smol-chat-surface ol > li > span:first-child {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--smol-text) 68%, transparent);
+}
+
+.smol-chat-surface li[data-role="assistant"] > span:first-child {
+  color: var(--smol-accent);
+}
+
+.smol-chat-surface ol > li > span:last-child {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The composer. */
 .smol-chat-surface form {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--smol-gap);
 }
 
+.smol-chat-surface form > label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--smol-text) 72%, transparent);
+}
+
 .smol-chat-surface input {
-  flex: 1;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--smol-text) 25%, transparent);
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--smol-text) 22%, transparent);
   border-radius: var(--smol-radius);
+  background: color-mix(in srgb, var(--smol-surface) 92%, var(--smol-text));
+  color: inherit;
   font: inherit;
+}
+
+.smol-chat-surface input:disabled {
+  opacity: 0.6;
+}
+
+.smol-chat-surface form > p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--smol-text) 68%, transparent);
 }
