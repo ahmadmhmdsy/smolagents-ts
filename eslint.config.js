@@ -51,6 +51,12 @@ export default defineConfig(
       "reference/**",
       "**/*.d.ts",
       "apps/docs-site/site/**",
+      // Installed agent-skill bundles carry vendored browser JavaScript and a windows-x64 binary,
+      // neither of which is project code. Measured on 2026-10-16, `eslint .` reported 1144 errors
+      // (no-unused-expressions, no-undef) inside .cursor/skills/impeccable/scripts/** and its
+      // .github/skills/ twin, failing the lint stage before any project file was examined.
+      ".cursor/**",
+      ".github/**",
     ],
   },
   js.configs.recommended,

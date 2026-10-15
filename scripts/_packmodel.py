@@ -63,6 +63,14 @@ SKIP_TOP = {"_dev", ".git", ".superpowers", "__pycache__", ".venv", ".locks", "s
 # the whole validator down, rather than report a finding. Excluded by the same
 # mechanism, and `.dsh/` is ignored by git and by eslint for the same reason.
 SKIP_TOP |= {"node_modules", "reference", "smolagents", ".env", ".env.local", ".dsh"}
+# The agent-skill bundles installed at the repo root (.cursor/ and .github/) are
+# third-party tooling, not pack surface. The walker already skips a `skills`
+# directory by name; `agents` is the same case and recurred on 2026-10-16: two
+# copies of the impeccable briefs produced 20 duplicate-fact warnings. Excluded by
+# the same mechanism as the vendored trees above; the adapters under
+# .cursor/rules/ and .github/ are files, not an agents/ directory, so they stay
+# in the walk. Reverse by deleting the name below.
+SKIP_TOP |= {"agents"}
 
 def iter_surface(root: Path):
     """Every file the pack owns, pruning skipped trees instead of walking them.

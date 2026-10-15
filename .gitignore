@@ -30,3 +30,14 @@ packages/*/NOTICE
 .env
 .env.*
 !.env.example
+
+# Installed agent-skill bundles: third-party tooling, not pack surface. Kept local,
+# never committed - they carry vendored browser JavaScript and a windows-x64
+# executable. The pointer adapters (.cursor/rules/pack.mdc and
+# .github/copilot-instructions.md) are files and stay tracked.
+.cursor/agents/
+.cursor/hooks.json
+.cursor/skills/
+.github/agents/
+.github/hooks/
+.github/skills/
