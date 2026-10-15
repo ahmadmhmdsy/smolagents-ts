@@ -28,7 +28,7 @@ surface is the same parser, factories, renderer and run function the bin uses.
 
     pnpm vitest run --project cli
 
-Expected result: six files with forty-nine tests, exit code 0. The end-to-end case
+Expected result: seven files with fifty-two tests, exit code 0. The end-to-end case
 drives the real `CodeAgent` with the core's `MockModel` and `ScriptedExecutor`, so
 the suite needs no provider and no key. Run
 `pnpm --filter @smolagents-ts/cli run typecheck` beside it: the runner erases

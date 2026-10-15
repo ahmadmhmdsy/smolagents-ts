@@ -5,9 +5,20 @@ import { parseArguments } from "./args.js";
 import { CliError, HelpRequested } from "./errors.js";
 import { interactiveMode, type InteractiveSelection } from "./interactive.js";
 import { supportsColor } from "./renderer.js";
-import { runSmolagent } from "./run.js";
+import { runSmolagent, type RunSmolagentOptions } from "./run.js";
 import { createTerminalPrompter, writeTo } from "./terminal.js";
 import { defaultToolCatalog } from "./tool-factory.js";
+
+export interface MainOptions {
+  /**
+   * The environment a provider key is read from. Defaults to the process's own, which is
+   * the whole point of the parameter: `runSmolagent` defaults to an empty map so that its
+   * tests never read the host's environment, and the bin is the caller that must supply it.
+   */
+  env?: Readonly<Record<string, string | undefined>>;
+  /** Injected instead of the real run, so a test can see the options the bin assembles. */
+  run?: (options: RunSmolagentOptions) => Promise<number>;
+}
 
 /**
  * The bin: parse, set up, run.
@@ -16,7 +27,10 @@ import { defaultToolCatalog } from "./tool-factory.js";
  * command line the parser rejects, and 1 for everything else. With no prompt the
  * interactive setup asks for the configuration before the run.
  */
-export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
+export async function main(
+  argv: readonly string[] = process.argv.slice(2),
+  options: MainOptions = {},
+): Promise<number> {
   let args;
   try {
     args = parseArguments(argv);
@@ -58,10 +72,13 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     };
   }
 
-  return runSmolagent({
+  // The environment is passed explicitly. Without it a key reaches no adapter, and the
+  // USAGE text and the component entry both promise that HF_TOKEN and OPENAI_API_KEY are read.
+  return (options.run ?? runSmolagent)({
     ...selection,
     verbosityLevel: args.verbosityLevel,
     color: supportsColor(process.stdout.isTTY, process.env),
+    env: options.env ?? process.env,
   });
 }
 
