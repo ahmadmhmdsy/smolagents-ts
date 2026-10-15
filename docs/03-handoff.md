@@ -33,6 +33,54 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-16T00:35:00+03:00 — the UI is verified live; the CLI's dropped environment was the last defect before a release
+
+**State.** The v1 functional scope is done across eleven packages and unpublished. The owner asked whether the browser app works and what comes next. Verified live it does, scripted and against Gemini. The one defect, the CLI passing no environment to the run, is fixed; everything else waits on the owner.
+
+**Did.** Drove `examples/vite-app` with `agent-browser`: scripted mode finished in two steps, a live Gemini task called both `greet` and `add`, a pure-code task returned 720, console clean. Fixed the CLI: `runSmolagent` defaults its injected `env` to an empty map so its tests stay hermetic, and the bin never passed `process.env`, so no provider key reached an adapter; `main()` now takes `env` and forwards it. Added a lint ignore for the vendored agent-skill bundles.
+
+**Verified.** `pnpm gate` exit 0 — 120 files, 818 tests, 11 packages packed, docs site 71 pages. `pnpm vitest run --project cli` PASS 7 files/52 tests; `--project example-vite-app` PASS 2 files/7 tests. Live with `agent-browser`: scripted PASS; live Gemini `add`→42 and `greet`→"Hello, Ada!" PASS; factorial→720 PASS; console error-free.
+
+**Unverified / open.** The first live turn carried no code block and the loop nudged it ("No action found…"); the retry works. The exec-pyodide real-runtime suite flaked once (5000 ms timeout) and passed on re-run. The chat surface renders a fixed `TRANSCRIPT` (`examples/vite-app/src/App.tsx:19`) and its tools are only `greet`/`add`, so a web-search prompt draws a fabricated answer.
+
+**Next.** Take the owner's Phase-2 decisions (T-16, T-18, T-21, T-25), then run `docs/10-runbooks/publish-0.1.0.md`.
+
+**Blockers.** T-14 needs registry credentials and a public repository; T-16, T-18, T-21 and T-25 need owner decisions.
+
+**Artifacts.** `docs/plans/2026-10-16-release-0.1.0-readiness-plan.md`; `packages/cli/src/main.ts`; `examples/vite-app/src/App.tsx`.
+
+## 2026-10-14T22:05:00+03:00 — the live UI's "Failed" was the dev server answering the wasm with HTML
+
+**State.** The owner reported that the browser app marked every run `Failed`, showed only the
+first step, and asked whether the fault was the UI or the agent, how many steps are allowed,
+whether the page had ever been tested live, and whether a CLI could replace it.
+
+**Did.** Root-caused it to the example's dev wiring — not the agent, not the React layer. The
+QuickJS variant finds its engine with `new URL("emscripten-module.wasm", import.meta.url)`;
+Vite's dependency pre-bundle relocated that module into `node_modules/.vite/deps`, so the URL
+named a file that does not exist and the dev server answered it with `index.html`. Added
+`optimizeDeps.exclude` for the variant to `examples/vite-app/vite.config.ts`, pinned it with a
+case in `test/resolution.test.ts`, and documented it in the example README and the memory shard.
+
+**Verified.** Driven with `agent-browser` against the running dev server: scripted mode reads
+`Finished`, 2 steps, `greet:ok`; a live Gemini task — "Compute 15 * 4 and log it. Then, in a
+second step, answer with twice that value." — reads `Finished`, 2 steps, with both programs and
+`final_answer(120)`; the console carries no error. `vite preview` over the built app reads
+`Finished`, 2 steps. `pnpm gate` exit 0.
+
+**Unverified / open.** The CLI has no Gemini `--model-type`; `--model-type OpenAIModel
+--api-base .../v1beta/openai` is the only route and is unverified. The default budget is 20
+steps (`packages/core/src/agent/multi-step-agent.ts:95`) and the page exposes no control for it.
+
+**Next.** Verify the CLI's OpenAI-compatible route against Gemini, then decide whether the CLI
+gains a native Gemini type.
+
+**Blockers.** Unchanged: T-14 needs registry credentials; T-16, T-18, T-21 and T-25 need owner
+decisions.
+
+**Artifacts.** `examples/vite-app/vite.config.ts`;
+`examples/vite-app/test/resolution.test.ts`; `docs/memory/general.md`.
+
 ## 2026-10-14T18:52:00+03:00 — the audit finds one real defect, and the pre-publish pass closes it
 
 **State.** The owner asked whether the project works and every feature is done and
@@ -103,72 +151,4 @@ T-21 and T-25 each wait on a decision rather than on work.
 **Artifacts.** `docs/reports/2026-10-14-t13-probe-c-keyboard.md`;
 `packages/react-ui/test/stylesheet.probe.test.ts`;
 `docs/plans/2026-10-14-t13-l4-l5-plan.md`.
-
-## 2026-10-14T15:35:00+03:00 — the gate was green while CI was red
-
-**State.** The gate exits 0 locally at 114 test files and 800 tests — and it was
-green locally while CI was red. Both commits this session failed the `CI`
-workflow at `pnpm typecheck`: `examples/vite-app` could not resolve
-`@smolagents-ts/react-ui`, because the example's compiler `paths` mapped every
-workspace package to source except that one, and the workflow typechecks before it
-builds. The `context` and `Pages` workflows passed throughout.
-
-**Did.** Added the missing entry, then brought the example's `paths` in line with
-its two alias configs: a mapped source file imports its siblings by scoped name, so
-`@smolagents-ts/react` was missing as well. Pinned all three resolver configs to
-each other with `examples/vite-app/test/resolution.test.ts`. Closed the owner's
-decision batch: items 8 and 9 are implemented, and 10 to 13 were already answered
-by decisions 0014 and 0010 and by T-20. Item 9's premise was stale — streamed usage
-shipped at 10:03 in `2ac32fe` — and the live defect was that OpenAI sends
-`"usage": null` on every non-final chunk and the adapter threw on it.
-
-**Verified.** `pnpm gate` exit 0 at the counts above. With all twelve `dist/`
-directories moved away, `pnpm typecheck` exits 0; that is CI's own condition, and
-it is the check that catches this class.
-
-**Unverified / open.** The new guard reads the three configs as text and compares
-their coverage; it does not check that an alias points at the right package.
-`gemini.ts` has the same null-shape the models fix closed and was left alone.
-
-**Next.** Push, then watch `CI` on the pushed commit, because the local gate
-cannot see this defect.
-
-**Blockers.** T-14 needs registry credentials; T-16, T-18, T-21 and T-25 need
-decisions; T-19 and T-24 are deferred.
-
-**Artifacts.** `examples/vite-app/test/resolution.test.ts`;
-`examples/vite-app/tsconfig.json`; `packages/exec-remote/src/sandbox.ts`;
-`packages/models/src/openai-compatible.ts`; `docs/memory/general.md`.
-
-## 2026-10-14T14:40:00+03:00 — the remote executors land as the tenth package
-
-**State.** T-13's fifth module is delivered: `@smolagents-ts/exec-remote` is the tenth
-published package and its suite is 11 files and 57 tests. The full gate exits 0 — 106
-test files, 746 tests, 262 modules and 650 dependencies cruised, publint clean on ten
-packages, the site at 69 pages. The docs site landed earlier, so T-13 has L4/L5 left.
-
-**Did.** Built the package: a `RemoteSandbox` seam with three backends, a host-owned
-frame protocol over the child's stdio for the process path, the Jupyter stdin channel for
-Docker, and E2B refusing the round trip by name. Added the scoped entry, the component
-rule, the router row, the attribution rows, the changeset and the runbook with its check
-script. Fixed a defect the live run exposed: the executor's host-error mapping dropped the
-`cause` each backend attaches, so a missing daemon reported only that the sandbox could
-not start; it now walks a bounded cause chain, with a test. Filed decision 0017 and T-25.
-
-**Verified.** `pnpm gate` exit 0; the package suite 11 files and 57 tests; the live
-process check five ok in 334 ms; the validator `new: []`, 14 baselined, 0 errors. Both
-live Docker and E2B paths were attempted and failed, for want of a daemon and a
-credential.
-
-**Unverified / open.** Both live paths are unexecuted and the runbook says so; the Docker
-round trip is exercised only against a fake kernel; decision 0017 is not yet the owner's;
-the gate now needs Python on `PATH`, which no manifest declares.
-
-**Next.** Build L4/L5 per its filed plan, starting with the first three tasks. `react-ui`
-is an eleventh package, and the workspace may not grow one until this commit lands.
-
-**Blockers.** None. T-14, T-16, T-18, T-19, T-21 and T-25 stay owner-gated.
-
-**Artifacts.** `docs/plans/2026-10-14-t13-remote-executors-plan.md`,
-`docs/10-runbooks/exec-remote-live-backends.md`, `docs/09-decisions/0017-release-age-quarantine.md`.
 <!-- rotate:end -->

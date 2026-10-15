@@ -4,6 +4,74 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-14T15:35:00+03:00 — the gate was green while CI was red
+
+**State.** The gate exits 0 locally at 114 test files and 800 tests — and it was
+green locally while CI was red. Both commits this session failed the `CI`
+workflow at `pnpm typecheck`: `examples/vite-app` could not resolve
+`@smolagents-ts/react-ui`, because the example's compiler `paths` mapped every
+workspace package to source except that one, and the workflow typechecks before it
+builds. The `context` and `Pages` workflows passed throughout.
+
+**Did.** Added the missing entry, then brought the example's `paths` in line with
+its two alias configs: a mapped source file imports its siblings by scoped name, so
+`@smolagents-ts/react` was missing as well. Pinned all three resolver configs to
+each other with `examples/vite-app/test/resolution.test.ts`. Closed the owner's
+decision batch: items 8 and 9 are implemented, and 10 to 13 were already answered
+by decisions 0014 and 0010 and by T-20. Item 9's premise was stale — streamed usage
+shipped at 10:03 in `2ac32fe` — and the live defect was that OpenAI sends
+`"usage": null` on every non-final chunk and the adapter threw on it.
+
+**Verified.** `pnpm gate` exit 0 at the counts above. With all twelve `dist/`
+directories moved away, `pnpm typecheck` exits 0; that is CI's own condition, and
+it is the check that catches this class.
+
+**Unverified / open.** The new guard reads the three configs as text and compares
+their coverage; it does not check that an alias points at the right package.
+`gemini.ts` has the same null-shape the models fix closed and was left alone.
+
+**Next.** Push, then watch `CI` on the pushed commit, because the local gate
+cannot see this defect.
+
+**Blockers.** T-14 needs registry credentials; T-16, T-18, T-21 and T-25 need
+decisions; T-19 and T-24 are deferred.
+
+**Artifacts.** `examples/vite-app/test/resolution.test.ts`;
+`examples/vite-app/tsconfig.json`; `packages/exec-remote/src/sandbox.ts`;
+`packages/models/src/openai-compatible.ts`; `docs/memory/general.md`.
+
+## 2026-10-14T14:40:00+03:00 — the remote executors land as the tenth package
+
+**State.** T-13's fifth module is delivered: `@smolagents-ts/exec-remote` is the tenth
+published package and its suite is 11 files and 57 tests. The full gate exits 0 — 106
+test files, 746 tests, 262 modules and 650 dependencies cruised, publint clean on ten
+packages, the site at 69 pages. The docs site landed earlier, so T-13 has L4/L5 left.
+
+**Did.** Built the package: a `RemoteSandbox` seam with three backends, a host-owned
+frame protocol over the child's stdio for the process path, the Jupyter stdin channel for
+Docker, and E2B refusing the round trip by name. Added the scoped entry, the component
+rule, the router row, the attribution rows, the changeset and the runbook with its check
+script. Fixed a defect the live run exposed: the executor's host-error mapping dropped the
+`cause` each backend attaches, so a missing daemon reported only that the sandbox could
+not start; it now walks a bounded cause chain, with a test. Filed decision 0017 and T-25.
+
+**Verified.** `pnpm gate` exit 0; the package suite 11 files and 57 tests; the live
+process check five ok in 334 ms; the validator `new: []`, 14 baselined, 0 errors. Both
+live Docker and E2B paths were attempted and failed, for want of a daemon and a
+credential.
+
+**Unverified / open.** Both live paths are unexecuted and the runbook says so; the Docker
+round trip is exercised only against a fake kernel; decision 0017 is not yet the owner's;
+the gate now needs Python on `PATH`, which no manifest declares.
+
+**Next.** Build L4/L5 per its filed plan, starting with the first three tasks. `react-ui`
+is an eleventh package, and the workspace may not grow one until this commit lands.
+
+**Blockers.** None. T-14, T-16, T-18, T-19, T-21 and T-25 stay owner-gated.
+
+**Artifacts.** `docs/plans/2026-10-14-t13-remote-executors-plan.md`,
+`docs/10-runbooks/exec-remote-live-backends.md`, `docs/09-decisions/0017-release-age-quarantine.md`.
+
 ## 2026-10-14T14:05:00+03:00 — the Pyodide executor lands, and the remote executors are planned
 
 **State.** T-13's fourth module is delivered: `@smolagents-ts/exec-pyodide` is the
