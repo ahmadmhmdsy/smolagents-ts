@@ -53,6 +53,13 @@ export default defineConfig(({ mode }) => {
   return {
     base: "./",
     plugins: [react(), liveStatus(apiKey !== undefined, model)],
+    // The QuickJS variant locates its engine with
+    // `new URL("emscripten-module.wasm", import.meta.url)`. Pre-bundling moves that module
+    // into node_modules/.vite/deps, where the relative URL names a file the dev server does
+    // not have: it answers with index.html, and the executor aborts on the first step. Keeping
+    // the package out of the pre-bundle leaves the module where its own URL is correct, so the
+    // same transform that already rewrites it for the build runs in dev too.
+    optimizeDeps: { exclude: ["@jitl/quickjs-wasmfile-release-sync"] },
     server: { proxy },
     preview: { proxy },
     resolve: {

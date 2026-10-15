@@ -13,6 +13,18 @@ published; the app imports the workspace's packages through their published
 names, and `vite.config.ts` maps those names to the packages' sources so a fresh
 clone can start without building the workspace first.
 
+## Why the engine is kept out of the pre-bundle
+
+`vite.config.ts` keeps `@jitl/quickjs-wasmfile-release-sync` out of the dev server's
+dependency pre-bundle. The engine finds its own binary with
+`new URL("emscripten-module.wasm", import.meta.url)`; pre-bundling moves that module into
+`node_modules/.vite/deps`, the relative URL then names a file that is not there, and the dev
+server answers that request with `index.html` — so the browser rejects the "wasm" as HTML and
+every run dies on its first step. Removing the exclusion brings the failure straight back.
+
+`vite build` was never affected, and neither is Node, so nothing in the test suite can see the
+difference; only the dev server pre-bundles. The guard is a case in `test/resolution.test.ts`.
+
 ## Two modes
 
 **Scripted** is the default and needs nothing: a `MockModel` plays two turns, so

@@ -115,3 +115,29 @@ describe("the app's resolver configs", () => {
     }
   });
 });
+
+/**
+ * The QuickJS engine locates its own binary with
+ * `new URL("emscripten-module.wasm", import.meta.url)`, and the dev server's dependency
+ * pre-bundle moves that module into `node_modules/.vite/deps`, where the relative URL names a
+ * file that does not exist. The server answers the request with `index.html`; the browser
+ * reports "Incorrect response MIME type. Expected 'application/wasm'", then "expected magic
+ * word 00 61 73 6d, found 3c 21 64 6f", and every run dies on its first step.
+ *
+ * No other test here can see that failure. They run in Node, where the engine loads from disk
+ * and `vite build` rewrites the URL correctly; only the dev server pre-bundles, and only a
+ * browser shows the result. So the exclusion is the whole fix, and this is its guard: the
+ * engine stays out of the pre-bundle, which is what leaves the module where its own
+ * `import.meta.url` resolves to the file the server will serve.
+ */
+describe("the dev server's dependency pre-bundle", () => {
+  it("keeps the QuickJS engine out of it", () => {
+    const source = read("vite.config.ts");
+    const block = /optimizeDeps\s*:\s*\{[^}]*\}/.exec(source)?.[0];
+    expect(block, "vite.config.ts declares no optimizeDeps block").toBeDefined();
+    expect(
+      namesIt(block ?? "", "@jitl/quickjs-wasmfile-release-sync"),
+      "the QuickJS engine is pre-bundled, so the dev server cannot serve its wasm",
+    ).toBe(true);
+  });
+});
