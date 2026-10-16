@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-16T14:20:00+03:00 — S7's core lands: a manager delegates to a child agent exposed as a tool, with no change to the loop
+
+**State.** Pre-release and clean. S7 multi-agent is implemented and verified at the library level; only the example-app delegation run is outstanding, so the milestone reads `in_progress`.
+
+**Did.** Added `managedAgent()` (`packages/core/src/agent/managed-agent.ts`): it wraps a child agent as a tool taking a `task` (plus optional `additional_args`), wraps the task in upstream's managed-agent prompt, runs the child, and wraps the answer in the report prompt. `AgentOptions.managedAgents` folds each child into the manager's tool registry, so both `CodeAgent` and `ToolCallingAgent` execute and advertise it with no loop change; the prompt lists them in a "team members" section apart from the tool list. Exported `managedAgent` and `MANAGED_AGENT_INPUT_SCHEMA`; updated the public-surface pin and the template drift test.
+
+**Verified.** `pnpm gate` exit 0 on 2026-10-16: 314 core tests (8 new), every project green, depcruise and site clean. Delegation proven by `packages/core/test/managed-agent.test.ts` — a parent calls `junior`, the child runs, and its report folds back as the observation.
+
+**Unverified / open.** The `examples/vite-app` delegation run named in plan Phase 1 is not done. Child-to-parent event forwarding was dropped from the exit criterion: a tool call has no event channel. S8-S11 remain unstarted.
+
+**Next.** Run a managed agent in `examples/vite-app` to close S7, then start T-35 (S8).
+
+**Blockers.** None. T-14 (publish), T-16 and T-18 still wait on the owner.
+
+**Artifacts.** `packages/core/src/agent/managed-agent.ts`; `packages/core/src/agent/multi-step-agent.ts` (`managedAgents` fold); `packages/core/src/prompts/templates.ts`; `packages/core/test/managed-agent.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`.
+
 ## 2026-10-16T12:45:00+03:00 — the owner approved the post-0.1.0 roadmap; S7–S11 are in the spec and decision 0018 is accepted
 
 **State.** Pre-release and clean. The roadmap proposed earlier this session is approved: milestones S7 (multi-agent) through S11 (guardrails + structured output) are in the project spec, the platform gaps are named non-goals, and decision 0018 records the boundary. Phase 1 is next.

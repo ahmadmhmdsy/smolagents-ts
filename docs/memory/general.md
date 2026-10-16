@@ -397,3 +397,9 @@ Lessons that do not belong to a narrower topic.
 - **Status:** validated
 - **Lesson:** observability needed no new runtime: the `AgentEvent` union is already the trace, so `buildTrace` is a pure fold (root span plus a child per step, planning pass and tool call) with an injected clock for deterministic replays, and the eval harness is a comparison of a completed run against the fields the fixture already carried. The golden `fibonacci` fixture had held `expected.output/state/actionSteps/eventTypes` since S1, so the same one-line replay drives the trace test and the eval test with no second recording. When a milestone says "add observability", check whether the event contract and an existing fixture already express the whole deliverable.
 - **Evidence:** `packages/core/src/monitoring/trace.ts`, `packages/core/src/monitoring/eval.ts`, and `packages/core/test/observability.test.ts` over `packages/core/test/golden/fibonacci.transcript.json`; 4 tests, core suite 34 files and 331 tests, exit 0 on 2026-10-16.
+
+## 2026-10-16 - a persistent session is a checkpoint name, not a second store
+
+- **Status:** validated
+- **Lesson:** cross-run sessions needed no new persistence type: the S8 `RunStore` plus the `reset` flag already carried a run's memory, so S10 was one option (`AgentSessionOptions.checkpoint`) and one line in `send` threading `reset:false` and the checkpoint into `agent.run`. A second session over the same store reads the first's turns for free. The remaining gap is deliberately narrow — only the agent's memory persists, not the session's React-facing snapshot — and is named rather than guessed at. When a milestone says "persist X across runs", check whether a prior seam already persists the thing X derives from.
+- **Evidence:** `packages/core/src/session/agent-session.ts` (`AgentSessionOptions`, `send`); `packages/core/test/session-persistence.test.ts`; core suite 35 files and 333 tests, exit 0 on 2026-10-16.

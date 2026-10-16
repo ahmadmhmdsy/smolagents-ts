@@ -116,6 +116,16 @@ function emptyRun(): RunDraft {
 }
 
 /**
+ * Session options. A `checkpoint` names this session's durable memory: with one set, each `send`
+ * continues the agent's prior turns (and, when the agent has a `store`, it checkpoints them), so a
+ * new session naming the same checkpoint reads what the earlier one did. Left unset, each run is a
+ * fresh turn.
+ */
+export interface AgentSessionOptions {
+  readonly checkpoint?: string;
+}
+
+/**
  * The framework-agnostic run store (design spec 5.3, layer L1).
  *
  * React's useSyncExternalStore needs subscribe + getSnapshot + getServerSnapshot, so this
@@ -124,6 +134,7 @@ function emptyRun(): RunDraft {
  */
 export class AgentSession<TOut = unknown> {
   private agent: MultiStepAgent<TOut>;
+  private readonly checkpoint: string | undefined;
   private draft: RunDraft = emptyRun();
   /**
    * The snapshot a server render starts from. Built once from the initial empty draft and never
@@ -135,8 +146,9 @@ export class AgentSession<TOut = unknown> {
   private readonly listeners = new Set<() => void>();
   private controller: AbortController | null = null;
 
-  constructor(agent: MultiStepAgent<TOut>) {
+  constructor(agent: MultiStepAgent<TOut>, options: AgentSessionOptions = {}) {
     this.agent = agent;
+    this.checkpoint = options.checkpoint;
   }
 
   /** Stable while nothing changed. This identity is the contract useSyncExternalStore relies on. */
@@ -163,8 +175,14 @@ export class AgentSession<TOut = unknown> {
     return this.draft.status === "running";
   }
 
-  /** Run a task. Rejects if a run is already in flight. */
-  async send(task: string, options: { signal?: AbortSignal } = {}): Promise<RunResult<TOut>> {
+  /**
+   * Run a task. Rejects if a run is already in flight. With a session `checkpoint` set, the turn
+   * continues the agent's prior memory by default; pass `reset: true` to start a fresh turn anyway.
+   */
+  async send(
+    task: string,
+    options: { signal?: AbortSignal; reset?: boolean } = {},
+  ): Promise<RunResult<TOut>> {
     if (this.isRunning) {
       throw new AgentError("AgentSession is already running a task");
     }
@@ -185,7 +203,11 @@ export class AgentSession<TOut = unknown> {
     });
 
     try {
-      const result = await this.agent.run(task, { signal: controller.signal });
+      const result = await this.agent.run(task, {
+        signal: controller.signal,
+        reset: options.reset ?? this.checkpoint === undefined,
+        ...(this.checkpoint === undefined ? {} : { checkpoint: this.checkpoint }),
+      });
       this.draft.output = result.output;
       this.draft.runId = result.runId;
       this.draft.status = "success";

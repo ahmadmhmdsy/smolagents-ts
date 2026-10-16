@@ -15,7 +15,7 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 |---|---|---|
 | public barrel | `packages/core/src/index.ts` | the runtime names pinned by `packages/core/test/public-surface.test.ts` |
 | agent loop | `packages/core/src/agent/multi-step-agent.ts` | the base loop; `code-agent.ts` and `tool-calling-agent.ts` specialise it |
-| session store | `packages/core/src/session/agent-session.ts` | the snapshot shape React subscribes to |
+| session store | `packages/core/src/session/agent-session.ts` | the snapshot shape React subscribes to; a session `checkpoint` continues the agent's memory across turns |
 | checkpoint store | `packages/core/src/session/run-store.ts` | the `RunStore` seam a run checkpoints to and resumes from |
 | approval gate | `packages/core/src/agent/approval.ts` | `withApproval` asks before a tool call runs |
 | trace exporter | `packages/core/src/monitoring/trace.ts` | folds an `AgentEvent` stream into one OTel-shaped `TraceSpan` tree |
@@ -26,14 +26,15 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 34 test files and 331 tests pass, exit code 0. Measured after
+Expected result: 35 test files and 333 tests pass, exit code 0. Measured after
 the S2a work as "Test Files 28 passed (28)" and "Tests 286 passed (286)"; the
 adoption revision reported 27 and 273; S4's two release tests took it to 288;
 S5's planning-lane test added the twenty-ninth file and its two cases, S1.5's
 parity suite added the thirtieth file and its six cases, S7's managed-agent
 suite added the thirty-first file and its eight cases, S8's resume and
 approval suites added the thirty-second and thirty-third files and their six
-cases, and S9's observability suite added the thirty-fourth file and its four cases.
+cases, S9's observability suite added the thirty-fourth file and its four cases,
+and S10's session-persistence suite added the thirty-fifth file and its two cases.
 
 Use `pnpm typecheck` as well when a type changed and no test covers it.
 
