@@ -43,8 +43,11 @@ export * from "./agent/run-result.js";
 export * from "./agent/multi-step-agent.js";
 export * from "./agent/code-agent.js";
 export * from "./agent/tool-calling-agent.js";
+export * from "./agent/managed-agent.js";
+export * from "./agent/approval.js";
 export * from "./middleware.js";
 export * from "./session/agent-session.js";
+export * from "./session/run-store.js";
 
 // Utilities.
 export * from "./utils/parse-code-blocks.js";

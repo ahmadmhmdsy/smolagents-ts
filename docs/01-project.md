@@ -51,6 +51,9 @@ Three parts are hard to get right independently:
   web API subset, so the same code runs on Node, Bun, Deno and a browser.
 - Fidelity to upstream vocabulary and prompt semantics, with the few deliberate
   divergences recorded rather than discovered.
+- The post-0.1.0 sub-projects S7 to S11 of the roadmap plan: multi-agent
+  orchestration, durable runs with human-in-the-loop, tracing and evaluation,
+  persistent sessions, and guardrails with structured output.
 
 ## Non-goals — out
 
@@ -62,6 +65,9 @@ Three parts are hard to get right independently:
 - A Hub client or a model-hosting service.
 - An "improved" rewrite of upstream semantics. Where upstream is opinionated,
   the opinion is ported and documented.
+- A RAG or vector-store layer, a dev UI or Studio, a streaming UI transport,
+  multimodal and voice, an agent-to-agent protocol, MCP server authoring, and a
+  workspace sandbox — the platform gaps decision 0018 keeps out.
 
 ## Success criteria
 
@@ -130,6 +136,11 @@ entry.
 | S5 | React layer | L2 hooks, L3 headless primitives, examples | done |
 | S6 | Distribution | public publish, CLI, MCP, remote executors, `exec-pyodide`, docs site, L4/L5 | in_progress |
 | S1.5 | Parity harness | Python-to-TypeScript differential tests | done |
+| S7 | Multi-agent orchestration | managed agents (agents as tools) and handoffs, so a supervisor delegates a subtask inside its own step budget | done |
+| S8 | Durable runs and human-in-the-loop | a run serializes its step state to a store seam and resumes, and an approval seam pauses a gated step | done |
+| S9 | Observability and evaluation | a trace exporter over `AgentEvent` and an eval harness scoring a golden transcript | pending |
+| S10 | Persistent sessions | a session persists across runs behind the store seam | pending |
+| S11 | Guardrails and structured output | a guardrail seam with tripwires and a schema-bound final answer | pending |
 
 S5's hooks and primitives are done, and the runnable example its definition also
 names builds and runs in a browser tab at `examples/vite-app`. S6's v1 share is
@@ -150,6 +161,11 @@ S1.5's harness is
 reached: a five-scenario corpus, a recorder for upstream 1.14.0 whose traces are
 committed, and a suite that replays them through our loop inside the gate. The two
 divergences it measured are T-16 and T-18, both waiting on the owner.
+
+S7 to S11 are the post-0.1.0 roadmap the owner adopted on 2026-10-16. Each
+milestone is defined in
+`docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, and the line between what
+they take and the platform gaps they leave out is decision 0018.
 
 ## Risks and mitigations
 
@@ -185,3 +201,4 @@ Append-only. Newest last.
 | 2026-10-14 | 6 | the second T-13 module lands: the S6 note records that the docs site publishes the documents and the example's build, and names the four modules that remain | owner (the T-13 sequence) |
 | 2026-10-14 | 7 | the third T-13 module lands: the key-components list gains `@smolagents-ts/mcp` and the S6 note names the three modules that remain | owner (the T-13 sequence) |
 | 2026-10-14 | 8 | the fourth T-13 module lands: the key-components list gains `@smolagents-ts/react-ui` and the react row gains the L4 patterns, G5's evaluation names them, and the S6 note records that L4 and L5 shipped | owner (the T-13 sequence) |
+| 2026-10-16 | 9 | the post-0.1.0 roadmap adopted: scope-in gains milestones S7 to S11, the platform gaps become named non-goals, and decision 0018 records the boundary | owner |

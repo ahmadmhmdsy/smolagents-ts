@@ -367,3 +367,27 @@ Lessons that do not belong to a narrower topic.
 - **Lesson:** asked to search the web, the example agent produced a fluent, invented summary rather than saying it had no such tool, because nothing in the loop treats a missing capability as a reason to stop. A confined tool set is not on its own a guard: the prompt, or a capability check before the model call, has to make the absence explicit, or the run answers anyway.
 - **Evidence:** measured on 2026-10-16 with `agent-browser` against `examples/vite-app` (tools `greet` and `add` only): the run returned a confident Mars summary with no tool call and no error.
 
+## 2026-10-16 - a complete v1 against its own reference can still lack the whole ecosystem's table stakes
+
+- **Status:** observed
+- **Lesson:** this port reached v1 by matching its reference feature for feature, and the competitor scan found eighteen capabilities every neighbour ships that it does not: multi-agent, resumable runs, human-in-the-loop, tracing, session memory, structured output. "Complete against the reference" is not "complete against a team's expectations", because a reference is one implementation and the ecosystem converges on a *set* of assumptions. Measure a port against the union of what adopters use, not only against the thing it ports - and sort the result into what composes with the existing seams and what would turn a library into a platform.
+- **Evidence:** `docs/research/2026-10-16-agent-framework-landscape.md` lists the gap table and the recommended order; the boundary is proposed as decision 0018 and scheduled in `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` via tasks T-33 through T-37.
+
+## 2026-10-16 - a dev server the agent's shell starts dies when the tool call returns
+
+- **Status:** candidate
+- **Lesson:** a server launched in the foreground of an agent shell is killed with the call, so "the server did not start" and "the server started and was reaped" look the same from the next command. A detached, unref'd spawn survives the call: `spawn(cmd, args, {detached:true, shell:true, windowsHide:true})` then `unref()`. The flag order matters too - `pnpm run dev -- --port 5273` lets the wrapper swallow the flag and vite falls back to 5173, while `pnpm exec vite --port 5273 --strictPort` binds the port asked for or fails loudly.
+- **Evidence:** measured on 2026-10-16: three foreground `pnpm exec vite` attempts left port 5273 free after each tool call; a detached spawn served `http://127.0.0.1:5273/` with `/api/live` answering `{"available":true,"model":"gemini-3.5-flash-lite"}`, and was still listening when a later command probed it.
+
+## 2026-10-16 - a delegating child agent is just a tool, so multi-agent needs no second loop
+
+- **Status:** validated
+- **Lesson:** upstream's managed agents are not a second execution path: a manager's child is exposed as an ordinary tool that takes a `task` string plus optional `additional_args`, and the prompt lists those children in a separate "team members" section only for readability. The port had already named the tool seam as the extension point, so the whole feature landed as one factory plus one option - the child is folded into the same tool registry the manager already hands its executor, so generated code, tool-calling providers, lookup and advertising all worked unchanged. When a feature looks like it needs a new mode, check first whether an existing seam already represents it.
+- **Evidence:** `packages/core/src/agent/managed-agent.ts` and the `managedAgents` fold in `packages/core/src/agent/multi-step-agent.ts`; 8 tests in `packages/core/test/managed-agent.test.ts`; `pnpm gate` exit 0 on 2026-10-16.
+
+
+## 2026-10-16 - a checkpoint is the step list, and the tool registry is the one gate every caller routes through
+
+- **Status:** validated
+- **Lesson:** resumable runs and per-call approval both landed as thin seams over what already existed, not new machinery. A run's durable state is exactly its step list, so `stepToJSON`/`stepFromJSON` plus one `RunStore` interface whose only implementation is a `Map` checkpoint a run with no schema of its own; resume reuses upstream's `reset` flag (`reset:false` loads the store) rather than a new mode. And because both agent flavours resolve tools from the same registry - generated code via the executor's `tools.get(name)`, structured calls via the agent - gating there once (rebuilding the registry through `withApproval`) covers both, where an approval check inside each call site would have left a sibling path unguarded. Before adding a seam, ask which single existing choke point already carries the traffic.
+- **Evidence:** `packages/core/src/session/run-store.ts`, `packages/core/src/agent/approval.ts`, and the store/approve wiring in `packages/core/src/agent/multi-step-agent.ts`; `packages/core/test/run-store.test.ts` (resume) and `packages/core/test/approval.test.ts` (4 cases); core suite 33 files and 325 tests, exit 0 on 2026-10-16.

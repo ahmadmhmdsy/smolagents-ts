@@ -24,11 +24,16 @@ import {
   type Model,
 } from "../model.js";
 import { Monitor } from "../monitoring/monitor.js";
+import { populateTemplate } from "../prompts/populate-template.js";
+import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
 import { ToolRegistry } from "../tool/registry.js";
 import type { Tool } from "../tool/tool.js";
 import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
 import { makeRunResult, type RunResult, type RunState } from "./run-result.js";
 import type { ActionOutcome, InterpretedAction } from "./action.js";
+import { managedAgent, type ManagedAgent } from "./managed-agent.js";
+import { withApproval, type ApprovalHandler } from "./approval.js";
+import type { RunStore } from "../session/run-store.js";
 
 export interface AgentOptions {
   model: Model;
@@ -44,10 +49,30 @@ export interface AgentOptions {
   /** Overrides the subclass-built prompt entirely. */
   systemPrompt?: string;
   middleware?: readonly AgentMiddleware[];
+  /**
+   * Child agents exposed to the model as callable tools, upstream's managed agents. Each is folded into
+   * this agent's tool set, so both flavours execute it and advertise it without a second path, and it is
+   * rendered in the prompt as a "team member" rather than as an ordinary tool.
+   */
+  managedAgents?: readonly ManagedAgent[];
+  /**
+   * Where a run's checkpoint lives. With a `checkpoint` name on the run, the agent saves the
+   * memory after each step and reads it back to resume, so a run survives its process.
+   */
+  store?: RunStore;
+  /** Gates every tool call: asked before a tool runs, and a denial fails that one call. */
+  approve?: ApprovalHandler;
 }
 
 export interface RunOptions {
   signal?: AbortSignal;
+  /**
+   * Start from a clean memory (the default), or continue a prior run's memory — upstream's `reset`
+   * flag. A false value keeps this agent's steps and, with a store, resumes from its checkpoint.
+   */
+  reset?: boolean;
+  /** The store key naming this run's checkpoint. A store saves and resumes only named runs. */
+  checkpoint?: string;
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
@@ -57,6 +82,7 @@ export interface RunContext {
   readonly signal: AbortSignal;
   readonly startedAt: number;
   readonly state: Map<string, unknown>;
+  readonly checkpoint: string | undefined;
   usage: TokenUsage;
   stepIndex: number;
 }
@@ -79,19 +105,30 @@ export abstract class MultiStepAgent<TOut = unknown> {
   readonly maxSteps: number;
   readonly planningInterval: number;
   readonly executionTimeoutMs: number;
+  readonly managedAgents: readonly ManagedAgent[];
   protected readonly logger: Logger;
   protected readonly memory = new AgentMemory();
   protected monitor: Monitor;
 
+  /** The names of the managed agents folded into `tools`, so the prompt can render them apart. */
+  private readonly managedAgentNames = new Set<string>();
   private readonly middleware: readonly AgentMiddleware[];
   private readonly customInstructions: string | undefined;
   private readonly explicitSystemPrompt: string | undefined;
   private readonly listeners = new Set<AgentEventListener>();
+  private readonly store: RunStore | undefined;
+  private readonly approve: ApprovalHandler | undefined;
 
   constructor(options: AgentOptions) {
     this.model = options.model;
+    this.approve = options.approve;
+    this.store = options.store;
     this.tools =
       options.tools instanceof ToolRegistry ? options.tools : new ToolRegistry(options.tools ?? []);
+    if (this.approve !== undefined) {
+      const approve = this.approve;
+      this.tools = new ToolRegistry(this.tools.list().map((entry) => withApproval(entry, approve)));
+    }
     this.maxSteps = options.maxSteps ?? 20;
     this.planningInterval = options.planningInterval ?? 0;
     this.executionTimeoutMs = options.executionTimeoutMs ?? 30_000;
@@ -100,10 +137,31 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.customInstructions = options.customInstructions;
     this.explicitSystemPrompt = options.systemPrompt;
     this.monitor = new Monitor();
+    this.managedAgents = options.managedAgents ?? [];
+    for (const entry of this.managedAgents) {
+      const wrapped = managedAgent(entry);
+      this.tools.add(this.approve === undefined ? wrapped : withApproval(wrapped, this.approve));
+      this.managedAgentNames.add(wrapped.name);
+    }
   }
 
   protected get customInstructionsValue(): string | undefined {
     return this.customInstructions;
+  }
+
+  /** Tool documentation for the prompt, with managed agents left to renderManagedAgents(). */
+  protected renderToolDescriptions(): string {
+    return this.tools.renderDescriptions((entry) => !this.managedAgentNames.has(entry.name));
+  }
+
+  /** The "team members" section for the prompt, empty when the agent has no managed agents. */
+  protected renderManagedAgents(): string {
+    if (this.managedAgentNames.size === 0) return "";
+    return populateTemplate(MANAGED_AGENTS_SECTION_TEMPLATE, {
+      managedAgentDescriptions: this.tools.renderDescriptions((entry) =>
+        this.managedAgentNames.has(entry.name),
+      ),
+    });
   }
 
   /** The prompt sent on every turn. Computed once per access so tools stay in sync. */
@@ -232,9 +290,15 @@ export abstract class MultiStepAgent<TOut = unknown> {
       state: new Map<string, unknown>(),
       usage: EMPTY_TOKEN_USAGE,
       stepIndex: 0,
+      checkpoint: options.checkpoint,
     };
 
-    this.memory.reset();
+    if (options.reset ?? true) {
+      this.memory.reset();
+    } else if (this.store !== undefined && options.checkpoint !== undefined) {
+      const saved = await this.store.load(options.checkpoint);
+      if (saved !== undefined) this.memory.restore(saved);
+    }
     this.memory.addStep(new TaskStep(task));
     this.memory.addStep(new SystemPromptStep(this.systemPrompt));
     this.monitor = new Monitor(context.startedAt);
@@ -317,6 +381,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
           text: parsingError.message,
           isFinalAnswer: false,
         });
+        await this.saveCheckpoint(context);
         continue;
       }
 
@@ -340,6 +405,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
         text: outcome.observations,
         isFinalAnswer: outcome.isFinalAnswer,
       });
+
+      await this.saveCheckpoint(context);
 
       if (outcome.isFinalAnswer) {
         this.memory.addStep(new FinalAnswerStep(outcome.value));
@@ -400,10 +467,17 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.tokenUsage = completion.usage;
       this.memory.addStep(step);
       yield this.emit({ type: "planning.completed", stepIndex, text: completion.content });
+      await this.saveCheckpoint(context);
       return { ok: true };
     } catch (error) {
       return { failed: AgentError.from(error, "AGENT_GENERATION", stepIndex) };
     }
+  }
+
+  /** Persist the memory as this run's checkpoint, when a store and a name were given. */
+  private async saveCheckpoint(context: RunContext): Promise<void> {
+    if (this.store === undefined || context.checkpoint === undefined) return;
+    await this.store.save(context.checkpoint, this.memory.toJSON());
   }
 
   /** The request options for one model turn, assembled in one place. */

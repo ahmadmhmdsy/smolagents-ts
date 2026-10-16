@@ -10,7 +10,8 @@ export const CODE_FENCE = "```";
  * - {{codeFence}} replaces Jinja's {{code_block_opening_tag}} / _closing_tag.
  * - {{language}} replaces the hard-coded "Python".
  * - {{toolDescriptions}} replaces the {% for tool in tools.values() %} loop.
- * - No managed-agents section: S1 has no managed agents (deferred to S2).
+ * - {{managedAgents}} replaces upstream's managed-agents loop with a pre-rendered section, empty when the
+ *   agent has no managed agents.
  * - Example 3 drops upstream's two-line "additional arguments" disclosure and its literal dict. Upstream
  *   passes those arguments as Python variables through a feature this port does not implement, so the
  *   prompt does not advertise it. Declared deviation, recorded in the S1 plan.
@@ -139,6 +140,7 @@ final_answer(popeCurrentAge);
 
 Above examples were using notional tools that might not exist for you. On top of performing computations in the {{language}} code snippets that you create, you only have access to these tools, behaving like regular functions:
 {{toolDescriptions}}
+{{managedAgents}}
 
 Here are the rules you should always follow to solve your task:
 1. Always provide a 'Thought:' sequence, and a 'Code:' sequence, and the code must be a single {{codeFence}} block opened and closed with {{codeFence}}, else you will fail.
@@ -164,6 +166,7 @@ export const TOOL_CALLING_AGENT_SYSTEM_TEMPLATE = [
   "TOOLS",
   "You have access to the following tools:",
   "{{toolDescriptions}}",
+  "{{managedAgents}}",
   "",
   "RULES",
   "1. Act by emitting tool calls. Never write code and never answer in prose.",
@@ -181,4 +184,37 @@ export const CODE_AGENT_TEMPLATE_VARIABLES = [
   "customInstructions",
   "language",
   "toolDescriptions",
+  "managedAgents",
 ] as const;
+
+/**
+ * The internal prompt a manager's task is wrapped in before a managed agent runs, and the report
+ * wrapped around its answer. Ported verbatim from upstream's managed_agent prompt templates.
+ */
+export const MANAGED_AGENT_TASK_TEMPLATE = `You're a helpful agent named '{{name}}'.
+You have been submitted this task by your manager.
+---
+Task:
+{{task}}
+---
+You're helping your manager solve a wider task: so make sure to not provide a one-line answer, but give as much information as possible to give them a clear understanding of the answer.
+
+Your final_answer WILL HAVE to contain these parts:
+### 1. Task outcome (short version):
+### 2. Task outcome (extremely detailed version):
+### 3. Additional context (if relevant):
+
+Put all these in your final_answer tool, everything that you write outside of it will not be seen by your manager.`;
+
+export const MANAGED_AGENT_REPORT_TEMPLATE = `Here is the final answer from your managed agent '{{name}}':
+{{final_answer}}`;
+
+/**
+ * The "team members" block prepended to a listed set of managed agents, re-authored from upstream's
+ * code_agent.yaml managed-agents section. {{managedAgentDescriptions}} carries the pre-rendered list.
+ */
+export const MANAGED_AGENTS_SECTION_TEMPLATE = `You can also give tasks to team members.
+Calling a team member works similarly to calling a tool: provide the task description as the 'task' argument. Since this team member is a real human, be as detailed and verbose as necessary in your task description.
+You can also include any relevant variables or context using the 'additional_args' argument.
+Here is a list of the team members that you can call:
+{{managedAgentDescriptions}}`;

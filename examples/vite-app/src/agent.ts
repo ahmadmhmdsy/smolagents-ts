@@ -1,4 +1,4 @@
-import { CODE_FENCE, CodeAgent, MockModel, tool } from "smolagents-ts";
+import { CODE_FENCE, CodeAgent, FINAL_ANSWER_TOOL_NAME, MockModel, ToolCallingAgent, tool } from "smolagents-ts";
 import { GeminiModel } from "smolagents-ts/models";
 import { QuickJSExecutor } from "smolagents-ts/exec/quickjs";
 import { z } from "zod";
@@ -78,4 +78,57 @@ export function createLiveRun(options: LiveRunOptions): DemoRun {
     baseUrl: options.baseUrl,
   });
   return { agent: new CodeAgent({ model, executor, tools: [greet, add] }), executor };
+}
+
+/** The child the delegation demo hands work to: its own loop, its own scripted model. */
+function createChildAgent(): ToolCallingAgent {
+  const call = (name: string, args: object, id: string) => ({
+    id,
+    name,
+    arguments: JSON.stringify(args),
+  });
+  return new ToolCallingAgent({
+    tools: [greet],
+    model: new MockModel([
+      {
+        content: "",
+        finishReason: "tool_calls",
+        toolCalls: [call("greet", { name: "world" }, "c1")],
+      },
+      {
+        content: "",
+        finishReason: "tool_calls",
+        toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: "Hello, world!" }, "c2")],
+      },
+    ]),
+  });
+}
+
+/**
+ * One scripted delegation. The parent's program calls the child agent as a sandbox function and
+ * answers with the report that child's run returned. The sandbox is the real QuickJS one, so this
+ * shows the whole path: generated code calls a team member, the child runs its own loop, and its
+ * report folds back as the parent's answer.
+ */
+export function createDelegationRun(): DemoRun {
+  const executor = new QuickJSExecutor();
+  const model = new MockModel([
+    turn(
+      "delegate the greeting to the researcher and answer with its report.",
+      [
+        'const report = await researcher({ task: "greet the world" });',
+        "console.log(report);",
+        "final_answer(report);",
+      ].join("\n"),
+    ),
+  ]);
+  const agent = new CodeAgent({
+    model,
+    executor,
+    tools: [greet],
+    managedAgents: [
+      { name: "researcher", description: "Greets people and reports back.", agent: createChildAgent() },
+    ],
+  });
+  return { agent, executor };
 }

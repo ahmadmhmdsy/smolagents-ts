@@ -2,6 +2,7 @@ import { populateTemplate } from "./populate-template.js";
 import {
   CODE_AGENT_SYSTEM_TEMPLATE,
   CODE_FENCE,
+  MANAGED_AGENTS_SECTION_TEMPLATE,
   TOOL_CALLING_AGENT_SYSTEM_TEMPLATE,
 } from "./templates.js";
 
@@ -12,10 +13,21 @@ export interface BuildCodeAgentSystemPromptOptions {
    * so count lines rather than tools.
    */
   toolDescriptions: string;
+  /**
+   * Pre-rendered documentation of the managed agents (the "team members" the agent may delegate to),
+   * one line per managed agent. An empty string, or omission, means the prompt carries no managed-agents section.
+   */
+  managedAgentDescriptions?: string;
   /** Defaults to "JavaScript". */
   language?: string;
   /** Appended verbatim at the end of the prompt. */
   customInstructions?: string;
+}
+
+/** The managed-agents section, or an empty string when there are none to list. */
+function managedAgentsSection(descriptions: string | undefined): string {
+  if (descriptions === undefined || descriptions.trim() === "") return "";
+  return populateTemplate(MANAGED_AGENTS_SECTION_TEMPLATE, { managedAgentDescriptions: descriptions });
 }
 
 export function buildCodeAgentSystemPrompt(options: BuildCodeAgentSystemPromptOptions): string {
@@ -27,6 +39,7 @@ export function buildCodeAgentSystemPrompt(options: BuildCodeAgentSystemPromptOp
     language: options.language ?? "JavaScript",
     codeFence: CODE_FENCE,
     toolDescriptions,
+    managedAgents: managedAgentsSection(options.managedAgentDescriptions),
     customInstructions: options.customInstructions ?? "",
   });
 }
@@ -40,6 +53,7 @@ export function buildToolCallingAgentSystemPrompt(
       : options.toolDescriptions;
   return populateTemplate(TOOL_CALLING_AGENT_SYSTEM_TEMPLATE, {
     toolDescriptions,
+    managedAgents: managedAgentsSection(options.managedAgentDescriptions),
     customInstructions: options.customInstructions ?? "",
   });
 }

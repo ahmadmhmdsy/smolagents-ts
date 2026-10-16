@@ -40,7 +40,8 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
   protected override buildSystemPrompt(): string {
     const customInstructions = this.customInstructionsValue;
     return buildToolCallingAgentSystemPrompt({
-      toolDescriptions: this.tools.renderDescriptions(),
+      toolDescriptions: this.renderToolDescriptions(),
+      managedAgentDescriptions: this.renderManagedAgents(),
       ...(customInstructions === undefined ? {} : { customInstructions }),
     });
   }

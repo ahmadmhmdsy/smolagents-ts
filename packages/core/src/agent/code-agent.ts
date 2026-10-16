@@ -29,7 +29,8 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
   protected override buildSystemPrompt(): string {
     const customInstructions = this.customInstructionsValue;
     return buildCodeAgentSystemPrompt({
-      toolDescriptions: this.tools.renderDescriptions(),
+      toolDescriptions: this.renderToolDescriptions(),
+      managedAgentDescriptions: this.renderManagedAgents(),
       language: this.executor.language === "python" ? "Python" : "JavaScript",
       ...(customInstructions === undefined ? {} : { customInstructions }),
     });

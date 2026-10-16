@@ -9,6 +9,7 @@ describe("CODE_AGENT_SYSTEM_TEMPLATE", () => {
       "codeFence",
       "customInstructions",
       "language",
+      "managedAgents",
       "toolDescriptions",
     ]);
   });

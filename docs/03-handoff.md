@@ -33,122 +33,67 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
-## 2026-10-16T00:35:00+03:00 — the UI is verified live; the CLI's dropped environment was the last defect before a release
+## 2026-10-16T17:55:00+03:00 — S8 lands: a run checkpoints and resumes, and an approval gate holds a tool call
 
-**State.** The v1 functional scope is done across eleven packages and unpublished. The owner asked whether the browser app works and what comes next. Verified live it does, scripted and against Gemini. The one defect, the CLI passing no environment to the run, is fixed; everything else waits on the owner.
+**State.** Pre-release and clean. S8 (durable runs and human-in-the-loop) is complete: the milestone reads `done`, its live row (T-35) is archived, and no S8 row is open.
 
-**Did.** Drove `examples/vite-app` with `agent-browser`: scripted mode finished in two steps, a live Gemini task called both `greet` and `add`, a pure-code task returned 720, console clean. Fixed the CLI: `runSmolagent` defaults its injected `env` to an empty map so its tests stay hermetic, and the bin never passed `process.env`, so no provider key reached an adapter; `main()` now takes `env` and forwards it. Added a lint ignore for the vendored agent-skill bundles.
+**Did.** A step now serializes to plain JSON (`StepJSON`, `stepToJSON`/`stepFromJSON` in `memory/steps.ts`, identity and timing included) with `AgentMemory.toJSON`/`restore`. Added the `RunStore` seam plus a `MemoryRunStore` (`session/run-store.ts`) and the approval seam `withApproval`/`ApprovalHandler`/`ToolApprovalError` (`agent/approval.ts`). Wired `AgentOptions.store`/`approve` and `run(task, { reset, checkpoint })` into `MultiStepAgent`: `reset:false` loads the checkpoint and continues, each completed step saves, and `approve` rebuilds the registry through `withApproval` so both agent flavours gate at the one seam. Exported and pinned the five new names.
 
-**Verified.** `pnpm gate` exit 0 — 120 files, 818 tests, 11 packages packed, docs site 71 pages. `pnpm vitest run --project cli` PASS 7 files/52 tests; `--project example-vite-app` PASS 2 files/7 tests. Live with `agent-browser`: scripted PASS; live Gemini `add`→42 and `greet`→"Hello, Ada!" PASS; factorial→720 PASS; console error-free.
+**Verified.** Core suite 33 files and 325 tests, exit 0. `run-store.test.ts` stops a run at `maxSteps`, resumes it from a `MemoryRunStore` checkpoint with `reset:false`, and finishes; `approval.test.ts` (4 cases) proves a denied call never runs the tool. `pnpm typecheck`, `lint`, `depcruise` (288 modules) exit 0.
 
-**Unverified / open.** The first live turn carried no code block and the loop nudged it ("No action found…"); the retry works. The exec-pyodide real-runtime suite flaked once (5000 ms timeout) and passed on re-run. The chat surface renders a fixed `TRANSCRIPT` (`examples/vite-app/src/App.tsx:19`) and its tools are only `greet`/`add`, so a web-search prompt draws a fabricated answer.
+**Unverified / open.** Only in-memory checkpointing ships; a durable store implements the same seam (S10). Resume rebuilds memory only — it does not re-emit prior events. A mid-step interrupt still ends the run.
 
-**Next.** Take the owner's Phase-2 decisions (T-16, T-18, T-21, T-25), then run `docs/10-runbooks/publish-0.1.0.md`.
+**Next.** Start S9: an `AgentEvent` trace exporter seam and a golden-transcript eval harness.
 
-**Blockers.** T-14 needs registry credentials and a public repository; T-16, T-18, T-21 and T-25 need owner decisions.
+**Blockers.** None. T-14, T-16, T-18, T-21, T-25 wait on the owner.
 
-**Artifacts.** `docs/plans/2026-10-16-release-0.1.0-readiness-plan.md`; `packages/cli/src/main.ts`; `examples/vite-app/src/App.tsx`.
+**Artifacts.** `packages/core/src/session/run-store.ts`; `packages/core/src/agent/approval.ts`; `packages/core/src/memory/steps.ts`; `packages/core/src/agent/multi-step-agent.ts`; `packages/core/test/run-store.test.ts`; `packages/core/test/approval.test.ts`.
 
-## 2026-10-14T22:05:00+03:00 — the live UI's "Failed" was the dev server answering the wasm with HTML
+## 2026-10-16T15:30:00+03:00 — S7 closes: the example app delegates to a child agent end to end
 
-**State.** The owner reported that the browser app marked every run `Failed`, showed only the
-first step, and asked whether the fault was the UI or the agent, how many steps are allowed,
-whether the page had ever been tested live, and whether a CLI could replace it.
+**State.** Pre-release and clean. S7 multi-agent is complete: the milestone reads `done`, its live task row (T-34) is archived, and T-35 (S8) is the live row.
 
-**Did.** Root-caused it to the example's dev wiring — not the agent, not the React layer. The
-QuickJS variant finds its engine with `new URL("emscripten-module.wasm", import.meta.url)`;
-Vite's dependency pre-bundle relocated that module into `node_modules/.vite/deps`, so the URL
-named a file that does not exist and the dev server answered it with `index.html`. Added
-`optimizeDeps.exclude` for the variant to `examples/vite-app/vite.config.ts`, pinned it with a
-case in `test/resolution.test.ts`, and documented it in the example README and the memory shard.
+**Did.** Closed S7 by proving delegation in the example app: added `createDelegationRun()` to `examples/vite-app/src/agent.ts` — a `CodeAgent` whose scripted program calls a managed agent (`researcher`) from sandboxed QuickJS code — and `examples/vite-app/test/delegation.test.ts` drives it through the real executor. Recorded S7 `done` in the spec, marked and archived T-34, opened T-35 (S8: resumable state plus an approval seam), and updated the roadmap plan.
 
-**Verified.** Driven with `agent-browser` against the running dev server: scripted mode reads
-`Finished`, 2 steps, `greet:ok`; a live Gemini task — "Compute 15 * 4 and log it. Then, in a
-second step, answer with twice that value." — reads `Finished`, 2 steps, with both programs and
-`final_answer(120)`; the console carries no error. `vite preview` over the built app reads
-`Finished`, 2 steps. `pnpm gate` exit 0.
+**Verified.** `pnpm vitest run --project example-vite-app` 3 files and 8 tests, exit 0; `pnpm gate` exit 0 (pack-smoke OK, site 74 pages). Docs: validator 0 errors, `rotate --check` exit 0.
 
-**Unverified / open.** The CLI has no Gemini `--model-type`; `--model-type OpenAIModel
---api-base .../v1beta/openai` is the only route and is unverified. The default budget is 20
-steps (`packages/core/src/agent/multi-step-agent.ts:95`) and the page exposes no control for it.
+**Unverified / open.** The delegation demo is not wired into the example's React UI — only its factory and test exist, so the page still renders the greet demo. That is a deliberate skip, not a gap in S7. Child-to-parent event forwarding stays out of scope.
 
-**Next.** Verify the CLI's OpenAI-compatible route against Gemini, then decide whether the CLI
-gains a native Gemini type.
+**Next.** Start T-35 (S8): design the store/resume seam, then the approval seam.
 
-**Blockers.** Unchanged: T-14 needs registry credentials; T-16, T-18, T-21 and T-25 need owner
-decisions.
+**Blockers.** None. T-14 (publish), T-16, T-18, T-21 and T-25 wait on the owner.
 
-**Artifacts.** `examples/vite-app/vite.config.ts`;
-`examples/vite-app/test/resolution.test.ts`; `docs/memory/general.md`.
+**Artifacts.** `examples/vite-app/src/agent.ts` (`createDelegationRun`); `examples/vite-app/test/delegation.test.ts`; `docs/04-tasks.md`; `docs/01-project.md` (S7 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 1).
 
-## 2026-10-14T18:52:00+03:00 — the audit finds one real defect, and the pre-publish pass closes it
+## 2026-10-16T14:20:00+03:00 — S7's core lands: a manager delegates to a child agent exposed as a tool, with no change to the loop
 
-**State.** The owner asked whether the project works and every feature is done and
-tested before publishing. An audit of 107 test files and 771 tests, and a triage
-of its 17 design gaps, found one defect blocking a coherent 0.1.0 on the QuickJS
-and Node path: `getServerSnapshot` was missing, so React handed
-`useSyncExternalStore` the live snapshot and a server render threw. Every other
-gap is superseded by a plan or a decision, deferred, or was never a promise.
+**State.** Pre-release and clean. S7 multi-agent is implemented and verified at the library level; only the example-app delegation run is outstanding, so the milestone reads `in_progress`.
 
-**Did.** Implemented the server snapshot in core and passed it as the hook's third
-argument in react, with a server-render test that fails without it. Wrote the
-missing facade README, an examples guide and a root README that doubles as the
-site index, and added four runnable examples as vitest projects. Extended the pack
-smoke to run a real agent from the tarballs. Made the facade's QuickJS engine
-peers optional, as its own plan specifies, and repaired the root vitest projects
-glob, which `examples/README.md` had broken.
+**Did.** Added `managedAgent()` (`packages/core/src/agent/managed-agent.ts`): it wraps a child agent as a tool taking a `task` (plus optional `additional_args`), wraps the task in upstream's managed-agent prompt, runs the child, and wraps the answer in the report prompt. `AgentOptions.managedAgents` folds each child into the manager's tool registry, so both `CodeAgent` and `ToolCallingAgent` execute and advertise it with no loop change; the prompt lists them in a "team members" section apart from the tool list. Exported `managedAgent` and `MANAGED_AGENT_INPUT_SCHEMA`; updated the public-surface pin and the template drift test.
 
-**Verified.** `pnpm gate` exit 0 at 119 test files and 809 tests, 281 modules and
-718 dependencies cruised, eleven packages packed and installed, the run printing
-`pack-smoke run OK: Hello, world!`, site at 70 pages. Core is 30 files and 299
-tests, react 11 and 48; both new tests fail when the snapshot is returned live.
-`pnpm install --frozen-lockfile` exits 0; the validator reports `new: []`.
+**Verified.** `pnpm gate` exit 0 on 2026-10-16: 314 core tests (8 new), every project green, depcruise and site clean. Delegation proven by `packages/core/test/managed-agent.test.ts` — a parent calls `junior`, the child runs, and its report folds back as the observation.
 
-**Unverified / open.** The remaining audit findings are recorded as T-28 to T-30
-rather than fixed: the snapshot cannot feed `ChatSurface`, `agent.on` takes one
-argument where the design sketches two, and `code.delta` is never emitted.
+**Unverified / open.** The `examples/vite-app` delegation run named in plan Phase 1 is not done. Child-to-parent event forwarding was dropped from the exit criterion: a tool call has no event channel. S8-S11 remain unstarted.
 
-**Next.** Commit, push, then watch `CI` on the revision.
+**Next.** Run a managed agent in `examples/vite-app` to close S7, then start T-35 (S8).
 
-**Blockers.** T-14 needs registry credentials; T-16, T-18, T-21 and T-25 need
-owner decisions.
+**Blockers.** None. T-14 (publish), T-16 and T-18 still wait on the owner.
 
-**Artifacts.** `packages/core/src/session/agent-session.ts`;
-`packages/react/test/server-render.test.tsx`; `packages/smolagents-ts/README.md`;
-`vitest.config.ts`.
+**Artifacts.** `packages/core/src/agent/managed-agent.ts`; `packages/core/src/agent/multi-step-agent.ts` (`managedAgents` fold); `packages/core/src/prompts/templates.ts`; `packages/core/test/managed-agent.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`.
 
-## 2026-10-14T15:40:00+03:00 — probe C is measured, and the close of T-13 is verified
+## 2026-10-16T12:45:00+03:00 — the owner approved the post-0.1.0 roadmap; S7–S11 are in the spec and decision 0018 is accepted
 
-**State.** T-13's last two gaps are filled and the numbers in the entry below are
-superseded. The styled package's suite is now 5 files and 22 tests, because Task
-6's probe test landed; the full gate exits 0 at 113 test files and 796 tests, 279
-modules and 712 dependencies cruised, eleven packages packed and installed, and
-the site at 70 pages, one more than before because this session added a report.
+**State.** Pre-release and clean. The roadmap proposed earlier this session is approved: milestones S7 (multi-agent) through S11 (guardrails + structured output) are in the project spec, the platform gaps are named non-goals, and decision 0018 records the boundary. Phase 1 is next.
 
-**Did.** Drove the example's production build in headless Edge over the DevTools
-Protocol by keyboard alone, and read its accessibility tree. Wrote the report and
-pasted the measured results into the plan. Added the probe test that pins the
-sheet's shape: five tokens, each reading an input name that is not its own, and
-every selector scoped to a class this package owns. Fixed two things the harness's
-own scratch directory caused — the linter linted it, and the pack walker crashed
-on a browser profile it found there — so `.dsh/` is now ignored by both, on the
-precedent `.superpowers/` already set.
+**Did.** Recorded the owner's approval. `docs/01-project.md` (approval-only) gained the S7–S11 milestone rows, a scope-in bullet, a platform-gaps non-goal, and revision 9 authorising the change. Decision 0018 moved from proposed to accepted and its follow-up closed, with the index row updated. Task T-33 (approve) is done and archived; T-34 (multi-agent) is now live. The roadmap plan moved to approved.
 
-**Verified.** `pnpm gate` exit 0 with the counts above; `--project react-ui` 5
-files and 22 tests; the validator 0 errors, 0 warnings, 14 baselined, `new: []`.
-In the browser both styled wrappers report `role: none` and `ignored: true`, so
-they add nothing to the accessibility tree at all; the live cancel button is a tab
-stop and the disabled composer is skipped.
+**Verified.** `python scripts/validate_context.py --root .` → 0 errors, exit 0; `python scripts/rotate.py --check` → exit 0.
 
-**Unverified / open.** No screen reader was run — the accessibility tree is the
-browser's own computation. The plan's four open questions are still the owner's.
+**Unverified / open.** No phase code is written yet — S7–S11 are approved scope, not delivered work. The competitor capability claims remain the vendors' own framing.
 
-**Next.** Take the owner's decision batch.
+**Next.** Start T-34 (S7): expose a managed agent as a tool and a handoff path, mirrored from upstream, behind the core's tool seam.
 
-**Blockers.** Unchanged: T-14 needs registry credentials, and T-16, T-18, T-19,
-T-21 and T-25 each wait on a decision rather than on work.
+**Blockers.** None for S7. T-14 (publish) stays blocked on registry credentials and a public repository; T-16 and T-18 still wait on the owner.
 
-**Artifacts.** `docs/reports/2026-10-14-t13-probe-c-keyboard.md`;
-`packages/react-ui/test/stylesheet.probe.test.ts`;
-`docs/plans/2026-10-14-t13-l4-l5-plan.md`.
+**Artifacts.** `docs/01-project.md` (Milestones, revision 9), `docs/09-decisions/0018-post-0.1.0-scope-boundary.md`, `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, `docs/04-tasks.md` (T-34), `docs/tasks/archive-2026.md` (T-33).
 <!-- rotate:end -->

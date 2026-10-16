@@ -4,6 +4,14 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 
 ---
 
+## Closed 2026-10-16
+
+| id | title | status | owner | scope | gate | evidence |
+|---|---|---|---|---|---|---|
+| T-33 | approve the post-0.1.0 roadmap and its milestones S7–S11 | done | owner | `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, `docs/09-decisions/0018-post-0.1.0-scope-boundary.md` | owner approved the plan and decision 0018 as drafted | `docs/09-decisions/0018-post-0.1.0-scope-boundary.md` |
+| T-34 | ship multi-agent orchestration (managed agents, handoffs) | done | this session | `packages/core/src/agent/` | managed agents landed: `managedAgent()` and `AgentOptions.managedAgents`, a "team members" prompt section, and a scripted delegation run in `examples/vite-app` through the real QuickJS executor | `packages/core/test/managed-agent.test.ts` (8 cases); `examples/vite-app/test/delegation.test.ts`; `pnpm gate` exit 0 |
+| T-35 | give a run a resumable state and an approval seam (S8) | done | this session | `packages/core/src/agent/`, `packages/core/src/session/` | a run stopped mid-loop round-trips through a store and continues, and a gated tool call waits for an approval before it runs; the seam lands before the code | `packages/core/test/run-store.test.ts` (resume over a `MemoryRunStore`) and `packages/core/test/approval.test.ts` (4 cases); core suite 33 files and 325 tests, exit 0; `pnpm gate` exit 0 |
+
 ## Closed 2026-10-14
 
 | id | title | status | owner | scope | gate | evidence |

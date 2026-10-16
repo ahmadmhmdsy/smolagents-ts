@@ -1,8 +1,11 @@
 import type { ChatMessage } from "../types.js";
 import {
+  stepFromJSON,
+  stepToJSON,
   type ActionStep,
   type AnyAgentStep,
   type FinalAnswerStep,
+  type StepJSON,
   type SystemPromptStep,
   type TaskStep,
 } from "./steps.js";
@@ -36,6 +39,17 @@ export class AgentMemory {
 
   addStep(step: AnyAgentStep): void {
     this.items.push(step);
+  }
+
+  /** The steps as plain objects — the checkpoint a store persists and reads back. */
+  toJSON(): StepJSON[] {
+    return this.items.map((step) => stepToJSON(step));
+  }
+
+  /** Replace the memory with steps read back from a checkpoint. */
+  restore(steps: readonly StepJSON[]): void {
+    this.items.length = 0;
+    for (const step of steps) this.items.push(stepFromJSON(step));
   }
 
   reset(): void {

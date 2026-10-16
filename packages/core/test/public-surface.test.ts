@@ -53,10 +53,19 @@ const RUNTIME_EXPORTS = [
   "ActionStep",
   "FinalAnswerStep",
   "Monitor",
+  // checkpointing: a run's steps as plain objects, and the store seam that holds them
+  "stepToJSON",
+  "stepFromJSON",
+  "MemoryRunStore",
   // runtime
   "MultiStepAgent",
   "CodeAgent",
   "ToolCallingAgent",
+  "managedAgent",
+  "MANAGED_AGENT_INPUT_SCHEMA",
+  // approval seam: gate a tool call before it runs
+  "withApproval",
+  "ToolApprovalError",
   "AgentSession",
   "FINAL_ANSWER_TOOL_NAME",
   "makeRunResult",

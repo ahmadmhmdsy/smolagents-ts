@@ -44,10 +44,14 @@ export class ToolRegistry {
    * Tool.to_code_prompt() — same purpose, different shape. Upstream renders a callable
    * "def name(arg: type) -> ret:" signature; we render a bullet list with typed arguments derived from the
    * same JSON Schema the model receives, so the prompt and the wire format cannot drift.
+   *
+   * `select`, when given, limits the rendered set — the agent uses it to render managed agents apart
+   * from ordinary tools without keeping a second registry.
    */
-  renderDescriptions(): string {
+  renderDescriptions(select?: (tool: Tool) => boolean): string {
     const lines: string[] = [];
     for (const entry of this.list()) {
+      if (select !== undefined && !select(entry)) continue;
       const spec = entry.toSpec();
       lines.push("- " + spec.name + ": " + spec.description);
       const properties = (spec.inputSchema.properties ?? {}) as Record<string, Record<string, unknown>>;
