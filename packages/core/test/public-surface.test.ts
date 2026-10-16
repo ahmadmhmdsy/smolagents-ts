@@ -69,6 +69,8 @@ const RUNTIME_EXPORTS = [
   // approval seam: gate a tool call before it runs
   "withApproval",
   "ToolApprovalError",
+  // guardrail seam: tripwires and an output schema
+  "AgentGuardrailError",
   "AgentSession",
   "FINAL_ANSWER_TOOL_NAME",
   "makeRunResult",
@@ -125,6 +127,7 @@ const ERROR_CASES: {
   { Ctor: core.AgentToolCallError, name: "AgentToolCallError", code: "AGENT_TOOL_CALL" },
   { Ctor: core.AgentTimeoutError, name: "AgentTimeoutError", code: "AGENT_TIMEOUT" },
   { Ctor: core.AgentCancelledError, name: "AgentCancelledError", code: "AGENT_CANCELLED" },
+  { Ctor: core.AgentGuardrailError, name: "AgentGuardrailError", code: "AGENT_GUARDRAIL" },
 ];
 
 describe("error hierarchy", () => {

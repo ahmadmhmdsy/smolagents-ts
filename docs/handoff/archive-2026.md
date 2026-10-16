@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-16T15:30:00+03:00 — S7 closes: the example app delegates to a child agent end to end
+
+**State.** Pre-release and clean. S7 multi-agent is complete: the milestone reads `done`, its live task row (T-34) is archived, and T-35 (S8) is the live row.
+
+**Did.** Closed S7 by proving delegation in the example app: added `createDelegationRun()` to `examples/vite-app/src/agent.ts` — a `CodeAgent` whose scripted program calls a managed agent (`researcher`) from sandboxed QuickJS code — and `examples/vite-app/test/delegation.test.ts` drives it through the real executor. Recorded S7 `done` in the spec, marked and archived T-34, opened T-35 (S8: resumable state plus an approval seam), and updated the roadmap plan.
+
+**Verified.** `pnpm vitest run --project example-vite-app` 3 files and 8 tests, exit 0; `pnpm gate` exit 0 (pack-smoke OK, site 74 pages). Docs: validator 0 errors, `rotate --check` exit 0.
+
+**Unverified / open.** The delegation demo is not wired into the example's React UI — only its factory and test exist, so the page still renders the greet demo. That is a deliberate skip, not a gap in S7. Child-to-parent event forwarding stays out of scope.
+
+**Next.** Start T-35 (S8): design the store/resume seam, then the approval seam.
+
+**Blockers.** None. T-14 (publish), T-16, T-18, T-21 and T-25 wait on the owner.
+
+**Artifacts.** `examples/vite-app/src/agent.ts` (`createDelegationRun`); `examples/vite-app/test/delegation.test.ts`; `docs/04-tasks.md`; `docs/01-project.md` (S7 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 1).
+
 ## 2026-10-16T14:20:00+03:00 — S7's core lands: a manager delegates to a child agent exposed as a tool, with no change to the loop
 
 **State.** Pre-release and clean. S7 multi-agent is implemented and verified at the library level; only the example-app delegation run is outstanding, so the milestone reads `in_progress`.

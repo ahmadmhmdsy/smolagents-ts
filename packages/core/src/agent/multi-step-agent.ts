@@ -1,6 +1,7 @@
 import {
   AgentCancelledError,
   AgentError,
+  AgentGuardrailError,
   AgentMaxStepsError,
   AgentParsingError,
 } from "../errors.js";
@@ -33,7 +34,9 @@ import { makeRunResult, type RunResult, type RunState } from "./run-result.js";
 import type { ActionOutcome, InterpretedAction } from "./action.js";
 import { managedAgent, type ManagedAgent } from "./managed-agent.js";
 import { withApproval, type ApprovalHandler } from "./approval.js";
+import type { Guardrails } from "./guardrail.js";
 import type { RunStore } from "../session/run-store.js";
+import type { z } from "zod";
 
 export interface AgentOptions {
   model: Model;
@@ -62,6 +65,14 @@ export interface AgentOptions {
   store?: RunStore;
   /** Gates every tool call: asked before a tool runs, and a denial fails that one call. */
   approve?: ApprovalHandler;
+  /**
+   * Tripwires on the run: `input` inspects the task before the loop starts, `output` inspects the
+   * final answer before the run completes. A tripped wire halts the run with an
+   * `AgentGuardrailError`.
+   */
+  guardrails?: Guardrails;
+  /** When set, the final answer is validated against this schema before the run completes. */
+  outputSchema?: z.ZodType;
 }
 
 export interface RunOptions {
@@ -118,11 +129,15 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly listeners = new Set<AgentEventListener>();
   private readonly store: RunStore | undefined;
   private readonly approve: ApprovalHandler | undefined;
+  private readonly guardrails: Guardrails | undefined;
+  private readonly outputSchema: z.ZodType | undefined;
 
   constructor(options: AgentOptions) {
     this.model = options.model;
     this.approve = options.approve;
     this.store = options.store;
+    this.guardrails = options.guardrails;
+    this.outputSchema = options.outputSchema;
     this.tools =
       options.tools instanceof ToolRegistry ? options.tools : new ToolRegistry(options.tools ?? []);
     if (this.approve !== undefined) {
@@ -305,6 +320,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
     yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
 
+    if (this.guardrails?.input !== undefined) {
+      const reason = await this.guardrails.input(task, { task, signal });
+      if (reason !== undefined) {
+        yield this.emit({ type: "run.failed", error: new AgentGuardrailError(reason).info });
+        return;
+      }
+    }
+
     if (signal.aborted) {
       yield this.emit({ type: "run.cancelled" });
       return;
@@ -353,11 +376,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.toolCalls = [...completion.toolCalls];
 
       if (action.kind === "final") {
-        this.memory.addStep(new FinalAnswerStep(action.output));
-        yield this.emit({
-          type: "run.completed",
-          result: this.buildResult(action.output, context, "success"),
-        });
+        yield* this.complete(action.output, context);
         return;
       }
 
@@ -409,11 +428,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       await this.saveCheckpoint(context);
 
       if (outcome.isFinalAnswer) {
-        this.memory.addStep(new FinalAnswerStep(outcome.value));
-        yield this.emit({
-          type: "run.completed",
-          result: this.buildResult(outcome.value, context, "success"),
-        });
+        yield* this.complete(outcome.value, context);
         return;
       }
     }
@@ -548,6 +563,42 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context.usage = addTokenUsage(context.usage, completion.usage);
     yield this.emit({ type: "usage.updated", usage: context.usage });
     return completion;
+  }
+
+  /**
+   * Guard the final answer, record it, and emit the terminal `run.completed` event. A tripped
+   * output tripwire or an output-schema mismatch fails the run instead.
+   */
+  private async *complete(output: unknown, context: RunContext): AsyncGenerator<AgentEvent, void> {
+    if (this.guardrails?.output !== undefined) {
+      const reason = await this.guardrails.output(output, {
+        task: context.task,
+        signal: context.signal,
+      });
+      if (reason !== undefined) {
+        yield this.emit({
+          type: "run.failed",
+          error: new AgentGuardrailError(reason, { stepIndex: context.stepIndex }).info,
+        });
+        return;
+      }
+    }
+    let value = output;
+    if (this.outputSchema !== undefined) {
+      const parsed = this.outputSchema.safeParse(output);
+      if (!parsed.success) {
+        yield this.emit({
+          type: "run.failed",
+          error: new AgentGuardrailError("The final answer failed the output schema: " + parsed.error.message, {
+            stepIndex: context.stepIndex,
+          }).info,
+        });
+        return;
+      }
+      value = parsed.data;
+    }
+    this.memory.addStep(new FinalAnswerStep(value));
+    yield this.emit({ type: "run.completed", result: this.buildResult(value, context, "success") });
   }
 
   private buildResult(output: unknown, context: RunContext, state: RunState): RunResult<TOut> {

@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-16T21:20:00+03:00 — S11 lands: guardrails halt a run, the schema binds the final answer
+
+**State.** Pre-release and clean. S11 (guardrails and structured output) is complete: the milestone reads `done`, its row (T-38) is archived, and no live task row is open. S7 through S11 — the whole post-0.1.0 roadmap — have landed this session; only the standing later candidates remain unscheduled.
+
+**Did.** `AgentOptions` gained `guardrails` (an `input` and an `output` tripwire) and `outputSchema` (a caller-supplied zod schema). The loop runs the input tripwire after `run.started` (before the model is asked), and both output checks in one shared `complete()` choke point serving both completion paths (the code agent's final call and the tool-calling agent's final answer): a tripped wire or a schema mismatch emits `run.failed` with a new `AgentGuardrailError` (code `AGENT_GUARDRAIL`) instead of `run.completed`, and a passing schema reports its validated value as the output.
+
+**Verified.** Core suite 36 files and 340 tests, exit 0. `packages/core/test/guardrail.test.ts` (5 cases) covers an input halt (proving the model was not asked, via an empty script), an input pass, an output halt, a schema reject and a schema accept-and-coerce. `pnpm typecheck`, `lint` and `pnpm gate` exit 0.
+
+**Open.** A tripwire returns a reason string rather than throwing — one function per direction, composed by the caller; no array form. `run()` rebuilds errors from event data, so the failure is an `AgentError` carrying the guardrail name and code, not an `AgentGuardrailError` instance.
+
+**Next.** No scheduled milestone remains. Likely next is a fresh roadmap or the first release (T-14 publish), which waits on the owner's registry credentials.
+
+**Blockers.** None. T-14, T-16, T-18, T-21 and T-25 wait on the owner.
+
+**Artifacts.** `packages/core/src/agent/guardrail.ts`; `packages/core/src/errors.ts`; `packages/core/test/guardrail.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 5).
+
 ## 2026-10-16T20:45:00+03:00 — S10 lands: a session continues the agent's memory across turns behind the store seam
 
 **State.** Pre-release and clean. S10 (persistent sessions and memory) is complete: the milestone reads `done`, its row (T-37) is archived, and no live task row is open. S7 through S10 have landed this session.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None. T-14, T-16, T-18, T-21, T-25 wait on the owner.
 
 **Artifacts.** `packages/core/src/session/run-store.ts`; `packages/core/src/agent/approval.ts`; `packages/core/src/memory/steps.ts`; `packages/core/src/agent/multi-step-agent.ts`; `packages/core/test/run-store.test.ts`; `packages/core/test/approval.test.ts`.
-
-## 2026-10-16T15:30:00+03:00 — S7 closes: the example app delegates to a child agent end to end
-
-**State.** Pre-release and clean. S7 multi-agent is complete: the milestone reads `done`, its live task row (T-34) is archived, and T-35 (S8) is the live row.
-
-**Did.** Closed S7 by proving delegation in the example app: added `createDelegationRun()` to `examples/vite-app/src/agent.ts` — a `CodeAgent` whose scripted program calls a managed agent (`researcher`) from sandboxed QuickJS code — and `examples/vite-app/test/delegation.test.ts` drives it through the real executor. Recorded S7 `done` in the spec, marked and archived T-34, opened T-35 (S8: resumable state plus an approval seam), and updated the roadmap plan.
-
-**Verified.** `pnpm vitest run --project example-vite-app` 3 files and 8 tests, exit 0; `pnpm gate` exit 0 (pack-smoke OK, site 74 pages). Docs: validator 0 errors, `rotate --check` exit 0.
-
-**Unverified / open.** The delegation demo is not wired into the example's React UI — only its factory and test exist, so the page still renders the greet demo. That is a deliberate skip, not a gap in S7. Child-to-parent event forwarding stays out of scope.
-
-**Next.** Start T-35 (S8): design the store/resume seam, then the approval seam.
-
-**Blockers.** None. T-14 (publish), T-16, T-18, T-21 and T-25 wait on the owner.
-
-**Artifacts.** `examples/vite-app/src/agent.ts` (`createDelegationRun`); `examples/vite-app/test/delegation.test.ts`; `docs/04-tasks.md`; `docs/01-project.md` (S7 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 1).
 <!-- rotate:end -->

@@ -403,3 +403,9 @@ Lessons that do not belong to a narrower topic.
 - **Status:** validated
 - **Lesson:** cross-run sessions needed no new persistence type: the S8 `RunStore` plus the `reset` flag already carried a run's memory, so S10 was one option (`AgentSessionOptions.checkpoint`) and one line in `send` threading `reset:false` and the checkpoint into `agent.run`. A second session over the same store reads the first's turns for free. The remaining gap is deliberately narrow — only the agent's memory persists, not the session's React-facing snapshot — and is named rather than guessed at. When a milestone says "persist X across runs", check whether a prior seam already persists the thing X derives from.
 - **Evidence:** `packages/core/src/session/agent-session.ts` (`AgentSessionOptions`, `send`); `packages/core/test/session-persistence.test.ts`; core suite 35 files and 333 tests, exit 0 on 2026-10-16.
+
+## 2026-10-16 - a guardrail is a choke point both agent flavours already share
+
+- **Status:** validated
+- **Lesson:** the two ways a run ends (the code agent's `final_answer(...)` call and the tool-calling agent's `final_answer` tool) both fell through to a `FinalAnswerStep` plus a `run.completed` emit, so S11 needed no per-flavour hook: one `complete()` helper at that shared point runs the output tripwire and the output schema and can fail the run instead of completing it. Guardrails were modelled as returning a reason string (or `undefined`) rather than throwing, so the halt is a value the loop turns into a typed `AgentGuardrailError` and a caller never imports the error to trip a wire. When adding a cross-cutting check, find the point both code paths already pass through before adding a hook per path.
+- **Evidence:** `packages/core/src/agent/guardrail.ts`, `packages/core/src/agent/multi-step-agent.ts` (`complete`), and `packages/core/test/guardrail.test.ts`; 5 tests, core suite 36 files and 340 tests, exit 0 on 2026-10-16.

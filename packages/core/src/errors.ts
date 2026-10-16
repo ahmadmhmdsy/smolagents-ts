@@ -6,7 +6,8 @@ export type AgentErrorCode =
   | "AGENT_MAX_STEPS"
   | "AGENT_TOOL_CALL"
   | "AGENT_TIMEOUT"
-  | "AGENT_CANCELLED";
+  | "AGENT_CANCELLED"
+  | "AGENT_GUARDRAIL";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -109,5 +110,13 @@ export class AgentCancelledError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
     super(message, { ...options, code: "AGENT_CANCELLED" });
     this.name = "AgentCancelledError";
+  }
+}
+
+/** Raised when a guardrail tripwire or the output schema stops a run. */
+export class AgentGuardrailError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_GUARDRAIL" });
+    this.name = "AgentGuardrailError";
   }
 }
