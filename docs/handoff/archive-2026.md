@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-16T12:45:00+03:00 — the owner approved the post-0.1.0 roadmap; S7–S11 are in the spec and decision 0018 is accepted
+
+**State.** Pre-release and clean. The roadmap proposed earlier this session is approved: milestones S7 (multi-agent) through S11 (guardrails + structured output) are in the project spec, the platform gaps are named non-goals, and decision 0018 records the boundary. Phase 1 is next.
+
+**Did.** Recorded the owner's approval. `docs/01-project.md` (approval-only) gained the S7–S11 milestone rows, a scope-in bullet, a platform-gaps non-goal, and revision 9 authorising the change. Decision 0018 moved from proposed to accepted and its follow-up closed, with the index row updated. Task T-33 (approve) is done and archived; T-34 (multi-agent) is now live. The roadmap plan moved to approved.
+
+**Verified.** `python scripts/validate_context.py --root .` → 0 errors, exit 0; `python scripts/rotate.py --check` → exit 0.
+
+**Unverified / open.** No phase code is written yet — S7–S11 are approved scope, not delivered work. The competitor capability claims remain the vendors' own framing.
+
+**Next.** Start T-34 (S7): expose a managed agent as a tool and a handoff path, mirrored from upstream, behind the core's tool seam.
+
+**Blockers.** None for S7. T-14 (publish) stays blocked on registry credentials and a public repository; T-16 and T-18 still wait on the owner.
+
+**Artifacts.** `docs/01-project.md` (Milestones, revision 9), `docs/09-decisions/0018-post-0.1.0-scope-boundary.md`, `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, `docs/04-tasks.md` (T-34), `docs/tasks/archive-2026.md` (T-33).
+
 ## 2026-10-16T12:30:00+03:00 — the post-0.1.0 roadmap is scoped from a competitor scan and recorded, pending owner approval
 
 **State.** Pre-release; the tree is clean after five fixes landed in the previous session. The owner asked what the port lacks against the frameworks a TypeScript team would otherwise choose, then to capture it as plan, tasks, milestones and memory. The scan is recorded; the roadmap is a draft plan, a proposed decision and one live task row. No code was written this session.

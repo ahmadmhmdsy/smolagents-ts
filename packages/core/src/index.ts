@@ -36,6 +36,8 @@ export {
 export * from "./memory/steps.js";
 export * from "./memory/memory.js";
 export * from "./monitoring/monitor.js";
+export * from "./monitoring/trace.js";
+export * from "./monitoring/eval.js";
 
 // The runtime.
 export * from "./agent/action.js";

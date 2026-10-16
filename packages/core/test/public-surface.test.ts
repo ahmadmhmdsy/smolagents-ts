@@ -53,6 +53,9 @@ const RUNTIME_EXPORTS = [
   "ActionStep",
   "FinalAnswerStep",
   "Monitor",
+  // observability: fold an event stream into an OTel-shaped trace, and score a run against a fixture
+  "buildTrace",
+  "scoreRun",
   // checkpointing: a run's steps as plain objects, and the store seam that holds them
   "stepToJSON",
   "stepFromJSON",

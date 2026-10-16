@@ -138,7 +138,7 @@ entry.
 | S1.5 | Parity harness | Python-to-TypeScript differential tests | done |
 | S7 | Multi-agent orchestration | managed agents (agents as tools) and handoffs, so a supervisor delegates a subtask inside its own step budget | done |
 | S8 | Durable runs and human-in-the-loop | a run serializes its step state to a store seam and resumes, and an approval seam pauses a gated step | done |
-| S9 | Observability and evaluation | a trace exporter over `AgentEvent` and an eval harness scoring a golden transcript | pending |
+| S9 | Observability and evaluation | a trace exporter over `AgentEvent` and an eval harness scoring a golden transcript | done |
 | S10 | Persistent sessions | a session persists across runs behind the store seam | pending |
 | S11 | Guardrails and structured output | a guardrail seam with tripwires and a schema-bound final answer | pending |
 

@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-16T20:35:00+03:00 — S9 lands: an event-stream trace exporter and an eval harness over the golden run
+
+**State.** Pre-release and clean. S9 (observability and evaluation) is complete: the milestone reads `done`, its row (T-36) is archived, and no live task row is open.
+
+**Did.** Added `buildTrace` (`monitoring/trace.ts`): it folds an `AgentEvent` stream into one OTel-shaped `TraceSpan` tree — a `run` root with a child span per step, planning pass and tool call, status and attributes from the events, an injected clock for deterministic replays, advisory `.delta` events skipped. Added `scoreRun` (`monitoring/eval.ts`): it checks a completed run against a transcript's output, state, action-step count and event-type sequence, returning a readable per-check list. Exported and pinned both. Committed S7+S8 as `ccd7a50` first.
+
+**Verified.** Core suite 34 files and 331 tests, exit 0. `packages/core/test/observability.test.ts` drives the existing `fibonacci` golden fixture once, folds its event stream into a trace, scores it (`pass: true`), and shows a mismatched `actionSteps` fails with a named detail. `pnpm typecheck`, `lint`, `depcruise` and `pnpm gate` exit 0.
+
+**Unverified / open.** `buildTrace` folds an already-collected stream; it does not wrap a live `agent.stream()` as a sink, and there is no OTel SDK adapter or exporter transport — both are additive on the same seam. `scoreRun` compares by JSON value, enough for a transcript's scalar/array fields.
+
+**Next.** Start S10 (persistent sessions and memory): a session that persists across runs behind the store seam, so a second run reads the first run's memory.
+
+**Blockers.** None. T-14, T-16, T-18, T-21 and T-25 wait on the owner.
+
+**Artifacts.** `packages/core/src/monitoring/trace.ts`; `packages/core/src/monitoring/eval.ts`; `packages/core/test/observability.test.ts`; `packages/core/test/golden/fibonacci.transcript.json`; `docs/01-project.md` (S9 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 3).
+
 ## 2026-10-16T17:55:00+03:00 — S8 lands: a run checkpoints and resumes, and an approval gate holds a tool call
 
 **State.** Pre-release and clean. S8 (durable runs and human-in-the-loop) is complete: the milestone reads `done`, its live row (T-35) is archived, and no S8 row is open.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None. T-14 (publish), T-16 and T-18 still wait on the owner.
 
 **Artifacts.** `packages/core/src/agent/managed-agent.ts`; `packages/core/src/agent/multi-step-agent.ts` (`managedAgents` fold); `packages/core/src/prompts/templates.ts`; `packages/core/test/managed-agent.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`.
-
-## 2026-10-16T12:45:00+03:00 — the owner approved the post-0.1.0 roadmap; S7–S11 are in the spec and decision 0018 is accepted
-
-**State.** Pre-release and clean. The roadmap proposed earlier this session is approved: milestones S7 (multi-agent) through S11 (guardrails + structured output) are in the project spec, the platform gaps are named non-goals, and decision 0018 records the boundary. Phase 1 is next.
-
-**Did.** Recorded the owner's approval. `docs/01-project.md` (approval-only) gained the S7–S11 milestone rows, a scope-in bullet, a platform-gaps non-goal, and revision 9 authorising the change. Decision 0018 moved from proposed to accepted and its follow-up closed, with the index row updated. Task T-33 (approve) is done and archived; T-34 (multi-agent) is now live. The roadmap plan moved to approved.
-
-**Verified.** `python scripts/validate_context.py --root .` → 0 errors, exit 0; `python scripts/rotate.py --check` → exit 0.
-
-**Unverified / open.** No phase code is written yet — S7–S11 are approved scope, not delivered work. The competitor capability claims remain the vendors' own framing.
-
-**Next.** Start T-34 (S7): expose a managed agent as a tool and a handoff path, mirrored from upstream, behind the core's tool seam.
-
-**Blockers.** None for S7. T-14 (publish) stays blocked on registry credentials and a public repository; T-16 and T-18 still wait on the owner.
-
-**Artifacts.** `docs/01-project.md` (Milestones, revision 9), `docs/09-decisions/0018-post-0.1.0-scope-boundary.md`, `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, `docs/04-tasks.md` (T-34), `docs/tasks/archive-2026.md` (T-33).
 <!-- rotate:end -->
