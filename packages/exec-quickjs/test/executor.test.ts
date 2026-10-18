@@ -63,7 +63,7 @@ describe("QuickJSExecutor", () => {
       language: "javascript",
       isolation: "wasm",
       asyncToolCalls: true,
-      timers: true,
+      timers: false,
       network: "host-mediated",
       memoryLimitBytes: 1024,
     });
