@@ -206,6 +206,23 @@ describe("the stdio transport", () => {
     await transport.close();
   });
 
+  it("routes an EPIPE on the child's stdin to onerror instead of crashing the process", async () => {
+    const child = new FakeChild();
+    // A real pipe is an EventEmitter, and an 'error' it emits with no listener is thrown.
+    const pipe = Object.assign(new EventEmitter(), child.stdin);
+    const piped = Object.assign(Object.create(child) as FakeChild, { stdin: pipe });
+    const errors: Error[] = [];
+    const transport = new StdioTransport({ command: "srv" }, { spawn: spawnWith(piped).spawn });
+    transport.onerror = (error) => errors.push(error);
+    await transport.start();
+
+    expect(() => pipe.emit("error", new Error("write EPIPE"))).not.toThrow();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(MCPTransportError);
+    expect(errors[0]?.message).toMatch(/srv.*EPIPE/);
+    await transport.close();
+  });
+
   it("rejects a spawn that throws, naming the command", async () => {
     const transport = new StdioTransport(
       { command: "no-such-binary" },
