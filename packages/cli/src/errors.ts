@@ -92,3 +92,13 @@ export class HelpRequested extends CliError {
     this.usage = usage;
   }
 }
+
+/**
+ * The interactive setup ended before it was answered: stdin closed (EOF, Ctrl+D) or the
+ * user pressed Ctrl+C. Exit code 130 is the shell's convention for a run ended by SIGINT.
+ */
+export class SetupCancelled extends CliError {
+  constructor() {
+    super("Interactive setup cancelled.", 130);
+  }
+}

@@ -13,7 +13,7 @@ surface is the same parser, factories, renderer and run function the bin uses.
 | entry point | path | notes |
 |---|---|---|
 | public barrel | `packages/cli/src/index.ts` | the parser, the factories, the renderer and `runSmolagent` |
-| bin | `packages/cli/src/main.ts` | carries the shebang; exit codes 0, 1 and 2 |
+| bin | `packages/cli/src/main.ts` | carries the shebang; exit codes 0, 1, 2 and 130 |
 | arguments | `packages/cli/src/args.ts` | the hand-rolled parser, `USAGE` and the defaults |
 | model factory | `packages/cli/src/model-factory.ts` | upstream names onto `HuggingFaceModel` and `OpenAICompatibleModel` |
 | tool factory | `packages/cli/src/tool-factory.ts` | the two defaults, and the refusals by name |
@@ -28,7 +28,7 @@ surface is the same parser, factories, renderer and run function the bin uses.
 
     pnpm vitest run --project cli
 
-Expected result: seven files with fifty-two tests, exit code 0. The end-to-end case
+Expected result: eight files with fifty-eight tests, exit code 0. The end-to-end case
 drives the real `CodeAgent` with the core's `MockModel` and `ScriptedExecutor`, so
 the suite needs no provider and no key. Run
 `pnpm --filter @smolagents-ts/cli run typecheck` beside it: the runner erases

@@ -76,7 +76,8 @@ the alternatives, rather than folded onto an adapter that does exist:
   names carry a slash, and its Python interpreter tool.
 
 Exit codes are `0` when the run completed or the help was asked for, `1` for a
-refusal or a failed run, and `2` for a command line the parser cannot read.
+refusal or a failed run, `2` for a command line the parser cannot read, and `130`
+when the interactive setup ends before it is answered (stdin closed, or Ctrl+C).
 
 ## The programmatic surface
 
