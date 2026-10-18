@@ -5,7 +5,7 @@ import {
   AgentMaxStepsError,
   AgentParsingError,
 } from "../errors.js";
-import type { AgentEvent } from "../events.js";
+import { isTerminal, type AgentEvent, type AgentEventOf, type AgentEventType } from "../events.js";
 import { type Logger, noopLogger } from "../logger.js";
 import { AgentMemory } from "../memory/memory.js";
 import {
@@ -100,6 +100,9 @@ export interface RunContext {
 
 export type AgentEventListener = (event: AgentEvent) => void;
 
+/** A listener for one event type, handed the narrowed event. */
+export type AgentEventHandler<T extends AgentEventType> = (event: AgentEventOf<T>) => void;
+
 const PLANNING_INSTRUCTION =
   "Before you continue, write a short numbered plan for the remaining work. Reply with the plan only.";
 
@@ -138,8 +141,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.store = options.store;
     this.guardrails = options.guardrails;
     this.outputSchema = options.outputSchema;
-    this.tools =
-      options.tools instanceof ToolRegistry ? options.tools : new ToolRegistry(options.tools ?? []);
+    const managedAgents = options.managedAgents ?? [];
+    // Managed agents are added to this agent's registry, so a caller's registry is copied first:
+    // mutating it would make a second agent built from the same registry fail on a duplicate name.
+    if (options.tools instanceof ToolRegistry) {
+      this.tools = managedAgents.length > 0 ? new ToolRegistry(options.tools.list()) : options.tools;
+    } else {
+      this.tools = new ToolRegistry(options.tools ?? []);
+    }
     if (this.approve !== undefined) {
       const approve = this.approve;
       this.tools = new ToolRegistry(this.tools.list().map((entry) => withApproval(entry, approve)));
@@ -152,7 +161,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.customInstructions = options.customInstructions;
     this.explicitSystemPrompt = options.systemPrompt;
     this.monitor = new Monitor();
-    this.managedAgents = options.managedAgents ?? [];
+    this.managedAgents = managedAgents;
     for (const entry of this.managedAgents) {
       const wrapped = managedAgent(entry);
       this.tools.add(this.approve === undefined ? wrapped : withApproval(wrapped, this.approve));
@@ -195,12 +204,41 @@ export abstract class MultiStepAgent<TOut = unknown> {
     return this.memory.steps;
   }
 
-  /** Subscribe to every event. Returns an unsubscribe function. Mirrors design spec 6.4. */
-  on(listener: AgentEventListener): () => void {
+  /**
+   * Subscribe to every event, or to one event type with a handler that receives the narrowed
+   * event (design spec 6.4). Returns an unsubscribe function.
+   */
+  on(listener: AgentEventListener): () => void;
+  on<T extends AgentEventType>(type: T, handler: AgentEventHandler<T>): () => void;
+  on<T extends AgentEventType>(
+    listenerOrType: AgentEventListener | T,
+    handler?: AgentEventHandler<T>,
+  ): () => void {
+    let listener: AgentEventListener;
+    if (typeof listenerOrType === "function") {
+      listener = listenerOrType;
+    } else {
+      if (handler === undefined) {
+        throw new TypeError("agent.on(type, handler) needs a handler for " + listenerOrType);
+      }
+      const type = listenerOrType;
+      listener = (event) => {
+        if (event.type === type) handler(event as AgentEventOf<T>);
+      };
+    }
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  /**
+   * The code visible so far in a model reply that may still be arriving, for `code.delta`; `done`
+   * says the reply is complete. Each call's result extends the previous one. An agent that writes
+   * no code returns `undefined`, the default.
+   */
+  protected streamedCode(_text: string, _done: boolean): string | undefined {
+    return undefined;
   }
 
   /** Whether to use the streaming path when the model supports it. */
@@ -274,8 +312,22 @@ export abstract class MultiStepAgent<TOut = unknown> {
    * run.completed, run.failed, run.maxStepsReached and run.cancelled are terminal.
    */
   async *stream(task: string, options: RunOptions = {}): AsyncGenerator<AgentEvent, void> {
+    // Every run ends in exactly one terminal event. The loop emits its own; anything that still
+    // escapes it — a subclass's interpret(), a prompt builder — is reported here instead of being
+    // thrown past a consumer that waits for the terminal event.
+    let ended = false;
     try {
-      yield* this.runStream(task, options);
+      for await (const event of this.runStream(task, options)) {
+        if (isTerminal(event.type)) ended = true;
+        yield event;
+      }
+    } catch (error) {
+      if (ended) throw error;
+      yield this.emit(
+        options.signal?.aborted === true
+          ? { type: "run.cancelled" }
+          : { type: "run.failed", error: AgentError.from(error).info },
+      );
     } finally {
       await this.releaseResources();
     }
@@ -308,20 +360,36 @@ export abstract class MultiStepAgent<TOut = unknown> {
       checkpoint: options.checkpoint,
     };
 
+    this.monitor = new Monitor(context.startedAt);
+    yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
+
     if (options.reset ?? true) {
       this.memory.reset();
     } else if (this.store !== undefined && options.checkpoint !== undefined) {
-      const saved = await this.store.load(options.checkpoint);
+      let saved: Awaited<ReturnType<RunStore["load"]>>;
+      try {
+        saved = await this.store.load(options.checkpoint);
+      } catch (error) {
+        yield this.emit({ type: "run.failed", error: storeError("load", error).info });
+        return;
+      }
       if (saved !== undefined) this.memory.restore(saved);
     }
     this.memory.addStep(new TaskStep(task));
-    this.memory.addStep(new SystemPromptStep(this.systemPrompt));
-    this.monitor = new Monitor(context.startedAt);
-
-    yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
+    // A continued memory already holds a system prompt, and the transcript renders the current
+    // prompt in its place, so a second copy would only pile up in every checkpoint.
+    if (this.memory.systemPrompt === undefined) {
+      this.memory.addStep(new SystemPromptStep(this.systemPrompt));
+    }
 
     if (this.guardrails?.input !== undefined) {
-      const reason = await this.guardrails.input(task, { task, signal });
+      let reason: string | undefined;
+      try {
+        reason = await this.guardrails.input(task, { task, signal });
+      } catch (error) {
+        yield this.emit({ type: "run.failed", error: guardrailError("input", error).info });
+        return;
+      }
       if (reason !== undefined) {
         yield this.emit({ type: "run.failed", error: new AgentGuardrailError(reason).info });
         return;
@@ -364,7 +432,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
           "action",
         );
       } catch (error) {
-        yield this.emit({ type: "run.failed", error: AgentError.from(error, "AGENT_GENERATION", stepIndex).info });
+        // An abort surfaces as the model call's rejection; it is still a cancellation.
+        yield this.emit(
+          signal.aborted
+            ? { type: "run.cancelled" }
+            : { type: "run.failed", error: AgentError.from(error, "AGENT_GENERATION", stepIndex).info },
+        );
         return;
       }
 
@@ -375,7 +448,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.tokenUsage = completion.usage;
       step.toolCalls = [...completion.toolCalls];
 
+      // No shipped flavour reads a reply as a final answer — both end through final_answer — but
+      // MultiStepAgent is public and abstract, and a custom interpret() may settle the answer from
+      // the text alone. The step is recorded so the answering reply stays in memory.
       if (action.kind === "final") {
+        step.isFinalAnswer = true;
+        this.memory.addStep(step);
         yield* this.complete(action.output, context);
         return;
       }
@@ -400,7 +478,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
           text: parsingError.message,
           isFinalAnswer: false,
         });
-        await this.saveCheckpoint(context);
+        const saveFailure = await this.saveCheckpoint(context);
+        if (saveFailure !== undefined) {
+          yield this.emit({ type: "run.failed", error: saveFailure.info });
+          return;
+        }
         continue;
       }
 
@@ -410,7 +492,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
       } catch (error) {
         const executionError = AgentError.from(error, "AGENT_EXECUTION", stepIndex);
         step.error = executionError.info;
-        yield this.emit({ type: "run.failed", error: executionError.info });
+        yield this.emit(
+          signal.aborted ? { type: "run.cancelled" } : { type: "run.failed", error: executionError.info },
+        );
         return;
       }
 
@@ -425,7 +509,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
         isFinalAnswer: outcome.isFinalAnswer,
       });
 
-      await this.saveCheckpoint(context);
+      const saveFailure = await this.saveCheckpoint(context);
+      if (saveFailure !== undefined) {
+        yield this.emit({ type: "run.failed", error: saveFailure.info });
+        return;
+      }
 
       if (outcome.isFinalAnswer) {
         yield* this.complete(outcome.value, context);
@@ -476,23 +564,34 @@ export abstract class MultiStepAgent<TOut = unknown> {
     yield this.emit({ type: "planning.started", stepIndex });
     const messages = this.transcript();
     messages.push({ role: "user", content: PLANNING_INSTRUCTION });
+    let completion: ChatCompletion;
     try {
-      const completion = yield* this.streamCompletion(messages, stepIndex, context, "planning");
-      const step = new PlanningStep(completion.content);
-      step.tokenUsage = completion.usage;
-      this.memory.addStep(step);
-      yield this.emit({ type: "planning.completed", stepIndex, text: completion.content });
-      await this.saveCheckpoint(context);
-      return { ok: true };
+      completion = yield* this.streamCompletion(messages, stepIndex, context, "planning");
     } catch (error) {
+      if (context.signal.aborted) return { cancelled: true };
       return { failed: AgentError.from(error, "AGENT_GENERATION", stepIndex) };
     }
+    const step = new PlanningStep(completion.content);
+    step.tokenUsage = completion.usage;
+    this.memory.addStep(step);
+    yield this.emit({ type: "planning.completed", stepIndex, text: completion.content });
+    const saveFailure = await this.saveCheckpoint(context);
+    if (saveFailure !== undefined) return { failed: saveFailure };
+    return { ok: true };
   }
 
-  /** Persist the memory as this run's checkpoint, when a store and a name were given. */
-  private async saveCheckpoint(context: RunContext): Promise<void> {
-    if (this.store === undefined || context.checkpoint === undefined) return;
-    await this.store.save(context.checkpoint, this.memory.toJSON());
+  /**
+   * Persist the memory as this run's checkpoint, when a store and a name were given. A store
+   * failure is returned rather than thrown, so the loop can end the run on it.
+   */
+  private async saveCheckpoint(context: RunContext): Promise<AgentError | undefined> {
+    if (this.store === undefined || context.checkpoint === undefined) return undefined;
+    try {
+      await this.store.save(context.checkpoint, this.memory.toJSON());
+      return undefined;
+    } catch (error) {
+      return storeError("save", error, context.stepIndex);
+    }
   }
 
   /** The request options for one model turn, assembled in one place. */
@@ -519,22 +618,25 @@ export abstract class MultiStepAgent<TOut = unknown> {
       const startedAt = Date.now();
       const accumulator = new ToolCallAccumulator();
       let text = "";
+      let code = "";
       let finishReason: FinishReason = "stop";
       let streamUsage: TokenUsage | undefined;
 
       for await (const chunk of this.model.generateStream(messages, this.modelOptions(context))) {
         if (chunk.delta !== "") {
           text += chunk.delta;
-          yield this.emit(
-            kind === "planning"
-              ? { type: "planning.delta", stepIndex, text: chunk.delta }
-              : { type: "message.delta", text: chunk.delta },
-          );
+          if (kind === "planning") {
+            yield this.emit({ type: "planning.delta", stepIndex, text: chunk.delta });
+          } else {
+            yield this.emit({ type: "message.delta", text: chunk.delta });
+            code = yield* this.emitCodeDelta(text, false, code, stepIndex);
+          }
         }
         if (chunk.toolCallDelta !== undefined) accumulator.accept(chunk.toolCallDelta);
         if (chunk.finishReason !== undefined) finishReason = chunk.finishReason;
         if (chunk.usage !== undefined) streamUsage = chunk.usage;
       }
+      if (kind === "action") yield* this.emitCodeDelta(text, true, code, stepIndex);
 
       if (streamUsage !== undefined) {
         this.monitor.record(this.model.id, streamUsage, Date.now() - startedAt);
@@ -559,10 +661,28 @@ export abstract class MultiStepAgent<TOut = unknown> {
           : { type: "message.delta", text: completion.content },
       );
     }
+    if (kind === "action") yield* this.emitCodeDelta(completion.content, true, "", stepIndex);
     this.monitor.record(this.model.id, completion.usage, Date.now() - startedAt);
     context.usage = addTokenUsage(context.usage, completion.usage);
     yield this.emit({ type: "usage.updated", usage: context.usage });
     return completion;
+  }
+
+  /**
+   * Emit the code that `streamedCode` sees in `text` beyond what was already emitted, and return
+   * the code emitted so far. Deltas only ever append: should the visible code stop extending what
+   * was sent, nothing more is emitted, and `code.completed` still carries the authoritative code.
+   */
+  private async *emitCodeDelta(
+    text: string,
+    done: boolean,
+    emitted: string,
+    stepIndex: number,
+  ): AsyncGenerator<AgentEvent, string> {
+    const code = this.streamedCode(text, done);
+    if (code === undefined || code.length <= emitted.length || !code.startsWith(emitted)) return emitted;
+    yield this.emit({ type: "code.delta", stepIndex, text: code.slice(emitted.length) });
+    return code;
   }
 
   /**
@@ -571,10 +691,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
    */
   private async *complete(output: unknown, context: RunContext): AsyncGenerator<AgentEvent, void> {
     if (this.guardrails?.output !== undefined) {
-      const reason = await this.guardrails.output(output, {
-        task: context.task,
-        signal: context.signal,
-      });
+      let reason: string | undefined;
+      try {
+        reason = await this.guardrails.output(output, { task: context.task, signal: context.signal });
+      } catch (error) {
+        yield this.emit({
+          type: "run.failed",
+          error: guardrailError("output", error, context.stepIndex).info,
+        });
+        return;
+      }
       if (reason !== undefined) {
         yield this.emit({
           type: "run.failed",
@@ -624,4 +750,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
     return event;
   }
+}
+
+/** A guardrail that throws has still stopped the run; it fails as a guardrail, not as a crash. */
+function guardrailError(which: "input" | "output", error: unknown, stepIndex?: number): AgentGuardrailError {
+  const message = "The " + which + " guardrail threw: " + (error instanceof Error ? error.message : String(error));
+  return new AgentGuardrailError(message, stepIndex === undefined ? { cause: error } : { cause: error, stepIndex });
+}
+
+function storeError(operation: "load" | "save", error: unknown, stepIndex?: number): AgentError {
+  const message =
+    "The run store failed to " + operation + " the checkpoint: " + (error instanceof Error ? error.message : String(error));
+  return new AgentError(message, stepIndex === undefined ? { cause: error } : { cause: error, stepIndex });
 }

@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentCancelledError,
   AgentError,
   AgentExecutionError,
+  AgentGenerationError,
+  AgentGuardrailError,
   AgentMaxStepsError,
   AgentParsingError,
+  AgentTimeoutError,
+  AgentToolCallError,
 } from "../src/errors.js";
 
 describe("AgentError", () => {
@@ -58,5 +63,29 @@ describe("AgentError.from", () => {
 
   it("wraps a non-Error value", () => {
     expect(AgentError.from("just a string").message).toBe("just a string");
+  });
+
+  it("rebuilds the subclass that matches the code from its info", () => {
+    const raised = [
+      new AgentParsingError("p", { stepIndex: 1 }),
+      new AgentExecutionError("e"),
+      new AgentGenerationError("g"),
+      new AgentMaxStepsError("m"),
+      new AgentToolCallError("t"),
+      new AgentTimeoutError("o"),
+      new AgentCancelledError("c"),
+      new AgentGuardrailError("r", { cause: new Error("why") }),
+    ];
+    for (const error of raised) {
+      const rebuilt = AgentError.fromInfo(error.info);
+      expect(rebuilt).toBeInstanceOf(error.constructor);
+      expect(rebuilt.info).toEqual(error.info);
+    }
+  });
+
+  it("rebuilds an unknown code as a plain AgentError", () => {
+    const rebuilt = AgentError.fromInfo({ name: "CustomError", message: "x", code: "CUSTOM" });
+    expect(rebuilt.constructor).toBe(AgentError);
+    expect(rebuilt.name).toBe("CustomError");
   });
 });
