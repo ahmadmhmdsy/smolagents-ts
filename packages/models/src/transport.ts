@@ -53,3 +53,30 @@ export async function postJson(
   }
   return response;
 }
+
+/**
+ * The Error for a failure the provider reports inside a stream that began with a 200.
+ * The body is the provider's own error object; only its type and message are kept, cut
+ * short, so nothing else the provider echoes back reaches a log.
+ */
+export function streamError(provider: string, error: unknown): Error {
+  const record =
+    error !== null && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const type = typeof record["type"] === "string" ? record["type"] : undefined;
+  const code = record["code"];
+  const message =
+    typeof record["message"] === "string"
+      ? record["message"]
+      : typeof error === "string"
+        ? error
+        : "no message";
+  const label = type ?? (typeof code === "string" || typeof code === "number" ? String(code) : undefined);
+  return new Error(
+    "The " +
+      provider +
+      " stream reported an error" +
+      (label === undefined ? "" : " (" + label + ")") +
+      ": " +
+      message.slice(0, 300),
+  );
+}

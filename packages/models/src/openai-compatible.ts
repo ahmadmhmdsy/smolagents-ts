@@ -14,7 +14,7 @@ import {
   type ToolSpec,
 } from "@smolagents-ts/core";
 import { parseSse } from "./sse.js";
-import { joinUrl, postJson, resolveFetch, type FetchLike } from "./transport.js";
+import { joinUrl, postJson, resolveFetch, streamError, type FetchLike } from "./transport.js";
 
 export interface OpenAICompatibleOptions {
   /** The provider's model id, for example "gpt-4o-mini". */
@@ -69,6 +69,8 @@ interface WireResponse {
   choices?: WireChoice[];
   /** A null is the field present with no report; include_usage sends one per chunk. */
   usage?: WireUsage | null;
+  /** A provider that fails after the 200 (OpenRouter, vLLM) sends this as a data chunk. */
+  error?: unknown;
 }
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
@@ -259,6 +261,9 @@ export class OpenAICompatibleModel implements Model {
         parsed = JSON.parse(event.data) as WireResponse;
       } catch {
         continue; // a keep-alive that is not JSON
+      }
+      if (parsed.error !== undefined && parsed.error !== null) {
+        throw streamError(this.provider, parsed.error);
       }
       for (const chunk of chunksFor(parsed)) yield chunk;
     }

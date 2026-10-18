@@ -99,6 +99,41 @@ describe("GeminiModel streaming", () => {
     expect(await drain(model)).toEqual([]);
   });
 
+  it("tolerates a null usageMetadata without throwing or zeroing the total (T-26)", async () => {
+    const body =
+      'data: {"candidates":[{"content":{"parts":[{"text":"Hi"}]}}],' +
+      '"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":1,"totalTokenCount":4}}\n\n' +
+      'data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}],"usageMetadata":null}\n\n';
+    const model = new GeminiModel({ model: "m", fetch: recorder(body).fetch });
+
+    const chunks = await drain(model);
+    const result = await collectCompletion(
+      new GeminiModel({ model: "m", fetch: recorder(body).fetch }).generateStream([
+        { role: "user", content: "hi" },
+      ]),
+    );
+
+    expect(chunks.filter((chunk) => chunk.usage !== undefined)).toHaveLength(1);
+    expect(result.usage).toEqual({ inputTokens: 3, outputTokens: 1, totalTokens: 4 });
+    expect(result.finishReason).toBe("stop");
+  });
+
+  it("keeps parallel calls from separate events apart and the turn a tool turn", async () => {
+    const body =
+      'data: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"a","args":{"x":1}}}]}}]}\n\n' +
+      'data: {"candidates":[{"content":{"parts":[{"functionCall":{"id":"srv-2","name":"b","args":{"y":2}}}]}}]}\n\n' +
+      'data: {"candidates":[{"content":{"parts":[]},"finishReason":"STOP"}]}\n\n';
+    const model = new GeminiModel({ model: "m", fetch: recorder(body).fetch });
+
+    const result = await collectCompletion(model.generateStream([{ role: "user", content: "go" }]));
+
+    expect(result.toolCalls).toEqual([
+      { id: "call-0", name: "a", arguments: '{"x":1}' },
+      { id: "srv-2", name: "b", arguments: '{"y":2}' },
+    ]);
+    expect(result.finishReason).toBe("tool_calls");
+  });
+
   it("throws when the response carries no body", async () => {
     const noBody: FetchLike = () => Promise.resolve(new Response(null, { status: 200 }));
     const model = new GeminiModel({ model: "m", fetch: noBody });

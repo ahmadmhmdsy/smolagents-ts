@@ -55,7 +55,8 @@ interface WireUsageMetadata {
 
 interface WireResponse {
   candidates?: WireCandidate[];
-  usageMetadata?: WireUsageMetadata;
+  /** Some proxies send null rather than leaving the key out. */
+  usageMetadata?: WireUsageMetadata | null;
 }
 
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -171,8 +172,8 @@ function toFinishReason(raw: string | undefined): FinishReason {
   }
 }
 
-function fromWireUsage(usage: WireUsageMetadata | undefined): TokenUsage {
-  if (usage === undefined) return EMPTY_TOKEN_USAGE;
+function fromWireUsage(usage: WireUsageMetadata | null | undefined): TokenUsage {
+  if (usage === undefined || usage === null) return EMPTY_TOKEN_USAGE;
   const inputTokens = usage.promptTokenCount ?? 0;
   const outputTokens = usage.candidatesTokenCount ?? 0;
   return {
@@ -182,34 +183,57 @@ function fromWireUsage(usage: WireUsageMetadata | undefined): TokenUsage {
   };
 }
 
-/** One streamed response may carry text and a whole function call at once. */
-function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
+/**
+ * What one stream remembers across events. Gemini sends each function call whole, but
+ * a parallel call can arrive in a later event than the first, so the index has to run
+ * across the stream; and a call seen early still makes the turn a tool turn when the
+ * last event only says STOP.
+ */
+interface StreamState {
+  nextCallIndex: number;
+  sawCall: boolean;
+}
+
+/** One streamed response may carry text and whole function calls at once. */
+function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCompletionChunk> {
   const candidate = parsed.candidates?.[0];
   const parts = candidate?.content?.parts ?? [];
   let text = "";
-  const calls: { name: string; args: unknown }[] = [];
+  const calls: { name: string; args: unknown; id: string | undefined }[] = [];
   for (const part of parts) {
     if (part.text !== undefined) text += part.text;
     if (part.functionCall !== undefined) {
-      calls.push({ name: part.functionCall.name ?? "", args: part.functionCall.args });
+      calls.push({
+        name: part.functionCall.name ?? "",
+        args: part.functionCall.args,
+        id: part.functionCall.id,
+      });
     }
   }
+  if (calls.length > 0) state.sawCall = true;
 
   const reason = candidate?.finishReason;
   const chunk: ChatCompletionChunk = { delta: text };
-  const first = calls[0];
-  if (first !== undefined) {
-    chunk.toolCallDelta = {
-      index: 0,
-      id: "call-0",
-      name: first.name,
-      argumentsDelta: JSON.stringify(first.args ?? {}),
-    };
-  }
   if (reason !== undefined) {
-    chunk.finishReason = calls.length > 0 ? "tool_calls" : toFinishReason(reason);
+    chunk.finishReason = state.sawCall ? "tool_calls" : toFinishReason(reason);
   }
-  if (parsed.usageMetadata !== undefined) chunk.usage = fromWireUsage(parsed.usageMetadata);
+  // A null usage carries no counts; skipping it keeps the total an earlier event reported.
+  if (parsed.usageMetadata !== undefined && parsed.usageMetadata !== null) {
+    chunk.usage = fromWireUsage(parsed.usageMetadata);
+  }
+
+  const deltas = calls.map((call) => {
+    const index = state.nextCallIndex;
+    state.nextCallIndex += 1;
+    return {
+      index,
+      id: call.id ?? "call-" + String(index),
+      name: call.name,
+      argumentsDelta: JSON.stringify(call.args ?? {}),
+    };
+  });
+  const first = deltas[0];
+  if (first !== undefined) chunk.toolCallDelta = first;
 
   if (
     text !== "" ||
@@ -219,20 +243,7 @@ function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
   ) {
     yield chunk;
   }
-  for (let index = 1; index < calls.length; index += 1) {
-    const extra = calls[index];
-    if (extra !== undefined) {
-      yield {
-        delta: "",
-        toolCallDelta: {
-          index,
-          id: "call-" + String(index),
-          name: extra.name,
-          argumentsDelta: JSON.stringify(extra.args ?? {}),
-        },
-      };
-    }
-  }
+  for (const extra of deltas.slice(1)) yield { delta: "", toolCallDelta: extra };
 }
 
 /** Google's generateContent: contents and parts, a system instruction, and no tool finish reason. */
@@ -299,6 +310,7 @@ export class GeminiModel implements Model {
     if (response.body === null) {
       throw new Error("The provider returned no body to stream");
     }
+    const state: StreamState = { nextCallIndex: 0, sawCall: false };
     for await (const event of parseSse(response.body)) {
       if (event.data === "") continue;
       let parsed: WireResponse;
@@ -307,7 +319,7 @@ export class GeminiModel implements Model {
       } catch {
         continue; // a keep-alive that is not JSON
       }
-      for (const chunk of chunksFor(parsed)) yield chunk;
+      for (const chunk of chunksFor(parsed, state)) yield chunk;
     }
   }
 

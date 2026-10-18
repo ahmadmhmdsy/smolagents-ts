@@ -207,4 +207,16 @@ describe("GeminiModel", () => {
     });
     expect(() => new GeminiModel({ model: "  " })).toThrow(/model id/);
   });
+  it("answers a null usageMetadata with empty usage rather than throwing (T-26)", async () => {
+    const body = JSON.stringify({
+      candidates: [{ content: { role: "model", parts: [{ text: "hi" }] }, finishReason: "STOP" }],
+      usageMetadata: null,
+    });
+    const model = new GeminiModel({ model: "m", fetch: recorder(body).fetch });
+
+    const result = await model.generate([{ role: "user", content: "hi" }]);
+
+    expect(result.content).toBe("hi");
+    expect(result.usage).toEqual({ inputTokens: 0, outputTokens: 0, totalTokens: 0 });
+  });
 });
