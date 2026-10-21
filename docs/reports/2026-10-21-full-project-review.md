@@ -126,3 +126,27 @@ No live provider, Docker, E2B, registry publish, POSIX shell or browser accessib
 test outcomes were not executed before merge. Gate/publint/attw/pack-smoke results apply to this working tree
 only; CI has never run these commits. REA was loaded but not used: its rule says ordinary source-repository
 analysis uses normal repository tools, and nothing outside the project was touched.
+
+## Remediation addendum — 2026-10-21
+
+This review's recommended order was carried out on 2026-10-21 and landed as commit
+`5b5fab8`, on top of the four merged fix branches (`e2c18fa`, `c5c4f5a`, `3c8d776`,
+`b323ae6`). Versions now derive from `package.json` and a `version:check` stage
+asserts the equality in the gate and in CI; all eleven packages start at 0.1.0 with
+rewritten changelogs and a publish runbook. The executors carry the process
+environment allow-list and an honest `network: "direct"`, write-time log caps in all
+three executors, and Docker port/memory/pid limits. The CLI bin guard recognises a
+symlinked entry point, the example runs under StrictMode, the docs site has a skip
+link and a focusable main, and Pages deploys only after a successful CI run on that
+run's sha. Pack smoke reads the tarballs themselves. The docs truth pass closed the
+drift, recorded decision 0019, marked five owner-gated tasks blocked, and refreshed
+the baseline.
+
+`pnpm gate` (eleven stages) exits 0 at `5b5fab8`: 134 test files / 945 tests, eleven
+packages built, publint and attw clean, `ci:check` OK, pack smoke green, site build
+green. CI has not run on this tree and 0.1.0 is still unpublished: the release
+remains T-14, blocked on registry credentials. Still open from the findings: backend
+`SandboxRunResult.outputs` arrays are step-bounded rather than capped, the dockerode
+`HostConfig` mapping is type-checked but not exercised against a live daemon, and the
+two `checks.py` hardening items were deliberately left for a separate reviewed
+change.

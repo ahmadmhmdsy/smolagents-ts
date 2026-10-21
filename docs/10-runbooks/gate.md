@@ -57,7 +57,10 @@ To keep a log for the report:
 
 A healthy tree returns exit code 0, with every test file and test passing, eleven
 packages built, and publint clean on eleven packages. Measured on 2026-10-21 at
-commit `48cf29d`: exit 0 with 127 test files and 855 tests.
+commit `48cf29d` on the ten-stage chain: exit 0 with 127 test files and 855 tests.
+Re-measured at commit `5b5fab8` after `version:check` joined the chain: exit 0 with
+134 test files and 945 tests, eleven packages built, publint and attw clean, pack
+smoke green (11 tarballs) and the site build green (76 pages).
 
 ## Rollback
 
@@ -80,10 +83,12 @@ trees, which are expensive to re-clone.
 
 ## Last executed
 
-2026-10-21, on this machine, at commit `48cf29d` on a tree that carried the two
-then-uncommitted document edits, exit code 0 — a ten-stage chain, before
-`version:check` was added. The full result is recorded in
-`docs/reports/2026-10-21-full-project-review.md`. The four review-fix merges that
-followed (`e2c18fa`, `c5c4f5a`, `3c8d776`, `b323ae6`) and the release-version work
-have not been gated as one tree yet, so the first green run of the eleven-stage
-chain is still to be recorded here.
+2026-10-21, on this machine, exit code 0 — the first green run of the eleven-stage
+chain, at commit `5b5fab8` (the commit that contains every code and documentation
+change the gate exercised; the commit recording this line changes documentation
+only). 134 test files and 945 tests passed, eleven packages built, publint and attw
+were clean, `ci:check` passed, pack smoke packed, installed and imported 11
+tarballs, and the site build produced 76 pages. The full result is recorded in
+`docs/reports/2026-10-21-full-project-review.md`. Earlier that day, commit
+`48cf29d` passed the ten-stage chain (127 files / 855 tests) before
+`version:check` joined it. CI has not run on this tree yet.

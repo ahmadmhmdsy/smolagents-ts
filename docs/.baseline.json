@@ -15,6 +15,7 @@
     "contracts|docs/research/round-3-open-decisions.md|0|does not declare a Contract block",
     "contracts|docs/research/upstream-recon.md|0|does not declare a Contract block",
     "contracts|docs/research/validation-report.md|0|does not declare a Contract block",
+    "duplicate-facts|docs/03-handoff.md|0|this sentence also appears in docs/handoff/archive-2026.md: '`pnpm typecheck`, `lint`, `depcruise` and `pnpm gate` exit 0.'",
     "duplicate-facts|docs/attribution.md|0|this sentence also appears in docs/plans/2026-10-12-s0-foundations-plan.md: 'the table records, per upstream file, what this project does with it.'",
     "duplicate-facts|docs/plans/2026-10-12-s0-foundations-plan.md|0|this sentence also appears in docs/research/validation-report.md: \"error ts5101: option 'baseurl' is deprecated and will stop functioning\"",
     "duplicate-facts|docs/plans/2026-10-12-s0-foundations-plan.md|0|this sentence also appears in docs/research/validation-report.md: 'superpowers/`, which is gitignored, so a forgotten restore cannot be c'"
