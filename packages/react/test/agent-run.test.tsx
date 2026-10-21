@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { describe, expect, it } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
@@ -7,7 +8,7 @@ import {
   type CodeResult,
 } from "@smolagents-ts/core";
 import { AgentRun } from "../src/agent-run.js";
-import { fenced } from "./helpers.js";
+import { answering, fenced } from "./helpers.js";
 
 /**
  * An executor that holds its step open until the test releases the gate, so the running
@@ -102,5 +103,103 @@ describe("AgentRun", () => {
       expect(screen.getByRole("status").textContent).toBe("Cancelled");
     });
     expect(screen.getByRole("button", { name: "Cancel run" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("runs a new task given mid-run instead of dropping it", async () => {
+    // The executor holds every step open until it is aborted, so the first task can only
+    // end by being cancelled. Before the fix the second send rejected "already running",
+    // the rejection was swallowed, and the first task's state stayed under the new prop.
+    const tasks: string[] = [];
+    const executor = new ScriptedExecutor({
+      handler: (_code, options): Promise<CodeResult> =>
+        new Promise<CodeResult>((resolve, reject) => {
+          if (tasks.length > 1) {
+            options.finalAnswer.submit("second");
+            resolve({ logs: "", isFinalAnswer: false, durationMs: 0, toolCallCount: 0 });
+            return;
+          }
+          options.signal.addEventListener("abort", () => reject(new Error("aborted")), {
+            once: true,
+          });
+        }),
+    });
+    const model = new MockModel([fenced("a", "final_answer(1)"), fenced("b", "final_answer(2)")] as never);
+    const agent = new CodeAgent({ model, executor });
+    agent.on((event) => {
+      if (event.type === "run.started") tasks.push(event.task);
+    });
+    const view = render(
+      <AgentRun agent={agent} task="first">
+        <AgentRun.Status />
+        <AgentRun.FinalAnswer />
+      </AgentRun>,
+    );
+    await waitFor(() => {
+      expect(tasks).toEqual(["first"]);
+    });
+    view.rerender(
+      <AgentRun agent={agent} task="second">
+        <AgentRun.Status />
+        <AgentRun.FinalAnswer />
+      </AgentRun>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toBe("Finished");
+    });
+    expect(tasks).toEqual(["first", "second"]);
+  });
+
+  it("cancels its run when it unmounts", async () => {
+    // The step stays open until it is aborted, so only a cancel can end it.
+    let aborted = false;
+    const executor = new ScriptedExecutor({
+      handler: (_code, options): Promise<CodeResult> =>
+        new Promise<CodeResult>((_resolve, reject) => {
+          options.signal.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              reject(new Error("aborted"));
+            },
+            { once: true },
+          );
+        }),
+    });
+    const model = new MockModel([fenced("one", "final_answer(1)")] as never);
+    const agent = new CodeAgent({ model, executor });
+    let started = false;
+    agent.on((event) => {
+      if (event.type === "code.completed") started = true;
+    });
+    const view = render(<AgentRun agent={agent} task="Q" />);
+    await waitFor(() => {
+      expect(started).toBe(true);
+    });
+    view.unmount();
+    await waitFor(() => {
+      expect(aborted).toBe(true);
+    });
+  });
+
+  it("starts once and is not cancelled under StrictMode", async () => {
+    const agent = new CodeAgent({
+      model: new MockModel([fenced("one", "final_answer(1)")] as never),
+      executor: answering(1),
+    });
+    let starts = 0;
+    agent.on((event) => {
+      if (event.type === "run.started") starts += 1;
+    });
+    render(
+      <StrictMode>
+        <AgentRun agent={agent} task="Q">
+          <AgentRun.Status />
+        </AgentRun>
+      </StrictMode>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toBe("Finished");
+    });
+    expect(starts).toBe(1);
   });
 });

@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { PassThrough } from "node:stream";
+import { describe, expect, it, vi } from "vitest";
 import { main } from "../src/main.js";
 import type { RunSmolagentOptions } from "../src/run.js";
+import { createTerminalPrompter } from "../src/terminal.js";
 
 /**
  * The bin's own wiring, which nothing else covers.
@@ -69,5 +71,30 @@ describe("main", () => {
   it("answers 2 for a command line the parser rejects", async () => {
     const code = await main(["--model-type"], { run: () => Promise.resolve(0) });
     expect(code).toBe(2);
+  });
+
+  it("answers 130 without running when stdin ends during interactive setup", async () => {
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    let ran = false;
+    try {
+      const input = new PassThrough();
+      input.end();
+      const code = await main([], {
+        createPrompter: () => createTerminalPrompter({ input, output: new PassThrough() }),
+        run: () => {
+          ran = true;
+          return Promise.resolve(0);
+        },
+      });
+      expect(code).toBe(130);
+      expect(ran).toBe(false);
+      expect(stderr.mock.calls.map((call) => String(call[0])).join("")).toContain(
+        "Interactive setup cancelled.",
+      );
+    } finally {
+      stdout.mockRestore();
+      stderr.mockRestore();
+    }
   });
 });

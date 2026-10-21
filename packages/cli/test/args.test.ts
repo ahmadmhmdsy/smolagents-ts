@@ -57,6 +57,13 @@ describe("parseArguments", () => {
     expect(parseArguments(["--verbosity-level=-1"]).verbosityLevel).toBe(-1);
   });
 
+  it("reads a negative number after a space as the flag's value, as argparse does", () => {
+    expect(parseArguments(["--verbosity-level", "-1", "go"]).verbosityLevel).toBe(-1);
+    expect(parseArguments(["-5"]).prompt).toBe("-5");
+    expect(parseArguments(["--model-id", "-0.5"]).modelId).toBe("-0.5");
+    expect(() => parseArguments(["--verbosity-level", "-x"])).toThrow(CliUsageError);
+  });
+
   it("throws HelpRequested for --help and -h", () => {
     expect(() => parseArguments(["--help"])).toThrow(HelpRequested);
     expect(() => parseArguments(["-h"])).toThrow(HelpRequested);

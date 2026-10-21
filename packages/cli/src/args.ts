@@ -82,12 +82,15 @@ const LIST_OPTIONS: ReadonlyMap<string, ListOption> = new Map([
 
 const INTEGER = new RegExp("^-?[0-9]+$");
 
+const NEGATIVE_NUMBER = /^-(?:[0-9]+|[0-9]*\.[0-9]+)$/;
+
 /**
  * True when a token is read as an option rather than as a value. A lone dash is a
- * value, which is what argparse does with it.
+ * value, which is what argparse does with it, and so is a negative number: argparse
+ * reads `-1` as a value whenever no option of its own looks like one, which holds here.
  */
 function isOption(token: string): boolean {
-  return token.length > 1 && token.startsWith("-");
+  return token.length > 1 && token.startsWith("-") && !NEGATIVE_NUMBER.test(token);
 }
 
 /**

@@ -6,7 +6,7 @@ import { CliError, HelpRequested } from "./errors.js";
 import { interactiveMode, type InteractiveSelection } from "./interactive.js";
 import { supportsColor } from "./renderer.js";
 import { runSmolagent, type RunSmolagentOptions } from "./run.js";
-import { createTerminalPrompter, writeTo } from "./terminal.js";
+import { createTerminalPrompter, type Prompter, writeTo } from "./terminal.js";
 import { defaultToolCatalog } from "./tool-factory.js";
 
 export interface MainOptions {
@@ -18,13 +18,16 @@ export interface MainOptions {
   env?: Readonly<Record<string, string | undefined>>;
   /** Injected instead of the real run, so a test can see the options the bin assembles. */
   run?: (options: RunSmolagentOptions) => Promise<number>;
+  /** Injected instead of the terminal's prompter, so a test can drive interactive setup. */
+  createPrompter?: () => Prompter;
 }
 
 /**
  * The bin: parse, set up, run.
  *
  * Exit codes match the error hierarchy: 0 for a completed run or for --help, 2 for a
- * command line the parser rejects, and 1 for everything else. With no prompt the
+ * command line the parser rejects, 130 for interactive setup ended by EOF or Ctrl+C,
+ * and 1 for everything else. With no prompt the
  * interactive setup asks for the configuration before the run.
  */
 export async function main(
@@ -48,13 +51,19 @@ export async function main(
 
   let selection: InteractiveSelection;
   if (args.prompt === undefined) {
-    const prompter = createTerminalPrompter();
+    const prompter = (options.createPrompter ?? createTerminalPrompter)();
     try {
       selection = await interactiveMode({
         print: writeTo(process.stdout),
         prompter,
         catalog: defaultToolCatalog(),
       });
+    } catch (error) {
+      if (error instanceof CliError) {
+        process.stderr.write("\n" + error.message + "\n");
+        return error.exitCode;
+      }
+      throw error;
     } finally {
       prompter.close();
     }

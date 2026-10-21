@@ -30,11 +30,12 @@ package publishes beside the facade like the other internal ones;
 
     pnpm vitest run --project react
 
-Expected result: 11 test files and 48 tests pass, exit code 0. Measured on
-2026-10-14 as "Test Files 11 passed (11)" and "Tests 48 passed (48)". The
+Expected result: 11 test files and 51 tests pass, exit code 0. Measured on
+2026-10-18 as "Test Files 11 passed (11)" and "Tests 51 passed (51)". The
 adoption revision reported one file and one test; the surface test is what
 remains of that smoke test, the rest is the layer, and the server-render test
-added the eleventh file and its two cases.
+added the eleventh file and its two cases. The three `AgentRun` lifecycle cases
+(a task changed mid-run, unmount, StrictMode) were added on 2026-10-18.
 
 ## Boundaries
 
@@ -60,7 +61,9 @@ peer; `react-dom` is not a dependency of this package.
 - A tool call renders `aria-live` without a status role, so the run's status
   stays the only status region in the tree.
 - The step leaves render the snapshot; the model's streamed text is not rendered
-  word by word, and `AgentRun` does not cancel its run when it unmounts.
+  word by word. `AgentRun` cancels its run when it unmounts, on a deferred timer
+  so StrictMode's simulated unmount cancels nothing, and a `task` changed mid-run
+  cancels the run in flight and starts the new task once that run has settled.
 - A step's logs come only from the executor's `onLog` callback, so a test
   double that never calls it renders an empty logs region.
 - The run patterns render no class name and take none, so a consumer styles one
