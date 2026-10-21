@@ -244,6 +244,65 @@ describe("PyodideExecutor", () => {
     expect(fake.loads()).toBe(2);
   });
 
+  it("refuses a tool call that arrives after its step has returned", async () => {
+    let executed = 0;
+    const counted = tool({
+      name: "counted",
+      description: "Counts calls.",
+      inputSchema: z.object({}),
+      execute: () => {
+        executed += 1;
+        return "ran";
+      },
+    });
+    const fake = createFakeLoader();
+    const h = harness(fake.loader, [counted]);
+    const result = await h.run("asyncio.ensure_future(later())");
+    expect(result.error).toBeUndefined();
+    // A background asyncio task still holds the dispatcher and calls it once the step is over.
+    const callable = fake.handles[0]?.globals.get("__call_tool") as (
+      name: string,
+      args: string,
+    ) => Promise<string>;
+    const envelope = JSON.parse(await callable("counted", "{}")) as Record<string, unknown>;
+    expect(envelope.ok).toBe(false);
+    expect(executed).toBe(0);
+    expect(h.events).toEqual([]);
+  });
+
+  it("refuses a tool call from a run that is still in flight when the executor is disposed", async () => {
+    let executed = 0;
+    const counted = tool({
+      name: "counted",
+      description: "Counts calls.",
+      inputSchema: z.object({}),
+      execute: () => {
+        executed += 1;
+        return "ran";
+      },
+    });
+    let started: (() => void) | undefined;
+    const running = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const fake = createFakeLoader(() => {
+      started?.();
+      return new Promise<unknown>(() => undefined);
+    });
+    const h = harness(fake.loader, [counted]);
+    void h.run("await forever()", { timeoutMs: 0 });
+    await running;
+    await h.executor.dispose();
+    const callable = fake.handles[0]?.globals.get("__call_tool") as (
+      name: string,
+      args: string,
+    ) => Promise<string>;
+    const envelope = JSON.parse(await callable("counted", "{}")) as Record<string, unknown>;
+    expect(envelope.ok).toBe(false);
+    expect(executed).toBe(0);
+    expect(h.events).toEqual([]);
+  });
+
   it("reports a cancellation and poisons the runtime", async () => {
     let calls = 0;
     const fake = createFakeLoader(() => {

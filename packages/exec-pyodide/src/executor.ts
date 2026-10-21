@@ -155,6 +155,10 @@ export class PyodideExecutor implements CodeExecutor {
       return this.buildResult(run, startedAt, this.stopInfo(run, attempt.reason));
     }
     this.activeRun = undefined;
+    // The step is over, but a guest coroutine it scheduled (asyncio.ensure_future) can still
+    // hold the dispatcher; retire it so that call cannot run a tool on a finished step's
+    // signal and report into its onToolCall. The next run installs a fresh bridge.
+    bridge.disable();
     // final_answer records the value and then raises _FinalAnswerSignal, so the answer arrives
     // as this attempt's error. The flag, not the signal's survival, is the authority: the
     // signal is a BaseException a guest may still catch, and the flag is what says an answer
@@ -176,6 +180,7 @@ export class PyodideExecutor implements CodeExecutor {
       return;
     }
     this.disposed = true;
+    this.activeRun?.bridge.disable();
     this.activeRun = undefined;
     this.guardedRuntime = undefined;
     await this.session.dispose();

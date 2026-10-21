@@ -60,8 +60,9 @@ export class ToolBridge {
   }
 
   /**
-   * Mark the run abandoned. A runtime that was poisoned can still have live Python on it, and
-   * a tool call from that dead code must not reach a tool (or the next run's registry).
+   * Retire the bridge when its run ends or is abandoned. A poisoned runtime can still have live
+   * Python on it, and a finished step can leave a scheduled coroutine behind; a tool call from
+   * either must not reach a tool, the step's signal, or the step's onToolCall.
    */
   disable(): void {
     this.disabled = true;
@@ -70,6 +71,9 @@ export class ToolBridge {
   /** The global the guest reaches as `__call_tool`; takes and returns one JSON string. */
   readonly call = async (name: string, argsJson: string): Promise<string> => {
     const options = this.options;
+    // A retired bridge belongs to a step that has already reported; a late call from a guest
+    // coroutine is refused without touching that step's count or its onToolCall.
+    if (this.disabled) return JSON.stringify({ ok: false, error: "Code execution was cancelled" });
     this.calls += 1;
     this.counter += 1;
     const callId = "call_" + String(this.counter);
@@ -79,7 +83,6 @@ export class ToolBridge {
       return JSON.stringify({ ok: false, error: message });
     };
 
-    if (this.disabled) return fail("Code execution was cancelled");
     if (options.signal.aborted) return fail("Code execution was cancelled");
 
     const tool = options.tools.get(name);
