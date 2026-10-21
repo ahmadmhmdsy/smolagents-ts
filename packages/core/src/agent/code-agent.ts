@@ -6,6 +6,7 @@ import type { ActionStep } from "../memory/steps.js";
 import type { AgentErrorInfo } from "../errors.js";
 import type { ChatCompletion } from "../model.js";
 import { buildCodeAgentSystemPrompt } from "../prompts/system-prompt.js";
+import { CODE_FENCE } from "../prompts/templates.js";
 import type { ToolCall } from "../types.js";
 import { createAsyncQueue } from "../utils/async-queue.js";
 import { extractCodeBlock, hasFinalAnswerCall } from "../utils/parse-code-blocks.js";
@@ -47,6 +48,24 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     // the run.
     if (hasFinalAnswerCall(raw)) return { kind: "code", raw, code: raw };
     return { kind: "empty", raw };
+  }
+
+  /**
+   * The code block as far as it has arrived, read the way extractCodeBlock reads a whole reply,
+   * but only from complete lines while the reply is still streaming: a partial line could turn
+   * out to be the closing fence. Concatenated, the deltas equal the extracted code.
+   */
+  protected override streamedCode(text: string, done: boolean): string | undefined {
+    const lines = text.split("\n");
+    if (!done) lines.pop();
+    const opening = lines.findIndex((line) => line.includes(CODE_FENCE));
+    if (opening === -1) return undefined;
+    const collected: string[] = [];
+    for (const line of lines.slice(opening + 1)) {
+      if (line.includes(CODE_FENCE)) break;
+      collected.push(line);
+    }
+    return collected.length > 0 ? collected.join("\n") : undefined;
   }
 
   protected override async *executeAction(

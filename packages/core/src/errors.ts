@@ -53,12 +53,16 @@ export class AgentError extends Error {
     return new AgentError(message, stepIndex === undefined ? { code, cause: error } : { code, stepIndex, cause: error });
   }
 
-  /** Rebuild a throwable from the plain-data form that travels in events. */
+  /**
+   * Rebuild a throwable from the plain-data form that travels in events. The code picks the
+   * subclass, so an `instanceof` check on the rebuilt error agrees with the one that was raised.
+   */
   static fromInfo(info: AgentErrorInfo): AgentError {
     const options: AgentErrorOptions = { code: info.code as AgentErrorCode };
     if (info.stepIndex !== undefined) options.stepIndex = info.stepIndex;
     if (info.cause !== undefined) options.cause = info.cause;
-    const error = new AgentError(info.message, options);
+    const Subclass = SUBCLASS_FOR_CODE[info.code];
+    const error = Subclass === undefined ? new AgentError(info.message, options) : new Subclass(info.message, options);
     error.name = info.name;
     return error;
   }
@@ -120,3 +124,17 @@ export class AgentGuardrailError extends AgentError {
     this.name = "AgentGuardrailError";
   }
 }
+
+type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
+
+/** The subclass each code is raised as, read by `AgentError.fromInfo`. */
+const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> = {
+  AGENT_PARSING: AgentParsingError,
+  AGENT_EXECUTION: AgentExecutionError,
+  AGENT_GENERATION: AgentGenerationError,
+  AGENT_MAX_STEPS: AgentMaxStepsError,
+  AGENT_TOOL_CALL: AgentToolCallError,
+  AGENT_TIMEOUT: AgentTimeoutError,
+  AGENT_CANCELLED: AgentCancelledError,
+  AGENT_GUARDRAIL: AgentGuardrailError,
+};

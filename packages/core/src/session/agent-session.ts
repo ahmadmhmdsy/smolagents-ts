@@ -190,9 +190,14 @@ export class AgentSession<TOut = unknown> {
     const controller = new AbortController();
     this.controller = controller;
     const external = options.signal;
+    // A caller's signal can outlive many turns, so the forwarding listener is removed when the
+    // turn ends rather than left to pile up on it.
+    const forwardAbort = (): void => {
+      controller.abort();
+    };
     if (external !== undefined) {
       if (external.aborted) controller.abort();
-      else external.addEventListener("abort", () => controller.abort(), { once: true });
+      else external.addEventListener("abort", forwardAbort, { once: true });
     }
 
     this.draft = { ...emptyRun(), status: "running", task, startedAt: Date.now() };
@@ -223,6 +228,7 @@ export class AgentSession<TOut = unknown> {
       throw error;
     } finally {
       unsubscribe();
+      external?.removeEventListener("abort", forwardAbort);
       this.controller = null;
     }
   }

@@ -8,7 +8,14 @@ import type { ToolCallRequest } from "../types.js";
  */
 export const FINAL_ANSWER_TOOL_NAME = "final_answer";
 
-/** What the agent decided to do with one model response. */
+/**
+ * What the agent decided to do with one model response.
+ *
+ * Neither shipped flavour returns kind "final": both end a run through the final_answer tool.
+ * The kind stays for custom subclasses of the public, abstract MultiStepAgent whose interpret()
+ * settles the answer from the reply text alone; the loop records that step and completes the run
+ * with `output`.
+ */
 export interface InterpretedAction {
   kind: "final" | "code" | "toolcalls" | "empty";
   /** The raw model text, kept for the ActionStep and for debugging. */

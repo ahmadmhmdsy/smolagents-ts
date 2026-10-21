@@ -1,10 +1,20 @@
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
+
+// depcruise's own entry, run under this Node with no shell: an args array with `shell: true` is
+// concatenated unescaped (Node's DEP0190), and skipping the pnpm shim also saves its start-up cost.
+const DEPCRUISE_PACKAGE = join(repoRoot, "node_modules/dependency-cruiser");
+const DEPCRUISE_BIN = join(
+  DEPCRUISE_PACKAGE,
+  (JSON.parse(readFileSync(join(DEPCRUISE_PACKAGE, "package.json"), "utf8")) as { bin: Record<string, string> }).bin
+    .depcruise ?? "bin/dependency-cruiser.mjs",
+);
 
 // The architecture config is plain CommonJS, so it can be read directly today, before zod is installed.
 const loadCjs = createRequire(import.meta.url);
@@ -31,9 +41,9 @@ describe("architecture boundaries", () => {
     let output: string;
     try {
       output = execFileSync(
-        "pnpm",
-        ["exec", "depcruise", "packages/core/src", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
-        { encoding: "utf8", cwd: repoRoot, shell: process.platform === "win32", timeout: DEPCRUISE_CHILD_TIMEOUT_MS },
+        process.execPath,
+        [DEPCRUISE_BIN, "packages/core/src", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
+        { encoding: "utf8", cwd: repoRoot, timeout: DEPCRUISE_CHILD_TIMEOUT_MS },
       );
     } catch (error) {
       const stdout = (error as { stdout?: string }).stdout ?? "";
