@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { LogStream, MAX_PRINT_OUTPUT_LENGTH, truncateContent } from "../src/streams.js";
+import {
+  LogStream,
+  MAX_LOG_BUFFER_LENGTH,
+  MAX_PRINT_OUTPUT_LENGTH,
+  truncateContent,
+} from "../src/streams.js";
 
 describe("truncateContent", () => {
   it("returns content at or below the cap unchanged", () => {
@@ -48,5 +53,38 @@ describe("LogStream", () => {
     stream.write("Z".repeat(40_000));
     expect(stream.text.length).toBeLessThan(80_000);
     expect(stream.text).toContain("_This content has been truncated to stay below 50000 characters_");
+  });
+
+  it("keeps one megabyte per run by default", () => {
+    expect(MAX_LOG_BUFFER_LENGTH).toBe(1_048_576);
+  });
+
+  it("bounds the buffer at write time and marks the dropped middle", () => {
+    const stream = new LogStream(undefined, 200);
+    for (let index = 0; index < 100; index += 1) {
+      stream.write(String(index).padStart(4, "0") + "x".repeat(96));
+    }
+    expect(stream.lineCount).toBe(100);
+    expect(stream.bufferedLength).toBeLessThanOrEqual(200);
+    const text = stream.text;
+    expect(text.startsWith("0000")).toBe(true);
+    expect(text.endsWith("x")).toBe(true);
+    expect(text).toContain("_This content has been truncated to stay below 200 characters_");
+  });
+
+  it("bounds a single oversized line too", () => {
+    const stream = new LogStream(undefined, 1_000);
+    stream.write("x".repeat(100_000));
+    expect(stream.bufferedLength).toBeLessThanOrEqual(1_000);
+    expect(stream.text).toContain("_This content has been truncated");
+  });
+
+  it("stays bounded across a long run of small writes", () => {
+    const stream = new LogStream(undefined, 100);
+    for (let index = 0; index < 5_000; index += 1) stream.write("y");
+    expect(stream.lineCount).toBe(5_000);
+    expect(stream.bufferedLength).toBeLessThanOrEqual(100);
+    expect(stream.text.length).toBeLessThan(200);
+    expect(stream.text.endsWith("y")).toBe(true);
   });
 });

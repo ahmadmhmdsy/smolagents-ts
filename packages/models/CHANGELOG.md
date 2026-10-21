@@ -4,15 +4,11 @@
 
 ### Minor Changes
 
-- 5defdce: Add the Anthropic, Gemini and Hugging Face adapters: the Messages API with its
-  `tool_use` and `tool_result` blocks and named stream events, `generateContent`
-  with its `alt=sse` stream, and the Inference Providers router built as a
-  subclass of the OpenAI-compatible adapter. All five adapters are exported from
-  the package barrel.
 - The first release of the adapters: an OpenAI-compatible client, Anthropic's Messages API
-  with its tool blocks, Gemini's streaming `generateContent`, the Hugging Face Inference
-  Providers router, and a model a caller defines with functions. Each sits behind the
-  core's `Model` interface and none of them is imported by it.
+  with its `tool_use` and `tool_result` blocks and named stream events, Gemini's
+  `generateContent` with its `alt=sse` stream, the Hugging Face Inference Providers router,
+  and a model a caller defines with functions. All five are exported from the package
+  barrel, each sits behind the core's `Model` interface, and the core imports none of them.
 
 ### Patch Changes
 

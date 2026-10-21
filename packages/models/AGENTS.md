@@ -29,7 +29,7 @@ which is the OpenAI adapter pointed at the Inference Providers router, and
 
     pnpm vitest run --project models
 
-Expected result: 13 test files and 63 tests pass, exit code 0. It is a resolution
+Expected result: 13 test files and 71 tests pass, exit code 0. It is a resolution
 and wire-format check: every test drives an injected fetch against a recorded
 fixture, so no test reaches a live provider.
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArguments } from "./args.js";
 import { CliError, HelpRequested } from "./errors.js";
 import { interactiveMode, type InteractiveSelection } from "./interactive.js";
@@ -91,9 +92,24 @@ export async function main(
   });
 }
 
-const entry = process.argv[1];
-const invokedAsBin =
-  entry !== undefined && import.meta.url === pathToFileURL(entry).href;
+/**
+ * Whether the module at `moduleUrl` is the script the runtime was asked to run.
+ *
+ * `import.meta.url` is the real path (Node resolves a symlink before loading), while
+ * `process.argv[1]` keeps the path the caller typed. Comparing the URLs alone therefore
+ * fails for a package-manager bin symlink, and the CLI silently exits 0. Resolve both
+ * sides, and fall back to the URL comparison when either path no longer exists.
+ */
+export function isMainModule(moduleUrl: string, scriptPath: string | undefined): boolean {
+  if (scriptPath === undefined) return false;
+  try {
+    return realpathSync(fileURLToPath(moduleUrl)) === realpathSync(scriptPath);
+  } catch {
+    return moduleUrl === pathToFileURL(scriptPath).href;
+  }
+}
+
+const invokedAsBin = isMainModule(import.meta.url, process.argv[1]);
 
 if (invokedAsBin) {
   process.exitCode = await main();

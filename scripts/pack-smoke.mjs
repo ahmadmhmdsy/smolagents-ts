@@ -4,13 +4,16 @@
  * published entry point, and assert the exports resolve.
  *
  * This catches what unit tests cannot: a missing file in "files", a broken "exports"
- * map, an ESM/CJS mismatch, a .d.ts that does not resolve.
+ * map, an ESM/CJS mismatch, a .d.ts that does not resolve. It reads each tarball
+ * itself as well, so a missing LICENSE/NOTICE or a manifest version that disagrees
+ * with the exported VERSION fails here rather than at the registry.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, writeFileSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "react-ui", "cli", "mcp"];
@@ -36,6 +39,29 @@ function run(cmd, args, cwd) {
     stdio: ["ignore", "pipe", "pipe"],
     shell: true,
   });
+}
+
+/**
+ * Read the members of a .tgz without a tar dependency: a gzipped tar is 512-byte headers
+ * with the file's bytes between them, and npm writes the ustar prefix for long names.
+ * Returns a Map of member name (npm prefixes every path with "package/") to its bytes.
+ */
+function readTarballMembers(tarball) {
+  const buffer = gunzipSync(readFileSync(tarball));
+  const members = new Map();
+  let offset = 0;
+  while (offset + 512 <= buffer.length) {
+    const header = buffer.subarray(offset, offset + 512);
+    const field = (start, end) => header.subarray(start, end).toString("utf8").replace(/\0.*$/, "");
+    const name = field(0, 100);
+    if (name === "") break;
+    const size = parseInt(field(124, 136).trim(), 8) || 0;
+    const prefix = field(345, 500);
+    const contentStart = offset + 512;
+    members.set(prefix === "" ? name : prefix + "/" + name, buffer.subarray(contentStart, contentStart + size));
+    offset = contentStart + Math.ceil(size / 512) * 512;
+  }
+  return members;
 }
 
 /**
@@ -84,19 +110,38 @@ try {
     }
     return join(workspace, match);
   };
-  const tarballs = [
-    ...PACKAGES.map((name) => tarballFor(new RegExp("^smolagents-ts-" + name + "-"))),
+  const packed = [
+    ...PACKAGES.map((name) => ({ name, packageName: "@smolagents-ts/" + name, tarball: tarballFor(new RegExp("^smolagents-ts-" + name + "-")) })),
     // The facade's tarball is "smolagents-ts-<version>.tgz": the scoped packages
     // start with the same prefix, so the version digit is what separates them.
-    tarballFor(/^smolagents-ts-\d/),
+    { name: FACADE, packageName: FACADE, tarball: tarballFor(/^smolagents-ts-\d/) },
   ];
+
+  // What the registry would reject, the barrels cannot show: the licence files that
+  // "files" promises, and a manifest whose version the code does not admit to.
+  const packedVersions = {};
+  for (const { name, packageName, tarball } of packed) {
+    const members = readTarballMembers(tarball);
+    const manifestEntry = members.get("package/package.json");
+    if (manifestEntry === undefined) throw new Error("the " + name + " tarball carries no package/package.json");
+    const manifest = JSON.parse(manifestEntry.toString("utf8"));
+    if (manifest.name !== packageName) {
+      throw new Error("the " + name + " tarball names itself " + JSON.stringify(manifest.name) + ", expected " + JSON.stringify(packageName));
+    }
+    packedVersions[packageName] = manifest.version;
+    for (const file of ["LICENSE", "NOTICE"]) {
+      const content = members.get("package/" + file);
+      if (content === undefined) throw new Error("the " + name + " tarball carries no " + file);
+      if (content.toString("utf8").trim().length === 0) throw new Error("the " + name + " tarball's " + file + " is empty");
+    }
+  }
 
   writeFileSync(
     join(workspace, "package.json"),
     JSON.stringify({ name: "consumer", private: true, type: "module" }, null, 2),
   );
 
-  run("npm", ["install", "--no-audit", "--no-fund", ...tarballs, peerSpec(), pyodideSpec()], workspace);
+  run("npm", ["install", "--no-audit", "--no-fund", ...packed.map((entry) => entry.tarball), peerSpec(), pyodideSpec()], workspace);
 
   // The styled layer ships its stylesheet as plain text rather than as an imported module, so
   // "files" has to carry it into the tarball and dist/styles.css has to reach the consumer
@@ -118,9 +163,10 @@ try {
 
   const imports = [];
   const assertions = [];
+  const versionBindings = [];
   PACKAGES.forEach((name, i) => {
     imports.push("import { VERSION as v" + i + " } from '@smolagents-ts/" + name + "';");
-    assertions.push("if (typeof v" + i + " !== 'string') throw new Error('bad export from " + name + "');");
+    versionBindings.push(["@smolagents-ts/" + name, "v" + i]);
   });
 
   // The facade is what a caller installs, so every subpath its exports map
@@ -133,10 +179,33 @@ try {
     "import * as facadeQuickjs from 'smolagents-ts/exec/quickjs';",
     "import * as facadeReact from 'smolagents-ts/react';",
   );
+  versionBindings.push([FACADE, "facadeVersion"]);
+
+  // The internal packages' subpaths are entry points a consumer may import directly,
+  // and they were previously untested from a packed install. Each optional vendor peer
+  // is loaded lazily by its backend, so importing the subpath needs no peer installed.
+  imports.push(
+    "import * as mcpStdio from '@smolagents-ts/mcp/stdio';",
+    "import * as execRemoteProcess from '@smolagents-ts/exec-remote/process';",
+    "import * as execRemoteDocker from '@smolagents-ts/exec-remote/docker';",
+    "import * as execRemoteE2b from '@smolagents-ts/exec-remote/e2b';",
+  );
+
+  // A tarball whose manifest version disagrees with the VERSION the code exports is
+  // a publishable defect: a caller cannot tell which release it is running.
   assertions.push(
-    "if (typeof facadeVersion !== 'string') throw new Error('bad export from smolagents-ts');",
+    "const versions = { " + versionBindings.map(([name, binding]) => JSON.stringify(name) + ": " + binding).join(", ") + " };",
+    "const expectedVersions = " + JSON.stringify(packedVersions) + ";",
+    "for (const [name, expected] of Object.entries(expectedVersions)) {",
+    "  const actual = versions[name];",
+    "  if (typeof actual !== 'string') throw new Error(name + ' exports no VERSION string');",
+    "  if (actual !== expected) throw new Error(name + ' exports VERSION ' + JSON.stringify(actual) + ' but its tarball package.json says ' + JSON.stringify(expected));",
+    "}",
     "for (const [name, surface] of Object.entries({ models: facadeModels, tools: facadeTools, quickjs: facadeQuickjs, react: facadeReact })) {",
     "  if (Object.keys(surface).length === 0) throw new Error('smolagents-ts/' + name + ' re-exports nothing');",
+    "}",
+    "for (const [name, surface] of Object.entries({ 'mcp/stdio': mcpStdio, 'exec-remote/process': execRemoteProcess, 'exec-remote/docker': execRemoteDocker, 'exec-remote/e2b': execRemoteE2b })) {",
+    "  if (Object.keys(surface).length === 0) throw new Error('@smolagents-ts/' + name + ' re-exports nothing');",
     "}",
   );
 
@@ -179,7 +248,9 @@ try {
   // looks exactly like one that passed.
   const runLine = runOutput.trim().split("\n").pop();
   console.log(
-    "pack-smoke OK: " + (PACKAGES.length + 1) + " packages installed and imported; the cli bin ran; " + runLine,
+    "pack-smoke OK: " + packed.length + " tarballs packed (LICENSE/NOTICE and manifest versions checked), " +
+      "installed and imported; the mcp/stdio and exec-remote/{process,docker,e2b} subpaths imported; the cli bin ran; " +
+      runLine,
   );
 } finally {
   rmSync(workspace, { recursive: true, force: true });

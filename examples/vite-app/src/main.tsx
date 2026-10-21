@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import "./styles.css";
@@ -7,6 +8,11 @@ if (container === null) {
   throw new Error("the document has no #root element to mount into");
 }
 
-// Deliberately no StrictMode. Its development double-invoke mounts, unmounts and mounts again,
-// and the effect that releases a one-run QuickJS realm would fire in the middle of that.
-createRoot(container).render(<App />);
+// StrictMode is on: its development double-invoke is the cheapest test of the run-lifecycle
+// effect. AgentRun cancels on a deferred timer and ignores the simulated unmount, and a second
+// effect pass with the same session and task does not start a second run.
+createRoot(container).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

@@ -8,14 +8,35 @@ import {
 } from "../jupyter.js";
 import type { RemoteSandbox, SandboxCapabilities, SandboxRunOptions, SandboxRunResult, SandboxStartOptions } from "../sandbox.js";
 
-/** The image every Docker sandbox builds, kept inline so the same text can be hashed for a tag. */
-export const DOCKERFILE = [
-  "FROM python:3.12-bullseye",
-  "RUN pip install --no-cache-dir jupyter_kernel_gateway jupyter_client ipykernel",
-  "EXPOSE 8888",
-  'CMD ["jupyter", "kernelgateway", "--KernelGatewayApp.ip=0.0.0.0", "--KernelGatewayApp.port=8888", "--KernelGatewayApp.allow_origin=*"]',
-  "",
-].join("\n");
+/** The port the gateway listens on when the caller names none. */
+const DEFAULT_CONTAINER_PORT = 8888;
+
+/** The container's memory cap in bytes when the caller names none (512 MiB). */
+const DEFAULT_MEMORY_LIMIT_BYTES = 512 * 1024 * 1024;
+
+/** The container's pid cap when the caller names none. */
+const DEFAULT_PIDS_LIMIT = 256;
+
+/**
+ * The image a sandbox on `containerPort` builds. The port is part of the text, so the tag that
+ * hashes it changes with the port and the kernel cannot be told to listen somewhere the
+ * published binding does not point at.
+ */
+function dockerfileFor(containerPort: number): string {
+  return [
+    "FROM python:3.12-bullseye",
+    "RUN pip install --no-cache-dir jupyter_kernel_gateway jupyter_client ipykernel",
+    "EXPOSE " + String(containerPort),
+    'CMD ["jupyter", "kernelgateway", "--KernelGatewayApp.ip=0.0.0.0", ' +
+      '"--KernelGatewayApp.port=' +
+      String(containerPort) +
+      '", "--KernelGatewayApp.allow_origin=*"]',
+    "",
+  ].join("\n");
+}
+
+/** The image every default-port sandbox builds, kept inline so the same text can be hashed for a tag. */
+export const DOCKERFILE = dockerfileFor(DEFAULT_CONTAINER_PORT);
 
 export function imageTagFor(dockerfile: string = DOCKERFILE): string {
   return "smolagents-ts-exec-remote:" + createHash("sha256").update(dockerfile).digest("hex").slice(0, 12);
@@ -30,6 +51,12 @@ export interface ContainerCreateRequest {
   readonly image: string;
   readonly env: readonly string[];
   readonly portBindings: Readonly<Record<string, readonly { readonly HostIp: string; readonly HostPort: string }[]>>;
+  /** The container port the kernel listens on; also the key in `portBindings`. */
+  readonly containerPort: number;
+  /** The container's memory cap in bytes, forwarded as `HostConfig.Memory`. */
+  readonly memoryLimitBytes: number;
+  /** The container's pid cap, forwarded as `HostConfig.PidsLimit`. */
+  readonly pidsLimit: number;
 }
 
 export interface ContainerEndpoint {
@@ -55,14 +82,16 @@ export interface DockerSandboxOptions {
   readonly runtime?: ContainerRuntime;
   readonly token?: string;
   readonly containerPort?: number;
+  /** The container's memory cap in bytes. Defaults to 512 MiB. */
+  readonly memoryLimitBytes?: number;
+  /** The container's pid cap. Defaults to 256, so a fork bomb cannot exhaust the host. */
+  readonly pidsLimit?: number;
   readonly fetch?: typeof globalThis.fetch;
   readonly webSocketFactory?: WebSocketFactory;
   readonly readyAttempts?: number;
   readonly readyIntervalMs?: number;
   readonly requestTimeoutMs?: number;
 }
-
-const DEFAULT_CONTAINER_PORT = 8888;
 
 /** A Docker-hosted Jupyter Kernel Gateway. */
 export class DockerSandbox implements RemoteSandbox {
@@ -94,11 +123,15 @@ export class DockerSandbox implements RemoteSandbox {
     try {
       const runtime = this.options.runtime ?? (await loadDockerodeRuntime());
       this.runtime = runtime;
-      const tag = await runtime.buildImage({ tag: imageTagFor(), dockerfile: DOCKERFILE });
+      const dockerfile = dockerfileFor(this.containerPort);
+      const tag = await runtime.buildImage({ tag: imageTagFor(dockerfile), dockerfile });
       const containerId = await runtime.createContainer({
         image: tag,
         env: ["KG_AUTH_TOKEN=" + this.token],
         portBindings: { [String(this.containerPort) + "/tcp"]: [{ HostIp: "127.0.0.1", HostPort: "" }] },
+        containerPort: this.containerPort,
+        memoryLimitBytes: this.options.memoryLimitBytes ?? DEFAULT_MEMORY_LIMIT_BYTES,
+        pidsLimit: this.options.pidsLimit ?? DEFAULT_PIDS_LIMIT,
       });
       // Record the id before anything else can fail, so dispose always has something to remove.
       this.containerId = containerId;
@@ -234,8 +267,12 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
       const container = await docker.createContainer({
         Image: request.image,
         Env: [...request.env],
-        ExposedPorts: { [String(DEFAULT_CONTAINER_PORT) + "/tcp"]: {} },
-        HostConfig: { PortBindings: request.portBindings },
+        ExposedPorts: { [String(request.containerPort) + "/tcp"]: {} },
+        HostConfig: {
+          PortBindings: request.portBindings,
+          Memory: request.memoryLimitBytes,
+          PidsLimit: request.pidsLimit,
+        },
       });
       const inspected = await container.inspect();
       const id = (inspected as { Id?: string }).Id;

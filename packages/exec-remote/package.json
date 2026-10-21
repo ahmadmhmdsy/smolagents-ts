@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/exec-remote",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "Remote Python CodeExecutor backends for the core seam: a local child process, a Docker-hosted Jupyter kernel and an E2B sandbox. Node-only.",

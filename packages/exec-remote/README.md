@@ -21,13 +21,25 @@ peer is absent fails with a typed error naming the peer instead of a module-reso
 
 | backend | `isolation` | `network` | `timers` | `asyncToolCalls` |
 |---|---|---|---|---|
-| process | `"process"` | `"none"` | `false` | `false` |
+| process | `"process"` | `"direct"` | `false` | `false` |
 | docker | `"remote"` | `"direct"` | `true` | `false` |
 | e2b | `"remote"` | `"direct"` | `true` | `false` |
 
-The process backend is not a sandbox: it is a local child with the host's privileges, and its
-guest can monopolise its own CPU, so no host-side timer is enforceable there. Docker and E2B
-are remote and their host owns a channel it can abort.
+The process backend is not a sandbox: it is a local child with the host's privileges and the
+host's network — hence `network: "direct"` rather than `"none"` — and its guest can
+monopolise its own CPU, so no host-side timer is enforceable there. Its child environment is
+an allow-list (`PATH`, `SYSTEMROOT`, the temp and locale names, …) rather than a copy of
+`process.env`, so a step cannot read this host's credentials unless `envPassthrough` names
+them; `env` still wins for explicit overrides. Docker and E2B are remote and their host owns a
+channel it can abort; the Docker backend also caps each container's memory (512 MiB) and pid
+count (256) by default, and builds the gateway's `CMD` for the configured `containerPort`.
+
+## Logs
+
+`logs` is upstream's `truncate_content`: at most 50,000 characters, the head and the tail
+with a marker where the middle was dropped. The buffer behind it is bounded at write time
+(1 MiB per run, keeping the head and the tail), so a guest that keeps printing cannot grow
+this process's memory without limit.
 
 ## The `allowPickle` divergence
 

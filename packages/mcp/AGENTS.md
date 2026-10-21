@@ -30,8 +30,9 @@ dependency from this package.
 
     pnpm vitest run --project mcp
 
-Expected result: the package's files pass with exit code 0. The suite drives a
-recorded fixture transport, so it needs no live server and no key. Run
+Expected result: ten files with one hundred and eleven tests, exit code 0. The
+suite drives a recorded fixture transport, so it needs no live server and no
+key. Run
 `pnpm --filter @smolagents-ts/mcp run typecheck` beside it: the runner erases
 types, and the seam's assignability to the official SDK's transport is a
 type-level claim only the compiler checks.

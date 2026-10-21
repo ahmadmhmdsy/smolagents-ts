@@ -5,8 +5,9 @@ It runs an interpreter on this host, with this host's filesystem and this host's
 reach. The package says so wherever it is described, and no document may call
 that backend isolated. The Docker and E2B backends are remote, which states where
 the interpreter runs rather than what it can reach. The seam's `network` field
-records what this package mediates, so the process backend's `"none"` is not a
-claim that its child is without a network, and no reader may take it for one.
+records what the guest can reach: all three backends report `"direct"`, because
+none of them interposes a network boundary, and no reader may take a backend as
+isolated on the strength of that field.
 
 **The seam stays the only coupling.**
 Only the modules under `src/backends/` may name a Node builtin or a vendor

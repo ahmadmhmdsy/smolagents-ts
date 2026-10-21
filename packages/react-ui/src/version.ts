@@ -1,2 +1,2 @@
-/** Kept in sync with package.json by the release workflow. */
-export const VERSION = "0.0.0";
+/** Kept in sync with package.json by scripts/sync-versions.mjs (the gate runs pnpm version:check). */
+export const VERSION = "0.1.0";

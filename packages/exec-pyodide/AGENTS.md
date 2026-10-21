@@ -24,7 +24,7 @@ allow-list is fidelity rather than a security boundary.
 
     pnpm vitest run --project exec-pyodide
 
-Expected result: nine files with fifty-five tests, exit code 0. Two of them load
+Expected result: ten files with sixty-two tests, exit code 0. Two of them load
 the real runtime — about two seconds, no network — so the suite also proves the
 Python seam rather than only the TypeScript around it. Run
 `pnpm --filter @smolagents-ts/exec-pyodide run typecheck` beside it: the runner

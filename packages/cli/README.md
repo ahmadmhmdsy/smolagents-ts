@@ -6,10 +6,10 @@ event stream rendered at three verbosity levels. The bin is named `smolagent`.
 
 ## Status
 
-Pre-release. This package is at `0.0.0` and is not on the registry yet: the first
-release is the project owner's gate, and the documented install name is
-`smolagents-ts`. Until then, build it from a checkout and run the bin from the
-tree:
+Release candidate. This package is at `0.1.0`; it is not on the registry yet
+because the first release is the project owner's gate, and the documented install
+name is `smolagents-ts`. Until then, build it from a checkout and run the bin
+from the tree:
 
     pnpm install
     pnpm --filter @smolagents-ts/cli run build

@@ -1,13 +1,15 @@
 {
   "pack_version": "2.0.0",
-  "review_by": "2026-11-15",
+  "review_by": "2026-11-20",
   "findings": [
     "contracts|docs/attribution.md|0|does not declare a Contract block",
     "contracts|docs/design/2026-10-12-smolagents-ts-v1-design.md|0|does not declare a Contract block",
     "contracts|docs/plans/2026-10-12-s0-foundations-plan.md|0|does not declare a Contract block",
     "contracts|docs/plans/2026-10-12-s1-core-runtime-plan.md|0|does not declare a Contract block",
+    "contracts|docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md|0|does not declare a Contract block",
     "contracts|docs/plans/2026-10-16-release-0.1.0-readiness-plan.md|0|does not declare a Contract block",
     "contracts|docs/reports/2026-10-13-s0-s1-completion.md|0|does not declare a Contract block",
+    "contracts|docs/reports/2026-10-21-full-project-review.md|0|does not declare a Contract block",
     "contracts|docs/research/decision-analysis.md|0|does not declare a Contract block",
     "contracts|docs/research/round-2-runtime-and-distribution.md|0|does not declare a Contract block",
     "contracts|docs/research/round-3-open-decisions.md|0|does not declare a Contract block",

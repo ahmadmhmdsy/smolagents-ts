@@ -73,8 +73,11 @@ export function renderPage(options: PageOptions): string {
     `<link rel="stylesheet" href="${css}">`,
     "</head>",
     "<body>",
+    // WCAG 2.4.1: the first thing in the tab order skips the long document nav.
+    // tabindex="-1" makes the target focusable so the link moves focus, not just the scroll.
+    '<a class="skip-link" href="#main">Skip to main content</a>',
     `<nav class="sidebar">\n${renderNav(options)}\n</nav>`,
-    `<main class="content">\n${options.body}</main>`,
+    `<main class="content" id="main" tabindex="-1">\n${options.body}</main>`,
     "</body>",
     "</html>",
     "",

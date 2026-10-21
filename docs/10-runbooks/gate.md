@@ -6,8 +6,8 @@
 - **Read when:** before committing, and before reporting a green result.
 - **Update when:** a stage is added, removed, renamed or reordered.
 
-**Why this file exists:** the gate is nine stages chained by `&&`, so it stops at
-the first failure and says nothing about the eight after it. Knowing the order
+**Why this file exists:** the gate is eleven stages chained by `&&`, so it stops at
+the first failure and says nothing about the ten after it. Knowing the order
 turns a red result into a location.
 
 ---
@@ -26,16 +26,20 @@ turns a red result into a location.
 
 The chain is `scripts.gate` in `package.json`, and it is the same one CI runs:
 
-1. `pnpm typecheck` — five projects, TypeScript with `strict`.
-2. `pnpm lint` — ESLint, including the restricted-import boundary rules.
-3. `pnpm depcruise` — dependency-cruiser architecture rules.
-4. `pnpm test` — Vitest across every `packages/*` project.
-5. `pnpm build` — tsup, one config per package.
-6. `pnpm publint` — package-shape check on each package.
-7. `pnpm attw` — Are The Types Wrong, with `--profile esm-only`.
-8. `pnpm ci:check` — proves the workflow still runs these stages.
-9. `pnpm pack:smoke` — packs, installs into a throwaway consumer, imports every
-   published entry point.
+1. `pnpm typecheck` — all thirteen workspace projects (eleven packages, the
+   Vite example app and the docs site), TypeScript with `strict`.
+2. `pnpm version:check` — every package's exported `VERSION` literal equals its
+   `package.json` version.
+3. `pnpm lint` — ESLint, including the restricted-import boundary rules.
+4. `pnpm depcruise` — dependency-cruiser architecture rules.
+5. `pnpm test` — Vitest across every `packages/*` project.
+6. `pnpm build` — tsup, one config per package.
+7. `pnpm publint` — package-shape check on each package.
+8. `pnpm attw` — Are The Types Wrong, with `--profile esm-only`.
+9. `pnpm ci:check` — proves the workflow still runs these stages.
+10. `pnpm pack:smoke` — packs, installs into a throwaway consumer, imports every
+    published entry point.
+11. `pnpm site:build` — builds the Vite example app and the static docs site.
 
 ## Verify
 
@@ -51,16 +55,16 @@ To keep a log for the report:
 
     pnpm gate *>&1 | Tee-Object -FilePath .superpowers/gate-output.txt
 
-A healthy tree returns exit code 0, with every test file and test passing, five
-packages built, and publint clean on five packages. Measured on 2026-10-13 at
-commit `85f194e`: exit 0 with 38 files and 319 tests.
+A healthy tree returns exit code 0, with every test file and test passing, eleven
+packages built, and publint clean on eleven packages. Measured on 2026-10-21 at
+commit `48cf29d`: exit 0 with 127 test files and 855 tests.
 
 ## Rollback
 
 The gate changes no source file. It writes `dist/` inside each package and a
 temporary consumer directory under the system temp folder. To undo a build:
 
-    git clean -fd packages/core/dist packages/models/dist packages/tools/dist packages/react/dist packages/exec-quickjs/dist
+    git clean -fd packages/cli/dist packages/core/dist packages/exec-pyodide/dist packages/exec-quickjs/dist packages/exec-remote/dist packages/mcp/dist packages/models/dist packages/react/dist packages/react-ui/dist packages/smolagents-ts/dist packages/tools/dist
 
 Do not reach for `git clean -fdx`: `-x` also removes the ignored vendored
 trees, which are expensive to re-clone.
@@ -76,4 +80,10 @@ trees, which are expensive to re-clone.
 
 ## Last executed
 
-2026-10-13, on this machine, at commit `e4e4b5a`, exit code 0.
+2026-10-21, on this machine, at commit `48cf29d` on a tree that carried the two
+then-uncommitted document edits, exit code 0 — a ten-stage chain, before
+`version:check` was added. The full result is recorded in
+`docs/reports/2026-10-21-full-project-review.md`. The four review-fix merges that
+followed (`e2c18fa`, `c5c4f5a`, `3c8d776`, `b323ae6`) and the release-version work
+have not been gated as one tree yet, so the first green run of the eleven-stage
+chain is still to be recorded here.

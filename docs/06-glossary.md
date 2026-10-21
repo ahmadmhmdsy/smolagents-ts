@@ -22,7 +22,7 @@ every downstream artifact inherits the misuse. One table prevents it.
 | **AgentSession** | the observable store over a run; React subscribes to its snapshot | the agent object itself | docs/design/2026-10-12-smolagents-ts-v1-design.md |
 | **Tool** | a declared capability with a Zod schema, a description and a callable | a plain function the model may call | docs/design/2026-10-12-smolagents-ts-v1-design.md |
 | **final answer** | the sentinel return plus the out-of-band flag the loop reads as the end of a run | an exception, which is how upstream signals it | docs/design/2026-10-12-smolagents-ts-v1-design.md |
-| **gate** | the nine-stage chain in `scripts.gate`, and the exit code that summarises it | a code review | docs/10-runbooks/gate.md |
+| **gate** | the eleven-stage chain in `scripts.gate`, and the exit code that summarises it | a code review | docs/10-runbooks/gate.md |
 | **context pack** | this repository's context system: `SOUL.md`, `AGENTS.md`, `rules/`, `docs/`, `_templates/` | an npm package | context-pack.json |
 | **placeholder marker** | the marker the pack ships where a project fact belongs; adoption is finished when none remain outside the forms | a real fact | scripts/checks.py |
 | task | a tracked unit of work with an ID, a status, and an owner | a to-do note | docs/04-tasks.md |

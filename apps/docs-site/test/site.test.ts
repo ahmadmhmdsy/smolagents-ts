@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildSite } from "../src/index.js";
+import { SITE_CSS, buildSite } from "../src/index.js";
 import type { SiteInput, SiteResult } from "../src/index.js";
 
 const roots: string[] = [];
@@ -95,6 +95,29 @@ describe("buildSite on a fixture tree", () => {
     const gamma = readFileSync(join(root, "site", "docs", "nested", "gamma.html"), "utf8");
     expect(gamma).toContain('href="../alpha.html"');
     expect(gamma).toContain('href="../../assets/site.css"');
+  });
+
+  it("gives every page a skip link as its first body element and a focusable main landmark", () => {
+    const root = fixtureRoot();
+    const result = build(root);
+    for (const page of result.pages) {
+      const html = readFileSync(join(root, "site", page), "utf8");
+      expect(html.match(/<body>\s*([^\n]+)/)?.[1], page).toBe(
+        '<a class="skip-link" href="#main">Skip to main content</a>',
+      );
+      expect(html.match(/class="skip-link"/g), page).toHaveLength(1);
+      expect(html, page).toContain('<main class="content" id="main" tabindex="-1">');
+      expect(html.match(/<main\b/g), page).toHaveLength(1);
+    }
+  });
+
+  it("styles the skip link so it is off-screen until it takes focus", () => {
+    const link = /\.skip-link\s*\{([^}]*)\}/.exec(SITE_CSS)?.[1] ?? "";
+    expect(link).toContain("position: absolute");
+    expect(link).toMatch(/top:\s*-/);
+    const focus = /\.skip-link:focus[^{]*\{([^}]*)\}/.exec(SITE_CSS)?.[1] ?? "";
+    expect(focus).toMatch(/top:\s*0/);
+    expect(focus).toContain("outline");
   });
 
   it("fails, naming the file, when a document has no heading", () => {

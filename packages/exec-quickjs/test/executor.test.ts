@@ -244,4 +244,23 @@ describe("QuickJSExecutor", () => {
       await h.executor.dispose();
     }
   });
+
+  it("bounds the log buffer as the guest keeps printing", async () => {
+    const h = harness();
+    try {
+      const result = await h.run(
+        'for (let i = 0; i < 1500; i += 1) { console.log("x".repeat(1000)); }\nfinal_answer("done");',
+      );
+      expect(result.isFinalAnswer).toBe(true);
+      // The guest printed 1.5 MB; the result keeps only the 50,000-character read clip of the
+      // 1 MiB buffer, but every line still reached the live callback.
+      expect(result.logs.length).toBeLessThanOrEqual(50_000);
+      expect(result.logs.startsWith("x")).toBe(true);
+      expect(result.logs.endsWith("x")).toBe(true);
+      expect(result.logs).toContain("_This content has been truncated to stay below 50000 characters_");
+      expect(h.logs).toHaveLength(1500);
+    } finally {
+      await h.executor.dispose();
+    }
+  });
 });

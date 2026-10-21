@@ -9,7 +9,7 @@ describe("the sandbox seam", () => {
     const sandbox: RemoteSandbox = new ProcessSandbox();
     expect(sandbox.capabilities).toEqual({
       isolation: "process",
-      network: "none",
+      network: "direct",
       timers: false,
       toolRoundTrip: true,
     });

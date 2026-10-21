@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "The command line over the agent loop: upstream cli.py's arguments and interactive setup, this port's model and tool adapters, and a verbosity-aware renderer for the run's event stream.",

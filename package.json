@@ -17,13 +17,16 @@
     "lint": "eslint .",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
     "changeset": "changeset",
+    "release:version": "changeset version && pnpm version:sync",
+    "version:sync": "node scripts/sync-versions.mjs",
+    "version:check": "node scripts/sync-versions.mjs --check",
     "publint": "pnpm -r --filter \"./packages/*\" exec publint",
     "attw": "pnpm -r --filter \"./packages/*\" exec attw --pack . --profile esm-only",
     "pack:smoke": "node scripts/pack-smoke.mjs",
     "ci:check": "node scripts/check-ci.mjs",
     "live:smoke": "node scripts/live-smoke.mjs",
     "site:build": "pnpm --filter example-vite-app run build && pnpm --filter docs-site run build",
-    "gate": "pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm ci:check && pnpm pack:smoke && pnpm site:build"
+    "gate": "pnpm typecheck && pnpm version:check && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm ci:check && pnpm pack:smoke && pnpm site:build"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.0",

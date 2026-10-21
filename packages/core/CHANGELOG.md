@@ -4,12 +4,17 @@
 
 ### Minor Changes
 
-- 5b0499b: Add the S1 core runtime: the MultiStepAgent ReAct loop, CodeAgent and ToolCallingAgent,
-  schema-first tools, the CodeExecutor seam, agent middleware, the async event stream,
-  AgentSession, and the MockModel and ScriptedExecutor test doubles.
-- The first release of the runtime: `MultiStepAgent` with its ReAct loop, `CodeAgent`,
-  `ToolCallingAgent`, schema-first tools, the `CodeExecutor` seam, middleware, the event
-  stream and `AgentSession`, plus the `MockModel` and `ScriptedExecutor` test doubles.
+- The first release of the runtime: `MultiStepAgent` with its ReAct loop, `CodeAgent` and
+  `ToolCallingAgent`, schema-first tools, the `CodeExecutor` seam, middleware, the async
+  event stream and `AgentSession`, plus the `MockModel` and `ScriptedExecutor` test doubles.
+- Multi-agent orchestration with an approval gate: a managed agent runs beside the parent,
+  and `withApproval` asks before a tool call executes.
+- Durable runs: a `RunStore` checkpoints a run and resumes it after a process restart.
+- Observability: `buildTrace` folds an agent event stream into an OpenTelemetry-shaped span
+  tree, and `scoreRun` checks a completed run against a transcript's expectations.
+- Session persistence: a session `checkpoint` continues the agent's memory across turns.
+- Guardrails and output schemas: `AgentOptions.guardrails` are the tripwires checked during
+  a run, and `AgentOptions.outputSchema` validates the final answer before a run returns it.
 
 ### Patch Changes
 

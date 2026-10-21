@@ -1,7 +1,15 @@
 name: Pages
 
+# Publish only what CI has proved. This workflow used to deploy on every push to main, so a
+# run that CI would reject could still reach the live site. It now runs after a completed CI
+# run and builds only when that run succeeded on main, checking out the CI run's own sha
+# rather than main's tip, which may have moved while CI was running. A manual dispatch
+# rebuilds the current ref for when Pages itself needs a nudge. The deploy job inherits the
+# same gate through needs: build.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -19,9 +27,20 @@ concurrency:
 jobs:
   build:
     name: build
+    # workflow_run fires for every completed CI run, including a failed one. The
+    # conclusion and branch are checked explicitly even though the trigger filters
+    # branches, because a skipped job is the only safe outcome for a red run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The commit CI proved, not the branch: a green CI result is a claim about
+          # one sha, and main may have advanced since that run started.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: pnpm/action-setup@v4
         # No version input. packageManager in package.json (pnpm@12.3.4) is the single source of truth, and
         # action-setup reads it for pnpm 11+. Pinning 10 here contradicted packageManager and would install

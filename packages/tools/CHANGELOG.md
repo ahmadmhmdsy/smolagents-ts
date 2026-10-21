@@ -4,13 +4,10 @@
 
 ### Minor Changes
 
-- 6542b8b: Add the tool ecosystem: `ToolCollection` for grouping tools and converting them to the
-  core's registry, `htmlToText`, and the `userInputTool`, `duckDuckGoSearchTool` and
-  `visitWebpageTool` defaults. The package now depends on `@smolagents-ts/core` for the
-  `Tool` interface and `ToolContext`.
-- The first release of the tool ecosystem: `ToolCollection`, `htmlToText`, and the
-  `userInputTool`, `duckDuckGoSearchTool` and `visitWebpageTool` defaults, every one of
-  them built with the core's `tool()` and a Zod schema.
+- The first release of the tool ecosystem: `ToolCollection` groups tools and converts them
+  to the core's registry, `htmlToText` turns markup into text, and `userInputTool`,
+  `duckDuckGoSearchTool` and `visitWebpageTool` are the defaults. Every default is built
+  with the core's `tool()` and a Zod schema.
 
 ### Patch Changes
 

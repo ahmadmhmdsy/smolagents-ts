@@ -41,3 +41,4 @@ packages/*/NOTICE
 .github/agents/
 .github/hooks/
 .github/skills/
+.claude/handoffs/

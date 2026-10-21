@@ -20,7 +20,7 @@ example next to it. It publishes nothing and is consumed only by the site build.
 pnpm vitest run --project docs-site
 ```
 
-Expected result: four test files pass, the fixture build included, plus the build of the real `docs/` tree.
+Expected result: four test files and twenty-five tests pass, the fixture build included, plus the build of the real `docs/` tree.
 
 ## Boundaries
 

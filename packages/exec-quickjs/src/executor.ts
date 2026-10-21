@@ -27,6 +27,7 @@ import {
   buildGuestSource,
 } from "./guest-source.js";
 import { serializeToolResult, toErrorInfo } from "./marshal.js";
+import { LogStream } from "./streams.js";
 
 /** The guest heap cap (design 9.1). */
 const DEFAULT_MEMORY_LIMIT_BYTES = 64 * 1024 * 1024;
@@ -51,7 +52,7 @@ interface Guest {
 /** One execute() call's mutable state. The interrupt handler reads the current one. */
 interface RunState {
   readonly options: ExecuteOptions;
-  readonly logs: string[];
+  readonly logs: LogStream;
   toolCalls: number;
   callCounter: number;
   answered: boolean;
@@ -121,7 +122,7 @@ export class QuickJSExecutor implements CodeExecutor {
     const guest = await this.ensureGuest(options.stepIndex);
     const run: RunState = {
       options,
-      logs: [],
+      logs: new LogStream(options.onLog),
       toolCalls: 0,
       callCounter: 0,
       answered: false,
@@ -217,8 +218,7 @@ export class QuickJSExecutor implements CodeExecutor {
   private installShims(context: QuickJSContext, run: RunState): void {
     const log = context.newFunction(LOG_GLOBAL, (lineHandle) => {
       const line = context.getString(lineHandle);
-      run.logs.push(line);
-      run.options.onLog?.(line);
+      run.logs.write(line);
     });
     context.setProp(context.global, LOG_GLOBAL, log);
     log.dispose();
@@ -414,7 +414,7 @@ export class QuickJSExecutor implements CodeExecutor {
     failure: AgentErrorInfo | undefined,
   ): CodeResult {
     return {
-      logs: run.logs.join("\n"),
+      logs: run.logs.text,
       isFinalAnswer: run.answered,
       ...(run.answered ? { value: run.value } : {}),
       ...(failure === undefined ? {} : { error: failure }),

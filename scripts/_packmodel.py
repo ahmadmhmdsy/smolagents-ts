@@ -71,6 +71,16 @@ SKIP_TOP |= {"node_modules", "reference", "smolagents", ".env", ".env.local", ".
 # .cursor/rules/ and .github/ are files, not an agents/ directory, so they stay
 # in the walk. Reverse by deleting the name below.
 SKIP_TOP |= {"agents"}
+# The agent harness keeps two ignored kinds of scratch under `.claude/`: its own
+# worktrees (`.claude/worktrees/**`, full copies of this tree registered by git
+# worktree) and its session transcript archives (`.claude/handoffs/**`). Neither is
+# pack surface: the walker's own contract is that scaffolding is skipped, and a copy
+# of the tree is not a second component. Measured on 2026-10-21: the four merged
+# review-fix worktrees alone produced 56 scoped-entry errors plus duplicate-fact
+# warnings, which made the pack's own health threshold unreachable on this checkout
+# even though nothing in the shipped tree was wrong. Excluded by the same mechanism
+# as the trees above; reverse by deleting the name below.
+SKIP_TOP |= {".claude"}
 
 def iter_surface(root: Path):
     """Every file the pack owns, pruning skipped trees instead of walking them.

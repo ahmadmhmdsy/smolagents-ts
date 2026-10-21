@@ -1,6 +1,10 @@
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import { PassThrough } from "node:stream";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { main } from "../src/main.js";
+import { isMainModule, main } from "../src/main.js";
 import type { RunSmolagentOptions } from "../src/run.js";
 import { createTerminalPrompter } from "../src/terminal.js";
 
@@ -95,6 +99,30 @@ describe("main", () => {
     } finally {
       stdout.mockRestore();
       stderr.mockRestore();
+    }
+  });
+
+  it("recognises a symlinked entry point as the main module", () => {
+    const dir = mkdtempSync(join(tmpdir(), "smolagent-cli-entry-"));
+    try {
+      const real = join(dir, "main.mjs");
+      writeFileSync(real, "// probe\n");
+      // A path with a redundant segment is the same file once resolved, so the comparison
+      // cannot be a plain string compare of the two arguments.
+      expect(isMainModule(pathToFileURL(real).href, join(dir, "..", basename(dir), "main.mjs"))).toBe(
+        true,
+      );
+      expect(isMainModule(pathToFileURL(real).href, undefined)).toBe(false);
+      const link = join(dir, "smolagent.mjs");
+      try {
+        symlinkSync(real, link, "file");
+      } catch {
+        return; // Windows without developer mode cannot create a file symlink.
+      }
+      expect(isMainModule(pathToFileURL(real).href, link)).toBe(true);
+      expect(isMainModule(pathToFileURL(real).href, join(dir, "other.mjs"))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

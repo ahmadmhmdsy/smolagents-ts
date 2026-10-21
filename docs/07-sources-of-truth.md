@@ -46,5 +46,7 @@ in advance removes the choice.
 
 No reported quantity is computed by a second tool. Test counts come from the
 Vitest summary, module and dependency counts from `pnpm depcruise`, and package
-counts from the five directories under `packages/`. There is exactly one
-producer per number, so two sessions cannot report two values for it.
+counts from the `packages/*` directories that carry a `package.json` — the
+workspace glob in `pnpm-workspace.yaml` is the set, not a number remembered from
+an older document. There is exactly one producer per number, so two sessions
+cannot report two values for it.

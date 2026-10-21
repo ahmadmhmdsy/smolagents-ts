@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MCPClient, NOTIFICATION_HISTORY_LIMIT } from "../src/client.js";
+import { CLIENT_INFO, MCPClient, NOTIFICATION_HISTORY_LIMIT } from "../src/client.js";
 import { MCPConnectionError, MCPParameterError, MCPProtocolError, MCPTimeoutError } from "../src/errors.js";
 import { LATEST_PROTOCOL_VERSION, SUPPORTED_PROTOCOL_VERSIONS } from "../src/parameters.js";
 import type { MCPMessage } from "../src/json-rpc.js";
@@ -34,7 +34,7 @@ describe("MCPClient: the session and the protocol", () => {
       params: {
         protocolVersion: LATEST_PROTOCOL_VERSION,
         capabilities: {},
-        clientInfo: { name: "@smolagents-ts/mcp", version: "0.0.0" },
+        clientInfo: { name: "@smolagents-ts/mcp", version: CLIENT_INFO.version },
       },
     });
     expect(transport.sent[1]).toEqual({ jsonrpc: "2.0", method: "notifications/initialized" });

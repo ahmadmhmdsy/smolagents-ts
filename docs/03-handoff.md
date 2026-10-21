@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-21T15:55:00+03:00 — the review's fixes are merged, and the docs truth pass closes its drift
+
+**State.** The 2026-10-21 review's fixes are merged as four commits (`e2c18fa`, `c5c4f5a`, `3c8d776`, `b323ae6`; HEAD `b323ae6`). This session ran the docs truth pass it asked for. 0.1.0 is unpublished; CI has never run on this tree. The 2026-10-16 entry's "whole post-0.1.0 roadmap" line overstated: S7–S11 was the closed roadmap, and 0018's sixth gap was never scheduled — 0019 records that.
+
+**Did.** `scripts/_packmodel.py` skips `.claude`, so ignored worktree copies stop failing validation. `docs/10-runbooks/gate.md` lists the eleven stages in `package.json` order with eleven-package counts and the newest verified gate. `docs/06-glossary.md` and `docs/07-sources-of-truth.md` are corrected. `docs/09-decisions/0019-post-0.1.0-roadmap-is-s7-s11.md` supersedes 0018's sixth gap. `docs/04-tasks.md` marks T-14, T-16, T-18, T-21, T-25 `blocked`; `docs/08-coordination.md` keeps T-13 `stale` and records this claim; the plans are marked landed. Stale test counts in every scoped entry are re-measured, `docs/memory/general.md` gains a lesson correcting the `network` reading, and `docs/.baseline.json` absorbs the two contract warnings with a 2026-11-20 review date.
+
+**Verified.** `python scripts/validate_context.py --root .` exit 0, 0 errors, 16 baselined warnings; `--baseline` reports none new. `python scripts/selftest.py` pass, 23 tests. Own runs (files / tests): core 37 / 363, cli 8 / 59, react 11 / 51, tools 7 / 32, models 13 / 71; five more come from their owners' runs today.
+
+**Unverified / open.** No full gate at `b323ae6`; other remediation scopes were uncommitted, so the tree is not the merged tree.
+
+**Next.** Run the full gate on the merged tree and record it as the runbook's newest verified gate.
+
+**Blockers.** T-14 needs registry credentials; T-16, T-18, T-21, T-25 need the owner's decision.
+
+**Artifacts.** `docs/reports/2026-10-21-full-project-review.md`; 0019; `docs/10-runbooks/gate.md`.
+
 ## 2026-10-16T21:20:00+03:00 — S11 lands: guardrails halt a run, the schema binds the final answer
 
 **State.** Pre-release and clean. S11 (guardrails and structured output) is complete: the milestone reads `done`, its row (T-38) is archived, and no live task row is open. S7 through S11 — the whole post-0.1.0 roadmap — have landed this session; only the standing later candidates remain unscheduled.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None. T-14, T-16, T-18, T-21 and T-25 wait on the owner.
 
 **Artifacts.** `packages/core/src/monitoring/trace.ts`; `packages/core/src/monitoring/eval.ts`; `packages/core/test/observability.test.ts`; `packages/core/test/golden/fibonacci.transcript.json`; `docs/01-project.md` (S9 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 3).
-
-## 2026-10-16T17:55:00+03:00 — S8 lands: a run checkpoints and resumes, and an approval gate holds a tool call
-
-**State.** Pre-release and clean. S8 (durable runs and human-in-the-loop) is complete: the milestone reads `done`, its live row (T-35) is archived, and no S8 row is open.
-
-**Did.** A step now serializes to plain JSON (`StepJSON`, `stepToJSON`/`stepFromJSON` in `memory/steps.ts`, identity and timing included) with `AgentMemory.toJSON`/`restore`. Added the `RunStore` seam plus a `MemoryRunStore` (`session/run-store.ts`) and the approval seam `withApproval`/`ApprovalHandler`/`ToolApprovalError` (`agent/approval.ts`). Wired `AgentOptions.store`/`approve` and `run(task, { reset, checkpoint })` into `MultiStepAgent`: `reset:false` loads the checkpoint and continues, each completed step saves, and `approve` rebuilds the registry through `withApproval` so both agent flavours gate at the one seam. Exported and pinned the five new names.
-
-**Verified.** Core suite 33 files and 325 tests, exit 0. `run-store.test.ts` stops a run at `maxSteps`, resumes it from a `MemoryRunStore` checkpoint with `reset:false`, and finishes; `approval.test.ts` (4 cases) proves a denied call never runs the tool. `pnpm typecheck`, `lint`, `depcruise` (288 modules) exit 0.
-
-**Unverified / open.** Only in-memory checkpointing ships; a durable store implements the same seam (S10). Resume rebuilds memory only — it does not re-emit prior events. A mid-step interrupt still ends the run.
-
-**Next.** Start S9: an `AgentEvent` trace exporter seam and a golden-transcript eval harness.
-
-**Blockers.** None. T-14, T-16, T-18, T-21, T-25 wait on the owner.
-
-**Artifacts.** `packages/core/src/session/run-store.ts`; `packages/core/src/agent/approval.ts`; `packages/core/src/memory/steps.ts`; `packages/core/src/agent/multi-step-agent.ts`; `packages/core/test/run-store.test.ts`; `packages/core/test/approval.test.ts`.
 <!-- rotate:end -->

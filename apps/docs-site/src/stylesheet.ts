@@ -13,6 +13,28 @@ export const SITE_CSS = `:root {
   box-sizing: border-box;
 }
 
+/* The skip link is off-screen until it takes focus, so it adds nothing to the layout. */
+.skip-link {
+  position: absolute;
+  top: -3rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 0.5rem;
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 body {
   margin: 0;
   background: var(--bg);

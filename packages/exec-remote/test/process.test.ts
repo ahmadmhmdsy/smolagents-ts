@@ -99,3 +99,87 @@ describe("the process backend", () => {
     await missing.dispose();
   });
 });
+
+/** Start the sandbox, read the guest's answer to one `os.environ.get` probe, and tear it down. */
+async function readEnvironmentVariable(sandbox: ProcessSandbox, name: string): Promise<string> {
+  await sandbox.start({ shimSource: shim });
+  try {
+    const result = await sandbox.run({
+      code: 'import os\nprint(os.environ.get("' + name + '", "absent"))',
+      timeoutMs: 5_000,
+      signal: new AbortController().signal,
+    });
+    const text = result.outputs.map((output) => output.text).join("\n");
+    if (text === "") throw new Error("the interpreter printed nothing");
+    return text;
+  } finally {
+    await sandbox.dispose();
+  }
+}
+
+describe("the process backend's child environment", () => {
+  it("reports direct network access and an allow-listed environment", () => {
+    const sandbox = new ProcessSandbox();
+    expect(sandbox.capabilities).toEqual({
+      isolation: "process",
+      network: "direct",
+      timers: false,
+      toolRoundTrip: true,
+    });
+  });
+
+  it("withholds a host variable the allow-list does not name", async () => {
+    const name = "SMOLAGENTS_TS_TEST_SECRET";
+    process.env[name] = "leaked";
+    try {
+      expect(await readEnvironmentVariable(new ProcessSandbox(), name)).toBe("absent");
+    } finally {
+      delete process.env[name];
+    }
+  });
+
+  it("inherits a host variable only when envPassthrough names it", async () => {
+    const name = "SMOLAGENTS_TS_TEST_PASSTHROUGH";
+    process.env[name] = "from-host";
+    try {
+      const inherited = new ProcessSandbox({ envPassthrough: [name] });
+      expect(await readEnvironmentVariable(inherited, name)).toBe("from-host");
+    } finally {
+      delete process.env[name];
+    }
+  });
+
+  it("lets an explicit env value win, including removing a passed-through name", async () => {
+    const name = "SMOLAGENTS_TS_TEST_OVERRIDE";
+    process.env[name] = "from-host";
+    try {
+      const overridden = new ProcessSandbox({
+        envPassthrough: [name],
+        env: { [name]: "explicit" },
+      });
+      expect(await readEnvironmentVariable(overridden, name)).toBe("explicit");
+      const removed = new ProcessSandbox({
+        envPassthrough: [name],
+        env: { [name]: undefined },
+      });
+      expect(await readEnvironmentVariable(removed, name)).toBe("absent");
+    } finally {
+      delete process.env[name];
+    }
+  });
+
+  it("starts an interpreter with only the allow-list, so PATH and the locale names survive", async () => {
+    const sandbox = new ProcessSandbox();
+    await sandbox.start({ shimSource: shim });
+    try {
+      const result = await sandbox.run({
+        code: 'import os\nprint("path=" + str("PATH" in os.environ))',
+        timeoutMs: 5_000,
+        signal: new AbortController().signal,
+      });
+      expect(result.outputs.map((output) => output.text)).toContain("path=True");
+    } finally {
+      await sandbox.dispose();
+    }
+  });
+});

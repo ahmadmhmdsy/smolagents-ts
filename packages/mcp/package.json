@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "The MCP client: JSON-RPC 2.0 over a transport seam, Streamable HTTP and stdio transports, and an adapter that turns an MCP server's tools into this port's tools.",

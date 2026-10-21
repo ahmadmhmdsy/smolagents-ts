@@ -20,10 +20,38 @@ export interface ProcessSandboxOptions {
   readonly args?: readonly string[];
   /** How long dispose() waits after closing stdin before it kills the child. */
   readonly gracePeriodMs?: number;
+  /**
+   * Extra host variables the child inherits, on top of `DEFAULT_ENV_PASSTHROUGH`. A name the
+   * host does not define is skipped.
+   */
+  readonly envPassthrough?: readonly string[];
+  /**
+   * Explicit overrides, applied after the inherited allow-list. A name set to `undefined` is
+   * removed from the child's environment instead of inherited.
+   */
   readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
 const DEFAULT_GRACE_PERIOD_MS = 2_000;
+
+/**
+ * What a Python child needs to run at all, plus the locale and temp-directory names that make
+ * its behaviour match the host's. Everything else in the host's environment is withheld: a
+ * model-written step must not be able to read this host's credentials by default.
+ * `PYTHONUNBUFFERED` is not inherited — `childEnvironment` always sets it to "1", because the
+ * frame protocol needs the child's stdout line-buffered.
+ */
+const DEFAULT_ENV_PASSTHROUGH: readonly string[] = [
+  "PATH",
+  "PATHEXT",
+  "SYSTEMROOT",
+  "COMSPEC",
+  "TEMP",
+  "TMP",
+  "TZ",
+  "LANG",
+  "LC_ALL",
+];
 
 interface PendingRun {
   resolve: (result: SandboxRunResult) => void;
@@ -45,16 +73,39 @@ function stripCarriageReturn(line: string): string {
 }
 
 /**
+ * Build the child's environment: the fixed allow-list plus any names the caller passes
+ * through, with `PYTHONUNBUFFERED` forced so the frame protocol stays line-buffered, and the
+ * caller's explicit overrides applied last. Inheriting all of `process.env` would hand a
+ * model-written step every secret this host holds.
+ */
+function childEnvironment(options: ProcessSandboxOptions): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = {};
+  for (const name of [...DEFAULT_ENV_PASSTHROUGH, ...(options.envPassthrough ?? [])]) {
+    const value = process.env[name];
+    if (value !== undefined) env[name] = value;
+  }
+  env["PYTHONUNBUFFERED"] = "1";
+  for (const [name, value] of Object.entries(options.env ?? {})) {
+    if (value === undefined) delete env[name];
+    else env[name] = value;
+  }
+  return env;
+}
+
+/**
  * A real local interpreter in a child process. This is not a sandbox: the guest runs with the
- * host user's privileges and can monopolise its own CPU, so `timers` is false and
- * `network` is "none" (the claim is about what this package mediates, not a kernel boundary).
- * The host still owns the child, so dispose() closes stdin and then kills, which is what makes
- * a deadline enforceable at the run level.
+ * host user's privileges, in this host's filesystem, with this host's network — so `network`
+ * is "direct", not "none". `timers` is false because the guest can monopolise its own CPU and
+ * this package enforces no in-guest timer; the host still owns the child, so dispose() closes
+ * stdin and then kills, which is what makes a deadline enforceable at the run level.
+ *
+ * The child's environment is an allow-list rather than the host's environment, so a step cannot
+ * read this host's credentials unless `envPassthrough` or `env` names them.
  */
 export class ProcessSandbox implements RemoteSandbox {
   readonly capabilities: SandboxCapabilities = {
     isolation: "process",
-    network: "none",
+    network: "direct",
     timers: false,
     toolRoundTrip: true,
   };
@@ -89,7 +140,7 @@ export class ProcessSandbox implements RemoteSandbox {
     // what then reads each step from stdin and keeps the interpreter alive between steps.
     const prelude = options.shimSource + buildStepLoopSource();
     const args = ["-u", "-c", prelude, ...(this.options.args ?? [])];
-    const env = { ...process.env, PYTHONUNBUFFERED: "1", ...this.options.env };
+    const env = childEnvironment(this.options);
     const child = spawn(this.options.program ?? defaultProgram(), args, { stdio: "pipe", env, windowsHide: true });
     this.child = child;
     const spawned = new Promise<void>((resolve, reject) => {

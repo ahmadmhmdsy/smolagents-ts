@@ -34,6 +34,16 @@ describe("the real docs tree", () => {
     }
   });
 
+  it("gives every page a skip link first in the body and the main landmark it targets", () => {
+    for (const page of result.pages) {
+      const html = readFileSync(join(outDir, page), "utf8");
+      expect(html.match(/<body>\s*([^\n]+)/)?.[1], page).toBe(
+        '<a class="skip-link" href="#main">Skip to main content</a>',
+      );
+      expect(html, page).toContain('id="main"');
+    }
+  });
+
   it("leaves no unresolved relative markdown link", () => {
     for (const page of result.pages) {
       const html = readFileSync(join(outDir, page), "utf8");

@@ -1,6 +1,6 @@
 {
   "name": "@smolagents-ts/exec-pyodide",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
   "description": "The Python CodeExecutor: agent-authored Python in a Pyodide-WASM runtime, in-process on Node and in the browser.",

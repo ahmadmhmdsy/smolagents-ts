@@ -26,6 +26,7 @@ afterEach(async () => {
 interface RecordingRuntime extends ContainerRuntime {
   readonly builds: ImageBuildRequest[];
   readonly creates: ContainerCreateRequest[];
+  readonly endpoints: number[];
   readonly starts: string[];
   readonly stops: string[];
   readonly removes: string[];
@@ -38,12 +39,14 @@ function recordingRuntime(
 ): RecordingRuntime {
   const builds: ImageBuildRequest[] = [];
   const creates: ContainerCreateRequest[] = [];
+  const endpoints: number[] = [];
   const starts: string[] = [];
   const stops: string[] = [];
   const removes: string[] = [];
   return {
     builds,
     creates,
+    endpoints,
     starts,
     stops,
     removes,
@@ -59,7 +62,8 @@ function recordingRuntime(
       starts.push(containerId);
       if (failStart) throw new Error("the daemon refused to start the container");
     },
-    async endpoint() {
+    async endpoint(_containerId: string, containerPort: number) {
+      endpoints.push(containerPort);
       return endpoint;
     },
     async stopContainer(containerId) {
@@ -72,7 +76,14 @@ function recordingRuntime(
   };
 }
 
-function sandbox(runtime: RecordingRuntime, options: { readonly readyAttempts?: number } = {}): DockerSandbox {
+interface SandboxOptions {
+  readonly readyAttempts?: number;
+  readonly containerPort?: number;
+  readonly memoryLimitBytes?: number;
+  readonly pidsLimit?: number;
+}
+
+function sandbox(runtime: RecordingRuntime, options: SandboxOptions = {}): DockerSandbox {
   if (server === undefined) throw new Error("the loopback server is not running");
   return new DockerSandbox({
     runtime,
@@ -82,6 +93,11 @@ function sandbox(runtime: RecordingRuntime, options: { readonly readyAttempts?: 
     readyAttempts: options.readyAttempts ?? 3,
     readyIntervalMs: 10,
     requestTimeoutMs: 5_000,
+    ...(options.containerPort === undefined ? {} : { containerPort: options.containerPort }),
+    ...(options.memoryLimitBytes === undefined
+      ? {}
+      : { memoryLimitBytes: options.memoryLimitBytes }),
+    ...(options.pidsLimit === undefined ? {} : { pidsLimit: options.pidsLimit }),
   });
 }
 
@@ -96,6 +112,11 @@ describe("the Docker backend", () => {
     expect(runtime.creates).toHaveLength(1);
     expect(runtime.creates[0]?.env).toContain("KG_AUTH_TOKEN=test-token");
     expect(runtime.creates[0]?.portBindings["8888/tcp"]?.[0]?.HostIp).toBe("127.0.0.1");
+    expect(runtime.creates[0]?.containerPort).toBe(8888);
+    // The container is capped by default, so a runaway guest cannot exhaust the host.
+    expect(runtime.creates[0]?.memoryLimitBytes).toBe(512 * 1024 * 1024);
+    expect(runtime.creates[0]?.pidsLimit).toBe(256);
+    expect(runtime.endpoints).toEqual([8888]);
     expect(runtime.starts).toEqual(["container-1"]);
     const result = await docker.run({
       code: "print()",
@@ -106,6 +127,27 @@ describe("the Docker backend", () => {
     await docker.dispose();
     expect(runtime.stops).toEqual(["container-1"]);
     expect(runtime.removes).toEqual(["container-1"]);
+  });
+
+  it("builds the gateway for a configured containerPort and honours the limit overrides", async () => {
+    server = await startJupyterLoopback({ token: "test-token" });
+    const runtime = recordingRuntime({ host: server.host, port: server.port });
+    const docker = sandbox(runtime, {
+      containerPort: 9999,
+      memoryLimitBytes: 128 * 1024 * 1024,
+      pidsLimit: 64,
+    });
+    await docker.start({ shimSource: "print('prelude')" });
+    const dockerfile = runtime.builds[0]?.dockerfile ?? "";
+    expect(dockerfile).toContain("EXPOSE 9999");
+    expect(dockerfile).toContain("--KernelGatewayApp.port=9999");
+    expect(dockerfile).not.toContain("8888");
+    expect(runtime.creates[0]?.portBindings["9999/tcp"]?.[0]?.HostIp).toBe("127.0.0.1");
+    expect(runtime.creates[0]?.containerPort).toBe(9999);
+    expect(runtime.creates[0]?.memoryLimitBytes).toBe(128 * 1024 * 1024);
+    expect(runtime.creates[0]?.pidsLimit).toBe(64);
+    expect(runtime.endpoints).toEqual([9999]);
+    await docker.dispose();
   });
 
   it("stops and removes exactly once even when the start failed after the container was created", async () => {
