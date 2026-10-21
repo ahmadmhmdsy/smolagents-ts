@@ -1,6 +1,6 @@
 import { noopLogger, type Logger, type Tool } from "@smolagents-ts/core";
-import type { MCPMessage } from "./json-rpc.js";
-import { isErrorResponse, isResponse } from "./json-rpc.js";
+import type { JsonRpcRequest, MCPMessage } from "./json-rpc.js";
+import { isErrorResponse, isRequest, isResponse } from "./json-rpc.js";
 import type { MCPTransport } from "./transport.js";
 import {
   DEFAULT_NEGOTIATED_PROTOCOL_VERSION,
@@ -228,7 +228,26 @@ export class MCPClient {
       ...(params === undefined ? {} : { params }),
     };
     const promise = new Promise<Record<string, unknown>>((resolve, reject) => {
-      const entry: PendingRequest = { resolve, reject, timer: undefined, method, connection };
+      // A caller's signal often outlives the request (one per run, many tool calls), so
+      // the abort listener comes off as soon as the request settles, however it settles.
+      let onAbort: (() => void) | undefined;
+      const detach = (): void => {
+        if (onAbort !== undefined) signal?.removeEventListener("abort", onAbort);
+        onAbort = undefined;
+      };
+      const entry: PendingRequest = {
+        resolve: (value) => {
+          detach();
+          resolve(value);
+        },
+        reject: (error) => {
+          detach();
+          reject(error);
+        },
+        timer: undefined,
+        method,
+        connection,
+      };
       this.pending.set(id, entry);
       if (signal?.aborted === true) {
         this.pending.delete(id);
@@ -236,21 +255,18 @@ export class MCPClient {
         return;
       }
       if (signal !== undefined) {
-        signal.addEventListener(
-          "abort",
-          () => {
-            const waiting = this.pending.get(id);
-            if (waiting === undefined) return;
-            this.pending.delete(id);
-            if (waiting.timer !== undefined) clearTimeout(waiting.timer);
-            waiting.reject(abortError(method));
-          },
-          { once: true },
-        );
+        onAbort = () => {
+          const waiting = this.pending.get(id);
+          if (waiting === undefined) return;
+          this.pending.delete(id);
+          if (waiting.timer !== undefined) clearTimeout(waiting.timer);
+          waiting.reject(abortError(method));
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
       }
       entry.timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(
+        entry.reject(
           new MCPTimeoutError(
             "The MCP request " +
               method +
@@ -270,14 +286,23 @@ export class MCPClient {
       if (waiting !== undefined) {
         this.pending.delete(id);
         if (waiting.timer !== undefined) clearTimeout(waiting.timer);
+        // Settles the promise nobody will await, which also takes the abort listener off.
+        promise.catch(() => undefined);
+        waiting.reject(error instanceof Error ? error : new Error(String(error)));
       }
       throw error;
     }
     return promise;
   }
 
-  /** Routes one incoming message. Exposed so the transports can be unit-tested apart. */
-  handleMessage(message: MCPMessage): void {
+  /**
+   * Routes one incoming message. Exposed so the transports can be unit-tested apart.
+   *
+   * `source` is the connection the message arrived on. Ids are unique across this
+   * client, so a response is only accepted from the connection its request went out
+   * on: otherwise one server could answer, or spoof, a call made to another.
+   */
+  handleMessage(message: MCPMessage, source?: ServerConnection): void {
     if (this.closed) {
       throw new MCPConnectionError(
         "The MCP client is closed: a message arrived after disconnect() and was refused.",
@@ -287,6 +312,17 @@ export class MCPClient {
       const waiting = this.pending.get(message.id);
       if (waiting === undefined) {
         this.logger.debug("mcp: a response with no pending request", message.id);
+        return;
+      }
+      if (source !== undefined && waiting.connection !== source) {
+        this.logger.warn(
+          "mcp: '" +
+            source.server +
+            "' answered a request that went to '" +
+            waiting.connection.server +
+            "'; the response was ignored",
+          message.id,
+        );
         return;
       }
       this.pending.delete(message.id);
@@ -311,6 +347,10 @@ export class MCPClient {
     }
     if ("method" in message) {
       this.recordNotification(message);
+      if (isRequest(message) && source !== undefined) {
+        this.answerServerRequest(message, source);
+        return;
+      }
       if (message.method === "notifications/tools/list_changed" && !("id" in message)) {
         for (const connection of this.connections) connection.stale = true;
         this.logger.debug("mcp: the tool list changed; it refreshes on the next read");
@@ -322,6 +362,28 @@ export class MCPClient {
     throw new MCPTransportError(
       "The MCP transport delivered a message that is neither a response nor a notification.",
     );
+  }
+
+  /**
+   * Answers a request the server sent. The specification has every request answered;
+   * a server that pings to check liveness and gets silence will drop the session. This
+   * client offers no client capabilities, so anything but ping is "method not found".
+   */
+  private answerServerRequest(message: JsonRpcRequest, connection: ServerConnection): void {
+    const reply: MCPMessage =
+      message.method === "ping"
+        ? { jsonrpc: "2.0", id: message.id, result: {} }
+        : {
+            jsonrpc: "2.0",
+            id: message.id,
+            error: { code: -32601, message: "Method not found: " + message.method },
+          };
+    if (connection.failure !== undefined) return;
+    void Promise.resolve()
+      .then(() => connection.transport.send(reply))
+      .catch((error: unknown) => {
+        this.logger.warn("mcp: answering the server's " + message.method + " failed", error);
+      });
   }
 
   /**
@@ -469,7 +531,7 @@ function installHandlers(
   client: MCPClient,
   connection: ServerConnection,
 ): void {
-  transport.onmessage = (message) => client.handleMessage(message);
+  transport.onmessage = (message) => client.handleMessage(message, connection);
   transport.onerror = (error) => client.handleTransportError(error, connection);
   transport.onclose = () => client.handleTransportClose(connection);
 }

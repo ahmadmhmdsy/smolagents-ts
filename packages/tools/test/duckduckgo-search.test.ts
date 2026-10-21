@@ -58,6 +58,22 @@ describe("duckDuckGoSearchTool", () => {
     );
   });
 
+  it("passes the run's signal to the fetch", async () => {
+    const controller = new AbortController();
+    let seen: AbortSignal | null | undefined;
+    const fetchImpl = ((_url: string, init?: RequestInit) => {
+      seen = init?.signal;
+      return Promise.resolve(new Response(instantAnswer));
+    }) as typeof globalThis.fetch;
+
+    await duckDuckGoSearchTool({ fetch: fetchImpl }).execute(
+      { query: "TypeScript" },
+      toolContext({ signal: controller.signal }),
+    );
+
+    expect(seen).toBe(controller.signal);
+  });
+
   it("advertises the query it takes", () => {
     const entry = duckDuckGoSearchTool();
 

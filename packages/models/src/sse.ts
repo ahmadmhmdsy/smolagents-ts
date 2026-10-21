@@ -45,10 +45,14 @@ export async function* parseSse(stream: ReadableStream<Uint8Array>): AsyncGenera
     return undefined;
   };
 
+  let finished = false;
   try {
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        finished = true;
+        break;
+      }
       buffer += decoder.decode(value, { stream: true });
       for (;;) {
         const index = buffer.indexOf("\n");
@@ -68,6 +72,9 @@ export async function* parseSse(stream: ReadableStream<Uint8Array>): AsyncGenera
     const last = take();
     if (last !== undefined) yield last;
   } finally {
+    // A consumer that stops early ([DONE], a break, a throw) leaves the body unread;
+    // releasing the lock alone keeps the connection open until the server ends it.
+    if (!finished) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

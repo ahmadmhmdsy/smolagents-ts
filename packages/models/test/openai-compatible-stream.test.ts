@@ -211,3 +211,20 @@ describe("CustomModel", () => {
     expect(() => model.generateStream([{ role: "user", content: "hi" }])).toThrow(/generateStream/);
   });
 });
+
+describe("OpenAICompatibleModel stream errors", () => {
+  it("throws on an error chunk sent after the 200 instead of ending quietly", async () => {
+    const text =
+      'data: {"choices":[{"index":0,"delta":{"content":"Hal"}}]}\n\n' +
+      'data: {"error":{"code":502,"message":"Upstream provider went away"}}\n\n';
+    const model = new OpenAICompatibleModel({ model: "m", apiKey: "sk-secret-key", fetch: streamed(text) });
+
+    const error = await collectCompletion(
+      model.generateStream([{ role: "user", content: "hi" }]),
+    ).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(/stream reported an error \(502\): Upstream provider went away/);
+    expect((error as Error).message).not.toContain("sk-secret-key");
+  });
+});

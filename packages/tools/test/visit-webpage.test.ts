@@ -50,6 +50,59 @@ describe("visitWebpageTool", () => {
     expect(urls).toEqual(["https://example.test/ctx"]);
   });
 
+  it("refuses a URL that is not http(s) without fetching it", async () => {
+    const { fetch, urls } = recorder(page, "text/html");
+    const entry = visitWebpageTool({ fetch });
+
+    for (const url of ["file:///etc/passwd", "data:text/html,hi", "not a url"]) {
+      await expect(entry.execute({ url }, toolContext())).rejects.toThrow(/http\(s\) URL/);
+    }
+    expect(urls).toEqual([]);
+  });
+
+  it("passes the run's signal to the fetch", async () => {
+    const controller = new AbortController();
+    let seen: AbortSignal | null | undefined;
+    const fetchImpl = ((_url: string, init?: RequestInit) => {
+      seen = init?.signal;
+      return Promise.resolve(new Response(page, { headers: { "content-type": "text/html" } }));
+    }) as typeof globalThis.fetch;
+
+    await visitWebpageTool({ fetch: fetchImpl }).execute(
+      { url: "https://example.test/page" },
+      toolContext({ signal: controller.signal }),
+    );
+
+    expect(seen).toBe(controller.signal);
+  });
+
+  it("stops reading a body past maxBytes and cancels the rest", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode("<p>" + "a".repeat(1000) + "</p>"));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const fetchImpl = (() =>
+      Promise.resolve(
+        new Response(endless, { headers: { "content-type": "text/html" } }),
+      )) as typeof globalThis.fetch;
+
+    const text = await visitWebpageTool({ fetch: fetchImpl, maxBytes: 4096 }).execute(
+      { url: "https://example.test/huge" },
+      toolContext(),
+    );
+
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeLessThan(10);
+    expect(text.length).toBeLessThanOrEqual(4096);
+  });
+
   it("advertises the url it takes", () => {
     const entry = visitWebpageTool();
 

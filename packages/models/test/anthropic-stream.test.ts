@@ -120,3 +120,23 @@ describe("AnthropicModel streaming", () => {
     expect((error as Error).message).toBe("The provider returned no body to stream");
   });
 });
+
+describe("AnthropicModel stream errors", () => {
+  it("throws on an error event instead of returning a truncated answer", async () => {
+    const body =
+      'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":5}}}\n\n' +
+      'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Part"}}\n\n' +
+      'event: error\ndata: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}\n\n';
+    const model = new AnthropicModel({ model: "m", apiKey: "sk-ant-secret", fetch: recorder(body).fetch });
+
+    const error = await collectCompletion(
+      model.generateStream([{ role: "user", content: "hi" }]),
+    ).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(
+      "The Anthropic stream reported an error (overloaded_error): Overloaded",
+    );
+    expect((error as Error).message).not.toContain("sk-ant-secret");
+  });
+});

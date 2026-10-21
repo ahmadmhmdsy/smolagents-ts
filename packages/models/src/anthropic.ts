@@ -13,7 +13,7 @@ import {
   type ToolSpec,
 } from "@smolagents-ts/core";
 import { parseSse } from "./sse.js";
-import { joinUrl, postJson, resolveFetch, type FetchLike } from "./transport.js";
+import { joinUrl, postJson, resolveFetch, streamError, type FetchLike } from "./transport.js";
 
 export interface AnthropicOptions {
   /** The provider's model id, for example "claude-sonnet-4-5". */
@@ -77,6 +77,8 @@ interface WireStreamEvent {
   content_block?: { type?: string; id?: string; name?: string };
   delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string | null };
   usage?: WireUsage;
+  /** Set on an `error` event, which the provider sends mid-stream, e.g. overloaded_error. */
+  error?: { type?: string; message?: string };
 }
 
 const DEFAULT_BASE_URL = "https://api.anthropic.com";
@@ -303,6 +305,10 @@ export class AnthropicModel implements Model {
         }
         case "message_stop":
           return;
+        case "error":
+          // The stream began with a 200, so this is the only sign the turn did not finish;
+          // dropping it would hand the loop a truncated answer as if it were whole.
+          throw streamError("Anthropic", parsed.error);
         default:
           break;
       }

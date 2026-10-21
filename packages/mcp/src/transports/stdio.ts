@@ -10,6 +10,8 @@ import { MCPClient, type MCPClientOptions } from "../client.js";
 export interface WritableStreamLike {
   write(chunk: string): unknown;
   end(): unknown;
+  /** A real pipe emits EPIPE here when the child has gone; optional so a test can omit it. */
+  on?(event: "error", listener: (error: Error) => void): unknown;
 }
 
 const CLOSED_MESSAGE =
@@ -118,6 +120,16 @@ export class StdioTransport implements MCPTransport {
     child.stderr?.on("data", (chunk) => {
       this.consumeStderr(
         typeof chunk === "string" ? chunk : this.stderrDecoder.decode(chunk, { stream: true }),
+      );
+    });
+    // A write to a child that already exited fails asynchronously as an `error` on the
+    // stdin stream; with no listener there, Node rethrows it and the whole process dies.
+    child.stdin?.on?.("error", (error) => {
+      this.onerror?.(
+        new MCPTransportError(
+          "Writing to the MCP server '" + this.parameters.command + "' failed: " + error.message,
+          { cause: error },
+        ),
       );
     });
     child.on("error", (error) => this.onerror?.(error));

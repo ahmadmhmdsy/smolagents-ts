@@ -57,3 +57,45 @@ describe("parseSse", () => {
     expect(events).toEqual([{ event: "ping", data: "{}" }]);
   });
 });
+
+describe("parseSse early exit", () => {
+  it("cancels the body when the consumer stops before the stream ends", async () => {
+    let cancelled = false;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        // Never closed: a server that keeps the stream open after the answer.
+        controller.enqueue(encoder.encode("data: one\n\ndata: two\n\n"));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    for await (const event of parseSse(stream)) {
+      expect(event.data).toBe("one");
+      break;
+    }
+
+    expect(cancelled).toBe(true);
+  });
+
+  it("does not cancel a stream it read to the end", async () => {
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("data: one\n\n"));
+        controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    const out: string[] = [];
+    for await (const event of parseSse(stream)) out.push(event.data);
+
+    expect(out).toEqual(["one"]);
+    expect(cancelled).toBe(false);
+  });
+});
