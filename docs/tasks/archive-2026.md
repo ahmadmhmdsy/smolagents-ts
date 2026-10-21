@@ -4,6 +4,12 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 
 ---
 
+## Closed 2026-10-21
+
+| id | title | status | owner | scope | gate | evidence |
+|---|---|---|---|---|---|---|
+| T-30 | emit `code.delta` or stop declaring it | done | this session | `packages/core/src/agent/` | the event is emitted: the loop yields `code.delta` for the code visible so far, and two tests pin the emitted text and the no-event case for a tool-calling agent | `packages/core/src/agent/multi-step-agent.ts:684`; `packages/core/test/core-loop-fixes.test.ts:338-371` |
+
 ## Closed 2026-10-16
 
 | id | title | status | owner | scope | gate | evidence |
