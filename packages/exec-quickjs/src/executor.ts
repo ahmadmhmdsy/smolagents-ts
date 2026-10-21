@@ -14,6 +14,7 @@ import {
 import {
   newQuickJSWASMModuleFromVariant,
   type QuickJSContext,
+  type QuickJSDeferredPromise,
   type QuickJSHandle,
   type QuickJSRuntime,
   type QuickJSWASMModule,
@@ -81,6 +82,12 @@ export class QuickJSExecutor implements CodeExecutor {
   private runtime: QuickJSRuntime | undefined;
   private context: QuickJSContext | undefined;
   private run: RunState | undefined;
+  /**
+   * Tool calls the guest is still awaiting. Each holds live resolver handles, so a call left
+   * over from a step that timed out would resume that step later and keep its handles past
+   * dispose. Every step's leftovers are dropped when the step ends.
+   */
+  private readonly pending = new Set<QuickJSDeferredPromise>();
   private lastLogger: Logger | undefined;
   private disposed = false;
 
@@ -94,7 +101,8 @@ export class QuickJSExecutor implements CodeExecutor {
       // The engine is synchronous, but the host drives its job queue, so the guest can await
       // a tool that returns a promise. The spike in the plan measured exactly this.
       asyncToolCalls: true,
-      timers: true,
+      // The realm installs no setTimeout or setInterval; only host tools are awaitable.
+      timers: false,
       network: "host-mediated",
       memoryLimitBytes: this.memoryLimitBytes,
       // No separate CPU budget: the caller's per-execute timeoutMs is the only one, and
@@ -134,17 +142,24 @@ export class QuickJSExecutor implements CodeExecutor {
       code,
       toolNames: options.tools.list().map((entry) => entry.name),
     });
-    const evaluated = guest.context.evalCode(source, "agent-code.js");
-    if (evaluated.error !== undefined) {
-      // A syntax error, or a throw before the first await: no promise was ever created.
-      const failure = this.describeError(guest.context, evaluated.error, run);
-      evaluated.error.dispose();
+    try {
+      const evaluated = guest.context.evalCode(source, "agent-code.js");
+      if (evaluated.error !== undefined) {
+        // A syntax error, or a throw before the first await: no promise was ever created.
+        const failure = this.describeError(guest.context, evaluated.error, run);
+        evaluated.error.dispose();
+        return this.buildResult(run, startedAt, failure);
+      }
+      const promise = guest.context.unwrapResult(evaluated);
+      const failure = await this.drain(guest, promise, run);
+      promise.dispose();
       return this.buildResult(run, startedAt, failure);
+    } finally {
+      // A call still in flight belongs to a step that is over: it must never settle into a
+      // later step, where its continuation would run against that step's final_answer.
+      this.dropPending();
+      if (this.run === run) this.run = undefined;
     }
-    const promise = guest.context.unwrapResult(evaluated);
-    const failure = await this.drain(guest, promise, run);
-    promise.dispose();
-    return this.buildResult(run, startedAt, failure);
   }
 
   async dispose(): Promise<void> {
@@ -154,6 +169,7 @@ export class QuickJSExecutor implements CodeExecutor {
     this.context = undefined;
     this.runtime = undefined;
     this.run = undefined;
+    this.dropPending();
     // The context must go first, and the release build asserts on a leaked handle by aborting
     // the whole WASM module. That abort is a catchable exception, and a caller cannot act on
     // it, so it is reported through the last logger and swallowed.
@@ -210,7 +226,39 @@ export class QuickJSExecutor implements CodeExecutor {
     const callTool = context.newFunction(CALL_TOOL_GLOBAL, (nameHandle, argsHandle) => {
       const name = context.getString(nameHandle);
       const raw = context.getString(argsHandle);
-      return context.newPromise(this.runTool(context, name, raw, run)).handle;
+      const deferred = context.newPromise();
+      this.pending.add(deferred);
+      // The guest's await resumes on the next drain. A late settle after the step ended or
+      // the realm was disposed finds the deferred gone and does nothing.
+      const settle = (deliver: () => void): void => {
+        if (!this.pending.delete(deferred) || this.disposed || !deferred.alive) return;
+        try {
+          deliver();
+        } catch (error) {
+          // newString can fail when the result does not fit the guest heap.
+          deferred.dispose();
+          this.warn("A tool result could not be delivered to the guest", error);
+        }
+      };
+      void this.runTool(name, raw, run).then(
+        (text) => {
+          settle(() => {
+            const handle = context.newString(text);
+            deferred.resolve(handle);
+            handle.dispose();
+          });
+        },
+        (error: unknown) => {
+          settle(() => {
+            const handle = context.newError(
+              error instanceof Error ? error : { name: "Error", message: String(error) },
+            );
+            deferred.reject(handle);
+            handle.dispose();
+          });
+        },
+      );
+      return deferred.handle;
     });
     context.setProp(context.global, CALL_TOOL_GLOBAL, callTool);
     callTool.dispose();
@@ -229,12 +277,7 @@ export class QuickJSExecutor implements CodeExecutor {
    * One tool call. The guest awaited this, so every failure rejects the host promise and
    * arrives in the guest as an ordinary Error it can catch.
    */
-  private async runTool(
-    context: QuickJSContext,
-    name: string,
-    raw: string,
-    run: RunState,
-  ): Promise<QuickJSHandle> {
+  private async runTool(name: string, raw: string, run: RunState): Promise<string> {
     const options = run.options;
     run.toolCalls += 1;
     run.callCounter += 1;
@@ -278,7 +321,7 @@ export class QuickJSExecutor implements CodeExecutor {
         output,
         durationMs: Date.now() - startedAt,
       });
-      return context.newString(serializeToolResult(output));
+      return serializeToolResult(output);
     } catch (error) {
       const info = toErrorInfo(error, "AGENT_TOOL_CALL", options.stepIndex);
       options.onToolCall?.({ type: "failed", callId, name, error: info });
@@ -378,6 +421,12 @@ export class QuickJSExecutor implements CodeExecutor {
       durationMs: Date.now() - startedAt,
       toolCallCount: run.toolCalls,
     };
+  }
+
+  /** Release every tool call still in flight, so none of them can settle into the realm. */
+  private dropPending(): void {
+    for (const deferred of this.pending) deferred.dispose();
+    this.pending.clear();
   }
 
   private warn(message: string, error: unknown): void {
