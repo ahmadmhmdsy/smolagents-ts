@@ -65,6 +65,7 @@ export function duckDuckGoSearchTool(
         base + "?q=" + encodeURIComponent(query) + "&format=json&no_html=1&no_redirect=1";
       const response = await (options.fetch ?? ctx.fetch)(url, {
         headers: { accept: "application/json" },
+        signal: ctx.signal,
       });
       if (!response.ok) {
         throw new Error("DuckDuckGo search failed with status " + String(response.status));
