@@ -1,16 +1,25 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
+// depcruise's own entry, run under this Node with no shell: an args array with `shell: true` is
+// concatenated unescaped (Node's DEP0190), and skipping the pnpm shim also saves its start-up cost.
+const DEPCRUISE_PACKAGE = join(repoRoot, "node_modules/dependency-cruiser");
+const DEPCRUISE_BIN = join(
+  DEPCRUISE_PACKAGE,
+  (JSON.parse(readFileSync(join(DEPCRUISE_PACKAGE, "package.json"), "utf8")) as { bin: Record<string, string> }).bin
+    .depcruise ?? "bin/dependency-cruiser.mjs",
+);
+
 function depcruise(target: string): { summary: { violations: { rule: { name: string } }[] } } {
   const output = execFileSync(
-    "pnpm",
-    ["exec", "depcruise", target, "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
-    { encoding: "utf8", cwd: repoRoot, shell: process.platform === "win32", timeout: DEPCRUISE_CHILD_TIMEOUT_MS },
+        process.execPath,
+        [DEPCRUISE_BIN, target, "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
+    { encoding: "utf8", cwd: repoRoot, timeout: DEPCRUISE_CHILD_TIMEOUT_MS },
   );
   return JSON.parse(output);
 }
