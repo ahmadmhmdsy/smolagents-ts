@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-21T16:20:00+03:00 — pushed: CI green on all six jobs, and Pages deployed only after it
+
+**State.** `main` is pushed as `39566c1..e6b4661` (26 commits, including remediation `5b5fab8` and records `e6b4661`). CI run 39604784765 succeeded on all six jobs (gate on node 22, 24 and 26; runtime on node, bun and deno), with `version:check` in the chain; the context workflow run 39604784744 succeeded; Pages run 39605192267 built and deployed through `workflow_run`, so the site now waits for a green CI instead of deploying every push.
+
+**Did.** Pushed the branch and watched both workflows with `gh run watch`.
+
+**Verified.** `gh run view 39604784765` reports conclusion success with every job success; `gh run view 39605192267` reports success and the site is https://ahmadmhmdsy.github.io/smolagents-ts/ ; local `git status --short` is empty and `git worktree list` shows only the main tree.
+
+**Unverified / open.** This records the state at `e6b4661`; this entry is a later commit and its own CI run is separate. 0.1.0 is still unpublished (T-14 needs registry credentials), and the follow-up items in the previous entry stand.
+
+**Next.** T-14 publish when the credentials arrive; fold the two `checks.py` hardening items into a reviewed change.
+
+**Blockers.** T-14 needs registry credentials; T-16, T-18, T-21, T-25 need the owner's decision.
+
+**Artifacts.** https://github.com/ahmadmhmdsy/smolagents-ts/actions/runs/39604784765 ; https://github.com/ahmadmhmdsy/smolagents-ts/actions/runs/39605192267 ; https://ahmadmhmdsy.github.io/smolagents-ts/
+
 ## 2026-10-21T16:10:00+03:00 — remediation committed, eleven-stage gate green, stale worktrees gone
 
 **State.** HEAD `5b5fab8` is the review remediation on top of the four merged fix branches; the tree is clean. `pnpm gate` (eleven stages) exits 0: 134 test files / 945 tests, eleven packages built, publint/attw clean, `ci:check` OK, pack smoke green (11 tarballs incl. the `mcp/stdio` and `exec-remote` subpaths), site build green (76 pages). 32 stale worktrees (28 review exports, 4 merged fix worktrees) are removed and pruned; one empty ignored directory is held by a running process. CI has not run on this tree; `main` is not pushed yet.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None. T-14, T-16, T-18, T-21 and T-25 wait on the owner.
 
 **Artifacts.** `packages/core/src/agent/guardrail.ts`; `packages/core/src/errors.ts`; `packages/core/test/guardrail.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 5).
-
-## 2026-10-16T20:45:00+03:00 — S10 lands: a session continues the agent's memory across turns behind the store seam
-
-**State.** Pre-release and clean. S10 (persistent sessions and memory) is complete: the milestone reads `done`, its row (T-37) is archived, and no live task row is open. S7 through S10 have landed this session.
-
-**Did.** Gave `AgentSession` an `AgentSessionOptions.checkpoint` and made `send(task, { reset })` thread it into `agent.run`: with a checkpoint set, a turn continues the agent's prior memory (`reset:false`, checkpointed by the S8 store seam); with none, each turn is fresh. A new session naming the same checkpoint over the same `RunStore` reads the earlier turns. No new store type — the session reuses `RunStore`, so S10 is one option and one line.
-
-**Verified.** Core suite 35 files and 333 tests, exit 0. `packages/core/test/session-persistence.test.ts` runs one session to a checkpoint, then a fresh agent and session over the same `MemoryRunStore` read the first turn's task; a second case shows no checkpoint starts fresh. `pnpm typecheck`, `lint`, `depcruise` and `pnpm gate` exit 0.
-
-**Unverified / open.** Only the agent's memory persists; the session snapshot (the React step view) is not rehydrated from the store, so a reload shows an empty step list though the model still sees prior turns. A `SessionStore` for the snapshot is deferred.
-
-**Next.** Start S11 (guardrails and structured output): a guardrail seam with input/output tripwires and a schema-bound final answer.
-
-**Blockers.** None. T-14, T-16, T-18, T-21 and T-25 wait on the owner.
-
-**Artifacts.** `packages/core/src/session/agent-session.ts` (`AgentSessionOptions`); `packages/core/test/session-persistence.test.ts`; `docs/01-project.md` (S10 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 4).
 <!-- rotate:end -->
