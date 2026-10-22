@@ -34,7 +34,21 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-22T14:15:00+03:00 — the findings became a six-phase plan; nothing approved, nothing built
 
+**State.** `a8573e1` plus this entry; the study's ranked backlog is now sequenced into a plan with phases, exit criteria, risks and rollback. No package source changed.
+
+**Did.** Wrote `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`: Phase 0 truth pass (ten small items), Phase 1 durability spine (record, pending request, owner, journal, file store, CLI — strictly ordered), Phase 2 delegation, Phase 3 memory and streams, Phase 4 protocol and tool breadth, Phase 5 observation and cost, Phase 6 model depth; pointed `T-40` at it.
+
+**Verified.** Validator reports 0 errors and 0 warnings; `rotate.py --check` is clean; the docs-site suite passes 25 tests.
+
+**Unverified / open.** Owner approval; eight open questions, of which `EX-06` (enforce or remove) blocks Phase 0.4 and the API posture blocks its changeset. No phase has a bite-sized execution plan yet.
+
+**Next.** The owner answers the two blocking questions and picks Phase 0; its execution plan is the first artifact of the work.
+
+**Blockers.** `T-14` unchanged; `T-40` waits on approval.
+
+**Artifacts.** `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`; `docs/research/competitors/_synthesis/20-ranked-backlog.md`.
 
 ## 2026-10-21T19:55:00+03:00 — the competitor study is filed: 22 dives, 565 gap rows, and a ranked backlog nobody has started
 
