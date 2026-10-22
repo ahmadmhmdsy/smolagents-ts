@@ -34,6 +34,22 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-22T15:20:00+03:00 — Docker abandons the published Jupyter port for exec, so deny-all becomes enforceable there too
+
+**State.** Decision `0021` accepted; `0020` stands with its Docker clause superseded. No source changed.
+
+**Did.** Recorded the owner's choice of the exec transport: one long-lived `docker exec -i` Python process speaks the frame protocol over stdio, the container is created with `network mode` derived from egress, no port is published, readiness is a handshake frame, and `jupyter.ts` plus the WebSocket options are deleted. Added Phase 4.8 for the L-sized transport, made 0.4 say Docker refuses until it lands, and closed the Docker open question.
+
+**Verified.** Validator 0 errors and 0 warnings; `rotate.py --check` clean; docs-site suite passes with the new decision linked from the index and the plan.
+
+**Unverified / open.** The transport is unbuilt, so deny-all is enforced only by E2B today and Docker refuses. Signal-to-guest interruption and stdio buffering are the two design hazards the phase plan must cover.
+
+**Next.** The owner decides the six remaining questions below (vocabulary, blackboard, retrieval, refuse list, publication timing, execution wave); then Phase 0's execution plan.
+
+**Blockers.** `T-14`; `T-40` on plan approval.
+
+**Artifacts.** `docs/09-decisions/0021-docker-exec-transport.md`; `packages/exec-remote/src/backends/docker.ts:25-36`, `:120-158`.
+
 ## 2026-10-22T15:05:00+03:00 — a capability must now be consulted or enforced: the two blocking questions are answered
 
 **State.** Decision `0020` is accepted and the plan's Phase 0 is unblocked; no package source changed. The owner approved the egress answer (A) and the output answer (E) after a session that read the code behind both bags rather than the study's summary of them.
@@ -65,36 +81,5 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` unchanged; `T-40` waits on approval.
 
 **Artifacts.** `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`; `docs/research/competitors/_synthesis/20-ranked-backlog.md`.
-
-## 2026-10-21T19:55:00+03:00 — the competitor study is filed: 22 dives, 565 gap rows, and a ranked backlog nobody has started
-
-**State.** `e6b4661` plus this session's untracked research tree; no package source changed. `docs/research/competitors/` holds thirteen deep dives and nine profiles, 22 folders and about 13.6k lines, plus a synthesis layer: the baseline, the long-tail sweep, lane briefs 15–19, two verification records, the gap matrix and the ranked backlog.
-
-**Did.** Swept the field one repository at a time through seven teammates: clone at a pinned commit, read the loop and the state model at source, file five files for a deep dive and four for a profile. Then synthesised: a 75-row heat table over the 97 baseline ids, five lane briefs, `30-findings-about-us.md` (eight row corrections, ten candidate rows we never wrote down), and `20-ranked-backlog.md` — 39 items in six releases, a refuse list, and the trigger that would reopen each deferral. Brief verification checked 243 citations, found two wrong targets and fixed them in place; the record of the wrong values stays in `06b`.
-
-**Verified.** `python scripts/validate_context.py --root . --baseline docs/.baseline.json` reports 0 errors and 0 warnings; `pnpm --filter docs-site test` passes 25 tests including the unresolved-link check. No competitor code was copied or executed; every clone sits under the gitignored `reference/competitors/`.
-
-**Unverified / open.** None of the backlog is implemented. `strands` documentation was unreachable, so its doc-derived claims are marked declared; the OmniRoute findings are untouched by this session.
-
-**Next.** T-40: the owner picks the first release from `20-ranked-backlog.md`; R1 is nine small items behind seams we already export.
-
-**Blockers.** None new; T-14, T-16, T-18, T-21, T-25 and T-39 unchanged. T-30 is closed: the event is emitted and tested.
-
-**Artifacts.** `docs/research/competitors/README.md`; `_synthesis/10-gap-matrix.md`; `_synthesis/20-ranked-backlog.md`; `_synthesis/30-findings-about-us.md`.
-## 2026-10-21T19:05:00+03:00 — OmniRoute needs no code: gateway support is a documented recipe, and the package is the owner's call
-
-**State.** `e6b4661` plus this session's records; no source file changed. A delegated investigation answered "add OmniRoute support": the shipped `OpenAICompatibleModel` already serves the gateway's `/v1` surface unmodified, verified against the frame shapes OmniRoute 3.8.53's own source emits.
-
-**Did.** Cloned OmniRoute read-only and ran two research shards with teammates; filed `docs/research/2026-10-21-omniroute-gateway-support.md` with its two shards (`omniroute-api-surface.md`, `omniroute-integration-notes.md`); opened T-39; added one lesson to `docs/memory/general.md`.
-
-**Verified.** Two throwaway Node probes (outside the tree) drove the unmodified `packages/models/dist` against a stand-in on `127.0.0.1:20128`: non-streaming text, `tool_calls`, streamed deltas, `[DONE]`, streamed usage, and all four gateway stream irregularities — a keepalive frame, an error-as-data frame with no key in the message, a `choices: []` usage chunk, and a synthesized finish. `python scripts/validate_context.py --root .` reports no error in any file this session wrote; every error in that run is inside `docs/research/competitors/**`, an untracked tree a concurrent writer was still creating during this session.
-
-**Unverified / open.** No live OmniRoute instance was contacted (it needs a provider account); per-provider tool fidelity across ~375 providers and the fallback path's ordering are unread; no test or gate ran, because no code was written.
-
-**Next.** T-39: the owner picks phase 0 (a docs page, an example and one hand-made gateway fixture, no decision needed) or phase 1 (open the pre-registered `models-gateway` package, which needs a new decision record).
-
-**Blockers.** T-39 on that phase choice; T-14, T-16, T-18, T-21 and T-25 unchanged.
-
-**Artifacts.** `docs/research/2026-10-21-omniroute-gateway-support.md`; `docs/design/2026-10-12-smolagents-ts-v1-design.md:664-669`; `docs/09-decisions/0019-post-0.1.0-roadmap-is-s7-s11.md:35-40`.
 
 <!-- rotate:end -->

@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0021 | the Docker backend reaches its guest over exec, so deny-all can be enforced | accepted | 2026-10-22 |
 | 0020 | a capability is a claim the runtime consults or enforces | accepted | 2026-10-22 |
 | 0019 | the closed roadmap is S7–S11, and provider routing with local runtimes stays a later candidate | accepted | 2026-10-21 |
 | 0018 | the post-0.1.0 roadmap takes the production gaps, and the platform gaps stay non-goals | accepted; its sixth gap superseded by 0019 | 2026-10-16 |

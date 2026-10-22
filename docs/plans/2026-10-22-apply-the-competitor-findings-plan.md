@@ -53,7 +53,7 @@ Each phase below is a candidate for its own execution plan in this folder, with 
 | 0.1 | approval records a request id and an input digest; a verdict for another call or another input is refused typed; malformed verdicts fail closed; the decision is an event | `HL-01`, `HL-12` | a test approves one call, edits one argument, and asserts no side effect |
 | 0.2 | the schema binds to `final_answer` in both flavours, a mismatch returns as an observation, and `ModelCapabilities.structuredOutput` is removed (`0020` refuses the mode enum) | `GR-05` | a wrong-shaped answer names the offending path in the observation, and no model capability field is unread |
 | 0.3 | one repair attempt: schema failure returns as a history message, with a separate budget, and never after a length finish | `GR-06` | a scripted model fails twice then returns valid; run succeeds with two attempts recorded |
-| 0.4 | an `egress: "unmanaged" \| "deny-all"` policy axis; e2b passes the vendor's deny through its seam; docker and process refuse a deny-all request typed; `network` stays reach only | `EX-06` | the e2b double shows the deny option at create, and docker or process throws before the guest starts |
+| 0.4 | an `egress: "unmanaged" \| "deny-all"` policy axis; e2b passes the vendor's deny through its seam; docker and process refuse a deny-all request typed until 4.8 replaces the docker transport; `network` stays reach only | `EX-06` | the e2b double shows the deny option at create; docker and process throw before the guest starts |
 | 0.5 | stored records carry one integer version; old values load; a newer value is refused with a typed error | `HL-10` | a fixture written at version 1 loads, and a version beyond the current one refuses |
 | 0.6 | a written and tested rule for what a tripped guardrail does to the checkpoint, the session and the trace | `GR-01` | blocked output is absent from every persisted artifact, and the trace says it was redacted |
 | 0.7 | every tool gets a finite default deadline with an explicit opt-out and a typed timeout error | `TL-05` | a hanging tool fails the step; the error names which limit fired |
@@ -124,7 +124,7 @@ Depends on Phase 1.1 to 1.4. Build in this order because each one makes the next
 
 ### Phase 4 — Protocol and tool breadth
 
-**Deliverable.** The MCP client is as complete as the reference client for the verbs we use; tool availability becomes data a caller configures; a generator tool can stream progress; a remote guest can host declared tools; the E2B backend stops being the thinnest one.
+**Deliverable.** The MCP client is as complete as the reference client for the verbs we use; tool availability becomes data a caller configures; a generator tool can stream progress; a remote guest can host declared tools; the E2B backend stops being the thinnest one; the Docker backend reaches its guest over exec and enforces deny-all.
 
 Items here are independent and can be interleaved with Phases 3 and 5 by package, which keeps writers disjoint.
 
@@ -137,10 +137,11 @@ Items here are independent and can be interleaved with Phases 3 and 5 by package
 | 4.5 | generator tools with typed progress events, and a declared kind for provider-hosted tools | `TL-04`, `TL-07` | S/M |
 | 4.6 | declared transfer of tool definitions and variables into a remote guest | `EX-10` | M |
 | 4.7 | E2B backend depth: settable lifetime, per-execution timeout, keepalive, metadata, metrics, contexts | `EX-11`, `EX-03`, `EX-06` | M |
+| 4.8 | the Docker exec transport (`0021`): a stdio exec session on the runtime seam, a network mode on create, a handshake frame, `jupyter.ts` deleted, and deny-all enforced | `EX-06`, `EX-04` | L |
 
 **Exit criterion.** A policy fixture hides a tool the model must not see; a long MCP tool call reports progress and can be cancelled; a remote guest calls a host tool by name.
 
-**Verification.** MCP, tools and exec-remote suites, `pnpm gate` exit 0.
+**Verification.** MCP, tools and exec-remote suites, a fake-runtime test for the docker transport, `pnpm gate` exit 0.
 
 ### Phase 5 — Observation and cost
 
@@ -188,7 +189,7 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 
 - [x] **`EX-06`**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — a policy axis, enforced on e2b and refused typed on the backends that cannot confine; the allow-list waits for a fetch capability.
 - [x] **Public API posture for Phase 0**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — `structuredOutput` is removed now, while nothing is published; the mode enum lands with a model-seam schema channel and its consumer.
-- [ ] **Docker deny-all**: a sidecar or an exec-based transport, decided when the guest contract lands. Not blocking.
+- [x] **Docker deny-all**: answered by [`0021`](docs/09-decisions/0021-docker-exec-transport.md) — the exec transport replaces the Jupyter port, so deny-all is enforced from 4.8; docker refuses until then.
 - [ ] **Record vocabulary**: is the durable pause called a *pending request*, a *pause*, or an *interrupt*? Blocks Phase 1.2 naming, not its design.
 - [ ] **`MA-05`**: confirm in writing that there is no shared blackboard by default. Not blocking.
 - [ ] **`MD-10`**: retrieval in or out; the plan defaults to out. Blocks Phase 6.4 only.
