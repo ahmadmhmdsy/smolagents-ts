@@ -21,10 +21,11 @@ The study filed 565 gap rows against 97 capabilities, and 75 of those capabiliti
 
 ## Non-goals
 
-- **ADAPT** — nothing on the study's refuse list: no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
-- **ADAPT** — a re-run of the study. The research is a pinned snapshot; phases cite it and do not re-litigate it.
-- **ADAPT** — retrieval, multimodal and provider-spec versioning are in Phase 6 and gated by a decision, not assumed.
-- **ADAPT** — a Python port. The `strands` dive prices it as a second implementation, not a translation, and that is a product decision this plan does not take.
+- Nothing on the study's refuse list: no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
+- A re-run of the study. The research is a pinned snapshot; phases cite it and do not re-litigate it.
+- Retrieval, multimodal and provider-spec versioning are in Phase 6 and gated by a decision, not assumed.
+- A Python port. The `strands` dive prices it as a second implementation, not a translation, and that is a product decision this plan does not take.
+- A sandbox-level egress allow-list. `0020` keeps the policy axis additive; the list waits for a fetch or workspace capability.
 
 ## Approach
 
@@ -41,24 +42,24 @@ Each phase below is a candidate for its own execution plan in this folder, with 
 
 ### Phase 0 — Truth pass
 
-**Deliverable.** Ten small items that make the shipped surface honest: approval bound to the call it approves; structured output as a mode rather than a boolean; one bounded repair attempt; egress declared only where enforced; a schema version on stored state; a written rule for what a guardrail trip persists; a deadline on every tool; a conformance suite for stores; a request-owned budget with a typed stop reason; and a structured-output path that also works on adapters without native support.
+**Deliverable.** Ten small items that make the shipped surface honest: approval bound to the call it approves; the output schema bound to the final answer rather than to a model flag; one bounded repair attempt; egress enforced where a backend can and refused where it cannot; a schema version on stored state; a written rule for what a guardrail trip persists; a deadline on every tool; a conformance suite for stores; a request-owned budget with a typed stop reason; and structured output proven on a model that cannot call tools.
 
-**Files likely affected.** `packages/core/src/agent/approval.ts`, `packages/core/src/agent/multi-step-agent.ts`, `packages/core/src/agent/guardrail.ts`, `packages/core/src/model.ts`, `packages/core/src/events.ts`, `packages/core/src/session/run-store.ts`, `packages/core/src/agent/run-result.ts`, `packages/tools/src/index.ts`, `packages/exec-remote/src/backends/e2b.ts`, the five adapters under `packages/models/src`, and the tests beside each.
+**Files likely affected.** `packages/core/src/agent/approval.ts`, `packages/core/src/agent/multi-step-agent.ts`, `packages/core/src/agent/guardrail.ts`, `packages/core/src/model.ts`, `packages/core/src/events.ts`, `packages/core/src/session/run-store.ts`, `packages/core/src/agent/run-result.ts`, `packages/tools/src/index.ts`, `packages/exec-remote/src/backends/e2b.ts`, the model seam and its tests, and the tests beside each.
 
 **Items, in order of independence.** All are S or M; none touches another item's files.
 
 | # | item | ids | done when |
 |---|---|---|---|
 | 0.1 | approval records a request id and an input digest; a verdict for another call or another input is refused typed; malformed verdicts fail closed; the decision is an event | `HL-01`, `HL-12` | a test approves one call, edits one argument, and asserts no side effect |
-| 0.2 | output mode becomes `native` / `tool` / `prompted` / `none` on the model capability, resolved by the adapter | `GR-05` | a caller can ask which mode will be used; an adapter supporting none fails before the request |
+| 0.2 | the schema binds to `final_answer` in both flavours, a mismatch returns as an observation, and `ModelCapabilities.structuredOutput` is removed (`0020` refuses the mode enum) | `GR-05` | a wrong-shaped answer names the offending path in the observation, and no model capability field is unread |
 | 0.3 | one repair attempt: schema failure returns as a history message, with a separate budget, and never after a length finish | `GR-06` | a scripted model fails twice then returns valid; run succeeds with two attempts recorded |
-| 0.4 | egress is enforced where a backend can, and the capability bag stops declaring what it cannot | `EX-06` | the e2b backend either enforces the policy or reports no policy, pinned by a test |
+| 0.4 | an `egress: "unmanaged" \| "deny-all"` policy axis; e2b passes the vendor's deny through its seam; docker and process refuse a deny-all request typed; `network` stays reach only | `EX-06` | the e2b double shows the deny option at create, and docker or process throws before the guest starts |
 | 0.5 | stored records carry one integer version; old values load; a newer value is refused with a typed error | `HL-10` | a fixture written at version 1 loads, and a version beyond the current one refuses |
 | 0.6 | a written and tested rule for what a tripped guardrail does to the checkpoint, the session and the trace | `GR-01` | blocked output is absent from every persisted artifact, and the trace says it was redacted |
 | 0.7 | every tool gets a finite default deadline with an explicit opt-out and a typed timeout error | `TL-05` | a hanging tool fails the step; the error names which limit fired |
 | 0.8 | an importable conformance suite covering the ten failure modes in the durability brief | `DS-09` | the file store passes it and the suite is documented as the contract |
 | 0.9 | request-owned turn, output-token and total-token limits; typed stop reason; a result handle that continues the same budget | `RT-06`, `RT-08`, `RT-13` | a second call with the returned handle keeps counting and reports `limitTotalTokens` |
-| 0.10 | `tool`-mode structured output implemented as a forced validating tool, so prompt-only adapters get the same validation | `GR-06`, `GR-05` | one code path serves native and forced-tool modes; the schema never reaches the text channel |
+| 0.10 | structured output proven on a model that cannot call tools: the bound schema plus the repair turn, not a forced tool | `GR-06`, `GR-05` | a scripted model with `toolCalls: false` still ends with a schema-valid answer inside the attempt bound |
 
 **Exit criterion.** No row in the baseline that this phase touches is described as "declared" while the code does nothing, and every item has a test that failed first.
 
@@ -185,8 +186,9 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 
 ## Open questions
 
-- [ ] **`EX-06`**: enforce the network policy in the remote backends, or remove the declaration and document the boundary? Blocks Phase 0.4.
-- [ ] **Public API posture for Phase 0**: does the mode enum replace the boolean as a breaking change, or does the boolean stay as a deprecated alias for one minor? Blocks the Phase 0 changeset.
+- [x] **`EX-06`**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — a policy axis, enforced on e2b and refused typed on the backends that cannot confine; the allow-list waits for a fetch capability.
+- [x] **Public API posture for Phase 0**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — `structuredOutput` is removed now, while nothing is published; the mode enum lands with a model-seam schema channel and its consumer.
+- [ ] **Docker deny-all**: a sidecar or an exec-based transport, decided when the guest contract lands. Not blocking.
 - [ ] **Record vocabulary**: is the durable pause called a *pending request*, a *pause*, or an *interrupt*? Blocks Phase 1.2 naming, not its design.
 - [ ] **`MA-05`**: confirm in writing that there is no shared blackboard by default. Not blocking.
 - [ ] **`MD-10`**: retrieval in or out; the plan defaults to out. Blocks Phase 6.4 only.

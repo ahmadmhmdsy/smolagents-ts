@@ -34,6 +34,22 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-22T15:05:00+03:00 — a capability must now be consulted or enforced: the two blocking questions are answered
+
+**State.** Decision `0020` is accepted and the plan's Phase 0 is unblocked; no package source changed. The owner approved the egress answer (A) and the output answer (E) after a session that read the code behind both bags rather than the study's summary of them.
+
+**Did.** Wrote `docs/09-decisions/0020-a-capability-is-a-claim.md`: four clauses (a bag field has a read site or is not a capability; every claim names its consuming site and its test; description and policy are separate axes; a backend refuses what it cannot honour) and two applications. Egress gains an `egress` policy axis beside `network`: e2b passes the vendor's deny through its seam, docker and process refuse typed, allow-lists wait for a fetch capability. Output drops `structuredOutput` instead of gaining a mode enum: the schema binds to `final_answer` in both flavours and a mismatch becomes a repair observation. Folded both into Phase 0 rows 0.2, 0.4 and 0.10, marked the two questions answered, added the Docker deny-all deferral, and cleared the plan's four leftover template placeholders.
+
+**Verified.** `python scripts/validate_context.py --root . --baseline docs/.baseline.json` reports 0 errors and 0 warnings; `python scripts/rotate.py --check` is clean; `pnpm --filter docs-site test` passes, including the unresolved-link check over the new decision and its index row.
+
+**Unverified / open.** The plan itself is still draft: the owner approved the two decisions, not the program. Six questions remain, all non-blocking. Docker deny-all needs a sidecar or an exec-based transport, deferred to the guest contract. `0020`'s follow-ups are the Phase 0 items, so none of them has a bite-sized plan yet.
+
+**Next.** The owner approves the program and picks Phase 0; its execution plan is the first artifact of the work, and 0.2 is the smallest entry into it.
+
+**Blockers.** `T-14` unchanged; `T-40` waits on plan approval. Nothing else new.
+
+**Artifacts.** `docs/09-decisions/0020-a-capability-is-a-claim.md`; `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md:50-61`; `docs/09-decisions/README.md:31`.
+
 ## 2026-10-22T14:15:00+03:00 — the findings became a six-phase plan; nothing approved, nothing built
 
 **State.** `a8573e1` plus this entry; the study's ranked backlog is now sequenced into a plan with phases, exit criteria, risks and rollback. No package source changed.
