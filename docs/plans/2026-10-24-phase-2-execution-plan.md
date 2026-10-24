@@ -197,6 +197,17 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.7 as built.** `RunStore.watch(runId, listener)` is the contract's fourteenth
+  mode: a commit or claim that lands after registration calls the listener with the record,
+  the returned function unsubscribes, and watching never writes. `MemoryRunStore` notifies
+  synchronously; `FileRunStore` notifies its own writes and reaches another process's through an
+  optional `RunFileSystem.watchFile`, which the CLI binds to `fs.watchFile` (a poll, so the
+  store's rename-into-place publish survives it). `session/wait.ts` exports `waitForRun`, whose
+  baseline is the record read at call time: it resolves on the first differing notification,
+  reports `timedOut` or `aborted` without claiming, and answers `noProgress` at once for an
+  unknown or already terminal run. Core 47 files/553 tests, CLI 11/77, `pnpm gate` exit 0.
+
+
 - **2026-10-24 — 2.6 as built.** `session/messages.ts` exports `RunMessage`,
   `SendRunMessageInput`, `SendRunMessageReceipt`, `sendRunMessage` and `RunMessageRefusedError`
   (the error lives in `errors.ts` under the new `AGENT_RUN_MESSAGE_REFUSED` code).

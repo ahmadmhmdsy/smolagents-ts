@@ -118,6 +118,10 @@ class RecordingStore implements RunStore {
     return this.inner.claim(runId, expectedGeneration, owner);
   }
 
+  watch(): () => void {
+    return () => undefined;
+  }
+
   commit(runId: string, record: RunRecord): void {
     this.commits.push({
       runId,
@@ -404,6 +408,7 @@ describe("run store", () => {
         if (current.generation !== expectedGeneration) throw new RunClaimedError("overtaken");
         return { ...current, generation: expectedGeneration + 1, owner };
       },
+      watch: () => () => undefined,
       latestForConversation: () => undefined,
     };
 
@@ -448,6 +453,7 @@ describe("run store", () => {
         generation: 0,
         memory: { steps: [] },
       }),
+      watch: () => () => undefined,
       latestForConversation: () => undefined,
     };
     const agent = new ToolCallingAgent({ model: new MockModel([]), tools: [], store: newerStore });

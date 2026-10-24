@@ -48,11 +48,21 @@ export interface RunStore {
   latestForConversation(
     conversationId: string,
   ): RunRecord | undefined | Promise<RunRecord | undefined>;
+  /**
+   * Watch one run: the listener is called on every commit or claim that lands after it is
+   * registered, with the record that landed. The returned function unsubscribes and stops
+   * delivery; a listener a store no longer holds is never called again. Watching never writes.
+   */
+  watch(runId: string, listener: RunRecordListener): () => void;
 }
+
+/** What a watcher is handed: the record a commit or claim just published. */
+export type RunRecordListener = (record: RunRecord) => void;
 
 /** The one implementation the seam ships with: a run's records held in memory. */
 export class MemoryRunStore implements RunStore {
   private readonly records = new Map<string, RunRecord>();
+  private readonly watchers = new Map<string, Set<RunRecordListener>>();
 
   // The store is a boundary, so it copies on the way in and on the way out: a caller that
   // mutates the record it committed, or the one it loaded, cannot reach the stored run. A record
@@ -71,6 +81,31 @@ export class MemoryRunStore implements RunStore {
       );
     }
     this.records.set(runId, copy(record));
+    this.notify(runId, record);
+  }
+
+  watch(runId: string, listener: RunRecordListener): () => void {
+    let listeners = this.watchers.get(runId);
+    if (listeners === undefined) {
+      listeners = new Set();
+      this.watchers.set(runId, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) this.watchers.delete(runId);
+    };
+  }
+
+  private notify(runId: string, record: RunRecord): void {
+    for (const listener of this.watchers.get(runId) ?? []) {
+      // A listener that throws is the watcher's bug; it must not fail the write it observed.
+      try {
+        listener(record);
+      } catch {
+        continue;
+      }
+    }
   }
 
   claim(runId: string, expectedGeneration: number, owner: string): RunRecord {
@@ -96,6 +131,7 @@ export class MemoryRunStore implements RunStore {
       updatedAt: new Date().toISOString(),
     };
     this.records.set(runId, claimed);
+    this.notify(runId, claimed);
     return copy(claimed);
   }
 

@@ -91,6 +91,7 @@ describe("effects journal", () => {
     const store: RunStore = {
       claim: (runId, expectedGeneration, owner) => inner.claim(runId, expectedGeneration, owner),
       load: (runId) => inner.load(runId),
+      watch: () => () => undefined,
       latestForConversation: (conversationId) => inner.latestForConversation(conversationId),
       commit: (runId, record, expected) => {
         snapshots.push(JSON.parse(JSON.stringify(record)) as RunRecord);

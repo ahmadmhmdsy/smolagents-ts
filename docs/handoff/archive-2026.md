@@ -4,6 +4,36 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T21:20:00+03:00 — Phase 1 closed: the durability spine holds across processes
+
+**State.** Phase 1 (items 1.1–1.8) is complete and closed; `T-42` is done. Everything is
+committed on `main`, nothing pushed. Phase 2 (delegation that survives its parent) is the next
+phase in the parent plan and has not started.
+
+**Did.** Added the exit criterion as `packages/cli/test/phase-1-close.test.ts` (park → competing
+claim refused → claim → resume → `allowed-once`; crash after a journaled tool result repaired
+without a second effect), wrote `docs/reports/2026-10-24-phase-1-report.md` with the manual
+two-process run (process 1 exit 3, counter 0; process 2 exit 0, counter 1; record `completed`),
+recorded the close in the execution plan and closed `T-42` in `04-tasks`.
+
+**Verified.** The exit-criterion test was red first, then green; `pnpm gate` exit 0 on the close
+tree; contract's thirteen modes still certify three stores; validator 0/0; `rotate.py --check`
+clean. The manual run used built `dist` plus `MockModel`/`ScriptedExecutor`, no provider.
+
+**Unverified / open.** A fork at a step whose journal holds an in-doubt `intent` would surface
+`EffectOutcomeUnknownError`; untested. The parent plan's "agent fingerprint" is in the phase
+deliverable but in none of its items, so it is not landed — a candidate follow-up. CLI approval is
+a flag, not a prompt (deliberate).
+
+**Next.** Begin Phase 2.1–2.7 (the first slice needs no new durable rows) under a fresh execution
+plan with pre-registered acceptance tests.
+
+**Blockers.** None for Phase 2. `T-14`, `T-39`, `T-16`, `T-18` and `T-21` remain owner-blocked.
+
+**Artifacts.** `docs/reports/2026-10-24-phase-1-report.md`;
+`docs/plans/2026-10-24-phase-1-execution-plan.md`;
+`packages/cli/test/phase-1-close.test.ts`; `packages/core/src/session/run-store.ts`.
+
 ## 2026-10-24T20:55:00+03:00 — 1.8 landed: a run can branch without repeating effects
 
 **State.** All eight Phase 1 items are in the tree; Phase 1 close is next (exit-criterion test,

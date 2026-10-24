@@ -1,6 +1,6 @@
 import { RunClaimedError, RunNotFoundError, StaleWriterError } from "../errors.js";
 import { isNewerRecord, type RunRecord, type StoredRun } from "./run-record.js";
-import type { RunStore } from "./run-store.js";
+import type { RunRecordListener, RunStore } from "./run-store.js";
 
 /**
  * The filesystem a {@link FileRunStore} writes through. Paths are flat names inside one directory
@@ -17,6 +17,11 @@ export interface RunFileSystem {
   delete(name: string): Promise<void>;
   /** Every file the store may own, for lookups across runs. */
   list(): Promise<string[]>;
+  /**
+   * Watch one record file for changes made by another process. The binding supplies this where
+   * its platform can watch a file; a store without it still notifies local commits and claims.
+   */
+  watchFile?(name: string, onChange: () => void): () => void;
 }
 
 export interface FileRunStoreOptions {
@@ -33,6 +38,8 @@ export interface FileRunStoreOptions {
 export class FileRunStore implements RunStore {
   private readonly fs: RunFileSystem;
   private readonly extension: string;
+  private readonly watchers = new Map<string, Set<RunRecordListener>>();
+  private readonly fileWatchers = new Map<string, () => void>();
 
   constructor(fs: RunFileSystem, options: FileRunStoreOptions = {}) {
     this.fs = fs;
@@ -72,6 +79,46 @@ export class FileRunStore implements RunStore {
         // The previous record is still the truth; cleanup is best effort.
       }
       throw error;
+    }
+    this.notify(runId, record);
+  }
+
+  watch(runId: string, listener: RunRecordListener): () => void {
+    let listeners = this.watchers.get(runId);
+    if (listeners === undefined) {
+      listeners = new Set();
+      this.watchers.set(runId, listeners);
+      this.watchFile(runId);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.watchers.delete(runId);
+        this.fileWatchers.get(runId)?.();
+        this.fileWatchers.delete(runId);
+      }
+    };
+  }
+
+  /** A write by another process reaches local watchers through the optional file seam. */
+  private watchFile(runId: string): void {
+    if (this.fs.watchFile === undefined) return;
+    const stop = this.fs.watchFile(this.nameFor(runId), () => {
+      void this.read(runId).then((record) => {
+        if (record !== undefined) this.notify(runId, record);
+      });
+    });
+    this.fileWatchers.set(runId, stop);
+  }
+
+  private notify(runId: string, record: RunRecord): void {
+    for (const listener of this.watchers.get(runId) ?? []) {
+      try {
+        listener(record);
+      } catch {
+        continue;
+      }
     }
   }
 

@@ -33,6 +33,39 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T22:35:00+03:00 — 2.7: a wait is an edge, not a poll
+
+**State.** Phase 2 is open; the first slice (2.1, 2.3, 2.6, 2.7) is landed. Next is the second
+slice: 2.2 (transfer), 2.4 (bounded background child), 2.5 (supervisor example), 2.8 (claim
+board). Nothing pushed.
+
+**Did.** `RunStore.watch(runId, listener)` is the contract's fourteenth mode: a commit or claim
+that lands after registration hands the listener the record, the returned function
+unsubscribes, and watching never writes. `MemoryRunStore` notifies synchronously; `FileRunStore`
+notifies its own writes and reaches another process's through the optional
+`RunFileSystem.watchFile`, which the CLI now binds to `fs.watchFile` with a 50 ms poll, so the
+store's rename-into-place publish survives it. `session/wait.ts` exports `waitForRun`: the
+baseline is the record read at call time, the wait resolves on the first notification whose
+status, fence, step or updatedAt differs, times out and aborts without claiming, and answers
+`noProgress` at once for an unknown or already terminal run.
+
+**Verified.** `wait-for-run.test.ts` (47th core file, 5 cases) green: first edge, terminal
+`noProgress` with no claim, timeout that releases its edge, abort with the generation unchanged,
+and the contract mode run against both shipped stores. Core 47 files/553 tests (six of the new
+cases are the contract mode on three stores); CLI 11 files/77 tests, including a file-watch case
+over a real directory. `pnpm typecheck` clean; `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The second slice is not started. `watchFile` polls; a caller needing
+sub-50 ms latency needs its own watcher.
+
+**Next.** 2.2: a declared transfer target becomes a tool that ends the run with `run.transferred`
+and a typed `TransferSignal`.
+
+**Blockers.** None; the owner's blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/session/wait.ts`; `packages/core/src/session/run-store.ts`;
+`packages/core/src/session/file-run-store.ts`; `packages/cli/src/store.ts`.
+
 ## 2026-10-24T22:20:00+03:00 — 2.6: a send is an ordinary record entry, delivery a boundary
 
 **State.** Phase 2 is open; 2.1, 2.3 and 2.6 are landed. Next is 2.7 (`waitForRun` and the
@@ -120,34 +153,4 @@ the path its run ran under.
 
 **Artifacts.** `docs/plans/2026-10-24-phase-2-execution-plan.md`;
 `packages/core/src/agent/child-report.ts`; `packages/core/test/child-report.test.ts`.
-
-## 2026-10-24T21:20:00+03:00 — Phase 1 closed: the durability spine holds across processes
-
-**State.** Phase 1 (items 1.1–1.8) is complete and closed; `T-42` is done. Everything is
-committed on `main`, nothing pushed. Phase 2 (delegation that survives its parent) is the next
-phase in the parent plan and has not started.
-
-**Did.** Added the exit criterion as `packages/cli/test/phase-1-close.test.ts` (park → competing
-claim refused → claim → resume → `allowed-once`; crash after a journaled tool result repaired
-without a second effect), wrote `docs/reports/2026-10-24-phase-1-report.md` with the manual
-two-process run (process 1 exit 3, counter 0; process 2 exit 0, counter 1; record `completed`),
-recorded the close in the execution plan and closed `T-42` in `04-tasks`.
-
-**Verified.** The exit-criterion test was red first, then green; `pnpm gate` exit 0 on the close
-tree; contract's thirteen modes still certify three stores; validator 0/0; `rotate.py --check`
-clean. The manual run used built `dist` plus `MockModel`/`ScriptedExecutor`, no provider.
-
-**Unverified / open.** A fork at a step whose journal holds an in-doubt `intent` would surface
-`EffectOutcomeUnknownError`; untested. The parent plan's "agent fingerprint" is in the phase
-deliverable but in none of its items, so it is not landed — a candidate follow-up. CLI approval is
-a flag, not a prompt (deliberate).
-
-**Next.** Begin Phase 2.1–2.7 (the first slice needs no new durable rows) under a fresh execution
-plan with pre-registered acceptance tests.
-
-**Blockers.** None for Phase 2. `T-14`, `T-39`, `T-16`, `T-18` and `T-21` remain owner-blocked.
-
-**Artifacts.** `docs/reports/2026-10-24-phase-1-report.md`;
-`docs/plans/2026-10-24-phase-1-execution-plan.md`;
-`packages/cli/test/phase-1-close.test.ts`; `packages/core/src/session/run-store.ts`.
 <!-- rotate:end -->

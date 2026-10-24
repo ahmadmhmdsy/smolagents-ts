@@ -31,6 +31,7 @@ const MODE = {
   claim: "bumps the fence once and refuses the loser of a claim race",
   stale: "refuses a stale commit and leaves the stored record untouched",
   conversation: "finds the newest run of a conversation",
+  watch: "notifies a watcher of a commit that lands after registration",
 } as const;
 
 type Mode = keyof typeof MODE;
@@ -209,12 +210,15 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
   { mode: "claim", check: claimCheck },
   { mode: "stale", check: staleCheck },
   { mode: "conversation", check: conversationCheck },
+  { mode: "watch", check: watchCheck },
 ];
 
 type Memory = Map<string, StoredRun>;
 
 /** One deliberately broken store per mode: the suite must reject each of them. */
-const COUNTEREXAMPLES: Readonly<Record<Mode, () => Omit<RunStore, "latestForConversation">>> = {
+const COUNTEREXAMPLES: Readonly<
+  Record<Mode, () => Omit<RunStore, "latestForConversation" | "watch">>
+> = {
   unknown: () => ({
     commit: () => undefined,
     load: () => record("x", []),
@@ -343,14 +347,28 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => Omit<RunStore, "latestForConv
       claim: (runId) => record(runId, []),
     };
   },
+  watch: () => ({
+    // Accepts the write and tells nobody; the watch check has to reject it.
+    commit: () => undefined,
+    load: () => undefined,
+    claim: (runId) => record(runId, []),
+  }),
 };
 
 /**
  * Complete a deliberately broken store with a lookup that never finds anything, so a counterexample
  * fails the check it targets rather than failing every check for want of a method.
  */
-function brokenCounterexample(partial: Omit<RunStore, "latestForConversation">): RunStore {
-  return { ...partial, latestForConversation: () => undefined };
+function brokenCounterexample(
+  partial: Omit<RunStore, "latestForConversation" | "watch">,
+): RunStore {
+  return {
+    ...partial,
+    latestForConversation: () => undefined,
+    // The default watcher accepts a subscription and delivers nothing, so a check that needs a
+    // notification fails unless its counterexample is the one under test.
+    watch: () => () => undefined,
+  };
 }
 
 export type RunStoreFactory = () => RunStore | Promise<RunStore>;
@@ -414,6 +432,31 @@ async function conversationCheck(store: RunStore): Promise<void> {
   }
   if ((await store.latestForConversation("conv-absent")) !== undefined) {
     refuse("conversation", "an unknown conversation found a record");
+  }
+}
+
+async function watchCheck(store: RunStore): Promise<void> {
+  const seen: RunRecord[] = [];
+  let unsubscribed = false;
+  const stop = store.watch("run-watch", (record) => {
+    if (!unsubscribed) seen.push(record);
+  });
+  await write(store, "run-watch", STEPS_A);
+  // A file-backed store may answer through a watcher rather than synchronously.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  if (seen.length === 0) {
+    refuse("watch", "a commit after registration notified nobody");
+  }
+  if (!seen.some((record) => JSON.stringify(record.memory.steps) === JSON.stringify(STEPS_A))) {
+    refuse("watch", "the notification carried a record without the committed steps");
+  }
+  unsubscribed = true;
+  stop();
+  const before = seen.length;
+  await write(store, "run-watch", STEPS_B);
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  if (seen.length !== before) {
+    refuse("watch", "a listener that unsubscribed was notified again");
   }
 }
 

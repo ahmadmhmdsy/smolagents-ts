@@ -126,6 +126,10 @@ class CrashingStore implements RunStore {
     return this.inner.claim(runId, expectedGeneration, owner);
   }
 
+  watch(runId: string, listener: (record: RunRecord) => void): () => void {
+    return this.inner.watch(runId, listener);
+  }
+
   latestForConversation(conversationId: string): Promise<RunRecord | undefined> {
     return this.inner.latestForConversation(conversationId);
   }
@@ -222,6 +226,34 @@ describe("Phase 1 exit criterion", () => {
       expect(repaired.status).toBe("completed");
       expect(repaired.completed?.[0]?.state).toBe("interrupted");
       expect(repaired.schemaVersion).toBe(RUN_RECORD_VERSION);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("watches a record file another store writes", async () => {
+    const directory = temporaryDirectory();
+    try {
+      const writer = new FileRunStore(nodeRunFileSystem(directory));
+      const watcher = new FileRunStore(nodeRunFileSystem(directory));
+      const seen: RunRecord[] = [];
+      const stop = watcher.watch("run-watch", (record) => seen.push(record));
+
+      await writer.commit("run-watch", {
+        schemaVersion: RUN_RECORD_VERSION,
+        runId: "run-watch",
+        status: "running",
+        generation: 0,
+        memory: { steps: [] },
+      });
+      const deadline = Date.now() + 3_000;
+      while (seen.length === 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      stop();
+
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen[0]?.runId).toBe("run-watch");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

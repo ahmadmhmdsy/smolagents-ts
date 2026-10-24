@@ -3,6 +3,7 @@
  * `node:fs/promises` calls inside one directory. The record's file name is the only thing the
  * core names, so this module owns the directory and refuses anything that is not a flat name.
  */
+import { unwatchFile, watchFile } from "node:fs";
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { RunFileSystem } from "@smolagents-ts/core";
@@ -54,6 +55,14 @@ export function nodeRunFileSystem(directory: string): RunFileSystem {
         if (isMissing(error)) return [];
         throw error;
       }
+    },
+    watchFile(name, onChange) {
+      // A poll rather than a filesystem event: the store publishes a record by renaming a whole
+      // file into place, and watchFile survives the rename that an inode watcher would lose.
+      const path = pathFor(name);
+      const listener = (): void => onChange();
+      watchFile(path, { persistent: false, interval: 50 }, listener);
+      return () => unwatchFile(path, listener);
     },
   };
 }
