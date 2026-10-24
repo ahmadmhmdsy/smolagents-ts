@@ -93,6 +93,15 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
       if (request.name === FINAL_ANSWER_TOOL_NAME) {
         const value = extractAnswer(args);
+        const invalid = this.invalidAnswer(value);
+        if (invalid !== undefined) {
+          // A wrong-shaped answer is an observation the model can correct, not a failed run.
+          const info = new AgentToolCallError(invalid, { stepIndex }).info;
+          yield { type: "action.failed", callId, name: request.name, error: info };
+          calls.push({ id: callId, name: request.name, arguments: args, error: invalid, durationMs: 0 });
+          observations.push("Error: " + invalid);
+          continue;
+        }
         calls.push({ id: callId, name: request.name, arguments: args, result: value, durationMs: 0 });
         yield { type: "action.result", callId, name: request.name, output: value, durationMs: 0 };
         observations.push("Final answer: " + display(value));

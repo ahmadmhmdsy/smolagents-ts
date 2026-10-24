@@ -122,3 +122,8 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   records as `approvals`, additive to its shape. `approvalPolicy: "never"` maps to `rejected`
   with a reason naming the policy. The digest is FNV-1a over canonical JSON, internal to
   `packages/core/src/utils/digest.ts` and not exported from the barrel.
+- **2026-10-24 — 0.2 as built.** The bound schema reaches a tool-calling model as the
+  `final_answer` parameter schema (`{answer: <schema>}`) and a code-agent model as a
+  `FINAL ANSWER SCHEMA` paragraph appended to its prompt; a mismatch on either path returns
+  as an observation and the loop continues, which is why the acceptance test is a two-turn
+  transcript. The schema is still re-checked in `complete()` as the last line of defence.

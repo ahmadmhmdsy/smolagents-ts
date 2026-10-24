@@ -29,12 +29,14 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
   protected override buildSystemPrompt(): string {
     const customInstructions = this.customInstructionsValue;
-    return buildCodeAgentSystemPrompt({
-      toolDescriptions: this.renderToolDescriptions(),
-      managedAgentDescriptions: this.renderManagedAgents(),
-      language: this.executor.language === "python" ? "Python" : "JavaScript",
-      ...(customInstructions === undefined ? {} : { customInstructions }),
-    });
+    return (
+      buildCodeAgentSystemPrompt({
+        toolDescriptions: this.renderToolDescriptions(),
+        managedAgentDescriptions: this.renderManagedAgents(),
+        language: this.executor.language === "python" ? "Python" : "JavaScript",
+        ...(customInstructions === undefined ? {} : { customInstructions }),
+      }) + this.answerSchemaText()
+    );
   }
 
   protected override interpret(completion: ChatCompletion): InterpretedAction {
@@ -130,11 +132,22 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     if (!settled.ok) throw settled.error;
 
     step.toolCalls = toolCalls;
+    const claimed = settled.result.isFinalAnswer || submittedFinal;
+    // The executor's own answer wins when it claims one; the sink is the fallback.
+    const value = settled.result.isFinalAnswer ? settled.result.value : submitted;
+    if (claimed) {
+      const invalid = this.invalidAnswer(value);
+      if (invalid !== undefined) {
+        return {
+          observations: describeExecution(settled.result.logs, settled.result.error) + "\nError: " + invalid,
+          isFinalAnswer: false,
+        };
+      }
+    }
     return {
       observations: describeExecution(settled.result.logs, settled.result.error),
-      isFinalAnswer: settled.result.isFinalAnswer || submittedFinal,
-      // The executor's own answer wins when it claims one; the sink is the fallback.
-      value: settled.result.isFinalAnswer ? settled.result.value : submitted,
+      isFinalAnswer: claimed,
+      value,
       error: settled.result.error,
     };
   }

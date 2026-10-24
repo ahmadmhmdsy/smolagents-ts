@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T10:35:00+03:00 — 0.2 landed: the answer schema binds to `final_answer`
+
+**State.** Phase 0 Wave 1 has two items in: 0.1 (approval naming) and 0.2 (schema
+binding). `ModelCapabilities.structuredOutput` is deleted, so the model seam no
+longer declares a capability nothing honours. 0.5 and 0.4 remain.
+
+**Did.** A tool-calling agent now receives the bound `outputSchema` as the
+`final_answer` parameter schema `{answer: <schema>}`; a code agent receives it as a
+`FINAL ANSWER SCHEMA` paragraph in its prompt. A mismatch returns as an observation
+on both paths — `action.failed` for a structured call, an appended error for a code
+step — and the loop continues; `complete()` keeps the schema as its last check.
+Deleted `structuredOutput` from `ModelCapabilities` and its three adapter
+assertions; added the schema seam (`answerJsonSchema`, `finalAnswerSpec`,
+`answerSchemaText`, `invalidAnswer`) to the base loop.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 370 tests; models 13 files green.
+
+**Unverified / open.** Nothing pushed.
+
+**Next.** 0.5: `RunSnapshot` becomes `{formatVersion, steps}`, a legacy bare array
+translates, a newer version refuses typed, and the resume tests must stay green.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/test/guardrail.test.ts:54`,
+`docs/plans/2026-10-24-phase-0-execution-plan.md:117`.
+
 ## 2026-10-24T10:20:00+03:00 — 0.1 landed: an approval names its call and its arguments
 
 **State.** Phase 0 Wave 1 is under way and 0.1 is done. An approval carries

@@ -106,7 +106,7 @@ describe("collectCompletion", () => {
   });
 
   it("reports the default capabilities, and their overrides", () => {
-    expect(modelCapabilities()).toEqual({ streaming: true, toolCalls: false, images: false, structuredOutput: false });
-    expect(modelCapabilities({ toolCalls: true })).toEqual({ streaming: true, toolCalls: true, images: false, structuredOutput: false });
+    expect(modelCapabilities()).toEqual({ streaming: true, toolCalls: false, images: false });
+    expect(modelCapabilities({ toolCalls: true })).toEqual({ streaming: true, toolCalls: true, images: false });
   });
 });

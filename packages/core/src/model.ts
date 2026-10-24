@@ -61,7 +61,6 @@ export interface ModelCapabilities {
   streaming: boolean;
   toolCalls: boolean;
   images: boolean;
-  structuredOutput: boolean;
 }
 
 export interface GenerateOptions {
@@ -92,7 +91,6 @@ const DEFAULT_CAPABILITIES: ModelCapabilities = {
   streaming: true,
   toolCalls: false,
   images: false,
-  structuredOutput: false,
 };
 
 export function modelCapabilities(overrides: Partial<ModelCapabilities> = {}): ModelCapabilities {

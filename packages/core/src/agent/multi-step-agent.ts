@@ -23,6 +23,7 @@ import {
   type FinishReason,
   type GenerateOptions,
   type Model,
+  type ToolSpec,
 } from "../model.js";
 import { Monitor } from "../monitoring/monitor.js";
 import { populateTemplate } from "../prompts/populate-template.js";
@@ -31,7 +32,7 @@ import { ToolRegistry } from "../tool/registry.js";
 import type { Tool } from "../tool/tool.js";
 import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
 import { makeRunResult, type RunResult, type RunState } from "./run-result.js";
-import type { ActionOutcome, InterpretedAction } from "./action.js";
+import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
 import { managedAgent, type ManagedAgent } from "./managed-agent.js";
 import {
   withApproval,
@@ -41,7 +42,7 @@ import {
 } from "./approval.js";
 import type { Guardrails } from "./guardrail.js";
 import type { RunStore } from "../session/run-store.js";
-import type { z } from "zod";
+import { z } from "zod";
 
 export interface AgentOptions {
   model: Model;
@@ -649,10 +650,62 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private modelOptions(context: RunContext): GenerateOptions {
     const options: GenerateOptions = { signal: context.signal };
     if (this.advertisesTools) {
-      const specs = this.tools.toSpecs();
+      const specs = [...this.tools.toSpecs()];
+      // The bound answer schema travels as the final_answer parameter schema, so the model
+      // validates against the contract it will be held to instead of discovering it afterwards.
+      const answer = this.finalAnswerSpec();
+      if (answer !== undefined) specs.push(answer);
       if (specs.length > 0) options.tools = specs;
     }
     return options;
+  }
+
+  /** The answer schema as JSON Schema, or undefined when no schema is bound. */
+  protected answerJsonSchema(): Record<string, unknown> | undefined {
+    if (this.outputSchema === undefined) return undefined;
+    const schema = z.toJSONSchema(this.outputSchema, { io: "output" }) as Record<string, unknown>;
+    delete schema["$schema"];
+    return schema;
+  }
+
+  /** The final_answer spec carrying the bound schema, for a flavour that advertises tools. */
+  protected finalAnswerSpec(): ToolSpec | undefined {
+    if (this.outputSchema === undefined) return undefined;
+    const wrapped = z.toJSONSchema(z.object({ answer: this.outputSchema }), { io: "output" }) as Record<
+      string,
+      unknown
+    >;
+    delete wrapped["$schema"];
+    if (wrapped["type"] === "object" && wrapped["additionalProperties"] === undefined) {
+      wrapped["additionalProperties"] = false;
+    }
+    return {
+      name: FINAL_ANSWER_TOOL_NAME,
+      description: "Return the final answer. Its value must satisfy the declared schema.",
+      inputSchema: wrapped,
+    };
+  }
+
+  /** The prompt paragraph that binds the schema for a flavour without tools. */
+  protected answerSchemaText(): string {
+    const schema = this.answerJsonSchema();
+    if (schema === undefined) return "";
+    return (
+      "\n\nFINAL ANSWER SCHEMA\nThe value passed to final_answer must satisfy this JSON schema:\n" +
+      JSON.stringify(schema) +
+      "\nA value that does not satisfy it is rejected, and the error names the offending path."
+    );
+  }
+
+  /** Why a value cannot be the final answer, or undefined when it satisfies the bound schema. */
+  protected invalidAnswer(value: unknown): string | undefined {
+    if (this.outputSchema === undefined) return undefined;
+    const parsed = this.outputSchema.safeParse(value);
+    if (parsed.success) return undefined;
+    const issues = parsed.error.issues.map((issue) =>
+      (issue.path.length === 0 ? "(root)" : issue.path.join(".")) + ": " + issue.message,
+    );
+    return "The final answer failed the output schema — " + issues.join("; ");
   }
 
   /**

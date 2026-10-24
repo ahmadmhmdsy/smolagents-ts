@@ -51,14 +51,38 @@ describe("agent guardrails", () => {
     });
   });
 
-  it("halts when the final answer fails the output schema", async () => {
+  it("returns a schema mismatch as an observation and accepts a corrected answer", async () => {
     const agent = new ToolCallingAgent({
-      model: new MockModel([{ content: "", finishReason: "tool_calls", toolCalls: [finalAnswer("no")] }]),
+      model: new MockModel([
+        { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ town: "x" })] },
+        { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ city: "Baghdad" }, "c2")] },
+      ]),
       tools: [],
-      outputSchema: z.string().min(3),
+      outputSchema: z.object({ city: z.string() }),
     });
 
-    await expect(agent.run("task")).rejects.toMatchObject({ code: "AGENT_GUARDRAIL" });
+    const result = await agent.run("name the city");
+    expect(result.output).toEqual({ city: "Baghdad" });
+    const first = result.steps.find((step) => step.kind === "action");
+    expect(first?.kind === "action" ? first.observations : "").toContain("city");
+  });
+
+  it("advertises the bound schema as the final_answer parameter schema", async () => {
+    const model = new MockModel([
+      { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ city: "Baghdad" })] },
+    ]);
+    const agent = new ToolCallingAgent({
+      model,
+      tools: [],
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    await agent.run("name the city");
+
+    const specs = model.requestOptions[0]?.tools ?? [];
+    const answerSpec = specs.find((spec) => spec.name === FINAL_ANSWER_TOOL_NAME);
+    expect(answerSpec?.inputSchema).toMatchObject({ type: "object", required: ["answer"] });
+    expect(JSON.stringify(answerSpec?.inputSchema)).toContain("\"city\"");
   });
 
   it("reports the validated value when the final answer passes the output schema", async () => {

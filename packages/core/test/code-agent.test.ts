@@ -79,6 +79,43 @@ describe("CodeAgent", () => {
     expect(result?.output).toBe(7);
   });
 
+  it("returns a wrong-shaped final answer as an observation and accepts a corrected one", async () => {
+    const executor = new ScriptedExecutor({
+      handler: (code) => {
+        if (code.includes("final_answer({ town: 'x' })")) return finalAnswerResult({ town: "x" });
+        if (code.includes("final_answer({ city: 'Baghdad' })")) return finalAnswerResult({ city: "Baghdad" });
+        return { logs: "", isFinalAnswer: false, durationMs: 0, toolCallCount: 0 };
+      },
+    });
+    const agent = new CodeAgent({
+      model: new MockModel([
+        fenced("try", "final_answer({ town: 'x' })"),
+        fenced("retry", "final_answer({ city: 'Baghdad' })"),
+      ]),
+      executor,
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    const { result, events } = await drain(agent, "name the city");
+    expect(result?.output).toEqual({ city: "Baghdad" });
+    const firstObservation = events.find(
+      (event) => event.type === "observation.completed" && !event.isFinalAnswer,
+    );
+    expect(
+      firstObservation?.type === "observation.completed" ? firstObservation.text : "",
+    ).toContain("city");
+  });
+
+  it("binds the output schema into the system prompt", () => {
+    const agent = new CodeAgent({
+      model: new MockModel(["x"]),
+      executor: new ScriptedExecutor(),
+      outputSchema: z.object({ city: z.string() }),
+    });
+    expect(agent.systemPrompt).toContain("FINAL ANSWER SCHEMA");
+    expect(agent.systemPrompt).toContain("city");
+  });
+
   it("runs an unfenced answer that calls final_answer", async () => {
     const executor = new ScriptedExecutor({
       handler: (code) =>
