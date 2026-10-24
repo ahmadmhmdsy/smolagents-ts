@@ -33,6 +33,40 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T15:20:00+03:00 — Phase 1 opened: the durability spine
+
+**State.** Phase 0 is closed and pushed nowhere: ten correction commits, `pnpm gate`
+exit 0, core 39 files and 460 tests. The owner said "continue to next phase", so Phase 1
+is now open with its execution plan and `T-42` in `in_progress`. Nothing in Phase 1 has
+landed yet. All the gated rows are unchanged: `T-14` waits on registry credentials,
+`T-39` on the OmniRoute phase choice, `T-16`, `T-18` and `T-21` on owner decisions.
+
+**Did.** Wrote [`docs/plans/2026-10-24-phase-1-execution-plan.md`](docs/plans/2026-10-24-phase-1-execution-plan.md):
+eight strictly ordered items, each with a pre-registered acceptance test, a rollback and
+a file scope, grounded in the durability brief and decision `0023`. Opened `T-42` with
+the wave split: wave A is the record, the pending request, ownership and the journal
+(1.1–1.4, one loop writer); wave B is the file store, the CLI flags, the conversation and
+the fork (1.5–1.8).
+
+**Verified.** Each criterion was checked against the shipped seam before being written:
+the store still saves a `RunSnapshot` under `RunOptions.checkpoint`, `RunState` has two
+values, and the Phase 0.8 contract suite is the one every store item extends. This entry
+is docs only.
+
+**Unverified / open.** No Phase 1 code exists, so no acceptance test has run. Four readings
+are mine to prove or amend in `## Changes`: the
+record's version 2 with a dual reader for v1/v0; `pending` as a fifth approval verdict;
+the digest-and-step binding of a settled approval on replay; and a core file store over an
+injected filesystem seam with the Node binding in the CLI.
+
+**Next.** Write the 1.1 acceptance test red, then the record type and the one commit
+boundary.
+
+**Blockers.** None in this phase.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`,
+`docs/04-tasks.md:56`, `docs/research/competitors/_synthesis/15-durability-design-brief.md`.
+
 ## 2026-10-24T14:20:00+03:00 — Phase 0 closed: all ten items landed
 
 **State.** Phase 0 is done and `T-41` is `done`: ten correction items landed, each with
@@ -151,33 +185,4 @@ gets no deadline; the seam guards the factory, not the interface.
 `packages/core/src/tool/tool.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
 `packages/core/src/errors.ts`, `packages/core/test/tool.test.ts`,
 `packages/core/test/tool-calling-agent.test.ts`.
-
-## 2026-10-24T12:05:00+03:00 — 0.6 landed: a tripped guardrail leaves no blocked text behind
-
-**State.** Six Phase 0 items in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6). Next is 0.7's tool
-deadline, then 0.8's conformance suite, 0.9's budget record and 0.10's tool-less
-structured output.
-
-**Did.** Wrote and enforced the rule in `MultiStepAgent.complete()`: when the output
-tripwire (or the schema safety net) refuses an answer, the answering step's
-`final_answer` call loses its arguments and result, its observation becomes
-`Final answer: [redacted]`, and the checkpoint is re-saved before `run.failed` — so a
-store never keeps the refused value. `buildTrace` scrubs a guarded run's trace the same
-way and marks the run span `redacted: true`.
-
-**Verified.** `pnpm gate` exit 0; core 37 files, 382 tests (1 new: a blocked answer is
-absent from the checkpoint and the trace, which says redacted).
-
-**Unverified / open.** A caller that persists the raw `AgentEvent` stream itself will
-still see the transient `action.result` value; the rule covers the artifacts this
-package writes. Nothing pushed.
-
-**Next.** 0.7: a finite per-tool deadline, a typed `ToolTimeoutError`, cancellation
-kept separate.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
-`packages/core/src/monitoring/trace.ts`,
-`packages/core/test/guardrail.test.ts`.
 <!-- rotate:end -->

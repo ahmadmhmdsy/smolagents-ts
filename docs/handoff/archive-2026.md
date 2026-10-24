@@ -4,6 +4,35 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T12:05:00+03:00 — 0.6 landed: a tripped guardrail leaves no blocked text behind
+
+**State.** Six Phase 0 items in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6). Next is 0.7's tool
+deadline, then 0.8's conformance suite, 0.9's budget record and 0.10's tool-less
+structured output.
+
+**Did.** Wrote and enforced the rule in `MultiStepAgent.complete()`: when the output
+tripwire (or the schema safety net) refuses an answer, the answering step's
+`final_answer` call loses its arguments and result, its observation becomes
+`Final answer: [redacted]`, and the checkpoint is re-saved before `run.failed` — so a
+store never keeps the refused value. `buildTrace` scrubs a guarded run's trace the same
+way and marks the run span `redacted: true`.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 382 tests (1 new: a blocked answer is
+absent from the checkpoint and the trace, which says redacted).
+
+**Unverified / open.** A caller that persists the raw `AgentEvent` stream itself will
+still see the transient `action.result` value; the rule covers the artifacts this
+package writes. Nothing pushed.
+
+**Next.** 0.7: a finite per-tool deadline, a typed `ToolTimeoutError`, cancellation
+kept separate.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/src/monitoring/trace.ts`,
+`packages/core/test/guardrail.test.ts`.
+
 ## 2026-10-24T11:35:00+03:00 — 0.3 landed: a schema failure gets two repairs, then ends the run
 
 **State.** Phase 0 has five items in (0.1, 0.2, 0.3, 0.4, 0.5). Wave 2 continues with

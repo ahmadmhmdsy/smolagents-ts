@@ -9,6 +9,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-30 | emit `code.delta` or stop declaring it | done | this session | `packages/core/src/agent/` | the event is emitted: the loop yields `code.delta` for the code visible so far, and two tests pin the emitted text and the no-event case for a tool-calling agent | `packages/core/src/agent/multi-step-agent.ts:684`; `packages/core/test/core-loop-fixes.test.ts:338-371` |
+| T-41 | Phase 0: the correction pass | done | lead | `packages/core/**`, `packages/exec-remote/**`, `packages/models/**` | - | `docs/plans/2026-10-24-phase-0-execution-plan.md`; 0.1–0.10 landed; `pnpm gate` exit 0; core 39 files, 460 tests |
 
 ## Closed 2026-10-16
 
