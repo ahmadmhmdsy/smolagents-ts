@@ -1,8 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { AgentCancelledError, ToolTimeoutError } from "../src/errors.js";
+import { noopLogger } from "../src/logger.js";
 import { ToolDefinitionError, tool } from "../src/tool/tool.js";
 
+function context(signal: AbortSignal = new AbortController().signal) {
+  return { signal, fetch: globalThis.fetch, callId: "call-1", stepIndex: 0, logger: noopLogger };
+}
+
 describe("tool()", () => {
+  it("fails a call that outlives its deadline with the typed timeout error", async () => {
+    const hanging = tool({
+      name: "hang",
+      description: "Never settles.",
+      inputSchema: z.object({}),
+      timeoutMs: 15,
+      execute: () => new Promise<never>(() => undefined),
+    });
+
+    await expect(hanging.execute({}, context())).rejects.toBeInstanceOf(ToolTimeoutError);
+    await expect(hanging.execute({}, context())).rejects.toThrow(/15 ms/);
+  });
+
+  it("classifies an aborted call as cancellation, not as a timeout", async () => {
+    const hanging = tool({
+      name: "hang",
+      description: "Never settles.",
+      inputSchema: z.object({}),
+      timeoutMs: 60_000,
+      execute: () => new Promise<never>(() => undefined),
+    });
+    const controller = new AbortController();
+
+    const pending = hanging.execute({}, context(controller.signal));
+    controller.abort();
+
+    await expect(pending).rejects.toBeInstanceOf(AgentCancelledError);
+  });
+
   it("keeps an explicit name", () => {
     const t = tool({
       name: "get_weather",
@@ -61,7 +96,7 @@ describe("tool()", () => {
       },
     });
     const parsed = t.inputSchema.parse({ value: "hi" });
-    expect(await t.execute(parsed, {} as never)).toBe("hi");
+    expect(await t.execute(parsed, context())).toBe("hi");
     expect(seen).toEqual([{ value: "hi" }]);
   });
 });

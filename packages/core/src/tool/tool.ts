@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ToolSpec } from "../model.js";
 import type { Logger } from "../logger.js";
+import { resolveToolTimeout, withToolTimeout } from "./timeout.js";
 
 export class ToolDefinitionError extends Error {
   constructor(message: string) {
@@ -27,6 +28,12 @@ export interface ToolDefinition<TIn extends z.ZodType, TOut = unknown> {
   description: string;
   inputSchema: TIn;
   outputSchema?: z.ZodType<TOut>;
+  /**
+   * The tool's own deadline in milliseconds. Defaults to a finite one
+   * (`DEFAULT_TOOL_TIMEOUT_MS`); 0 disables it. A tool that outlives it fails the call with
+   * `ToolTimeoutError`, and an aborted run is reported as cancellation instead.
+   */
+  timeoutMs?: number;
   execute: (input: z.infer<TIn>, ctx: ToolContext) => Promise<TOut> | TOut;
 }
 
@@ -63,9 +70,14 @@ export function tool<TIn extends z.ZodType, TOut = unknown>(
       "Tool name must be a valid JavaScript identifier, got: " + name,
     );
   }
+  const execute = (input: z.infer<TIn>, ctx: ToolContext): Promise<TOut> =>
+    withToolTimeout(name, resolveToolTimeout(definition.timeoutMs), ctx.signal, () =>
+      definition.execute(input, ctx),
+    );
   return {
     ...definition,
     name,
+    execute,
     toSpec(): ToolSpec {
       // z.toJSONSchema emits "$schema" (which providers ignore or reject) and, in input mode, omits
       // "additionalProperties: false" (which strict OpenAI-style function schemas require). Normalise both

@@ -74,6 +74,7 @@ const RUNTIME_EXPORTS = [
   "ToolApprovalError",
   // guardrail seam: tripwires and an output schema
   "AgentGuardrailError",
+  "ToolTimeoutError",
   "AgentSession",
   "FINAL_ANSWER_TOOL_NAME",
   "makeRunResult",

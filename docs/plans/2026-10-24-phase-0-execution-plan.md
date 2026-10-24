@@ -151,3 +151,12 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   refused value. `buildTrace` scrubs a guarded run too — the final-answer tool span loses
   its args and output, the answering step's observation becomes `[redacted]`, and the run
   span carries `redacted: true`.
+- **2026-10-24 — 0.7 as built.** Every tool made by `tool()` now carries a deadline
+  (`DEFAULT_TOOL_TIMEOUT_MS`, 120 s; `ToolDefinition.timeoutMs` overrides it; 0 disables
+  it) and runs through `withToolTimeout`, which only replaces a result when its own timer
+  fired and swallows a losing promise's late rejection. A deadline failure is
+  `ToolTimeoutError` with code `AGENT_TOOL_TIMEOUT` and the limit in its message. An abort
+  stays separate: the tool's own cancellation handler settles first, and only a silent tool
+  gets the wrapper's `AgentCancelledError`; a timer that fires on an aborted run is
+  classified as cancellation. The 120 s default is deliberately loose because a managed
+  agent is a tool too.

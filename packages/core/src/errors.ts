@@ -8,7 +8,8 @@ export type AgentErrorCode =
   | "AGENT_TIMEOUT"
   | "AGENT_CANCELLED"
   | "AGENT_GUARDRAIL"
-  | "AGENT_SNAPSHOT_VERSION";
+  | "AGENT_SNAPSHOT_VERSION"
+  | "AGENT_TOOL_TIMEOUT";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -146,6 +147,21 @@ export class RunSnapshotVersionError extends AgentError {
   }
 }
 
+/** Raised when a tool does not settle inside its deadline. */
+export class ToolTimeoutError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_TOOL_TIMEOUT" });
+    this.name = "ToolTimeoutError";
+  }
+
+  /** The refusal for a tool that outlived its deadline. */
+  static forTool(tool: string, limitMs: number): ToolTimeoutError {
+    return new ToolTimeoutError(
+      'Tool "' + tool + '" did not finish within its ' + String(limitMs) + " ms deadline.",
+    );
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -159,4 +175,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_CANCELLED: AgentCancelledError,
   AGENT_GUARDRAIL: AgentGuardrailError,
   AGENT_SNAPSHOT_VERSION: RunSnapshotVersionError,
+  AGENT_TOOL_TIMEOUT: ToolTimeoutError,
 };

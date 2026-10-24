@@ -31,7 +31,8 @@ Expected result: 37 test files and 367 tests pass, exit code 0. Measured on
 2026-10-21 as "Test Files 37 passed (37)" and "Tests 363 passed (363)";
 Phase 0.1's approval suite replaced two boolean cases with eight named ones,
 Phase 0.2's schema binding added three, the snapshot envelope eight, and the
-repair budget three and the redaction rule one, so the count moved to 382. The
+repair budget three, the redaction rule one and the tool deadline suite four, so the
+count moved to 386. The
 adoption revision reported 27 and 273; the S2a work reported 28 and 286, and
 S4's two release tests took it to 288; S5's planning-lane test added the
 twenty-ninth file and its two cases, S1.5's parity suite added the thirtieth file

@@ -1,4 +1,9 @@
-import { type AgentErrorInfo, AgentToolCallError } from "../errors.js";
+import {
+  type AgentErrorInfo,
+  AgentCancelledError,
+  AgentToolCallError,
+  ToolTimeoutError,
+} from "../errors.js";
 import type { AgentEvent } from "../events.js";
 import type { ActionStep } from "../memory/steps.js";
 import type { ChatCompletion } from "../model.js";
@@ -177,6 +182,10 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     try {
       return { ok: true, output: await definition.execute(args, toolContext) };
     } catch (error) {
+      // Cancellation is the run's outcome, not this call's failure; it must not be flattened into
+      // a tool-call error. A timed-out tool keeps its own typed code so the reader sees the limit.
+      if (error instanceof AgentCancelledError) throw error;
+      if (error instanceof ToolTimeoutError) return { ok: false, error: error.info };
       return {
         ok: false,
         error: new AgentToolCallError(error instanceof Error ? error.message : String(error), { stepIndex })

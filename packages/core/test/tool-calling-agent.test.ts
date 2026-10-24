@@ -33,6 +33,33 @@ async function drain(agent: ToolCallingAgent, task: string) {
 }
 
 describe("ToolCallingAgent", () => {
+  it("reports a tool that outlives its deadline with the typed timeout code", async () => {
+    const hanging = tool({
+      name: "hang",
+      description: "Never settles.",
+      inputSchema: z.object({}),
+      timeoutMs: 15,
+      execute: () => new Promise<never>(() => undefined),
+    });
+    const agent = new ToolCallingAgent({
+      model: new MockModel([
+        { content: "", finishReason: "tool_calls", toolCalls: [call("hang", {})] },
+        {
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: "done" }, "c2")],
+        },
+      ]),
+      tools: [hanging],
+    });
+
+    const { events } = await drain(agent, "call the hanging tool");
+
+    const failure = events.find((event) => event.type === "action.failed");
+    expect(failure?.type === "action.failed" ? failure.error.code : "").toBe("AGENT_TOOL_TIMEOUT");
+    expect(failure?.type === "action.failed" ? failure.error.message : "").toMatch(/15 ms/);
+  });
+
   it("exposes the final_answer name as a constant", () => {
     expect(FINAL_ANSWER_TOOL_NAME).toBe("final_answer");
   });
