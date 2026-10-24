@@ -1,12 +1,19 @@
 import { createHash, randomBytes } from "node:crypto";
-import { MissingPeerDependencyError, SandboxError } from "../errors.js";
+import { EgressUnsupportedError, MissingPeerDependencyError, SandboxError } from "../errors.js";
 import {
   JupyterGateway,
   globalWebSocketFactory,
   type JupyterKernel,
   type WebSocketFactory,
 } from "../jupyter.js";
-import type { RemoteSandbox, SandboxCapabilities, SandboxRunOptions, SandboxRunResult, SandboxStartOptions } from "../sandbox.js";
+import type {
+  EgressPolicy,
+  RemoteSandbox,
+  SandboxCapabilities,
+  SandboxRunOptions,
+  SandboxRunResult,
+  SandboxStartOptions,
+} from "../sandbox.js";
 
 /** The port the gateway listens on when the caller names none. */
 const DEFAULT_CONTAINER_PORT = 8888;
@@ -91,6 +98,12 @@ export interface DockerSandboxOptions {
   readonly readyAttempts?: number;
   readonly readyIntervalMs?: number;
   readonly requestTimeoutMs?: number;
+  /**
+   * What the guest may reach. This backend cannot confine egress until the exec transport
+   * replaces the kernel gateway, so it only accepts `unmanaged`; `deny-all` throws
+   * `EgressUnsupportedError` before an image is built.
+   */
+  readonly egress?: EgressPolicy;
 }
 
 /** A Docker-hosted Jupyter Kernel Gateway. */
@@ -103,6 +116,7 @@ export class DockerSandbox implements RemoteSandbox {
   };
 
   private readonly options: DockerSandboxOptions;
+  private readonly egress: EgressPolicy;
   private readonly token: string;
   private readonly containerPort: number;
   private runtime: ContainerRuntime | undefined;
@@ -112,12 +126,14 @@ export class DockerSandbox implements RemoteSandbox {
 
   constructor(options: DockerSandboxOptions = {}) {
     this.options = options;
+    this.egress = options.egress ?? "unmanaged";
     this.token = options.token ?? randomBytes(16).toString("base64url");
     this.containerPort = options.containerPort ?? DEFAULT_CONTAINER_PORT;
     this.runtime = options.runtime;
   }
 
   async start(options: SandboxStartOptions): Promise<void> {
+    if (this.egress === "deny-all") throw new EgressUnsupportedError("docker", this.egress);
     if (this.disposed) throw new SandboxError("This Docker sandbox has been disposed; one sandbox serves one run.");
     if (this.containerId !== undefined) throw new SandboxError("This Docker sandbox has already started.");
     try {

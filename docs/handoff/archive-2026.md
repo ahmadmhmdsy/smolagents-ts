@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T09:45:00+03:00 — the delegation ruling lands: no blackboard; the approved intake is folded into the plan
+
+**State.** Decisions 0020–0025 are accepted. `0025` answers `MA-05`: no shared
+data blackboard; a typed report, a message that is a record entry delivered at the
+recipient's next step, and a claim board only when a background child exists,
+carrying claims and never data. Delegation ships opt-in; the team shelf (a named
+peer roster, nine tools, a client panel) is out of scope. The plan now carries the
+dive's ten adoptable items: 0.1 and 0.4 gain the closed approval outcomes, the
+`never` policy, the turn-enclosed ask and the deny-only stage; 0.5 one migration per
+integer; 0.7 the around-wrapper deadline; 0.8 the interface contract suite; 0.9 the
+clamped record budget; 1.3 repair-forward. Phase 2 is cut into two slices.
+
+**Did.** Wrote `docs/09-decisions/0025-no-blackboard.md` and its index row; edited
+the plan's header, non-goals, six Phase 0 rows, 1.3, the Phase 2 section (two
+slices; send 2.6, wait 2.7, claim board 2.8), the risk note, the open questions
+(`MA-05` closed) and the Tasks note.
+
+**Verified.** `validate_context.py`: 0 errors, 0 warnings; `rotate.py --check`
+clean; `pnpm --filter docs-site test`: 25 passed. No source or test file changed,
+so `pnpm gate` was not run.
+
+**Unverified / open.** The program is still `Authorized by: not yet approved` and
+`T-41` stays unopened. No package source changed.
+
+**Next.** The owner approves the program; then write the Phase 0 execution plan and
+start Wave 1 (0.1, 0.2, 0.5, with 0.4 beside them on `exec-remote`).
+
+**Blockers.** Program approval; registry credentials for `T-14`.
+
+**Artifacts.** `docs/09-decisions/0025-no-blackboard.md:1`,
+`docs/plans/2026-10-22-apply-the-competitor-findings-plan.md:95`.
+
 ## 2026-10-24T09:20:00+03:00 — deepseek-harness filed as a post-synthesis dive; its team model answers the delegation question
 
 **State.** The harness we run inside is dive twenty-two: five files under `docs/research/competitors/deepseek-harness/` plus a register addendum row, read at `687f282e86` (MIT, 0.2.1-rc.2; the owner's rc.3 is newer and changes client menus only). No package source changed; the plan is unapproved and nothing from this dive is applied to it.

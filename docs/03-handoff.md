@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T11:05:00+03:00 — 0.4 landed: egress is a policy the backends honour or refuse
+
+**State.** Phase 0 Wave 1 is complete: 0.1, 0.2, 0.5 and 0.4 are in, each with its
+pre-registered acceptance test and a green gate. Wave 2 (0.3, 0.6, 0.7, 0.8, 0.9, 0.10)
+starts next.
+
+**Did.** Added `EgressPolicy` (`unmanaged | deny-all`) beside `network` on the
+exec-remote seam, where `network` stays a description of reach. E2B enforces deny-all by
+passing the vendor's own outbound rule at create (the client seam carries the decision)
+and reports `network: "none"`; Docker and process throw the new
+`EgressUnsupportedError` before an image is built or an interpreter spawned, so the
+option is never accepted and ignored. The root entry exports the refusal and the type.
+
+**Verified.** `pnpm gate` exit 0; exec-remote 12 files, 92 tests (3 new: seam create
+option, docker refusal without a build, process refusal without a spawn).
+
+**Unverified / open.** The vendor mapping itself is behind the eager client seam, so no
+test reaches the E2B SDK's own `network` field; a live denial is unproven (the suite has
+never touched a live sandbox). Nothing pushed.
+
+**Next.** Wave 2, in plan order: 0.3 (approval policy hook), then 0.6/0.7/0.8/0.9/0.10.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/exec-remote/src/sandbox.ts`,
+`packages/exec-remote/src/backends/e2b.ts`,
+`packages/exec-remote/src/errors.ts`.
+
 ## 2026-10-24T10:45:00+03:00 — 0.5 landed: a checkpoint says which format it is
 
 **State.** Phase 0 Wave 1 has 0.1, 0.2 and 0.5 in. 0.4 (remote egress) is the last Wave 1
@@ -144,36 +172,4 @@ policy + one approval event per ask, red test first.
 
 **Artifacts.** `docs/plans/2026-10-24-phase-0-execution-plan.md:1`,
 `docs/04-tasks.md:56`.
-
-## 2026-10-24T09:45:00+03:00 — the delegation ruling lands: no blackboard; the approved intake is folded into the plan
-
-**State.** Decisions 0020–0025 are accepted. `0025` answers `MA-05`: no shared
-data blackboard; a typed report, a message that is a record entry delivered at the
-recipient's next step, and a claim board only when a background child exists,
-carrying claims and never data. Delegation ships opt-in; the team shelf (a named
-peer roster, nine tools, a client panel) is out of scope. The plan now carries the
-dive's ten adoptable items: 0.1 and 0.4 gain the closed approval outcomes, the
-`never` policy, the turn-enclosed ask and the deny-only stage; 0.5 one migration per
-integer; 0.7 the around-wrapper deadline; 0.8 the interface contract suite; 0.9 the
-clamped record budget; 1.3 repair-forward. Phase 2 is cut into two slices.
-
-**Did.** Wrote `docs/09-decisions/0025-no-blackboard.md` and its index row; edited
-the plan's header, non-goals, six Phase 0 rows, 1.3, the Phase 2 section (two
-slices; send 2.6, wait 2.7, claim board 2.8), the risk note, the open questions
-(`MA-05` closed) and the Tasks note.
-
-**Verified.** `validate_context.py`: 0 errors, 0 warnings; `rotate.py --check`
-clean; `pnpm --filter docs-site test`: 25 passed. No source or test file changed,
-so `pnpm gate` was not run.
-
-**Unverified / open.** The program is still `Authorized by: not yet approved` and
-`T-41` stays unopened. No package source changed.
-
-**Next.** The owner approves the program; then write the Phase 0 execution plan and
-start Wave 1 (0.1, 0.2, 0.5, with 0.4 beside them on `exec-remote`).
-
-**Blockers.** Program approval; registry credentials for `T-14`.
-
-**Artifacts.** `docs/09-decisions/0025-no-blackboard.md:1`,
-`docs/plans/2026-10-22-apply-the-competitor-findings-plan.md:95`.
 <!-- rotate:end -->

@@ -9,6 +9,7 @@
 export { VERSION } from "./version.js";
 export { RemoteExecutor, type RemoteExecutorOptions } from "./executor.js";
 export {
+  EgressUnsupportedError,
   MissingPeerDependencyError,
   PickleRefusedError,
   SandboxError,
@@ -17,6 +18,7 @@ export {
   UnsupportedNodeVersionError,
 } from "./errors.js";
 export type {
+  EgressPolicy,
   RemoteSandbox,
   RemoteSandboxFactory,
   SandboxCapabilities,

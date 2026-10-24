@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { SandboxError } from "../errors.js";
+import { EgressUnsupportedError, SandboxError } from "../errors.js";
 import { buildStepLoopSource, parseFrameLine } from "../shim-source.js";
+import type { EgressPolicy } from "../sandbox.js";
 import type {
   RemoteSandbox,
   SandboxCapabilities,
@@ -30,6 +31,11 @@ export interface ProcessSandboxOptions {
    * removed from the child's environment instead of inherited.
    */
   readonly env?: Readonly<Record<string, string | undefined>>;
+  /**
+   * What the guest may reach. This backend runs with this host's own network, so it can only
+   * accept `unmanaged`; `deny-all` throws `EgressUnsupportedError` before the interpreter starts.
+   */
+  readonly egress?: EgressPolicy;
 }
 
 const DEFAULT_GRACE_PERIOD_MS = 2_000;
@@ -111,6 +117,7 @@ export class ProcessSandbox implements RemoteSandbox {
   };
 
   private readonly options: ProcessSandboxOptions;
+  private readonly egress: EgressPolicy;
   private child: ChildProcessWithoutNullStreams | undefined;
   private stdoutBuffer = "";
   private stderrBuffer = "";
@@ -122,6 +129,7 @@ export class ProcessSandbox implements RemoteSandbox {
 
   constructor(options: ProcessSandboxOptions = {}) {
     this.options = options;
+    this.egress = options.egress ?? "unmanaged";
   }
 
   get pid(): number | undefined {
@@ -133,6 +141,7 @@ export class ProcessSandbox implements RemoteSandbox {
   }
 
   async start(options: SandboxStartOptions): Promise<void> {
+    if (this.egress === "deny-all") throw new EgressUnsupportedError("process", this.egress);
     if (this.disposed) throw new SandboxError("This process sandbox has been disposed; one sandbox serves one run.");
     if (this.child !== undefined) throw new SandboxError("This process sandbox has already started.");
     // The prelude is the program, not a script on stdin: CPython reads a piped program to EOF

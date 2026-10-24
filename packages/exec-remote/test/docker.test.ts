@@ -6,7 +6,7 @@ import {
   type ContainerRuntime,
   type ImageBuildRequest,
 } from "../src/backends/docker.js";
-import { MissingPeerDependencyError, SandboxError } from "../src/errors.js";
+import { EgressUnsupportedError, MissingPeerDependencyError, SandboxError } from "../src/errors.js";
 import { globalWebSocketFactory } from "../src/jupyter.js";
 import { startJupyterLoopback, type LoopbackJupyter } from "./ws-server.js";
 
@@ -159,6 +159,16 @@ describe("the Docker backend", () => {
     await docker.dispose();
     expect(runtime.stops).toEqual(["container-1"]);
     expect(runtime.removes).toEqual(["container-1"]);
+  });
+
+  it("refuses deny-all before it builds an image", async () => {
+    const runtime = recordingRuntime({ host: "127.0.0.1", port: 8888 });
+    const sandbox = new DockerSandbox({ runtime, egress: "deny-all" });
+
+    await expect(sandbox.start({ shimSource: "print('prelude')" })).rejects.toThrow(
+      EgressUnsupportedError,
+    );
+    expect(runtime.builds).toEqual([]);
   });
 
   it("refuses a missing optional peer with the typed error instead of burying it", async () => {

@@ -1,7 +1,7 @@
 import { ToolRegistry, noopLogger } from "@smolagents-ts/core";
 import { describe, expect, it } from "vitest";
 import { ProcessSandbox } from "../src/backends/process.js";
-import { SandboxError } from "../src/errors.js";
+import { EgressUnsupportedError, SandboxError } from "../src/errors.js";
 import { createProcessExecutor } from "../src/process.js";
 import { buildShimSource } from "../src/shim-source.js";
 
@@ -118,6 +118,15 @@ async function readEnvironmentVariable(sandbox: ProcessSandbox, name: string): P
 }
 
 describe("the process backend's child environment", () => {
+  it("refuses deny-all before it spawns an interpreter", async () => {
+    const sandbox = new ProcessSandbox({ egress: "deny-all", program: "definitely-not-python" });
+
+    await expect(sandbox.start({ shimSource: "print('x')" })).rejects.toThrow(
+      EgressUnsupportedError,
+    );
+    expect(sandbox.isRunning).toBe(false);
+  });
+
   it("reports direct network access and an allow-listed environment", () => {
     const sandbox = new ProcessSandbox();
     expect(sandbox.capabilities).toEqual({

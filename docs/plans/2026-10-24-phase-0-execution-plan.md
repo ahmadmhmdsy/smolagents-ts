@@ -133,3 +133,8 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   (`AGENT_SNAPSHOT_VERSION`) instead of being half-read. Translation lives beside the
   type in `packages/core/src/session/run-store.ts`, and `RunStore.load` is typed to
   accept either stored shape, so an existing store compiles unchanged.
+- **2026-10-24 — 0.4 as built.** `EgressPolicy` (`unmanaged | deny-all`) sits on the
+  exec-remote seam beside `network`, which stays a description of reach: the E2B backend
+  passes `deny-all` to the vendor at create and reports `network: "none"`, while the
+  Docker and process backends throw `EgressUnsupportedError` before an image is built or
+  an interpreter is spawned. The seam test drives the E2B client double's create call.

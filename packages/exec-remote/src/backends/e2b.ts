@@ -1,4 +1,5 @@
 import { MissingPeerDependencyError, SandboxError, ToolRoundTripUnsupportedError, UnsupportedNodeVersionError } from "../errors.js";
+import type { EgressPolicy } from "../sandbox.js";
 import type {
   RemoteSandbox,
   SandboxCapabilities,
@@ -45,7 +46,12 @@ export interface E2BSandboxLike {
 }
 
 export interface E2BClient {
-  create(options: { readonly apiKey?: string; readonly timeoutMs: number; readonly template?: string }): Promise<E2BSandboxLike>;
+  create(options: {
+    readonly apiKey?: string;
+    readonly timeoutMs: number;
+    readonly template?: string;
+    readonly egress: EgressPolicy;
+  }): Promise<E2BSandboxLike>;
 }
 
 export interface E2BSandboxOptions {
@@ -57,6 +63,12 @@ export interface E2BSandboxOptions {
   readonly timeoutMs?: number;
   /** Only for tests: the Node version to check the vendor floor against. */
   readonly nodeVersion?: string;
+  /**
+   * What the guest may reach. This backend enforces `deny-all` by passing the vendor's own
+   * network option at create, so the guarantee is the vendor's and the capability reports the
+   * reduced reach.
+   */
+  readonly egress?: EgressPolicy;
 }
 
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -74,12 +86,7 @@ export function satisfiesNodeFloor(actual: string, required: string): boolean {
 }
 
 export class E2BSandbox implements RemoteSandbox {
-  readonly capabilities: SandboxCapabilities = {
-    isolation: "remote",
-    network: "direct",
-    timers: true,
-    toolRoundTrip: false,
-  };
+  readonly capabilities: SandboxCapabilities;
 
   private readonly options: E2BSandboxOptions;
   private client: E2BClient | undefined;
@@ -92,6 +99,12 @@ export class E2BSandbox implements RemoteSandbox {
       throw new UnsupportedNodeVersionError("e2b", E2B_NODE_FLOOR, actual);
     }
     this.options = options;
+    this.capabilities = {
+      isolation: "remote",
+      network: options.egress === "deny-all" ? "none" : "direct",
+      timers: true,
+      toolRoundTrip: false,
+    };
   }
 
   get sandboxId(): string | undefined {
@@ -103,8 +116,14 @@ export class E2BSandbox implements RemoteSandbox {
     if (this.sandbox !== undefined) throw new SandboxError("This E2B sandbox has already started.");
     const client = this.options.client ?? (await loadE2BClient());
     this.client = client;
-    const createOptions: { apiKey?: string; template?: string; timeoutMs: number } = {
+    const createOptions: {
+      apiKey?: string;
+      template?: string;
+      timeoutMs: number;
+      egress: EgressPolicy;
+    } = {
       timeoutMs: this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      egress: this.options.egress ?? "unmanaged",
     };
     if (this.options.apiKey !== undefined) createOptions.apiKey = this.options.apiKey;
     if (this.options.template !== undefined) createOptions.template = this.options.template;
@@ -252,6 +271,9 @@ async function loadE2BClient(): Promise<E2BClient> {
       const vendorOptions: Record<string, unknown> = { timeoutMs: options.timeoutMs };
       if (options.apiKey !== undefined) vendorOptions["apiKey"] = options.apiKey;
       if (options.template !== undefined) vendorOptions["template"] = options.template;
+      // Deny-all is the vendor's own outbound rule, evaluated in the sandbox's network layer:
+      // the vendor's guarantee, not one this package draws.
+      if (options.egress === "deny-all") vendorOptions["network"] = { denyOut: ["0.0.0.0/0"] };
       const created = await Sandbox.create(vendorOptions);
       return {
         sandboxId: typeof created.sandboxId === "string" ? created.sandboxId : "e2b",

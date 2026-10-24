@@ -67,6 +67,25 @@ export class SandboxError extends Error {
   }
 }
 
+/** A backend was asked for an egress policy it cannot enforce. */
+export class EgressUnsupportedError extends Error {
+  readonly backend: string;
+  readonly egress: string;
+
+  constructor(backend: string, egress: string) {
+    super(
+      'The ' +
+        backend +
+        ' backend cannot enforce the egress policy "' +
+        egress +
+        '": it offers no confinement to apply, so it would be accepted and ignored. Ask for "unmanaged", or use a backend that can deny egress.',
+    );
+    this.name = "EgressUnsupportedError";
+    this.backend = backend;
+    this.egress = egress;
+  }
+}
+
 /** The vendor SDK's own Node floor is above the one this package declares. */
 export class UnsupportedNodeVersionError extends Error {
   readonly backend: string;

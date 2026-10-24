@@ -19,6 +19,7 @@ interface FakeClient extends E2BClient {
   readonly codes: string[];
   readonly kills: string[];
   readonly creates: number;
+  readonly createOptions: { egress?: string }[];
 }
 
 function fakeClient(
@@ -31,6 +32,7 @@ function fakeClient(
 ): FakeClient {
   const codes: string[] = [];
   const kills: string[] = [];
+  const createOptions: { egress?: string }[] = [];
   let creates = 0;
   const sandbox: E2BSandboxLike = {
     sandboxId: "sbx-1",
@@ -61,10 +63,12 @@ function fakeClient(
   return {
     codes,
     kills,
+    createOptions,
     get creates() {
       return creates;
     },
-    async create() {
+    async create(request) {
+      createOptions.push({ egress: request.egress });
       creates += 1;
       if (options.failCreate === true) throw new Error("no api key");
       return sandbox;
@@ -81,6 +85,16 @@ describe("the E2B backend", () => {
     expect(satisfiesNodeFloor("22.19.0", "22.19.0")).toBe(true);
     expect(satisfiesNodeFloor("22.18.1", "22.19.0")).toBe(false);
     expect(satisfiesNodeFloor("24.0.0", "22.19.0")).toBe(true);
+  });
+
+  it("passes deny-all through the client seam and reports no reach", async () => {
+    const client = fakeClient();
+    const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0", egress: "deny-all" });
+    expect(sandbox.capabilities.network).toBe("none");
+
+    await sandbox.start({ shimSource: "PRELUDE" });
+
+    expect(client.createOptions).toEqual([{ egress: "deny-all" }]);
   });
 
   it("installs the prelude once, runs a one-shot step and reports the frames and output", async () => {

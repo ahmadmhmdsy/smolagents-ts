@@ -27,6 +27,13 @@ export type SandboxFrame =
   | { readonly type: "error"; readonly name: string; readonly message: string; readonly traceback?: string }
   | { readonly type: "step_end" };
 
+/**
+ * What the host asks a backend to allow the guest to reach. `unmanaged` declares no policy;
+ * `deny-all` asks for confinement, which a backend either enforces or refuses before a guest
+ * starts — it is never accepted and ignored.
+ */
+export type EgressPolicy = "unmanaged" | "deny-all";
+
 /** What this backend honestly offers the core's `ExecutorCapabilities`. */
 export interface SandboxCapabilities {
   readonly isolation: ExecutorIsolation;

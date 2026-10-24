@@ -16,6 +16,7 @@ function values(namespace: object): string[] {
 describe("the pinned public surface", () => {
   it("the root entry carries the neutral executor and the typed refusals", () => {
     expect(values(root)).toEqual([
+      "EgressUnsupportedError",
       "MissingPeerDependencyError",
       "PickleRefusedError",
       "RemoteExecutor",
