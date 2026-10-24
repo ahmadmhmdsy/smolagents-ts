@@ -88,6 +88,23 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
       case "toolcalls.requested":
         if (step !== undefined) step.attributes.toolCalls = event.calls.length;
         break;
+      case "tool.policy":
+        (step ?? root).attributes.policy = {
+          advertised: event.advertised,
+          hidden: event.hidden.map((entry) => entry.name),
+          forced: event.forced,
+          required: event.required.map((entry) => entry.tool),
+        };
+        break;
+      case "tool.requirementUnmet":
+        root.children.push(
+          span("tool.requirementUnmet." + event.tool, at, {
+            stepIndex: event.stepIndex,
+            tool: event.tool,
+            reason: event.reason,
+          }),
+        );
+        break;
       case "observation.completed":
         if (step !== undefined) {
           step.attributes.observation = event.text;

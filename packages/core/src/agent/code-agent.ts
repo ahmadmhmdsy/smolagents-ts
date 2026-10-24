@@ -38,7 +38,9 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
         managedAgentDescriptions: this.renderManagedAgents(),
         language: this.executor.language === "python" ? "Python" : "JavaScript",
         ...(customInstructions === undefined ? {} : { customInstructions }),
-      }) + this.answerSchemaText()
+      }) +
+      this.answerSchemaText() +
+      this.renderToolPolicyNotice()
     );
   }
 
@@ -164,9 +166,10 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
    */
   private journaledTools(context: RunContext): ToolRegistry {
     const stepId = context.openStep?.stepId;
-    if (stepId === undefined || !this.journals(context)) return this.tools;
+    const registry = this.stepRegistry();
+    if (stepId === undefined || !this.journals(context)) return registry;
     return new ToolRegistry(
-      this.tools.list().map((definition) => this.journaledTool(definition, context, stepId)),
+      registry.list().map((definition) => this.journaledTool(definition, context, stepId)),
     );
   }
 

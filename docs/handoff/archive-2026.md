@@ -4,6 +4,27 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T02:05:00+03:00 — Phase 3 closed: memory and streams
+
+**State.** Phase 3 is complete; 3.1 and 3.2 are landed and the exit criterion runs as two cases.
+`T-44` is done and the parent plan's row says so. Nothing pushed; Phase 4 is not opened.
+
+**Did.** The exit test `phase-3-exit.test.ts` (54th core file) runs the parent plan's criterion
+over a `FileRunStore`: a three-note session condenses, `buildTrace` carries a
+`memory.condensed` span whose forgotten ids equal the event's, and the record keeps the step and
+the event; a reader's kept cursor, followed through a second store over the same files after a
+continuation, returns exactly the later events with the new cursor and no truncation. The report
+`docs/reports/2026-10-24-phase-3-report.md` records the outcome, the evidence, the two parent rows
+and the open items; the execution plan is marked complete with a close entry.
+
+**Verified.** Core 54 files/605 tests, CLI 11/77, react 12/56; pins core 115, react 13. `pnpm
+gate` exit 0; validator 0/0; rotate clean. Commits: 3.1 `4631f0c`, 3.2 `cc7e947`, close follows.
+
+**Unverified / open.** Condensation thresholds are character estimates, not a tokenizer; the event
+cap counts entries, not bytes; `useRunEvents` re-reads the retained tail per commit; a store that
+never calls `watch` listeners leaves a live client stale until it remounts. Publishing still waits
+on `T-14` credentials.
+
 ## 2026-10-25T01:40:00+03:00 — 3.2: the event log and the cursor
 
 **State.** Phase 3 is open; 3.1 and 3.2 are landed, and the exit criterion is next. `T-44` stays

@@ -55,7 +55,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       managedAgentDescriptions: toolCalls ? this.renderManagedAgents() : "",
       ...(customInstructions === undefined ? {} : { customInstructions }),
     });
-    if (toolCalls) return base;
+    if (toolCalls) return base + this.renderToolPolicyNotice();
     // A model that cannot call tools cannot be handed the answer as a final_answer call. The
     // schema is bound in the prompt instead, and the loop repairs a wrong-shaped reply turn by
     // turn: that path is what makes structured output universal (decision 0020).
@@ -63,7 +63,8 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       base +
       "\n\nTEXT ANSWERS\nThis model cannot call tools, so do not emit a tool call. Reply with the final answer as JSON text" +
       (this.answerJsonSchema() === undefined ? "." : ", satisfying the schema below.") +
-      this.answerSchemaText()
+      this.answerSchemaText() +
+      this.renderToolPolicyNotice()
     );
   }
 
@@ -136,7 +137,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
         continue;
       }
 
-      const definition = this.tools.get(request.name);
+      const definition = this.stepRegistry().get(request.name);
       if (definition === undefined) {
         const info = new AgentToolCallError("Unknown tool: " + request.name, { stepIndex }).info;
         yield { type: "action.failed", callId, name: request.name, error: info };

@@ -24,7 +24,8 @@ export type AgentErrorCode =
   | "AGENT_TASK_STALE_REVISION"
   | "AGENT_TASK_BLOCKED"
   | "AGENT_TASK_DELETED"
-  | "AGENT_EFFECT_UNKNOWN";
+  | "AGENT_EFFECT_UNKNOWN"
+  | "AGENT_TOOL_POLICY";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -338,6 +339,21 @@ export class ToolTimeoutError extends AgentError {
   }
 }
 
+/**
+ * Raised when the step's tool policy refuses a call: the tool is hidden from the model but a
+ * scripted or generated call still reached it. The refusal names the tool and the reason the
+ * policy gave, so the observation explains the absence instead of reporting an unknown tool.
+ */
+export class ToolPolicyDeniedError extends AgentError {
+  readonly tool: string | undefined;
+
+  constructor(message: string, options: AgentErrorOptions & { readonly tool?: string } = {}) {
+    super(message, { ...options, code: "AGENT_TOOL_POLICY" });
+    this.name = "ToolPolicyDeniedError";
+    this.tool = options.tool;
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -367,4 +383,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_TASK_BLOCKED: TaskBlockedError,
   AGENT_TASK_DELETED: TaskDeletedError,
   AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
+  AGENT_TOOL_POLICY: ToolPolicyDeniedError,
 };

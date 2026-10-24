@@ -277,6 +277,33 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.4 — Per-step tool policy as data (2026-10-24)
+
+Landed as `packages/core/test/tool-policy.test.ts` (13 tests, the 55th core file, watched red
+on the missing module), plus two pin cases for the new error. The policy types and the pure
+helpers live in the new internal `src/tool/policy.ts`; `AgentOptions.toolPolicy` accepts a
+policy or a provider, the provider receiving the step's run id, index, task, memory, state and
+usage.
+
+`mergeToolPolicy` intersects two allowed sets, unions hidden entries by name keeping the first
+reason, drops a forced name the allowed set does not admit (recording why) and concatenates
+requirements deduped by tool. `applyToolPolicy` returns the step's registry in insertion
+order with each hidden tool replaced by a stub that throws `ToolPolicyDeniedError`
+(`AGENT_TOOL_POLICY`, naming the reason), and `advertisedToolRegistry` is the view without
+those stubs. A static policy is validated where it is declared: a forced or required name no
+tool registers throws `ToolDefinitionError` at construction.
+
+The loop resolves one view per step, before the request is built, and every reader uses it:
+`renderToolDescriptions`, the managed-agent section, `modelOptions`,
+`CodeAgent.journaledTools` and the `ToolCallingAgent` lookup. The prompt gains a tool
+requirements paragraph naming a forced tool and each requirement. An answering step whose forced
+tool has not run in that step, or whose required tool has not run in the run, becomes a
+correction observation with one `tool.requirementUnmet` event per unmet entry; a second refusal
+is allowed, the third ends the run with `AgentGuardrailError`. `tool.policy` is announced once
+per changed view, and `buildTrace` records both events. One runtime name,
+`ToolPolicyDeniedError`, plus type-only policy exports; core pins 108 → 109, and core is 55
+files / 620 tests.
+
 ### 4.3 — Progress, cancellation and typed notifications (2026-10-24)
 
 Landed as `packages/mcp/test/notifications.test.ts` (5 tests, watched red on the missing

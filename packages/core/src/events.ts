@@ -25,6 +25,15 @@ export type AgentEventPayload =
   | { type: "action.failed"; callId: string; name: string; error: AgentErrorInfo }
   | { type: "approval.decided"; requestId: string; digest: string; name: string; stepIndex: number; outcome: ApprovalOutcome; reason?: string }
   | { type: "toolcalls.requested"; stepIndex: number; calls: ToolCall[] }
+  | {
+      type: "tool.policy";
+      stepIndex: number;
+      advertised: readonly string[];
+      hidden: readonly { name: string; reason?: string }[];
+      forced: readonly string[];
+      required: readonly { tool: string; reason: string }[];
+    }
+  | { type: "tool.requirementUnmet"; stepIndex: number; tool: string; reason: string }
   | { type: "logs.appended"; stepIndex: number; text: string }
   | { type: "observation.completed"; stepIndex: number; text: string; isFinalAnswer: boolean }
   | { type: "message.delta"; text: string }
@@ -102,6 +111,8 @@ export function describeEvent(event: AgentEvent): string {
     case "action.failed": return event.name + " failed";
     case "approval.decided": return event.outcome === "allowed-once" ? "approval granted" : "approval " + event.outcome;
     case "toolcalls.requested": return String(event.calls.length) + " tool call(s)";
+    case "tool.policy": return "tools for this step";
+    case "tool.requirementUnmet": return event.tool + " required";
     case "logs.appended": return "output";
     case "observation.completed": return event.isFinalAnswer ? "final answer" : "observation";
     case "message.delta": return "message";

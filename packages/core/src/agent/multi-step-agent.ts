@@ -46,8 +46,26 @@ import { digestOf } from "../utils/digest.js";
 import { populateTemplate } from "../prompts/populate-template.js";
 import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
 import { ToolRegistry } from "../tool/registry.js";
+import {
+  advertisedToolRegistry,
+  applyToolPolicy,
+  isEmptyToolPolicy,
+  mergeToolPolicy,
+  toolPolicySignature,
+  validateToolPolicy,
+  type MergedToolPolicy,
+  type ToolPolicy,
+  type ToolPolicyContext,
+  type ToolPolicyProvider,
+} from "../tool/policy.js";
 import { ToolDefinitionError, type Tool } from "../tool/tool.js";
-import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
+import {
+  type ChatMessage,
+  type TokenUsage,
+  type ToolCall,
+  EMPTY_TOKEN_USAGE,
+  addTokenUsage,
+} from "../types.js";
 import { makeRunResult, type RunResult, type RunState } from "./run-result.js";
 import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
 import { managedAgent, type ManagedAgent } from "./managed-agent.js";
@@ -147,6 +165,19 @@ export interface AgentOptions {
    * a typed `run.limitReached` reason. Omitted fields take the ceiling.
    */
   limits?: RunLimits;
+  /**
+   * What this run may show and call, as data. A policy narrows the registered tools; a provider
+   * is asked once per step and may narrow it further. Omitted, every tool is visible and callable,
+   * exactly as before.
+   */
+  toolPolicy?: ToolPolicy | ToolPolicyProvider;
+}
+
+/** One step's resolved view of the tool set: what is advertised, what runs, and the policy. */
+interface StepToolView {
+  readonly advertised: ToolRegistry;
+  readonly registry: ToolRegistry;
+  readonly policy: MergedToolPolicy;
 }
 
 /**
@@ -288,6 +319,9 @@ export type AgentEventHandler<T extends AgentEventType> = (event: AgentEventOf<T
 /** How many schema-failure repairs one run may spend before the mismatch ends it. */
 const MAX_ANSWER_REPAIRS = 2;
 
+/** How many policy refusals one run may spend before the unmet requirement ends it. */
+const MAX_POLICY_REPAIRS = 2;
+
 const PLANNING_INSTRUCTION =
   "Before you continue, write a short numbered plan for the remaining work. Reply with the plan only.";
 
@@ -338,6 +372,18 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly guardrails: Guardrails | undefined;
   private readonly outputSchema: z.ZodType | undefined;
   private readonly condensation: CondensationOptions | undefined;
+  /** The run's tool policy, or the provider the loop asks once per step. */
+  private readonly toolPolicy: ToolPolicy | ToolPolicyProvider | undefined;
+  /** The step in flight's resolved tool view; undefined until the first step resolves one. */
+  private stepView: StepToolView | undefined;
+  /** Refusals spent by the run in flight; the budget itself is the module constant. */
+  private policyRepairs = 0;
+  /** Tool names that completed a call in this run, for a "require" check. */
+  private readonly policyCalled = new Set<string>();
+  /** Tool names that completed a call in the step in flight, for a "forced" check. */
+  private stepCalled = new Set<string>();
+  /** What the last announced view looked like, so an unchanged policy is not re-announced. */
+  private lastPolicySignature: string | undefined;
 
   constructor(options: AgentOptions) {
     this.model = options.model;
@@ -349,6 +395,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.guardrails = options.guardrails;
     this.outputSchema = options.outputSchema;
     this.condensation = options.condensation;
+    this.toolPolicy = options.toolPolicy;
     const managedAgents = options.managedAgents ?? [];
     const transfers = options.transfers ?? [];
     // Managed agents and transfers are added to this agent's registry, so a caller's registry is
@@ -407,6 +454,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
             });
       this.tools.add(gated);
       this.transferNames.add(wrapped.name);
+    }
+    // A static policy is checked where it is declared; a provider's answer is checked per step,
+    // because only then does the loop know which names it names.
+    if (this.toolPolicy !== undefined && typeof this.toolPolicy !== "function") {
+      validateToolPolicy(this.tools, this.toolPolicy);
     }
   }
 
@@ -481,16 +533,120 @@ export abstract class MultiStepAgent<TOut = unknown> {
     return this.customInstructions;
   }
 
+  /** The step's advertised tools: what the prompt and the request may name. */
+  protected advertisedRegistry(): ToolRegistry {
+    return this.stepView?.advertised ?? this.tools;
+  }
+
+  /** The step's runnable tools: what the executor and the lookup may run, hidden ones stubbed. */
+  protected stepRegistry(): ToolRegistry {
+    return this.stepView?.registry ?? this.tools;
+  }
+
+
+  /**
+   * Ask the policy for this step and build the one view every reader uses: the advertised
+   * registry for the prompt and the request, the runnable registry for the executor and the
+   * lookup. Called once per step, before the request is built.
+   */
+  private async resolveStepView(context: RunContext, stepIndex: number): Promise<StepToolView> {
+    const policy = this.toolPolicy;
+    let merged: MergedToolPolicy;
+    if (typeof policy === "function") {
+      const contextForPolicy: ToolPolicyContext = {
+        runId: context.runId,
+        stepIndex,
+        task: context.task,
+        memory: this.memory,
+        state: context.state as ReadonlyMap<string, unknown>,
+        usage: context.usage,
+      };
+      const stepPolicy = await policy(contextForPolicy);
+      validateToolPolicy(this.tools, stepPolicy, "The tool policy provider");
+      merged = mergeToolPolicy(undefined, stepPolicy);
+    } else {
+      merged = mergeToolPolicy(undefined, policy);
+    }
+    return {
+      advertised: advertisedToolRegistry(this.tools, merged),
+      registry: applyToolPolicy(this.tools, merged),
+      policy: merged,
+    };
+  }
+
+  /** The forced and required entries an answer has not satisfied yet. */
+  private unmetPolicy(policy: MergedToolPolicy): { tool: string; reason: string }[] {
+    const unmet: { tool: string; reason: string }[] = [];
+    for (const name of policy.forced) {
+      if (!this.stepCalled.has(name)) {
+        unmet.push({ tool: name, reason: "this step must call " + name + " before it answers" });
+      }
+    }
+    for (const entry of policy.required) {
+      if (!this.policyCalled.has(entry.tool)) unmet.push({ tool: entry.tool, reason: entry.reason });
+    }
+    return unmet;
+  }
+
+  /** The correction an unmet policy earns, or the guardrail error that ends the run past it. */
+  private policyRefusal(
+    unmet: readonly { tool: string; reason: string }[],
+  ): string | AgentGuardrailError {
+    const detail = unmet.map((entry) => entry.tool + " (" + entry.reason + ")").join("; ");
+    if (this.policyRepairs >= MAX_POLICY_REPAIRS) {
+      return new AgentGuardrailError(
+        "The step's tool policy is still unmet after " +
+          String(MAX_POLICY_REPAIRS) +
+          " repairs: " +
+          detail,
+      );
+    }
+    this.policyRepairs += 1;
+    return "Error: this answer cannot be accepted until the tool policy is met — " + detail + ".";
+  }
+
+  /** Record the tools a step actually ran, before an answer is checked against the policy. */
+  private recordPolicyCalls(calls: readonly ToolCall[]): void {
+    for (const call of calls) {
+      if (call.error !== undefined) continue;
+      this.policyCalled.add(call.name);
+      this.stepCalled.add(call.name);
+    }
+  }
+
   /** Tool documentation for the prompt, with managed agents left to renderManagedAgents(). */
   protected renderToolDescriptions(): string {
-    return this.tools.renderDescriptions((entry) => !this.managedAgentNames.has(entry.name));
+    return this.advertisedRegistry().renderDescriptions(
+      (entry) => !this.managedAgentNames.has(entry.name),
+    );
+  }
+
+  /**
+   * The paragraph that names what the step's policy requires. Empty when it requires nothing, so
+   * a run without a policy sends exactly the prompt it sent before.
+   */
+  protected renderToolPolicyNotice(): string {
+    const policy = this.stepView?.policy;
+    if (policy === undefined) return "";
+    const lines: string[] = [];
+    if (policy.forced.length > 0) {
+      lines.push(
+        "This step must call: " + policy.forced.join(", ") + ". Do not answer before you have called it.",
+      );
+    }
+    for (const entry of policy.required) {
+      lines.push("The run must call " + entry.tool + " before it answers: " + entry.reason + ".");
+    }
+    return lines.length === 0
+      ? ""
+      : ["", "", "TOOL REQUIREMENTS", ...lines].join(String.fromCharCode(10));
   }
 
   /** The "team members" section for the prompt, empty when the agent has no managed agents. */
   protected renderManagedAgents(): string {
     if (this.managedAgentNames.size === 0) return "";
     return populateTemplate(MANAGED_AGENTS_SECTION_TEMPLATE, {
-      managedAgentDescriptions: this.tools.renderDescriptions((entry) =>
+      managedAgentDescriptions: this.advertisedRegistry().renderDescriptions((entry) =>
         this.managedAgentNames.has(entry.name),
       ),
     });
@@ -708,6 +864,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.activeContext = context;
     this.parkingDecision = undefined;
     this.answerRepairs = 0;
+    this.policyRepairs = 0;
+    this.policyCalled.clear();
+    this.stepCalled = new Set<string>();
+    this.stepView = undefined;
+    this.lastPolicySignature = undefined;
     if (options.resume !== undefined) this.ensureApprovalGate();
     this.monitor = new Monitor(context.startedAt);
 
@@ -909,8 +1070,33 @@ export abstract class MultiStepAgent<TOut = unknown> {
         }
       }
 
+      this.stepCalled = new Set<string>();
       this.beginAttempt(context, stepIndex);
       yield this.emit({ type: "step.started", stepIndex });
+
+      // One policy resolution per step, before the request is built: every reader below uses it.
+      let view: StepToolView;
+      try {
+        view = await this.resolveStepView(context, stepIndex);
+      } catch (error) {
+        yield* this.failRun(context, AgentError.from(error, "AGENT_EXECUTION", stepIndex));
+        return;
+      }
+      this.stepView = view;
+      if (!isEmptyToolPolicy(view.policy)) {
+        const signature = toolPolicySignature(view.policy);
+        if (signature !== this.lastPolicySignature) {
+          this.lastPolicySignature = signature;
+          yield this.emit({
+            type: "tool.policy",
+            stepIndex,
+            advertised: view.advertised.list().map((entry) => entry.name),
+            hidden: [...view.policy.hidden],
+            forced: [...view.policy.forced],
+            required: [...view.policy.required],
+          });
+        }
+      }
 
       let completion: ChatCompletion;
       try {
@@ -943,6 +1129,37 @@ export abstract class MultiStepAgent<TOut = unknown> {
       // that cannot call tools does exactly that. A wrong-shaped text answer gets the same repair
       // turn as a wrong-shaped final_answer call, so the schema is enforced on both paths.
       if (action.kind === "final") {
+        // A text answer still has to satisfy the step's tool policy before it can be accepted.
+        const unmet = this.unmetPolicy(view.policy);
+        if (unmet.length > 0) {
+          const refusal = this.policyRefusal(unmet);
+          if (refusal instanceof AgentGuardrailError) {
+            yield* this.failRun(context, refusal);
+            return;
+          }
+          for (const entry of unmet) {
+            yield this.emit({
+              type: "tool.requirementUnmet",
+              stepIndex,
+              tool: entry.tool,
+              reason: entry.reason,
+            });
+          }
+          step.observations = refusal;
+          this.memory.addStep(step);
+          yield this.emit({
+            type: "observation.completed",
+            stepIndex,
+            text: refusal,
+            isFinalAnswer: false,
+          });
+          const saveFailure = await this.commitAfterStep(context);
+          if (saveFailure !== undefined) {
+            yield* this.failRun(context, saveFailure);
+            return;
+          }
+          continue;
+        }
         const invalid = this.invalidAnswer(action.output);
         if (invalid !== undefined) {
           const correction = this.answerFailure(invalid, context.finishReason, stepIndex);
@@ -1023,6 +1240,42 @@ export abstract class MultiStepAgent<TOut = unknown> {
       if (outcome.error !== undefined) step.error = outcome.error;
       step.observations = outcome.observations;
       step.isFinalAnswer = outcome.isFinalAnswer;
+      this.recordPolicyCalls(step.toolCalls);
+
+      // An answering step whose policy is unmet is refused the same way a wrong-shaped answer is:
+      // a correction observation and another turn, never a silent completion.
+      if (outcome.isFinalAnswer) {
+        const unmet = this.unmetPolicy(view.policy);
+        if (unmet.length > 0) {
+          const refusal = this.policyRefusal(unmet);
+          if (refusal instanceof AgentGuardrailError) {
+            yield* this.failRun(context, refusal);
+            return;
+          }
+          for (const entry of unmet) {
+            yield this.emit({
+              type: "tool.requirementUnmet",
+              stepIndex,
+              tool: entry.tool,
+              reason: entry.reason,
+            });
+          }
+          step.isFinalAnswer = false;
+          step.observations = refusal;
+          yield this.emit({
+            type: "observation.completed",
+            stepIndex,
+            text: refusal,
+            isFinalAnswer: false,
+          });
+          const saveFailure = await this.commitAfterStep(context);
+          if (saveFailure !== undefined) {
+            yield* this.failRun(context, saveFailure);
+            return;
+          }
+          continue;
+        }
+      }
 
       yield this.emit({
         type: "observation.completed",
@@ -1562,7 +1815,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private modelOptions(context: RunContext): GenerateOptions {
     const options: GenerateOptions = { signal: context.signal };
     if (this.advertisesTools) {
-      const specs = [...this.tools.toSpecs()];
+      const specs = [...this.advertisedRegistry().toSpecs()];
       // The bound answer schema travels as the final_answer parameter schema, so the model
       // validates against the contract it will be held to instead of discovering it afterwards.
       const answer = this.finalAnswerSpec();

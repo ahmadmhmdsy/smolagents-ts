@@ -33,6 +33,37 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T03:48:00+03:00 — Phase 4.4 landed: per-step tool policy as data
+
+**State.** 4.1–4.4 are landed; 4.5–4.8 and the phase close remain.
+
+**Did.** `tool-policy.test.ts` (13 tests, the 55th core file) was watched red on the missing
+module, then 4.4 landed: `src/tool/policy.ts` holds the policy types, `mergeToolPolicy`
+(intersecting allowed sets, unioning hidden by name, dropping a forced name the allowed set does
+not admit, concatenating requirements deduped by tool), `applyToolPolicy` (hidden tools become
+stubs that throw `ToolPolicyDeniedError` with the reason), `advertisedToolRegistry` and
+`validateToolPolicy` (a forced or required unknown name is a `ToolDefinitionError` at
+construction). `AgentOptions.toolPolicy` takes a policy or a per-step provider; the loop resolves
+one view per step and the prompt, the request specs, the executor registry and the lookup all
+read it. A forced tool must run in that step and a requirement in the run before an answer is
+accepted; a refusal is a correction observation plus `tool.requirementUnmet`, the third ends the
+run with `AgentGuardrailError`. `tool.policy` is announced once per changed view, and
+`buildTrace` learns both events. One runtime name, `ToolPolicyDeniedError`; type-only policy
+exports; core pins 109, 55 files / 620 tests.
+
+**Verified.** `pnpm vitest run --project core` exits 0 (55 files, 620 tests); the core typecheck
+passes; the 4.4 suite passes 13/13.
+
+**Unverified / open.** 4.5–4.8 and the phase close are not implemented.
+
+**Next.** 4.5: write `packages/core/test/tool-generator.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/tool/policy.ts`, `packages/core/src/errors.ts`,
+`packages/core/src/events.ts`, `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/test/tool-policy.test.ts`.
+
 ## 2026-10-25T03:22:00+03:00 — Phase 4.3 landed: progress, cancellation and typed notifications
 
 **State.** 4.1–4.3 are landed; 4.4–4.8 and the phase close remain.
@@ -129,25 +160,4 @@ phase counts from the list itself.
 
 **Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:1`; the `T-45` row in
 `docs/04-tasks.md`.
-
-## 2026-10-25T02:05:00+03:00 — Phase 3 closed: memory and streams
-
-**State.** Phase 3 is complete; 3.1 and 3.2 are landed and the exit criterion runs as two cases.
-`T-44` is done and the parent plan's row says so. Nothing pushed; Phase 4 is not opened.
-
-**Did.** The exit test `phase-3-exit.test.ts` (54th core file) runs the parent plan's criterion
-over a `FileRunStore`: a three-note session condenses, `buildTrace` carries a
-`memory.condensed` span whose forgotten ids equal the event's, and the record keeps the step and
-the event; a reader's kept cursor, followed through a second store over the same files after a
-continuation, returns exactly the later events with the new cursor and no truncation. The report
-`docs/reports/2026-10-24-phase-3-report.md` records the outcome, the evidence, the two parent rows
-and the open items; the execution plan is marked complete with a close entry.
-
-**Verified.** Core 54 files/605 tests, CLI 11/77, react 12/56; pins core 115, react 13. `pnpm
-gate` exit 0; validator 0/0; rotate clean. Commits: 3.1 `4631f0c`, 3.2 `cc7e947`, close follows.
-
-**Unverified / open.** Condensation thresholds are character estimates, not a tokenizer; the event
-cap counts entries, not bytes; `useRunEvents` re-reads the retained tail per commit; a store that
-never calls `watch` listeners leaves a live client stale until it remounts. Publishing still waits
-on `T-14` credentials.
 <!-- rotate:end -->

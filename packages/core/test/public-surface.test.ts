@@ -35,6 +35,7 @@ const RUNTIME_EXPORTS = [
   "tool",
   "ToolDefinitionError",
   "ToolRegistry",
+  "ToolPolicyDeniedError",
   // prompts
   "populateTemplate",
   "templateVariables",
@@ -184,6 +185,7 @@ const ERROR_CASES: {
   { Ctor: core.AgentTimeoutError, name: "AgentTimeoutError", code: "AGENT_TIMEOUT" },
   { Ctor: core.AgentCancelledError, name: "AgentCancelledError", code: "AGENT_CANCELLED" },
   { Ctor: core.AgentGuardrailError, name: "AgentGuardrailError", code: "AGENT_GUARDRAIL" },
+  { Ctor: core.ToolPolicyDeniedError, name: "ToolPolicyDeniedError", code: "AGENT_TOOL_POLICY" },
 ];
 
 describe("error hierarchy", () => {

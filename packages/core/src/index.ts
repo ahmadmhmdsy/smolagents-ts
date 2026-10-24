@@ -23,6 +23,15 @@ export * from "./executor.js";
 // Tools.
 export * from "./tool/tool.js";
 export * from "./tool/registry.js";
+// The step's tool policy: types only, so the runtime surface stays what it was. A caller names
+// the shape it passes to AgentOptions.toolPolicy without reaching an internal path.
+export type {
+  ToolPolicy,
+  ToolPolicyContext,
+  ToolPolicyHiddenEntry,
+  ToolPolicyProvider,
+  ToolPolicyRequirement,
+} from "./tool/policy.js";
 
 // Prompts. The templates themselves stay internal; only the fence and the builders are public.
 export * from "./prompts/populate-template.js";
