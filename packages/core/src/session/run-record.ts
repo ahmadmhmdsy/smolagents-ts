@@ -90,6 +90,8 @@ export interface JournalEntry {
 export interface RunRecord {
   readonly schemaVersion: number;
   readonly runId: string;
+  /** The conversation this run belongs to, when the caller names one; later runs can find it. */
+  readonly conversationId?: string;
   readonly status: RunStatus;
   /** The ownership fence. Every claim bumps it; a commit at another generation is refused. */
   readonly generation: number;
@@ -108,6 +110,20 @@ export interface RunRecord {
   readonly settlements?: readonly ApprovalSettlement[];
   readonly createdAt?: string;
   readonly updatedAt?: string;
+}
+
+/**
+ * Whether one record is newer than another, for a conversation lookup. The timestamp is
+ * `updatedAt`, falling back to `createdAt`; a tie breaks on the run id so every store, in-memory
+ * or on disk, chooses the same record from the same set.
+ */
+export function isNewerRecord(candidate: RunRecord, current: RunRecord): boolean {
+  const time = (record: RunRecord): number => {
+    const parsed = Date.parse(record.updatedAt ?? record.createdAt ?? "");
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+  const delta = time(candidate) - time(current);
+  return delta === 0 ? candidate.runId > current.runId : delta > 0;
 }
 
 /** The version 1 shape: a format version and the steps. Read-only compatibility. */

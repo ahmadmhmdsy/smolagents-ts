@@ -140,8 +140,15 @@ describe("parseArguments", () => {
     expect(parseArguments([]).stateDir).toBe(".smolagents");
   });
 
-  it("rejects --approve without --resume", () => {
+  it("carries a conversation id", () => {
+    expect(parseArguments(["--conversation", "conv-2", "go"]).conversation).toBe("conv-2");
+  });
+
+  it("rejects --approve unless --resume or --conversation names the run", () => {
     expect(() => parseArguments(["--approve", "req-1", "go"])).toThrow(CliUsageError);
+    expect(parseArguments(["--conversation", "conv-1", "--approve", "req-1"]).approve).toBe(
+      "req-1",
+    );
   });
 
   it("documents the durability flags in the help text", () => {
@@ -152,6 +159,7 @@ describe("parseArguments", () => {
       expect(usage).toContain("--run-id");
       expect(usage).toContain("--resume");
       expect(usage).toContain("--approve");
+      expect(usage).toContain("--conversation");
       expect(usage).toContain("--state-dir");
     }
   });

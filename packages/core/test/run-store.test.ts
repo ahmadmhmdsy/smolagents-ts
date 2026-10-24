@@ -130,6 +130,10 @@ class RecordingStore implements RunStore {
   load(runId: string): StoredRun | undefined {
     return this.inner.load(runId);
   }
+
+  latestForConversation(conversationId: string): RunRecord | undefined {
+    return this.inner.latestForConversation(conversationId);
+  }
 }
 
 function addTool() {
@@ -192,6 +196,58 @@ describe("run store", () => {
     const stored = translateRecord(store.load("run-failed")!);
     expect(stored.status).toBe("failed");
     expect(stored.memory.steps.some((step) => step.kind === "action")).toBe(false);
+  });
+
+  it("finds the newest run of a conversation and no run of an unknown one", async () => {
+    const store = new MemoryRunStore();
+    const base = {
+      schemaVersion: RUN_RECORD_VERSION,
+      status: "running" as const,
+      generation: 0,
+      memory: { steps: [] },
+    };
+    store.commit("run-conv-older", {
+      ...base,
+      runId: "run-conv-older",
+      conversationId: "conv-1",
+      updatedAt: "2026-10-24T00:00:00.000Z",
+    });
+    store.commit("run-conv-newer", {
+      ...base,
+      runId: "run-conv-newer",
+      conversationId: "conv-1",
+      updatedAt: "2026-10-24T01:00:00.000Z",
+    });
+    store.commit("run-conv-other", {
+      ...base,
+      runId: "run-conv-other",
+      conversationId: "conv-2",
+      updatedAt: "2026-10-24T02:00:00.000Z",
+    });
+
+    expect(store.latestForConversation("conv-1")?.runId).toBe("run-conv-newer");
+    expect(store.latestForConversation("conv-absent")).toBeUndefined();
+  });
+
+  it("writes the conversation id a run was given, so a later lookup finds it", async () => {
+    const store = new MemoryRunStore();
+    const agent = new ToolCallingAgent({
+      model: new MockModel([
+        {
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: 1 }, "c-fin")],
+        },
+      ]),
+      store,
+    });
+
+    const result = await agent.run("answer", { runId: "run-conv", conversationId: "conv-9" });
+
+    expect(result.output).toBe(1);
+    const stored = translateRecord(store.load("run-conv")!);
+    expect(stored.conversationId).toBe("conv-9");
+    expect(store.latestForConversation("conv-9")?.runId).toBe("run-conv");
   });
 
   it("lets exactly one of two racing resumers claim the record", async () => {
@@ -348,6 +404,7 @@ describe("run store", () => {
         if (current.generation !== expectedGeneration) throw new RunClaimedError("overtaken");
         return { ...current, generation: expectedGeneration + 1, owner };
       },
+      latestForConversation: () => undefined,
     };
 
     const first = new ToolCallingAgent({
@@ -391,6 +448,7 @@ describe("run store", () => {
         generation: 0,
         memory: { steps: [] },
       }),
+      latestForConversation: () => undefined,
     };
     const agent = new ToolCallingAgent({ model: new MockModel([]), tools: [], store: newerStore });
 

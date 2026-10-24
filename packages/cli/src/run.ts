@@ -12,6 +12,7 @@ import {
   type SettledApprovalOutcome,
   type Tool,
 } from "@smolagents-ts/core";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -65,6 +66,11 @@ export interface RunSmolagentOptions {
   resume?: string;
   /** Settle the resumed run's pending request with this id, as allowed-once. */
   approve?: string;
+  /**
+   * Tag a new run with a conversation, or name a conversation whose newest run to resume.
+   * With --run-id it tags a second run of the same conversation.
+   */
+  conversation?: string;
   /** The run records' directory. Defaults to DEFAULT_STATE_DIRECTORY beside the cwd. */
   stateDir?: string;
   /** The directory a relative state directory is resolved against. Defaults to the cwd. */
@@ -156,6 +162,42 @@ async function loadRecord(store: RunStore, runId: string): Promise<RunRecord | u
 }
 
 /**
+ * The resume request a stored record needs: settle the named request as allowed-once, refuse to
+ * guess when the run is waiting without --approve, or continue a run that is not waiting. Shared
+ * by --resume, which names the run, and --conversation, which finds the newest run of a
+ * conversation and then has the same question to answer.
+ */
+function resumeRequest(record: RunRecord, runId: string, approve: string | undefined): {
+  requestId?: string;
+  outcome?: SettledApprovalOutcome;
+} {
+  const pending = record.pending;
+  if (approve !== undefined) {
+    if (record.status !== "waiting" || pending === undefined) {
+      throw new CliUsageError(
+        "Run " + JSON.stringify(runId) + " is " + record.status + ", not waiting on a request; there is nothing to approve.",
+      );
+    }
+    if (pending.requestId !== approve) {
+      throw new CliUsageError(
+        "Run " +
+          JSON.stringify(runId) +
+          " is waiting on request " +
+          JSON.stringify(pending.requestId) +
+          ", not " +
+          JSON.stringify(approve) +
+          "; nothing was settled.",
+      );
+    }
+    return { requestId: approve, outcome: "allowed-once" };
+  }
+  if (record.status === "waiting" && pending !== undefined) {
+    throw new PendingApprovalError(runId, pending.requestId, pending.toolName);
+  }
+  return {};
+}
+
+/**
  * Run one task and answer with the process exit code: 0 when the run completed, 1 when it failed
  * or stopped, and 3 when a durable run parked on an approval a later invocation must settle. A
  * configuration refusal is caught here rather than thrown, because the bin's only job after it is
@@ -179,8 +221,10 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
     }
 
     const prompt = options.prompt;
-    if (prompt === undefined && options.resume === undefined) {
-      throw new CliUsageError("A run needs a task. Pass a prompt, or use --resume <runId>.");
+    if (prompt === undefined && options.resume === undefined && options.conversation === undefined) {
+      throw new CliUsageError(
+        "A run needs a task. Pass a prompt, or use --resume <runId> or --conversation <id>.",
+      );
     }
 
     const tools =
@@ -208,8 +252,11 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
     );
     let store: RunStore | undefined;
     let task = prompt ?? "";
-    let streamOptions: { runId?: string; resume?: { requestId?: string; outcome?: SettledApprovalOutcome } } =
-      {};
+    let streamOptions: {
+      runId?: string;
+      resume?: { requestId?: string; outcome?: SettledApprovalOutcome };
+      conversationId?: string;
+    } = {};
 
     if (options.resume !== undefined) {
       if (!existsSync(stateDirectory)) {
@@ -218,42 +265,40 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
       store = new FileRunStore(nodeRunFileSystem(stateDirectory));
       const record = await loadRecord(store, options.resume);
       if (record === undefined) throw new UnknownRunError(options.resume, stateDirectory);
-      const pending = record.pending;
-      if (options.approve !== undefined) {
-        if (record.status !== "waiting" || pending === undefined) {
+      streamOptions = { runId: options.resume, resume: resumeRequest(record, options.resume, options.approve) };
+      task = prompt ?? taskOf(record) ?? "";
+    } else if (options.conversation !== undefined && options.runId === undefined) {
+      store = new FileRunStore(nodeRunFileSystem(stateDirectory));
+      const latest = existsSync(stateDirectory)
+        ? await store.latestForConversation(options.conversation)
+        : undefined;
+      if (latest === undefined) {
+        if (prompt === undefined) {
           throw new CliUsageError(
-            "Run " +
-              JSON.stringify(options.resume) +
-              " is " +
-              record.status +
-              ", not waiting on a request; there is nothing to approve.",
+            "Conversation " +
+              JSON.stringify(options.conversation) +
+              " has no run yet, so this invocation needs a task.",
           );
         }
-        if (pending.requestId !== options.approve) {
-          throw new CliUsageError(
-            "Run " +
-              JSON.stringify(options.resume) +
-              " is waiting on request " +
-              JSON.stringify(pending.requestId) +
-              ", not " +
-              JSON.stringify(options.approve) +
-              "; nothing was settled.",
-          );
-        }
+        // A conversation with no run starts one, tagged so a later invocation can find it.
         streamOptions = {
-          runId: options.resume,
-          resume: { requestId: options.approve, outcome: "allowed-once" },
+          runId: options.runId ?? randomUUID(),
+          conversationId: options.conversation,
         };
       } else {
-        if (record.status === "waiting" && pending !== undefined) {
-          throw new PendingApprovalError(options.resume, pending.requestId, pending.toolName);
-        }
-        streamOptions = { runId: options.resume, resume: {} };
+        streamOptions = {
+          runId: latest.runId,
+          resume: resumeRequest(latest, latest.runId, options.approve),
+        };
+        task = prompt ?? taskOf(latest) ?? "";
       }
-      task = prompt ?? taskOf(record) ?? "";
     } else if (options.runId !== undefined) {
+      // An explicit id starts a run, not a lookup; --conversation only tags it.
       store = new FileRunStore(nodeRunFileSystem(stateDirectory));
-      streamOptions = { runId: options.runId };
+      streamOptions = {
+        runId: options.runId,
+        ...(options.conversation === undefined ? {} : { conversationId: options.conversation }),
+      };
     }
 
     const agent = await buildAgent({

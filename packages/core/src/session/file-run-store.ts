@@ -1,5 +1,5 @@
 import { RunClaimedError, RunNotFoundError, StaleWriterError } from "../errors.js";
-import type { RunRecord, StoredRun } from "./run-record.js";
+import { isNewerRecord, type RunRecord, type StoredRun } from "./run-record.js";
 import type { RunStore } from "./run-store.js";
 
 /**
@@ -103,6 +103,19 @@ export class FileRunStore implements RunStore {
     };
     await this.commit(runId, claimed);
     return claimed;
+  }
+
+  async latestForConversation(conversationId: string): Promise<RunRecord | undefined> {
+    let newest: RunRecord | undefined;
+    for (const name of await this.fs.list()) {
+      if (!name.endsWith(this.extension) || name.includes(".tmp")) continue;
+      const text = await this.fs.read(name);
+      if (text === undefined) continue;
+      const record = JSON.parse(text) as RunRecord;
+      if (record.conversationId !== conversationId) continue;
+      if (newest === undefined || isNewerRecord(record, newest)) newest = record;
+    }
+    return newest;
   }
 
   private async read(runId: string): Promise<RunRecord | undefined> {

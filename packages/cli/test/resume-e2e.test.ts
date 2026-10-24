@@ -154,6 +154,70 @@ describe("runSmolagent durability", () => {
     }
   });
 
+  it("tags a fresh run with its conversation and resumes the newest one", async () => {
+    const directory = temporaryDirectory();
+    try {
+      // A conversation with no run starts one and records it.
+      const started = await runSmolagent({
+        prompt: "Answer only.",
+        model: new MockModel([ANSWER_REPLY]),
+        executor: executorFor(),
+        tools: [],
+        conversation: "conv-1",
+        stateDir: directory,
+        out: () => {},
+      });
+      expect(started).toBe(0);
+      const store = new FileRunStore(nodeRunFileSystem(directory));
+      const first = await store.latestForConversation("conv-1");
+      expect(first?.conversationId).toBe("conv-1");
+      expect(first?.status).toBe("completed");
+
+      // A second run of the same conversation, under its own id: it parks, so the next
+      // --conversation lookup has to choose it instead of starting a third run.
+      const counter = { calls: 0 };
+      const parked = await runSmolagent({
+        prompt: "Double 21, then answer.",
+        model: new MockModel([TOOL_REPLY]),
+        executor: executorFor(),
+        toolset: [doubleTool(counter)],
+        runId: "run-b",
+        conversation: "conv-1",
+        stateDir: directory,
+        out: () => {},
+      });
+      expect(parked).toBe(3);
+      const waiting = await storedRecord(directory, "run-b");
+      expect(waiting.conversationId).toBe("conv-1");
+      expect(waiting.status).toBe("waiting");
+      expect((await store.latestForConversation("conv-1"))?.runId).toBe("run-b");
+
+      const requestId = waiting.pending?.requestId;
+      if (requestId === undefined) throw new Error("the parked record names no request");
+      const errors: string[] = [];
+      const finished = await runSmolagent({
+        model: new MockModel([ANSWER_REPLY]),
+        executor: executorFor(),
+        toolset: [doubleTool(counter)],
+        conversation: "conv-1",
+        approve: requestId,
+        stateDir: directory,
+        out: () => {},
+        err: (text) => errors.push(text),
+      });
+
+      expect(finished, errors.join("")).toBe(0);
+      expect(counter.calls).toBe(1);
+      const settled = await storedRecord(directory, "run-b");
+      expect(settled.status).toBe("completed");
+      // Three invocations, two runs: the third resumed the second rather than starting one.
+      expect((await nodeRunFileSystem(directory).list()).length).toBe(2);
+      expect((await store.latestForConversation("conv-1"))?.runId).toBe("run-b");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("refuses a resume when the state directory does not exist", async () => {
     const parent = temporaryDirectory();
     try {

@@ -4,6 +4,35 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T17:40:00+03:00 — 1.3 landed: one owner at a time
+
+**State.** Phase 1 items 1.1–1.3 are in the tree. A run record is fenced: `generation` is the
+ownership fence and `owner` names the live holder. Continuing a stored run claims it first;
+a `running` record left by a dead process is repaired forward (every step kept, one synthetic
+`completed` closer naming the open step, then the run finishes). Nothing is pushed.
+
+**Did.** `RunStore.claim(runId, expectedGeneration, owner)` plus `commit(..., expectedGeneration)`
+with `RunClaimedError` / `StaleWriterError`; `RunRecord` gains `owner`, `step` and `completed`;
+the loop opens a step when it adds it, closes it at the boundary, claims on continuation and
+repairs a crashed record; terminal commits clear the owner. The contract gained `claim` and
+`stale` modes (twelve now) with rejecting counterexamples; `MemoryRunStore` and the
+temporary-file double fence; glossary gained **claim** and **generation (fence)**.
+
+**Verified.** `pnpm gate` exit 0. Core 40 files and 496 tests, including three new run-store
+cases: two resumers, exactly one claim and one `RunClaimedError`; a stale writer refused with
+the stored record byte-identical and still resumable; a crashed record repaired and finished.
+
+**Unverified-open.** An interrupted step's effects still run again on resume; the journal is
+1.4. The two-resumer race is proven at the store seam, not yet across two processes (1.5).
+
+**Next.** 1.4: the effects journal — `intent` before an effect, `done` after, replay `done`,
+surface in-doubt as `unknown`; starting with its red acceptance test.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `agent/multi-step-agent.ts`,
+`session/run-record.ts`, `session/run-store.ts`, `test/run-store.test.ts`.
+
 ## 2026-10-24T16:55:00+03:00 — 1.2 landed: a run can park on a request
 
 **State.** Phase 1 items 1.1 and 1.2 are in the tree. A gated call may answer `pending`: the

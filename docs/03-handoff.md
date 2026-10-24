@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T20:05:00+03:00 — 1.7 landed: a run belongs to a conversation
+
+**State.** Phase 1 items 1.1–1.7 are in the tree; only 1.8 (fork) remains. A run can carry a
+conversation id, the store can name the newest run of one, and the CLI resumes it. Nothing pushed.
+
+**Did.** `RunRecord`/`RunOptions` gained `conversationId`, written on every commit and kept on a
+resume that does not name one. `RunStore.latestForConversation` is answered by both stores with a
+timestamp-then-run-id tie-break and certified by a thirteenth contract mode. The CLI reads
+`--conversation <id>`: it resumes the newest run of that conversation (same settlement rules as
+`--resume`; `--approve` now accepts either name) or starts one tagged with the id, minting a run
+id when `--run-id` is absent. `--run-id` plus `--conversation` starts a second run of the same
+conversation.
+
+**Verified.** Contract and run-store cases were red on the missing method first. The CLI case
+starts a conversation, starts a second run that parks, then resumes it by conversation with the
+tool run once and two records left. Core 42 files/517 tests, CLI 10/72, `pnpm gate` exit 0,
+validator 0/0, `rotate.py --check` clean.
+
+**Unverified / open.** `--conversation` together with `--resume` is accepted and `--resume` wins;
+no test covers that pair. 1.8 remains.
+
+**Next.** 1.8: fork a run from a named step.
+
+**Blockers.** None for Phase 1; T-14, T-16, T-18, T-21 and T-39 stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`;
+`packages/core/src/session/run-store.ts`; `packages/cli/src/run.ts`.
+
 ## 2026-10-24T19:35:00+03:00 — 1.6 landed: the CLI can park and resume
 
 **State.** Phase 1 items 1.1–1.6 are in the tree; Wave B is half done. A durable CLI run now
@@ -125,33 +153,4 @@ binding in `packages/cli`, certified against the twelve-mode contract first.
 **Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`,
 `core/src/session/run-record.ts`, `core/src/agent/multi-step-agent.ts`,
 `core/test/journal.test.ts`.
-
-## 2026-10-24T17:40:00+03:00 — 1.3 landed: one owner at a time
-
-**State.** Phase 1 items 1.1–1.3 are in the tree. A run record is fenced: `generation` is the
-ownership fence and `owner` names the live holder. Continuing a stored run claims it first;
-a `running` record left by a dead process is repaired forward (every step kept, one synthetic
-`completed` closer naming the open step, then the run finishes). Nothing is pushed.
-
-**Did.** `RunStore.claim(runId, expectedGeneration, owner)` plus `commit(..., expectedGeneration)`
-with `RunClaimedError` / `StaleWriterError`; `RunRecord` gains `owner`, `step` and `completed`;
-the loop opens a step when it adds it, closes it at the boundary, claims on continuation and
-repairs a crashed record; terminal commits clear the owner. The contract gained `claim` and
-`stale` modes (twelve now) with rejecting counterexamples; `MemoryRunStore` and the
-temporary-file double fence; glossary gained **claim** and **generation (fence)**.
-
-**Verified.** `pnpm gate` exit 0. Core 40 files and 496 tests, including three new run-store
-cases: two resumers, exactly one claim and one `RunClaimedError`; a stale writer refused with
-the stored record byte-identical and still resumable; a crashed record repaired and finished.
-
-**Unverified-open.** An interrupted step's effects still run again on resume; the journal is
-1.4. The two-resumer race is proven at the store seam, not yet across two processes (1.5).
-
-**Next.** 1.4: the effects journal — `intent` before an effect, `done` after, replay `done`,
-surface in-doubt as `unknown`; starting with its red acceptance test.
-
-**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `agent/multi-step-agent.ts`,
-`session/run-record.ts`, `session/run-store.ts`, `test/run-store.test.ts`.
 <!-- rotate:end -->

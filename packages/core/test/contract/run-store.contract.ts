@@ -1,6 +1,6 @@
 /**
  * The conformance suite for the `RunStore` seam. A new store implementation is certified by
- * running this file against it: one describe block per implementation, the same ten checks.
+ * running this file against it: one describe block per implementation, the same checks.
  *
  * The suite is written against the interface alone — no store internals — and each check ships
  * with a rejecting counterexample, so the file proves it can fail as well as pass. It speaks the
@@ -30,6 +30,7 @@ const MODE = {
   concurrent: "keeps concurrent commits to different runs apart",
   claim: "bumps the fence once and refuses the loser of a claim race",
   stale: "refuses a stale commit and leaves the stored record untouched",
+  conversation: "finds the newest run of a conversation",
 } as const;
 
 type Mode = keyof typeof MODE;
@@ -207,12 +208,13 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
   },
   { mode: "claim", check: claimCheck },
   { mode: "stale", check: staleCheck },
+  { mode: "conversation", check: conversationCheck },
 ];
 
 type Memory = Map<string, StoredRun>;
 
 /** One deliberately broken store per mode: the suite must reject each of them. */
-const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
+const COUNTEREXAMPLES: Readonly<Record<Mode, () => Omit<RunStore, "latestForConversation">>> = {
   unknown: () => ({
     commit: () => undefined,
     load: () => record("x", []),
@@ -331,7 +333,25 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
       },
     };
   },
+  conversation: () => {
+    const memory: Memory = new Map();
+    return {
+      // Holds every record but has no lookup; the wrapper below answers undefined for any
+      // conversation, which the check has to reject.
+      commit: (runId, saved) => void memory.set(runId, saved),
+      load: (runId) => memory.get(runId),
+      claim: (runId) => record(runId, []),
+    };
+  },
 };
+
+/**
+ * Complete a deliberately broken store with a lookup that never finds anything, so a counterexample
+ * fails the check it targets rather than failing every check for want of a method.
+ */
+function brokenCounterexample(partial: Omit<RunStore, "latestForConversation">): RunStore {
+  return { ...partial, latestForConversation: () => undefined };
+}
 
 export type RunStoreFactory = () => RunStore | Promise<RunStore>;
 
@@ -363,6 +383,38 @@ async function claimCheck(store: RunStore): Promise<void> {
     refuse("claim", "the claim at generation 1 left generation at " + String(second.generation));
   }
   if (second.owner !== "owner-b") refuse("claim", "the second claim kept the first owner");
+}
+
+async function conversationCheck(store: RunStore): Promise<void> {
+  const older: RunRecord = {
+    ...record("run-conv-older", STEPS_A),
+    conversationId: "conv-1",
+    updatedAt: "2026-10-24T00:00:00.000Z",
+  };
+  const newer: RunRecord = {
+    ...record("run-conv-newer", STEPS_B),
+    conversationId: "conv-1",
+    updatedAt: "2026-10-24T01:00:00.000Z",
+  };
+  const other: RunRecord = {
+    ...record("run-conv-other", STEPS_A),
+    conversationId: "conv-2",
+    updatedAt: "2026-10-24T02:00:00.000Z",
+  };
+  // The newer record is written first, so a store that returns its last match fails.
+  await store.commit("run-conv-newer", newer);
+  await store.commit("run-conv-older", older);
+  await store.commit("run-conv-other", other);
+  const found = await store.latestForConversation("conv-1");
+  if (found?.runId !== "run-conv-newer") {
+    refuse(
+      "conversation",
+      "the newest run of conv-1 read as " + JSON.stringify(found?.runId ?? undefined),
+    );
+  }
+  if ((await store.latestForConversation("conv-absent")) !== undefined) {
+    refuse("conversation", "an unknown conversation found a record");
+  }
 }
 
 async function staleCheck(store: RunStore): Promise<void> {
@@ -403,7 +455,9 @@ export function runStoreContract(name: string, makeStore: RunStoreFactory): void
       });
 
       it("rejects a counterexample: " + MODE[entry.mode], async () => {
-        await expect(entry.check(COUNTEREXAMPLES[entry.mode]())).rejects.toThrow(/^contract: /);
+        await expect(
+          entry.check(brokenCounterexample(COUNTEREXAMPLES[entry.mode]())),
+        ).rejects.toThrow(/^contract: /);
       });
     }
   });

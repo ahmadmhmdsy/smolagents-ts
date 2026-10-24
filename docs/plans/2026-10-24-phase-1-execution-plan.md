@@ -291,6 +291,30 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.7 as built.** `RunRecord` and `RunOptions` gain `conversationId`; the loop
+  writes it on every commit and keeps the record's value when a resume does not name one.
+  `RunStore` gains `latestForConversation(conversationId)`: `MemoryRunStore` scans its map and
+  `FileRunStore` lists and parses every record, and both break a timestamp tie on the run id, so
+  the newest answer never depends on storage order. The contract gains a thirteenth mode — the
+  newer record is committed first, so a store that returns its last match fails — with a
+  counterexample that finds nothing. The CLI reads `--conversation <id>`: with an existing run it
+  resumes the newest one of that conversation under the same settlement rules as `--resume`, so
+  `--approve` now accepts either name; with none it starts a run tagged with the id, minting a run
+  id when `--run-id` is absent. `--run-id` still starts a run; combined with `--conversation` it
+  tags a second run of the same conversation, which is how one conversation gets more than one
+  run. The 1.5 note that the contract needed no new mode is superseded by this mode.
+- **Acceptance.** The contract check and a run-store case were red on the missing method before
+  the stores answered it. The run-store case commits an older and a newer record of one
+  conversation and asserts the newer wins and an unknown id finds nothing; a second case runs an
+  agent given `conversationId` and finds its record by the lookup. The CLI case starts a
+  conversation with no run (it is created and tagged, exit 0), starts a second run of the same
+  conversation under `--run-id` (it parks at exit 3), then invokes `--conversation` with
+  `--approve`: it resumes the parked run rather than starting another, finishes at exit 0 with
+  the tool run once, and the directory holds two records, with the lookup naming the second.
+- **Public surface.** No new export: `conversationId` is a field, `latestForConversation` a
+  method, and `isNewerRecord` stays internal to the session module. Core grew from 509 to 517
+  tests and the CLI from 70 to 72; the parser's approve refusal now names either flag.
+
 - **2026-10-24 — 1.6 as built.** The parser reads `--run-id`, `--resume`, `--approve`
   and `--state-dir`; `--approve` without `--resume` is a usage error, because a settlement needs
   a run to settle. A durable run (`--run-id`, or a resume) gets a `FileRunStore` over

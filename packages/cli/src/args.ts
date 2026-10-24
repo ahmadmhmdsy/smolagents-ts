@@ -20,6 +20,8 @@ export interface CliArguments {
   resume?: string;
   /** Settle the resumed run's pending request with this id, as allowed-once. */
   approve?: string;
+  /** The conversation to tag a new run with or to find the newest run of. */
+  conversation?: string;
   /** The directory run records live in. Defaults to DEFAULT_STATE_DIRECTORY beside the cwd. */
   stateDir: string;
 }
@@ -59,7 +61,10 @@ export const USAGE = [
   "  --run-id ID           store this run under ID so it survives the process",
   "  --resume ID           resume the stored run ID instead of starting a new one;",
   "                        the run parks with exit code 3 on an approval it must be given",
-  "  --approve REQUEST     allow the resumed run's pending request REQUEST (needs --resume)",
+  "  --approve REQUEST     allow the resumed run's pending request REQUEST (needs --resume",
+  "                        or --conversation to name the run)",
+  "  --conversation ID     tag a new run with ID, or resume the newest run tagged with",
+  "                        it instead of starting another; --run-id names a second run",
   "  --state-dir DIR       where run records live (default .smolagents)",
   "",
   "Environment:",
@@ -79,6 +84,7 @@ type ValueOption =
   | "runId"
   | "resume"
   | "approve"
+  | "conversation"
   | "stateDir";
 
 const VALUE_OPTIONS: ReadonlyMap<string, ValueOption> = new Map([
@@ -92,6 +98,7 @@ const VALUE_OPTIONS: ReadonlyMap<string, ValueOption> = new Map([
   ["--run-id", "runId"],
   ["--resume", "resume"],
   ["--approve", "approve"],
+  ["--conversation", "conversation"],
   ["--state-dir", "stateDir"],
 ]);
 
@@ -205,9 +212,9 @@ export function parseArguments(argv: readonly string[]): CliArguments {
     }
   }
 
-  if (parsed.approve !== undefined && parsed.resume === undefined) {
+  if (parsed.approve !== undefined && parsed.resume === undefined && parsed.conversation === undefined) {
     throw new CliUsageError(
-      "argument --approve: it settles a pending request, so it needs --resume <runId> to name the run.",
+      "argument --approve: it settles a pending request, so it needs --resume <runId> or --conversation <id> to name the run.",
     );
   }
 

@@ -150,6 +150,11 @@ export interface RunOptions {
   resume?: { readonly requestId?: string; readonly outcome?: SettledApprovalOutcome };
   /** The owner name this run claims its record under. Defaults to a fresh id per run. */
   owner?: string;
+  /**
+   * The conversation this run belongs to. The record keeps it, so a later run can find the
+   * newest record of the conversation instead of starting from nothing.
+   */
+  conversationId?: string;
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
@@ -182,6 +187,8 @@ export interface RunContext {
   committedSteps: RunRecord["memory"]["steps"];
   /** The claim holder written on every commit; dropped by a terminal commit. */
   owner: string;
+  /** The conversation the record is tagged with, kept across a resume or left absent. */
+  conversationId: string | undefined;
   /** Finished steps, the closer a repair appended included. */
   completed: CompletedStep[];
   /** The step in flight, committed while it runs so a repair can name it. */
@@ -562,6 +569,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       settlements: [],
       committedSteps: [],
       owner: options.owner ?? crypto.randomUUID(),
+      conversationId: options.conversationId,
       completed: [],
       openStep: undefined,
       journal: [],
@@ -620,6 +628,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
         }
         loaded = claimed;
         context.generation = claimed.generation;
+        // A run resumed without a conversation keeps the one its record carries.
+        context.conversationId = options.conversationId ?? claimed.conversationId;
         context.settlements = claimed.settlements ?? [];
         context.completed = [...(claimed.completed ?? [])];
         context.journal = [...(claimed.journal ?? [])];
@@ -946,6 +956,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       const record: RunRecord = {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
+        ...(context.conversationId === undefined ? {} : { conversationId: context.conversationId }),
         status,
         generation: context.generation,
         // A terminal commit releases the claim; a pause keeps it while the record waits.

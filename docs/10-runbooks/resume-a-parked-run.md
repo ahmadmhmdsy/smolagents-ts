@@ -28,7 +28,8 @@ request id that was already settled: the second settlement is refused and no eff
 
 ## Preconditions
 
-- [ ] The run was started with `--run-id`, or an earlier resume named it, so a record exists.
+- [ ] The run was started with `--run-id`, or an earlier resume named it, or it carries a
+      conversation id you can name with `--conversation`, so a record exists.
 - [ ] The state directory from the first invocation is known; it defaults to `.smolagents`
       beside the working directory.
 - [ ] The provider key the first invocation used is still in the environment (`HF_TOKEN` or
@@ -51,7 +52,9 @@ Run these from the repository root.
        node packages/cli/dist/main.js --resume demo-1 --approve <requestId> --state-dir .smolagents
 
    The replayed step does not call the model again and re-runs no recorded effect; it runs the
-   tool the request names, then continues.
+   tool the request names, then continues. If the first invocation used `--conversation <id>`
+   and no `--run-id`, replace `--resume demo-1` with `--conversation <id>`: it resumes the
+   newest run of that conversation.
 
 3. If the run parks on a second request, repeat steps 1 and 2 with the new id. A run parks once
    per tool call, because a headless process has nobody to ask.
@@ -76,6 +79,7 @@ step 2 with a `Final answer:` line on stdout.
 | exit 1, `No state directory at …` | the default `.smolagents` does not exist, or `--state-dir` names the wrong place | pass the directory the first run used |
 | exit 1, `holds no record for run …` | wrong run id, or the record file was deleted | read the directory listing and use the id in the file name |
 | exit 1, `Run "…" is waiting on request …` | `--approve` was omitted | rerun with `--approve <requestId>` |
+| exit 1, `has no run yet` | `--conversation` named an id no record carries, and no task was passed | pass the prompt, or check the id against the record files |
 | exit 1, `was already settled` | the request was approved before | nothing to do; the run is past that request |
 | exit 3 again, a different request id | the run reached the next tool call | approve the new id, or stop the run by deleting its record |
 

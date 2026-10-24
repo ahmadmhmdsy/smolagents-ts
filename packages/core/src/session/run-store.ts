@@ -1,5 +1,5 @@
 import { RunClaimedError, RunNotFoundError, StaleWriterError } from "../errors.js";
-import type { RunRecord, StoredRun } from "./run-record.js";
+import { isNewerRecord, type RunRecord, type StoredRun } from "./run-record.js";
 
 // The record types and translators live in run-record.ts; re-exported here so the store seam has
 // one import site.
@@ -41,6 +41,13 @@ export interface RunStore {
    * the store does not hold is `RunNotFoundError`.
    */
   claim(runId: string, expectedGeneration: number, owner: string): RunRecord | Promise<RunRecord>;
+  /**
+   * The newest record tagged with a conversation, or undefined when the store holds none. Order
+   * is `updatedAt` then run id, so the answer does not depend on storage order.
+   */
+  latestForConversation(
+    conversationId: string,
+  ): RunRecord | undefined | Promise<RunRecord | undefined>;
 }
 
 /** The one implementation the seam ships with: a run's records held in memory. */
@@ -95,6 +102,15 @@ export class MemoryRunStore implements RunStore {
   load(runId: string): RunRecord | undefined {
     const stored = this.records.get(runId);
     return stored === undefined ? undefined : copy(stored);
+  }
+
+  latestForConversation(conversationId: string): RunRecord | undefined {
+    let newest: RunRecord | undefined;
+    for (const record of this.records.values()) {
+      if (record.conversationId !== conversationId) continue;
+      if (newest === undefined || isNewerRecord(record, newest)) newest = record;
+    }
+    return newest === undefined ? undefined : copy(newest);
   }
 
   has(runId: string): boolean {

@@ -115,6 +115,7 @@ describe("terminal-event contract", () => {
       commit: () => undefined,
       load: () => Promise.reject(new Error("disk gone")),
       claim: () => Promise.reject(new Error("disk gone")),
+      latestForConversation: () => undefined,
     };
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn]), store });
 
@@ -133,6 +134,7 @@ describe("terminal-event contract", () => {
       claim: () => {
         throw new Error("unreachable: a fresh run never claims");
       },
+      latestForConversation: () => undefined,
     };
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn]), store });
 
@@ -155,6 +157,7 @@ describe("terminal-event contract", () => {
       claim: () => {
         throw new Error("unreachable: a fresh run never claims");
       },
+      latestForConversation: () => undefined,
     };
     const agent = new ToolCallingAgent({
       model: new MockModel(["no tool call", "1. answer", answerTurn]),

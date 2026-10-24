@@ -76,6 +76,10 @@ runStoreContract("a store that answers asynchronously", async () => {
       return inner.claim(runId, expectedGeneration, owner);
     },
     load: async (runId) => await Promise.resolve(inner.load(runId)),
+    latestForConversation: async (conversationId) => {
+      await Promise.resolve();
+      return inner.latestForConversation(conversationId);
+    },
   };
 });
 
