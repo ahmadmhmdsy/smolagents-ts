@@ -276,3 +276,19 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+### 4.1 — MCP depth (2026-10-24)
+
+Landed as designed, with two deviations recorded here rather than silently:
+
+- Gating sits in a private `requestFor` — used by `getTools`, the tool adapter and, from 4.2,
+  the typed reads — not in the public `request`, which stays the raw escape hatch for a caller
+  that already knows the server. The routing tests call `request("tools/list")` directly, which
+  is exactly that escape hatch, so gating in `request` would have refused them.
+- The pre-registered file is `packages/mcp/test/client-depth.test.ts` (8 tests). The HTTP status
+  case extends the existing non-2xx case in `http-transport.test.ts` instead of adding a second
+  test to it.
+
+Two existing doubles now declare `capabilities: { tools: {} }` — `client.test.ts`'s
+`PeerGoneTransport` and the stdio replay double — because both list tools. mcp is 11 files /
+122 tests; pins 29 → 32.

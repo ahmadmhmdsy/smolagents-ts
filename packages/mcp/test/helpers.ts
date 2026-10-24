@@ -14,7 +14,12 @@ export function loadFixture(name: string): Fixture {
 /** A client over one fixture. The base URL is never fetched: the factory wins. */
 export async function clientWithTransport(
   transport: MCPTransport,
-  options: { requestTimeoutMs?: number; logger?: Logger; structuredOutput?: boolean } = {},
+  options: {
+    requestTimeoutMs?: number;
+    logger?: Logger;
+    structuredOutput?: boolean;
+    maxListPages?: number;
+  } = {},
 ): Promise<MCPClient> {
   return MCPClient.create([{ url: "http://fixture.invalid/mcp" }], {
     ...options,

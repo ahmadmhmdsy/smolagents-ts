@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { StreamableHttpTransport, type FetchLike } from "../src/transports/http.js";
-import { MCPClosedError, MCPTransportError } from "../src/errors.js";
+import { MCPClosedError, MCPHttpStatusError, MCPTransportError } from "../src/errors.js";
 import type { MCPMessage } from "../src/json-rpc.js";
 
 interface RecordedCall {
@@ -135,6 +135,15 @@ describe("the Streamable HTTP transport", () => {
     await transport.start();
     await expect(transport.send(REQUEST)).rejects.toThrow(MCPTransportError);
     await expect(transport.send(REQUEST)).rejects.toThrow(/HTTP 500.*server exploded/s);
+
+    // The typed status is what lets a client tell a lost session (404) from a real failure.
+    const lost = fakeFetch(() => new Response("session lost", { status: 404 }));
+    const second = new StreamableHttpTransport({ url: "http://x/mcp", fetch: lost.fetch });
+    await second.start();
+    const error = await second.send(REQUEST).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(MCPHttpStatusError);
+    expect((error as MCPHttpStatusError).status).toBe(404);
+    expect((error as MCPHttpStatusError).method).toBe("tools/list");
   });
 
   it("refuses a send after close and a body that is not JSON", async () => {

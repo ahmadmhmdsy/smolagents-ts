@@ -51,6 +51,11 @@ export interface MCPClientOptions {
   /** Per-request timeout in milliseconds. Defaults to 30 seconds. */
   readonly requestTimeoutMs?: number;
   /**
+   * How many pages one listing may read before the client refuses. Defaults to 100: a
+   * server that answers a cursor with another cursor must not keep one read alive forever.
+   */
+  readonly maxListPages?: number;
+  /**
    * Upstream's structured-output switch. Defaults to false, with upstream's notice
    * routed through the logger; when true, a tool's output schema is validated and the
    * response's structuredContent is returned instead of the joined text.

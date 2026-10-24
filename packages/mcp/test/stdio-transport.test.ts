@@ -244,7 +244,7 @@ describe("the stdio transport as a client's seam", () => {
     const responses: Record<string, unknown> = {
       initialize: {
         protocolVersion: "2025-11-25",
-        capabilities: {},
+        capabilities: { tools: {} },
         serverInfo: { name: "fake", version: "1" },
       },
       "tools/list": {

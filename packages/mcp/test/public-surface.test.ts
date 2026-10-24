@@ -35,6 +35,9 @@ const RUNTIME_EXPORTS = [
   "MCPConnectionError",
   "MCPToolError",
   "MCPToolCollisionError",
+  "MCPCapabilityError",
+  "MCPListLimitError",
+  "MCPHttpStatusError",
   // the wire
   "isErrorResponse",
   "isNotification",

@@ -14,7 +14,10 @@ import {
 } from "./parameters.js";
 export type { MCPClientOptions } from "./parameters.js";
 import {
+  MCPCapabilityError,
   MCPConnectionError,
+  MCPHttpStatusError,
+  MCPListLimitError,
   MCPParameterError,
   MCPProtocolError,
   MCPTimeoutError,
@@ -34,6 +37,12 @@ export const CLIENT_INFO = { name: "@smolagents-ts/mcp", version: VERSION } as c
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
+/**
+ * How many pages one listing may read before the client refuses. A server that answers a
+ * cursor with another cursor would otherwise keep one read alive for as long as it likes.
+ */
+const DEFAULT_MAX_LIST_PAGES = 100;
+
 /** How many non-response messages the public `notifications` array retains. */
 export const NOTIFICATION_HISTORY_LIMIT = 100;
 
@@ -47,12 +56,28 @@ export interface MCPToolSource {
   readonly server: string;
 }
 
+/**
+ * The capabilities the server declared in its initialize reply. Only presence matters to
+ * this client: a verb whose capability is absent is refused before a message is sent.
+ */
+interface ServerCapabilities {
+  readonly tools?: Record<string, unknown>;
+  readonly resources?: Record<string, unknown>;
+  readonly prompts?: Record<string, unknown>;
+  readonly logging?: Record<string, unknown>;
+  readonly completions?: Record<string, unknown>;
+}
+
 /** One connected peer: its transport, its server name, and its cached tool list. */
 interface ServerConnection extends MCPToolSource {
   readonly parameters: MCPServerParameters;
   transport: MCPTransport;
   tools: Tool[] | undefined;
   stale: boolean;
+  /** The declared capabilities, or undefined until the handshake reply has been read. */
+  capabilities: ServerCapabilities | undefined;
+  /** True while a lost session is being re-handshaked, so recovery cannot recurse. */
+  recovering: boolean;
   /** The first failure this connection reported, kept so a later request refuses at once. */
   failure: Error | undefined;
 }
@@ -89,6 +114,7 @@ export class MCPClient {
 
   private readonly logger: Logger;
   private readonly requestTimeoutMs: number;
+  private readonly maxListPages: number;
   private readonly transportFactory: (parameters: MCPServerParameters) => MCPTransport;
   private readonly structuredOutput: boolean;
   private readonly connections: ServerConnection[] = [];
@@ -103,6 +129,7 @@ export class MCPClient {
   private constructor(parameters: readonly MCPServerParameters[], options: MCPClientOptions) {
     this.logger = options.logger ?? noopLogger;
     this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    this.maxListPages = options.maxListPages ?? DEFAULT_MAX_LIST_PAGES;
     this.transportFactory = options.transportFactory ?? defaultTransportFactory;
     this.structuredOutput = options.structuredOutput ?? false;
     if (options.structuredOutput === undefined) {
@@ -124,9 +151,11 @@ export class MCPClient {
         server: serverName(parameter),
         tools: undefined,
         stale: false,
+        capabilities: undefined,
+        recovering: false,
         failure: undefined,
         request: (method, params, signal) =>
-          this.request(method, params, signal, this.connections[index]),
+          this.requestFor(this.connections[index], method, params, signal),
       });
     }
   }
@@ -219,80 +248,142 @@ export class MCPClient {
       // caller from waiting on a response that can never arrive.
       throw connection.failure;
     }
-    const id = this.nextId;
-    this.nextId += 1;
-    const message: MCPMessage = {
-      jsonrpc: "2.0",
-      id,
-      method,
-      ...(params === undefined ? {} : { params }),
-    };
-    const promise = new Promise<Record<string, unknown>>((resolve, reject) => {
-      // A caller's signal often outlives the request (one per run, many tool calls), so
-      // the abort listener comes off as soon as the request settles, however it settles.
-      let onAbort: (() => void) | undefined;
-      const detach = (): void => {
-        if (onAbort !== undefined) signal?.removeEventListener("abort", onAbort);
-        onAbort = undefined;
-      };
-      const entry: PendingRequest = {
-        resolve: (value) => {
-          detach();
-          resolve(value);
-        },
-        reject: (error) => {
-          detach();
-          reject(error);
-        },
-        timer: undefined,
+    for (let attempt = 0; ; attempt += 1) {
+      if (signal?.aborted === true) throw abortError(method);
+      const id = this.nextId;
+      this.nextId += 1;
+      const message: MCPMessage = {
+        jsonrpc: "2.0",
+        id,
         method,
-        connection,
+        ...(params === undefined ? {} : { params }),
       };
-      this.pending.set(id, entry);
-      if (signal?.aborted === true) {
-        this.pending.delete(id);
-        reject(abortError(method));
-        return;
-      }
-      if (signal !== undefined) {
-        onAbort = () => {
-          const waiting = this.pending.get(id);
-          if (waiting === undefined) return;
+      const promise = new Promise<Record<string, unknown>>((resolve, reject) => {
+        // A caller's signal often outlives the request (one per run, many tool calls), so
+        // the abort listener comes off as soon as the request settles, however it settles.
+        let onAbort: (() => void) | undefined;
+        const detach = (): void => {
+          if (onAbort !== undefined) signal?.removeEventListener("abort", onAbort);
+          onAbort = undefined;
+        };
+        const entry: PendingRequest = {
+          resolve: (value) => {
+            detach();
+            resolve(value);
+          },
+          reject: (error) => {
+            detach();
+            reject(error);
+          },
+          timer: undefined,
+          method,
+          connection,
+        };
+        this.pending.set(id, entry);
+        if (signal?.aborted === true) {
+          this.pending.delete(id);
+          reject(abortError(method));
+          return;
+        }
+        if (signal !== undefined) {
+          onAbort = () => {
+            const waiting = this.pending.get(id);
+            if (waiting === undefined) return;
+            this.pending.delete(id);
+            if (waiting.timer !== undefined) clearTimeout(waiting.timer);
+            waiting.reject(abortError(method));
+          };
+          signal.addEventListener("abort", onAbort, { once: true });
+        }
+        entry.timer = setTimeout(() => {
+          this.pending.delete(id);
+          entry.reject(
+            new MCPTimeoutError(
+              "The MCP request " +
+                method +
+                " timed out after " +
+                String(this.requestTimeoutMs) +
+                " ms.",
+            ),
+          );
+        }, this.requestTimeoutMs);
+        // A pending request must not keep the process alive on its own.
+        (entry.timer as { unref?: () => void }).unref?.();
+      });
+      try {
+        await connection.transport.send(message);
+      } catch (error) {
+        const waiting = this.pending.get(id);
+        if (waiting !== undefined) {
           this.pending.delete(id);
           if (waiting.timer !== undefined) clearTimeout(waiting.timer);
-          waiting.reject(abortError(method));
-        };
-        signal.addEventListener("abort", onAbort, { once: true });
+          // Settles the promise nobody will await, which also takes the abort listener off.
+          promise.catch(() => undefined);
+          waiting.reject(error instanceof Error ? error : new Error(String(error)));
+        }
+        if (attempt === 0 && (await this.recoverSession(connection, error))) continue;
+        throw error;
       }
-      entry.timer = setTimeout(() => {
-        this.pending.delete(id);
-        entry.reject(
-          new MCPTimeoutError(
-            "The MCP request " +
-              method +
-              " timed out after " +
-              String(this.requestTimeoutMs) +
-              " ms.",
-          ),
-        );
-      }, this.requestTimeoutMs);
-      // A pending request must not keep the process alive on its own.
-      (entry.timer as { unref?: () => void }).unref?.();
-    });
-    try {
-      await connection.transport.send(message);
-    } catch (error) {
-      const waiting = this.pending.get(id);
-      if (waiting !== undefined) {
-        this.pending.delete(id);
-        if (waiting.timer !== undefined) clearTimeout(waiting.timer);
-        // Settles the promise nobody will await, which also takes the abort listener off.
-        promise.catch(() => undefined);
-        waiting.reject(error instanceof Error ? error : new Error(String(error)));
-      }
-      throw error;
+      return promise;
     }
-    return promise;
+  }
+
+  /**
+   * Sends a request for one of the verbs this client itself drives, after refusing a verb
+   * whose capability the server never declared. `request` stays the raw escape hatch for a
+   * caller that knows the server; the gating belongs to the verbs the client owns.
+   */
+  private async requestFor(
+    connection: ServerConnection | undefined,
+    method: string,
+    params: Record<string, unknown> | undefined,
+    signal?: AbortSignal,
+  ): Promise<Record<string, unknown>> {
+    this.guardCapability(connection ?? this.connections[0], method);
+    return this.request(method, params, signal, connection);
+  }
+
+  /**
+   * Refuses a verb the server did not declare. Before the handshake reply is read nothing
+   * is known, so nothing is refused: the handshake's own initialize is not gated.
+   */
+  private guardCapability(connection: ServerConnection | undefined, method: string): void {
+    if (connection === undefined || connection.capabilities === undefined) return;
+    const capability = capabilityFor(method);
+    if (capability === undefined) return;
+    if (connection.capabilities[capability] !== undefined) return;
+    throw new MCPCapabilityError(
+      "The MCP server '" +
+        connection.server +
+        "' did not declare the '" +
+        capability +
+        "' capability, so '" +
+        method +
+        "' cannot be sent.",
+      connection.server,
+      capability,
+      method,
+    );
+  }
+
+  /**
+   * A 404 on an established session is the server forgetting it, not a failure: the
+   * specification has the client start a new session and retry. Only a connection that had
+   * a session id, and only once per request, so a genuinely gone endpoint still surfaces
+   * its status instead of looping.
+   */
+  private async recoverSession(connection: ServerConnection, error: unknown): Promise<boolean> {
+    if (!(error instanceof MCPHttpStatusError) || error.status !== 404) return false;
+    if (connection.transport.sessionId === undefined || connection.recovering) return false;
+    connection.recovering = true;
+    try {
+      this.logger.warn("mcp: '" + connection.server + "' lost the session; re-handshaking once");
+      delete connection.transport.sessionId;
+      await this.handshake(connection);
+      return true;
+    } finally {
+      connection.recovering = false;
+    }
   }
 
   /**
@@ -466,6 +557,7 @@ export class MCPClient {
       );
     }
     this.negotiation = version;
+    connection.capabilities = readCapabilities(result["capabilities"]);
     connection.transport.setProtocolVersion?.(version);
     await connection.transport.send({ jsonrpc: "2.0", method: "notifications/initialized" });
   }
@@ -475,9 +567,25 @@ export class MCPClient {
     for (const connection of this.connections) {
       const entries: MCPToolListEntry[] = [];
       let cursor: string | undefined;
+      let pages = 0;
       for (;;) {
+        if (pages === this.maxListPages) {
+          throw new MCPListLimitError(
+            "The MCP server '" +
+              connection.server +
+              "' answered tools/list with another page after " +
+              String(pages) +
+              " pages; the client's bound is " +
+              String(this.maxListPages) +
+              ".",
+            "tools/list",
+            connection.server,
+            pages,
+          );
+        }
+        pages += 1;
         const params: Record<string, unknown> = cursor === undefined ? {} : { cursor };
-        const result = await this.request("tools/list", params, undefined, connection);
+        const result = await this.requestFor(connection, "tools/list", params);
         const page = result["tools"];
         if (Array.isArray(page)) entries.push(...(page as MCPToolListEntry[]));
         const next = result["nextCursor"];
@@ -487,7 +595,7 @@ export class MCPClient {
       const adapted: MCPTool[] = adaptTools(entries, connection.server, {
         logger: this.logger,
         structuredOutput: this.structuredOutput,
-        request: (method, params, signal) => connection.request(method, params, signal),
+        request: (method, params, signal) => this.requestFor(connection, method, params, signal),
       });
       connection.tools = adapted;
       connection.stale = false;
@@ -520,6 +628,36 @@ export class MCPClient {
       }
     }
   }
+}
+
+const CAPABILITY_BY_PREFIX: readonly (readonly [string, keyof ServerCapabilities])[] = [
+  ["tools/", "tools"],
+  ["resources/", "resources"],
+  ["prompts/", "prompts"],
+];
+
+/** The capability a verb belongs to, or undefined for a verb this client does not gate. */
+function capabilityFor(method: string): keyof ServerCapabilities | undefined {
+  if (method === "completion/complete") return "completions";
+  for (const [prefix, capability] of CAPABILITY_BY_PREFIX) {
+    if (method.startsWith(prefix)) return capability;
+  }
+  return undefined;
+}
+
+/** Reads the capabilities object an initialize reply carried; anything absent stays absent. */
+function readCapabilities(value: unknown): ServerCapabilities {
+  const declared: Record<string, Record<string, unknown>> = {};
+  if (value !== null && typeof value === "object") {
+    const source = value as Record<string, unknown>;
+    for (const key of ["tools", "resources", "prompts", "logging", "completions"]) {
+      const entry = source[key];
+      if (entry !== null && typeof entry === "object") {
+        declared[key] = entry as Record<string, unknown>;
+      }
+    }
+  }
+  return declared as ServerCapabilities;
 }
 
 function serverName(parameters: MCPServerParameters): string {

@@ -318,7 +318,7 @@ class PeerGoneTransport implements MCPTransport {
         id: request.id as string | number,
         result: {
           protocolVersion: LATEST_PROTOCOL_VERSION,
-          capabilities: {},
+          capabilities: { tools: {} },
           serverInfo: { name: "fixture", version: "1" },
         },
       } as MCPMessage);

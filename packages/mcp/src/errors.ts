@@ -35,6 +35,59 @@ export class MCPConnectionError extends MCPError {}
 export class MCPClosedError extends MCPTransportError {}
 
 /**
+ * The server never declared the capability a verb needs. The client refuses before a
+ * message is sent, so the caller learns which side is missing what instead of reading a
+ * protocol error the server did not have to produce.
+ */
+export class MCPCapabilityError extends MCPError {
+  /** The server, as the client names it. */
+  readonly server: string;
+  /** The capability the verb needed, e.g. "tools". */
+  readonly capability: string;
+  /** The verb that was refused. */
+  readonly method: string;
+
+  constructor(message: string, server: string, capability: string, method: string) {
+    super(message);
+    this.server = server;
+    this.capability = capability;
+    this.method = method;
+  }
+}
+
+/**
+ * A paginated listing that did not finish inside the client's page bound. A server that
+ * keeps answering a cursor would otherwise keep one read alive forever.
+ */
+export class MCPListLimitError extends MCPError {
+  readonly method: string;
+  readonly server: string;
+  readonly pages: number;
+
+  constructor(message: string, method: string, server: string, pages: number) {
+    super(message);
+    this.method = method;
+    this.server = server;
+    this.pages = pages;
+  }
+}
+
+/**
+ * The HTTP answer was not 2xx. The status is kept because it is the difference between a
+ * lost session (404) and a real failure, and only the transport sees it.
+ */
+export class MCPHttpStatusError extends MCPTransportError {
+  readonly status: number;
+  readonly method: string | undefined;
+
+  constructor(message: string, status: number, method?: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.status = status;
+    this.method = method;
+  }
+}
+
+/**
  * A tool call the server reported as failed. Carries the server's own text, and names
  * the tool by its MCP name rather than the sanitised identifier a model writes.
  */

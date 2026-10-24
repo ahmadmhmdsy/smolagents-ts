@@ -33,6 +33,30 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T02:58:00+03:00 — Phase 4.1 landed: MCP depth
+
+**State.** 4.1 is landed; 4.2–4.8 and the phase close remain.
+
+**Did.** `client-depth.test.ts` (8 tests, the 11th mcp file) was watched red on the missing
+exports, then 4.1 landed: each connection reads the `initialize` capabilities and a gated verb is
+refused before sending (`MCPCapabilityError`); every paginated read is bounded by
+`maxListPages` (default 100, `MCPListLimitError`); a 404 that arrives with a session id clears
+it, re-handshakes and retries once, and `MCPHttpStatusError` keeps `status` and `method`.
+Gating lives in a private `requestFor`, not the public raw `request`; two existing doubles now
+declare `capabilities: { tools: {} }`. mcp is 11 files / 122 tests, pins 29 → 32.
+
+**Verified.** `pnpm vitest run --project mcp` exits 0 (11 files, 122 tests); the mcp typecheck
+passes; validator 0/0; `pnpm gate` exits 0.
+
+**Unverified / open.** 4.2–4.8 and the phase close are not implemented.
+
+**Next.** 4.2: write the resources/prompts/completions test and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/mcp/src/client.ts`, `packages/mcp/test/client-depth.test.ts`,
+`docs/plans/2026-10-24-phase-4-execution-plan.md` (Changes).
+
 ## 2026-10-25T02:30:00+03:00 — Phase 4 opened: protocol and tool breadth
 
 **State.** Phase 4 is open and nothing in it has landed yet. `T-45` is the row that carries it.
@@ -136,32 +160,4 @@ the react `useRunEvents`.
 
 **Artifacts.** `packages/core/src/memory/steps.ts`; `packages/core/src/memory/memory.ts`;
 `packages/core/test/condensation.test.ts`.
-
-## 2026-10-25T00:45:00+03:00 — Phase 3 opened
-
-**State.** The owner opened Phase 3 (memory and streams). The plan is written with both items'
-acceptance tests pre-registered; no item has started. `T-44` is the live row. Nothing pushed.
-
-**Did.** `docs/plans/2026-10-24-phase-3-execution-plan.md` cuts the phase into 3.1 (condensation
-as a step and an event, with a read-time projection, soft and hard triggers, protected system
-prompt, task, messages and a `keepRecent` window) and 3.2 (a resumable event-log cursor:
-`seq` on every event, an additive `events` tail on the record, `readEvents` and a react
-`useRunEvents`). The exit criterion runs as `phase-3-exit.test.ts` (54th core file). The
-parent plan's row and `T-44` say the phase is in progress. Also committed at `5d51ef4`: the
-owner's two general-memory entries, the registry count and the three OmniRoute research files
-that were left uncommitted.
-
-**Verified.** Plan committed; the working tree was clean before it. Nothing implemented yet, so
-no gate claim belongs to this entry.
-
-**Unverified / open.** The thresholds (soft 6000, hard 12000 estimated tokens, `keepRecent` 4)
-are first values and may move when 3.1's fixture is measured; the plan says so rather than
-pretending they are calibrated. 3.2's `maxRecordedEvents` default of 256 is likewise a first
-value.
-
-**Next.** 3.1: write `condensation.test.ts` first, watch it fail, then implement.
-
-**Blockers.** None; the six owner-blocked rows are unchanged.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-3-execution-plan.md`.
 <!-- rotate:end -->

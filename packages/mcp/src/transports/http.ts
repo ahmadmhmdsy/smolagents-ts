@@ -1,7 +1,7 @@
 import type { MCPMessage } from "../json-rpc.js";
 import type { MCPTransport } from "../transport.js";
 import { DEFAULT_NEGOTIATED_PROTOCOL_VERSION } from "../parameters.js";
-import { MCPClosedError, MCPTransportError } from "../errors.js";
+import { MCPClosedError, MCPHttpStatusError, MCPTransportError } from "../errors.js";
 
 /** The subset of fetch this transport uses. Injectable, so the suite needs no server. */
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
@@ -73,13 +73,15 @@ export class StreamableHttpTransport implements MCPTransport {
     });
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      throw new MCPTransportError(
+      throw new MCPHttpStatusError(
         "The MCP server answered HTTP " +
           String(response.status) +
           " for " +
           ("method" in message ? message.method : "a response") +
           ": " +
           body.slice(0, 300),
+        response.status,
+        "method" in message ? message.method : undefined,
       );
     }
     const session = response.headers.get(SESSION_HEADER);

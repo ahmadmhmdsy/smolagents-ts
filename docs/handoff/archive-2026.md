@@ -4,6 +4,34 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T00:45:00+03:00 — Phase 3 opened
+
+**State.** The owner opened Phase 3 (memory and streams). The plan is written with both items'
+acceptance tests pre-registered; no item has started. `T-44` is the live row. Nothing pushed.
+
+**Did.** `docs/plans/2026-10-24-phase-3-execution-plan.md` cuts the phase into 3.1 (condensation
+as a step and an event, with a read-time projection, soft and hard triggers, protected system
+prompt, task, messages and a `keepRecent` window) and 3.2 (a resumable event-log cursor:
+`seq` on every event, an additive `events` tail on the record, `readEvents` and a react
+`useRunEvents`). The exit criterion runs as `phase-3-exit.test.ts` (54th core file). The
+parent plan's row and `T-44` say the phase is in progress. Also committed at `5d51ef4`: the
+owner's two general-memory entries, the registry count and the three OmniRoute research files
+that were left uncommitted.
+
+**Verified.** Plan committed; the working tree was clean before it. Nothing implemented yet, so
+no gate claim belongs to this entry.
+
+**Unverified / open.** The thresholds (soft 6000, hard 12000 estimated tokens, `keepRecent` 4)
+are first values and may move when 3.1's fixture is measured; the plan says so rather than
+pretending they are calibrated. 3.2's `maxRecordedEvents` default of 256 is likewise a first
+value.
+
+**Next.** 3.1: write `condensation.test.ts` first, watch it fail, then implement.
+
+**Blockers.** None; the six owner-blocked rows are unchanged.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-3-execution-plan.md`.
+
 ## 2026-10-25T00:20:00+03:00 — Phase 2 closed
 
 **State.** Phase 2 (delegation that survives its parent) is complete: 2.1–2.8 landed, the exit

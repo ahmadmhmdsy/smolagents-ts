@@ -34,9 +34,12 @@ export {
 } from "./tool-adapter.js";
 export { mcpTools, withMCPClient, type MCPToolsOptions } from "./tools.js";
 export {
+  MCPCapabilityError,
   MCPClosedError,
   MCPConnectionError,
   MCPError,
+  MCPHttpStatusError,
+  MCPListLimitError,
   MCPParameterError,
   MCPProtocolError,
   MCPTimeoutError,
