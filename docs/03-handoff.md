@@ -33,6 +33,36 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T19:35:00+03:00 — 1.6 landed: the CLI can park and resume
+
+**State.** Phase 1 items 1.1–1.6 are in the tree; Wave B is half done. A durable CLI run now
+writes a record, exits 3 on an approval it cannot decide, and a second invocation settles that
+request and finishes. Nothing is pushed.
+
+**Did.** `--run-id`, `--resume`, `--approve` and `--state-dir` in the parser, with
+`--approve` refused unless `--resume` names the run. A durable run (`--run-id`) or a resume
+gets a `FileRunStore` over `nodeRunFileSystem`; a headless process answers `pending`, so the
+run parks with exit 3 and the renderer prints the exact resume command. A resume loads the record
+first, so a missing directory names `--state-dir`, an absent record names the run, and a waiting
+run without `--approve` prints its request id. `--approve` settles `allowed-once` and re-enters
+the parked step with the task read back from the record; no model request or recorded effect is
+paid for twice. A resume runbook walks the two commands.
+
+**Verified.** CLI 10 files and 70 tests, typecheck; core untouched by the item, still 42 and 509.
+`resume-e2e` parks a real `CodeAgent` at exit 3, reads the stored request id, resumes it, and
+finishes at exit 0 with the tool run once and the parked model request replayed. `pnpm gate`
+exit 0.
+
+**Unverified-open.** A durable run parks once per tool call, and there is no interactive approval
+prompt yet. The two-process manual run is recorded in the phase report when the last item lands.
+
+**Next.** 1.7: `conversationId`, `latestForConversation` and `--conversation`.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `packages/cli/src/{args,errors,run,renderer,main}.ts`,
+`packages/cli/test/{args,resume-e2e}.test.ts`, `docs/10-runbooks/resume-a-parked-run.md`.
+
 ## 2026-10-24T18:55:00+03:00 — 1.5 landed: a store you can keep
 
 **State.** Phase 1 items 1.1–1.5 are in the tree; Wave B has started. Core now ships a durable
@@ -124,32 +154,4 @@ surface in-doubt as `unknown`; starting with its red acceptance test.
 
 **Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `agent/multi-step-agent.ts`,
 `session/run-record.ts`, `session/run-store.ts`, `test/run-store.test.ts`.
-
-## 2026-10-24T16:55:00+03:00 — 1.2 landed: a run can park on a request
-
-**State.** Phase 1 items 1.1 and 1.2 are in the tree. A gated call may answer `pending`: the
-run commits `waiting` with a `pending` request and ends with `run.waiting`. A later agent
-resumes it with `RunOptions.resume {requestId, outcome}`, settles once, and re-enters the
-unfinished step. Nothing is pushed.
-
-**Did.** Added the fifth verdict and `ToolApprovalPendingError`; record fields `pending` and
-`settlements`; `RunState "waiting"`; `run.waiting` and `run.resumed`; resume validation with
-typed refusals (`RunNotFoundError`, `RunNotWaitingError`, `RunRequestMismatchError`,
-`RunRequestExpiredError`, `RunAlreadySettledError`, `RunApprovalMismatchError`); the session's
-`waiting` status and the React label; and a gate installed on resume even without a handler.
-
-**Verified.** `pnpm gate` exit 0. Core 40 files and 479 tests, including six new resume cases:
-park with digest, settle once, second resume reports settled, wrong id, digest mismatch, expiry.
-
-**Unverified-open.** Two processes resuming one request still race: the claim and generation
-fence are 1.3. A resumed step re-asks the model; the settlement binds by digest-and-step, so a
-model that changes its arguments gets a typed refusal rather than a retry.
-
-**Next.** 1.3: ownership CAS with a claim, `generation` bumped per claim, `RunClaimed`, repair
-forward — starting with its red acceptance test.
-
-**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `agent/approval.ts`,
-`agent/multi-step-agent.ts`, `session/run-record.ts`, `test/session-resume.test.ts`.
 <!-- rotate:end -->

@@ -13,14 +13,14 @@ surface is the same parser, factories, renderer and run function the bin uses.
 | entry point | path | notes |
 |---|---|---|
 | public barrel | `packages/cli/src/index.ts` | the parser, the factories, the renderer and `runSmolagent` |
-| bin | `packages/cli/src/main.ts` | carries the shebang; exit codes 0, 1, 2 and 130 |
-| arguments | `packages/cli/src/args.ts` | the hand-rolled parser, `USAGE` and the defaults |
+| bin | `packages/cli/src/main.ts` | carries the shebang; exit codes 0, 1, 2, 3 and 130 |
+| arguments | `packages/cli/src/args.ts` | the hand-rolled parser, `USAGE`, the defaults and the four durability flags |
 | model factory | `packages/cli/src/model-factory.ts` | upstream names onto `HuggingFaceModel` and `OpenAICompatibleModel` |
 | tool factory | `packages/cli/src/tool-factory.ts` | the two defaults, and the refusals by name |
 | renderer | `packages/cli/src/renderer.ts` | `renderEvent`, `display` and `supportsColor` |
 | interactive setup | `packages/cli/src/interactive.ts` | the questions and their defaults |
 | terminal | `packages/cli/src/terminal.ts` | the readline prompter and the writer |
-| run function | `packages/cli/src/run.ts` | builds the agent, drains the stream, answers an exit code |
+| run function | `packages/cli/src/run.ts` | builds the agent, wires the file store and resume, drains the stream, answers an exit code |
 | errors | `packages/cli/src/errors.ts` | one class per refusal, each carrying its exit code |
 | store binding | `packages/cli/src/store.ts` | `nodeRunFileSystem` and the default state directory, the Node half of the core's file store |
 | version marker | `packages/cli/src/version.ts` | the value the pack smoke imports |
@@ -29,11 +29,13 @@ surface is the same parser, factories, renderer and run function the bin uses.
 
     pnpm vitest run --project cli
 
-Expected result: nine files with sixty-three tests, exit code 0. Measured on
+Expected result: ten files with seventy tests, exit code 0. Measured on
 2026-10-21 as "Test Files 8 passed (8)" and "Tests 59 passed (59)"; the extra
-case covers recognising a symlinked entry point as the main module. The end-to-end
-case drives the real `CodeAgent` with the core's `MockModel` and `ScriptedExecutor`,
-so the suite needs no provider and no key. Run
+case covers recognising a symlinked entry point as the main module, the durability
+surface added the tenth file and its seven cases (four parser, three in-process
+park-and-resume), and the count moved to 70. The end-to-end case drives the real
+`CodeAgent` with the core's `MockModel` and `ScriptedExecutor`, so the suite needs no
+provider and no key. Run
 `pnpm --filter @smolagents-ts/cli run typecheck` beside it: the runner erases
 types, so only the compiler checks the factory's option shapes.
 

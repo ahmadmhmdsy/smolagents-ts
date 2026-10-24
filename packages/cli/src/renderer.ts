@@ -139,6 +139,34 @@ export function renderEvent(event: AgentEvent, options: RenderOptions): string |
               String(event.usage.totalTokens),
           )
         : undefined;
+    case "run.waiting": {
+      const pending = event.result.pending;
+      const request =
+        pending === undefined
+          ? "an approval"
+          : 'request ' + pending.requestId + ' for "' + pending.toolName + '"';
+      return (
+        line(
+          paint("Run waiting", "yellow", options) +
+            " on " +
+            request +
+            " (run " +
+            event.result.runId +
+            ")",
+        ) + line("Resume it with --resume " + event.result.runId + " --approve <requestId>.")
+      );
+    }
+    case "run.resumed":
+      return v >= 1
+        ? line(
+            "Resumed run " +
+              event.runId +
+              ": request " +
+              event.requestId +
+              " " +
+              event.outcome,
+          )
+        : undefined;
     case "run.completed":
       return line(paint("Final answer:", "green", options) + " " + display(event.result.output));
     case "run.failed":

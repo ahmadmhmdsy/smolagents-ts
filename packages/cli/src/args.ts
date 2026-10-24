@@ -1,4 +1,5 @@
 import { CliUsageError, HelpRequested } from "./errors.js";
+import { DEFAULT_STATE_DIRECTORY } from "./store.js";
 
 /** The parsed command line. The optional fields are absent when their flag was absent. */
 export interface CliArguments {
@@ -13,6 +14,14 @@ export interface CliArguments {
   provider?: string;
   apiBase?: string;
   apiKey?: string;
+  /** The durable id a new run is stored under; absent for a run this process does not keep. */
+  runId?: string;
+  /** Resume the run stored under this id instead of starting a new one. */
+  resume?: string;
+  /** Settle the resumed run's pending request with this id, as allowed-once. */
+  approve?: string;
+  /** The directory run records live in. Defaults to DEFAULT_STATE_DIRECTORY beside the cwd. */
+  stateDir: string;
 }
 
 /** The defaults upstream cli.py declares at 1.27.0.dev0, ported unchanged. */
@@ -47,6 +56,11 @@ export const USAGE = [
   "  --provider NAME       the InferenceClientModel provider label",
   "  --api-base URL        the endpoint for OpenAIModel",
   "  --api-key KEY         the key; without it HF_TOKEN or OPENAI_API_KEY is read",
+  "  --run-id ID           store this run under ID so it survives the process",
+  "  --resume ID           resume the stored run ID instead of starting a new one;",
+  "                        the run parks with exit code 3 on an approval it must be given",
+  "  --approve REQUEST     allow the resumed run's pending request REQUEST (needs --resume)",
+  "  --state-dir DIR       where run records live (default .smolagents)",
   "",
   "Environment:",
   "  HF_TOKEN              read when --api-key is absent and the type is",
@@ -61,7 +75,11 @@ type ValueOption =
   | "verbosityLevel"
   | "provider"
   | "apiBase"
-  | "apiKey";
+  | "apiKey"
+  | "runId"
+  | "resume"
+  | "approve"
+  | "stateDir";
 
 const VALUE_OPTIONS: ReadonlyMap<string, ValueOption> = new Map([
   ["--model-type", "modelType"],
@@ -71,6 +89,10 @@ const VALUE_OPTIONS: ReadonlyMap<string, ValueOption> = new Map([
   ["--provider", "provider"],
   ["--api-base", "apiBase"],
   ["--api-key", "apiKey"],
+  ["--run-id", "runId"],
+  ["--resume", "resume"],
+  ["--approve", "approve"],
+  ["--state-dir", "stateDir"],
 ]);
 
 type ListOption = "imports" | "tools";
@@ -106,6 +128,7 @@ export function parseArguments(argv: readonly string[]): CliArguments {
     imports: [],
     tools: [...DEFAULT_TOOLS],
     verbosityLevel: DEFAULT_VERBOSITY_LEVEL,
+    stateDir: DEFAULT_STATE_DIRECTORY,
   };
   let prompt: string | undefined;
   let optionsEnded = false;
@@ -180,6 +203,12 @@ export function parseArguments(argv: readonly string[]): CliArguments {
     } else {
       parsed[valueKey] = value;
     }
+  }
+
+  if (parsed.approve !== undefined && parsed.resume === undefined) {
+    throw new CliUsageError(
+      "argument --approve: it settles a pending request, so it needs --resume <runId> to name the run.",
+    );
   }
 
   if (prompt !== undefined) {

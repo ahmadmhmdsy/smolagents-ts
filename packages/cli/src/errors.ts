@@ -83,6 +83,65 @@ export class MissingExecutorError extends CliError {
   }
 }
 
+/**
+ * A resume whose state directory does not exist: there is no record it could load, and the flag
+ * that would point at one is named instead of guessing where the caller meant.
+ */
+export class MissingStateDirectoryError extends CliError {
+  readonly directory: string;
+
+  constructor(directory: string) {
+    super(
+      "No state directory at " +
+        JSON.stringify(directory) +
+        ", so a resume has no record to load. Start a run with --run-id, or pass the --state-dir " +
+        "that holds the run.",
+    );
+    this.directory = directory;
+  }
+}
+
+/** The state directory exists but holds no record for the run id a resume named. */
+export class UnknownRunError extends CliError {
+  readonly runId: string;
+
+  constructor(runId: string, directory: string) {
+    super(
+      "The state directory " +
+        JSON.stringify(directory) +
+        " holds no record for run " +
+        JSON.stringify(runId) +
+        ".",
+    );
+    this.runId = runId;
+  }
+}
+
+/**
+ * A resume of a waiting run that named no outcome to settle. The id to approve is printed, so the
+ * operator's next command is the one that works rather than a search through the state directory.
+ */
+export class PendingApprovalError extends CliError {
+  readonly requestId: string;
+
+  constructor(runId: string, requestId: string, toolName: string) {
+    super(
+      "Run " +
+        JSON.stringify(runId) +
+        " is waiting on request " +
+        JSON.stringify(requestId) +
+        ' (tool "' +
+        toolName +
+        '"). Resume it with --resume ' +
+        runId +
+        " --approve " +
+        requestId +
+        ".",
+    );
+    this.requestId = requestId;
+  }
+}
+
 /** --help is not a failure. The parser throws this and the bin answers with exit code 0. */
 export class HelpRequested extends CliError {
   readonly usage: string;

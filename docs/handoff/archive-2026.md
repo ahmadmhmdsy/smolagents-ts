@@ -4,6 +4,34 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T16:55:00+03:00 — 1.2 landed: a run can park on a request
+
+**State.** Phase 1 items 1.1 and 1.2 are in the tree. A gated call may answer `pending`: the
+run commits `waiting` with a `pending` request and ends with `run.waiting`. A later agent
+resumes it with `RunOptions.resume {requestId, outcome}`, settles once, and re-enters the
+unfinished step. Nothing is pushed.
+
+**Did.** Added the fifth verdict and `ToolApprovalPendingError`; record fields `pending` and
+`settlements`; `RunState "waiting"`; `run.waiting` and `run.resumed`; resume validation with
+typed refusals (`RunNotFoundError`, `RunNotWaitingError`, `RunRequestMismatchError`,
+`RunRequestExpiredError`, `RunAlreadySettledError`, `RunApprovalMismatchError`); the session's
+`waiting` status and the React label; and a gate installed on resume even without a handler.
+
+**Verified.** `pnpm gate` exit 0. Core 40 files and 479 tests, including six new resume cases:
+park with digest, settle once, second resume reports settled, wrong id, digest mismatch, expiry.
+
+**Unverified-open.** Two processes resuming one request still race: the claim and generation
+fence are 1.3. A resumed step re-asks the model; the settlement binds by digest-and-step, so a
+model that changes its arguments gets a typed refusal rather than a retry.
+
+**Next.** 1.3: ownership CAS with a claim, `generation` bumped per claim, `RunClaimed`, repair
+forward — starting with its red acceptance test.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `agent/approval.ts`,
+`agent/multi-step-agent.ts`, `session/run-record.ts`, `test/session-resume.test.ts`.
+
 ## 2026-10-24T16:05:00+03:00 — 1.1 landed: a run has a record
 
 **State.** Phase 1 is open and item 1.1 is in the tree. A run is now a `RunRecord` under a

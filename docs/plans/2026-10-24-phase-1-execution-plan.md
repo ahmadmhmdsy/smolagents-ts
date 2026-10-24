@@ -291,6 +291,27 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.6 as built.** The parser reads `--run-id`, `--resume`, `--approve`
+  and `--state-dir`; `--approve` without `--resume` is a usage error, because a settlement needs
+  a run to settle. A durable run (`--run-id`, or a resume) gets a `FileRunStore` over
+  `nodeRunFileSystem`, with the state directory resolved against the working directory and
+  `.smolagents` as the default. A headless process cannot ask anyone, so the approval handler
+  answers `pending`: the loop commits the request and parks, and the CLI exits **3** instead of
+  0 or 1. Resuming loads the record first — a missing state directory names `--state-dir`, an
+  absent record names the run, and a waiting run without `--approve` prints the request id it
+  needs. `--approve <requestId>` settles it as `allowed-once` and re-enters the parked step; the
+  task is read back from the record, so the prompt need not be retyped. The renderer names the
+  waiting state and the exact resume command, and a runbook walks the two invocations.
+- **Acceptance.** Parser fixtures cover the four flags and the `--approve`-needs-`--resume`
+  refusal. `resume-e2e` parks a real `CodeAgent` at exit 3, reads the stored request id,
+  resumes in a second invocation and finishes at exit 0, with the tool run once and the parked
+  model request replayed rather than paid for twice. Two refusal cases cover the missing
+  directory and the unknown run. The parser cannot decide whether a directory exists, so that
+  check lives in the run function beside the store it serves — a refinement of the item's
+  wording, not of its behaviour.
+- **Public surface.** No new export; `stateDir` is required on `CliArguments` because the parser
+  always fills the default, and optional on `RunSmolagentOptions`.
+
 - **2026-10-24 — 1.5 as built.** `FileRunStore` ships in core over an injected `RunFileSystem`
   (`read`, `write`, `rename`, `delete`, `list`), so core stays isomorphic. A run is one file
   named `encodeURIComponent(runId) + ".json"`; a commit writes a random temporary name, renames

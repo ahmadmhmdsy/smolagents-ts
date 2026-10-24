@@ -27,9 +27,9 @@ export interface MainOptions {
  * The bin: parse, set up, run.
  *
  * Exit codes match the error hierarchy: 0 for a completed run or for --help, 2 for a
- * command line the parser rejects, 130 for interactive setup ended by EOF or Ctrl+C,
- * and 1 for everything else. With no prompt the
- * interactive setup asks for the configuration before the run.
+ * command line the parser rejects, 130 for interactive setup ended by EOF or Ctrl+C, 3 for a
+ * durable run parked on an approval, and 1 for everything else. With no prompt and no
+ * --resume the interactive setup asks for the configuration before the run.
  */
 export async function main(
   argv: readonly string[] = process.argv.slice(2),
@@ -51,7 +51,7 @@ export async function main(
   }
 
   let selection: InteractiveSelection;
-  if (args.prompt === undefined) {
+  if (args.prompt === undefined && args.resume === undefined) {
     const prompter = (options.createPrompter ?? createTerminalPrompter)();
     try {
       selection = await interactiveMode({
@@ -70,7 +70,7 @@ export async function main(
     }
   } else {
     selection = {
-      prompt: args.prompt,
+      prompt: args.prompt ?? "",
       tools: args.tools,
       modelType: args.modelType,
       modelId: args.modelId,
@@ -89,6 +89,10 @@ export async function main(
     verbosityLevel: args.verbosityLevel,
     color: supportsColor(process.stdout.isTTY, process.env),
     env: options.env ?? process.env,
+    stateDir: args.stateDir,
+    ...(args.runId === undefined ? {} : { runId: args.runId }),
+    ...(args.resume === undefined ? {} : { resume: args.resume }),
+    ...(args.approve === undefined ? {} : { approve: args.approve }),
   });
 }
 

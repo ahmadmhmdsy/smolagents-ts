@@ -26,6 +26,7 @@ rediscovery of the same failure.
 | exec-pyodide-browser-probe.md | after a change to the exec-pyodide loader, executor or capabilities, or before a release that ships a browser bundle | 2026-10-14 |
 | exec-remote-live-backends.md | after a change to a remote backend, its transport or its lifecycle, or before a release that claims a live path | 2026-10-14 (process only) |
 | publish-0.1.0.md | when the owner supplies registry credentials and a release is due | never executed |
+| resume-a-parked-run.md | when a durable CLI run exits 3 on a pending approval, or a resume is refused | 2026-10-24 |
 
 ## What belongs here
 

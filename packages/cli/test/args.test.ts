@@ -116,4 +116,44 @@ describe("parseArguments", () => {
   it("carries the action type", () => {
     expect(parseArguments(["--action-type", "tool_calling"]).actionType).toBe("tool_calling");
   });
+
+  it("reads the durability flags and default state directory", () => {
+    const args = parseArguments([
+      "--run-id",
+      "run-7",
+      "--resume",
+      "run-6",
+      "--approve",
+      "req-2",
+      "--state-dir",
+      "state",
+      "go",
+    ]);
+
+    expect(args.runId).toBe("run-7");
+    expect(args.resume).toBe("run-6");
+    expect(args.approve).toBe("req-2");
+    expect(args.stateDir).toBe("state");
+  });
+
+  it("defaults the state directory beside the working directory", () => {
+    expect(parseArguments([]).stateDir).toBe(".smolagents");
+  });
+
+  it("rejects --approve without --resume", () => {
+    expect(() => parseArguments(["--approve", "req-1", "go"])).toThrow(CliUsageError);
+  });
+
+  it("documents the durability flags in the help text", () => {
+    try {
+      parseArguments(["--help"]);
+    } catch (error) {
+      const usage = (error as HelpRequested).usage;
+      expect(usage).toContain("--run-id");
+      expect(usage).toContain("--resume");
+      expect(usage).toContain("--approve");
+      expect(usage).toContain("--state-dir");
+    }
+  });
+
 });
