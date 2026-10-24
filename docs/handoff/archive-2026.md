@@ -4,6 +4,31 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T16:05:00+03:00 — 1.1 landed: a run has a record
+
+**State.** Phase 1 is open and item 1.1 is in the tree. A run is now a `RunRecord` under a
+`runId`: status, generation, memory steps, timestamps. `RunStore` is `commit`/`load`; the loop
+commits at one boundary per step and once as terminal. `RunOptions.checkpoint` is renamed
+`runId` and the durable id is the run's event identity. Nothing is pushed.
+
+**Did.** Added `session/run-record.ts` (version 2, forward translation of the version 1
+envelope and version 0 array, `RunRecordVersionError` for newer), rewrote `run-store.ts`, moved
+the loop from `saveCheckpoint` to `commitRun`, made `complete()` commit `completed` before the
+event, and made a throw that escapes the loop commit `failed`. Contract suite speaks records.
+
+**Verified.** `pnpm gate` exit 0. Core 39 files and 466 tests. Public surface pins the new
+names; `pnpm typecheck` across the workspace.
+
+**Unverified-open.** Two-process use is not testable until the file store lands in 1.5. A
+legacy translation leaves `runId` empty; the caller fills it from the store key.
+
+**Next.** 1.2: the `pending` request and `resume`, starting with the red acceptance test.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `session/run-record.ts`,
+`session/run-store.ts`, `test/run-store.test.ts`.
+
 ## 2026-10-24T15:20:00+03:00 — Phase 1 opened: the durability spine
 
 **State.** Phase 0 is closed and pushed nowhere: ten correction commits, `pnpm gate`

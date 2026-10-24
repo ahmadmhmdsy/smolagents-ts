@@ -3,17 +3,13 @@
  * \`run-store.contract.ts\`. The file-backed double stands in for the durable store Phase 1.5
  * ships: it writes one JSON file per run under a fresh temporary directory and reads it back.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
-import { RunClaimedError, RunNotFoundError, StaleWriterError } from "../../src/errors.js";
-import {
-  MemoryRunStore,
-  type RunStore,
-  type StoredRun,
-} from "../../src/session/run-store.js";
-import type { RunRecord } from "../../src/session/run-record.js";
+import { FileRunStore, type RunFileSystem } from "../../src/session/file-run-store.js";
+import { MemoryRunStore } from "../../src/session/run-store.js";
 import { runStoreContract } from "./run-store.contract.js";
 
 const directories: string[] = [];
@@ -22,69 +18,48 @@ afterAll(() => {
   for (const directory of directories) rmSync(directory, { recursive: true, force: true });
 });
 
-class TemporaryFileRunStore implements RunStore {
-  private readonly directory: string;
+/** The Node seam the CLI ships, reproduced in the test so core is certified over a real disk. */
+class NodeFiles implements RunFileSystem {
+  readonly directory: string;
 
   constructor() {
-    this.directory = mkdtempSync(join(tmpdir(), "smolagents-run-store-"));
+    this.directory = join(tmpdir(), "smolagents-run-store-" + crypto.randomUUID());
     directories.push(this.directory);
+    mkdirSync(this.directory, { recursive: true });
   }
 
-  private pathFor(runId: string): string {
-    return join(this.directory, encodeURIComponent(runId) + ".json");
-  }
-
-  commit(runId: string, record: RunRecord, expectedGeneration?: number): void {
-    const path = this.pathFor(runId);
-    if (expectedGeneration !== undefined && existsSync(path)) {
-      const stored = JSON.parse(readFileSync(path, "utf8")) as RunRecord;
-      if (stored.generation !== expectedGeneration) {
-        throw new StaleWriterError(
-          "The record for run " +
-            runId +
-            " is at generation " +
-            String(stored.generation) +
-            ", not " +
-            String(expectedGeneration) +
-            ".",
-        );
-      }
+  private pathFor(name: string): string {
+    if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+      throw new Error("a record file name must be flat, got: " + name);
     }
-    writeFileSync(path, JSON.stringify(record), "utf8");
+    return join(this.directory, name);
   }
 
-  claim(runId: string, expectedGeneration: number, owner: string): RunRecord {
-    const stored = this.load(runId);
-    if (stored === undefined) {
-      throw new RunNotFoundError("The store holds no record for run " + runId + " to claim.");
-    }
-    const record = stored as RunRecord;
-    if (record.generation !== expectedGeneration) {
-      throw new RunClaimedError(
-        "Run " +
-          runId +
-          " is at generation " +
-          String(record.generation) +
-          ", not " +
-          String(expectedGeneration) +
-          "; another writer holds it.",
-      );
-    }
-    const claimed: RunRecord = {
-      ...record,
-      generation: record.generation + 1,
-      owner,
-      updatedAt: new Date().toISOString(),
-    };
-    this.commit(runId, claimed);
-    return claimed;
-  }
-
-  load(runId: string): StoredRun | undefined {
-    const path = this.pathFor(runId);
+  async read(name: string): Promise<string | undefined> {
+    const path = this.pathFor(name);
     if (!existsSync(path)) return undefined;
-    return JSON.parse(readFileSync(path, "utf8")) as RunRecord;
+    return readFile(path, "utf8");
   }
+
+  async write(name: string, data: string): Promise<void> {
+    await writeFile(this.pathFor(name), data, "utf8");
+  }
+
+  async rename(from: string, to: string): Promise<void> {
+    await rename(this.pathFor(from), this.pathFor(to));
+  }
+
+  async delete(name: string): Promise<void> {
+    await unlink(this.pathFor(name)).catch(() => undefined);
+  }
+
+  async list(): Promise<string[]> {
+    return readdir(this.directory);
+  }
+}
+
+function temporaryFileStore(): FileRunStore {
+  return new FileRunStore(new NodeFiles());
 }
 
 runStoreContract("MemoryRunStore", () => new MemoryRunStore());
@@ -104,4 +79,4 @@ runStoreContract("a store that answers asynchronously", async () => {
   };
 });
 
-runStoreContract("a temporary-file store", () => new TemporaryFileRunStore());
+runStoreContract("the shipped FileRunStore over a temporary directory", () => temporaryFileStore());

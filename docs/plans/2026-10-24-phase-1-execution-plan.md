@@ -291,6 +291,25 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.5 as built.** `FileRunStore` ships in core over an injected `RunFileSystem`
+  (`read`, `write`, `rename`, `delete`, `list`), so core stays isomorphic. A run is one file
+  named `encodeURIComponent(runId) + ".json"`; a commit writes a random temporary name, renames
+  it into place, and deletes the temporary on failure, so a torn write leaves the previous record
+  authoritative. A stale commit is refused before the temporary is written; a claim reads, bumps
+  the fence and writes the claimed record. The CLI supplies the Node half —
+  `nodeRunFileSystem(directory)` plus `DEFAULT_STATE_DIRECTORY` — which owns the directory,
+  creates it on first write and refuses any file name that is not flat, because a runId is
+  opaque text.
+- **Certification.** The conformance suite's hand-built temporary-file double was replaced by
+  the shipped `FileRunStore` over a Node seam, so all three stores (memory, async memory, file)
+  now pass the same twelve modes; the contract needed no new mode. `file-run-store.test.ts`
+  adds the four acceptance checks: one file after two commits, a stale refusal, a failed rename
+  leaving the previous record, and a run id with path characters staying one flat file.
+- **Acceptance order.** The core test was red on the missing module before `FileRunStore`
+  existed; the CLI test was re-run red with the binding temporarily moved aside, then restored.
+- **Public surface.** `FileRunStore`, `RunFileSystem` and `nodeRunFileSystem` are pinned;
+  core grew from 503 to 509 tests and the CLI from 59 to 63.
+
 - **2026-10-24 — 1.4 as built.** `RunRecord` gains optional `journal`
   `[{stepId, callId, toolName, argsDigest, state: intent | done | unknown, result?, usage?, at}]`;
   a model request is an entry with `toolName ""` and `callId "model"`. The loop writes the

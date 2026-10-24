@@ -16,7 +16,7 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 | public barrel | `packages/core/src/index.ts` | the runtime names pinned by `packages/core/test/public-surface.test.ts` |
 | agent loop | `packages/core/src/agent/multi-step-agent.ts` | the base loop; `code-agent.ts` and `tool-calling-agent.ts` specialise it |
 | session store | `packages/core/src/session/agent-session.ts` | the snapshot shape React subscribes to; a session `checkpoint` continues the agent's memory across turns |
-| checkpoint store | `packages/core/src/session/run-store.ts` | the `RunStore` seam a run checkpoints to and resumes from |
+| checkpoint store | `packages/core/src/session/run-store.ts` | the `RunStore` seam a run checkpoints to and resumes from; `file-run-store.ts` beside it is `FileRunStore` over an injected `RunFileSystem` |
 | approval gate | `packages/core/src/agent/approval.ts` | `withApproval` asks before a tool call runs |
 | guardrail seam | `packages/core/src/agent/guardrail.ts` | `AgentOptions.guardrails` tripwires and `AgentOptions.outputSchema` gate the final answer |
 | trace exporter | `packages/core/src/monitoring/trace.ts` | folds an `AgentEvent` stream into one OTel-shaped `TraceSpan` tree |
@@ -27,7 +27,7 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 41 test files and 503 tests pass, exit code 0. Measured on
+Expected result: 42 test files and 509 tests pass, exit code 0. Measured on
 2026-10-21 as "Test Files 37 passed (37)" and "Tests 363 passed (363)";
 Phase 0.1's approval suite replaced two boolean cases with eight named ones,
 Phase 0.2's schema binding added three, the snapshot envelope eight, and the
@@ -38,10 +38,10 @@ so the count moved to 458; the tool-less answer path added two cases, so the cou
 to 460, and the run record replaced the store test's snapshot cases with record cases and
 added three, so the count moved to 466; the resume suite added the fortieth file and its six
 cases, the approval pending path one more in the event contract and the gate unit tests, and the
-session status one, so the count moved to 479; the ownership fence added the claim and stale
-contract modes with their counterexamples and three run-store cases, so the count moved to 496, and
-the effects journal added the forty-first file and its six cases while the code-answer redaction
-gained a journal pass, so the count moved to 503. The
+session status one, so the count moved to 479; the ownership fence added the claim and stale modes with their counterexamples and three
+run-store cases, moving the count to 496; the effects journal added the forty-first file and its
+six cases and the redacted-journal pass, moving it to 503, and the file store added the forty-second
+file and five cases, moving it to 509. The
 adoption revision reported 27 and 273; the S2a work reported 28 and 286, and
 S4's two release tests took it to 288; S5's planning-lane test added the
 twenty-ninth file and its two cases, S1.5's parity suite added the thirtieth file

@@ -49,3 +49,4 @@ export { createTerminalPrompter, writeTo } from "./terminal.js";
 export type { AskOptions, Prompter, Writer } from "./terminal.js";
 export { runSmolagent } from "./run.js";
 export type { RunSmolagentOptions } from "./run.js";
+export { DEFAULT_STATE_DIRECTORY, nodeRunFileSystem } from "./store.js";

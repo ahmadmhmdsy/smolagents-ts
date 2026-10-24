@@ -22,13 +22,14 @@ surface is the same parser, factories, renderer and run function the bin uses.
 | terminal | `packages/cli/src/terminal.ts` | the readline prompter and the writer |
 | run function | `packages/cli/src/run.ts` | builds the agent, drains the stream, answers an exit code |
 | errors | `packages/cli/src/errors.ts` | one class per refusal, each carrying its exit code |
+| store binding | `packages/cli/src/store.ts` | `nodeRunFileSystem` and the default state directory, the Node half of the core's file store |
 | version marker | `packages/cli/src/version.ts` | the value the pack smoke imports |
 
 ## Smallest validation command
 
     pnpm vitest run --project cli
 
-Expected result: eight files with fifty-nine tests, exit code 0. Measured on
+Expected result: nine files with sixty-three tests, exit code 0. Measured on
 2026-10-21 as "Test Files 8 passed (8)" and "Tests 59 passed (59)"; the extra
 case covers recognising a symlinked entry point as the main module. The end-to-end
 case drives the real `CodeAgent` with the core's `MockModel` and `ScriptedExecutor`,

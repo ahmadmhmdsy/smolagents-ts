@@ -60,6 +60,7 @@ const RUNTIME_EXPORTS = [
   "stepToJSON",
   "stepFromJSON",
   "MemoryRunStore",
+  "FileRunStore",
   "translateSnapshot",
   "RUN_SNAPSHOT_VERSION",
   "RunSnapshotVersionError",
