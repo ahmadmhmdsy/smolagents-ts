@@ -9,7 +9,7 @@
 - **Status:** draft
 - **Owner:** owner
 - **Created:** 2026-10-22T14:20:00+03:00
-- **Authorized by:** not yet approved
+- **Authorized by:** not yet approved. The dive's adoptable items and the delegation ruling are approved (2026-10-24, `0025`); the program itself still needs the owner's go-ahead.
 
 ## Goal
 
@@ -21,6 +21,7 @@ The study filed 565 gap rows against 97 capabilities, and 75 of those capabiliti
 
 ## Non-goals
 
+- No shared data blackboard and no team shelf ([`0025`](docs/09-decisions/0025-no-blackboard.md)): a typed report, a message that is a record entry, and a claim board only when a background child exists. Delegation is opt-in and never gated by prose.
 - Nothing on the study's refuse list ([`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md)): no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
 - A re-run of the study. The research is a pinned snapshot; phases cite it and do not re-litigate it.
 - Retrieval, multimodal and provider-spec versioning are in Phase 6 and gated by a decision, not assumed.
@@ -50,15 +51,15 @@ Each phase below is a candidate for its own execution plan in this folder, with 
 
 | # | item | ids | done when |
 |---|---|---|---|
-| 0.1 | approval records a request id and an input digest; a verdict for another call or another input is refused typed; malformed verdicts fail closed; the decision is an event | `HL-01`, `HL-12` | a test approves one call, edits one argument, and asserts no side effect |
+| 0.1 | approval records a request id and an input digest; a verdict for another call or another input is refused typed; the outcome is the closed set `allowed-once \| rejected \| cancelled \| unavailable` and only `allowed-once` grants; a per-session `never` policy rejects before any answerer runs; the ask happens only inside an open turn; malformed verdicts fail closed; the decision event carries the call and its digest | `HL-01`, `HL-12` | a test approves one call, edits one argument, and asserts no side effect; a `never` session rejects without asking, and an ask outside a turn throws |
 | 0.2 | the schema binds to `final_answer` in both flavours, a mismatch returns as an observation, and `ModelCapabilities.structuredOutput` is removed (`0020` refuses the mode enum) | `GR-05` | a wrong-shaped answer names the offending path in the observation, and no model capability field is unread |
 | 0.3 | one repair attempt: schema failure returns as a history message, with a separate budget, and never after a length finish | `GR-06` | a scripted model fails twice then returns valid; run succeeds with two attempts recorded |
-| 0.4 | an `egress: "unmanaged" \| "deny-all"` policy axis; e2b passes the vendor's deny through its seam; docker and process refuse a deny-all request typed until 4.8 replaces the docker transport; `network` stays reach only | `EX-06` | the e2b double shows the deny option at create; docker and process throw before the guest starts |
-| 0.5 | stored records carry one integer version; old values load; a newer value is refused with a typed error | `HL-10` | a fixture written at version 1 loads, and a version beyond the current one refuses |
+| 0.4 | an `egress: "unmanaged" \| "deny-all"` policy axis; e2b passes the vendor's deny through its seam; docker and process refuse a deny-all request typed until 4.8 replaces the docker transport; `network` stays reach only; the egress decision passes a deny-only stage after the policy hook, so a later listener can only subtract permission | `EX-06` | the e2b double shows the deny option at create; docker and process throw before the guest starts |
+| 0.5 | stored records carry one integer version, one migration package per integer, and a version catalog that rejects gaps; old values load, a newer value is refused with a typed error, and a historical header is translated before the typed read | `HL-10` | a fixture written at version 1 loads, and a version beyond the current one refuses |
 | 0.6 | a written and tested rule for what a tripped guardrail does to the checkpoint, the session and the trace | `GR-01` | blocked output is absent from every persisted artifact, and the trace says it was redacted |
-| 0.7 | every tool gets a finite default deadline with an explicit opt-out and a typed timeout error | `TL-05` | a hanging tool fails the step; the error names which limit fired |
-| 0.8 | an importable conformance suite covering the ten failure modes in the durability brief | `DS-09` | the file store passes it and the suite is documented as the contract |
-| 0.9 | request-owned turn, output-token and total-token limits; typed stop reason; a result handle that continues the same budget | `RT-06`, `RT-08`, `RT-13` | a second call with the returned handle keeps counting and reports `limitTotalTokens` |
+| 0.7 | every tool gets a finite default deadline with an explicit opt-out, enforced by an around-wrapper that replaces the result only when its own timer fired; the timeout is one typed code shares with the classification, and cancellation is classified separately | `TL-05` | a hanging tool fails the step; the error names which limit fired |
+| 0.8 | an importable conformance suite covering the ten failure modes in the durability brief, written against the store interface so every backend passes the same file, each refusal with a rejecting counterexample | `DS-09` | the file store passes it and the suite is documented as the contract |
+| 0.9 | request-owned turn, output-token and total-token limits as fields on the run record, clamped by a deployment ceiling; a typed stop reason; exhaustion is terminal and a resume does not reset it; a result handle continues the same budget | `RT-06`, `RT-08`, `RT-13` | a second call with the returned handle keeps counting and reports `limitTotalTokens` |
 | 0.10 | structured output proven on a model that cannot call tools: the bound schema plus the repair turn, not a forced tool | `GR-06`, `GR-05` | a scripted model with `toolCalls: false` still ends with a schema-valid answer inside the attempt bound |
 
 **Sequencing.** Two waves, with the loop single-writer. Wave 1 is 0.1, 0.2 and 0.5 — the approval binding, the schema binding and the schema version, which Phase 1.1 depends on. 0.4 runs beside Wave 1 on its own scope, `packages/exec-remote/**` and its tests, so no writer touches `multi-step-agent.ts` twice. Wave 2 is 0.3, 0.6, 0.7, 0.8, 0.9 and 0.10, all behind the same loop surface. Each wave ends at a commit with `pnpm gate` green.
@@ -77,7 +78,7 @@ This phase is strictly ordered. Each item extends the type the previous one intr
 |---|---|---|---|
 | 1.1 | the record type and its commit boundary; the loop commits at one place, the store never invents one; the public `checkpoint` option becomes `runId` ([`0023`](docs/09-decisions/0023-one-identity-per-run.md)) | `HL-03`, `HL-04`, `HL-09` | Phase 0.5 |
 | 1.2 | a pending request as state: kind, request id, digest, payload, and `resume(requestId, value)` | `HL-02`, `HL-06` | 1.1 |
-| 1.3 | one owner at a time, by compare-and-set generation or a claim record; a stale writer is refused typed | `HL-04` | 1.1 |
+| 1.3 | one owner at a time, by compare-and-set generation or a claim record; a stale writer is refused typed; a resume repairs forward by appending synthetic closers, never by truncating, and a second live writer refuses rather than racing the repair | `HL-04` | 1.1 |
 | 1.4 | an effects journal: the model request and each wrapped tool call are recorded and replayed, with an explicit in-doubt state for effects we cannot verify | `HL-05` | 1.1–1.3 |
 | 1.5 | a file store implementation that passes the Phase 0.8 suite | `HL-09` | 1.1–1.4 |
 | 1.6 | `--resume <runId>` and `--approve <requestId>` in the CLI, against the same store | `CL-03` | 1.2, 1.5 |
@@ -92,24 +93,26 @@ This phase is strictly ordered. Each item extends the type the previous one intr
 
 ### Phase 2 — Delegation that survives its parent
 
-**Deliverable.** A child returns a validated value or a typed error; control can transfer and that transfer is persisted; every event carries the path of the agents that produced it; a child can run in the background and be re-attached in a later run.
+**Deliverable.** A child returns a validated value or a typed error; a parent can message a running child and wait on it without polling; every event carries the path of the agents that produced it; a child can run in the background, be re-attached in a later run, and claim work from a board that stores claims rather than data. The delegation surface is opt-in.
 
-Depends on Phase 1.1 to 1.4. Build in this order because each one makes the next cheap: a typed report needs nothing new, a transfer needs the pending-request machinery, a background child needs ownership and a child row.
+Depends on Phase 1.1 to 1.4. The phase is cut into two slices because the first needs nothing new — a typed report, an agent path, a send and a wait all ride the existing loop. The second slice needs ownership and a child row: a transfer needs the pending-request machinery, and a background child and a claim board are new durable rows behind a flag. The team shelf (a named peer roster, a client panel) is out of scope by [`0025`](docs/09-decisions/0025-no-blackboard.md).
 
-| # | item | ids | effort |
-|---|---|---|---|
-| 2.1 | a typed child report, with a typed failure channel separate from the value | `MA-03` | S |
-| 2.2 | a transfer action, target validated against the declared agents, recorded in the run | `MA-02` | M |
-| 2.3 | an agent path on every event, enriched at emission | `RT-09` | S |
-| 2.4 | a bounded background child with its own row, a parent pointer and a concurrency cap | `MA-04` | L |
-| 2.5 | one supervisor shape shipped as a tested example | `MA-06` | M |
-| 2.6 | a message injected into a running turn at a step boundary | `RT-11` | M |
+| slice | # | item | ids | effort |
+|---|---|---|---|---|
+| first | 2.1 | a typed child report: a value validated against a declared schema, a failure channel separate from the value, a stop reason, and a bounded provider diagnostic that excludes inputs and secrets | `MA-03` | S |
+| first | 2.3 | an agent path on every event, enriched at emission | `RT-09` | S |
+| first | 2.6 | a send: an ordinary record entry in the child's run carrying the sender, delivered at the child's next step, resuming an inactive child; acceptance is not processing | `new (dive addendum)` | M |
+| first | 2.7 | a wait: blocks on the next status or message edge registered after the call, returns `noProgress` at once when nothing can change, and wakes nobody | `new (dive addendum)` | S |
+| second | 2.2 | a transfer action, target validated against the declared agents, recorded in the run | `MA-02` | M |
+| second | 2.4 | a bounded background child with its own row, a parent pointer, a concurrency cap, and a cold resume that reconciles a provisioning record against the child's run | `MA-04` | L |
+| second | 2.5 | one supervisor shape shipped as a tested example | `MA-06` | M |
+| second | 2.8 | a claim board: owner, status, blockers and advisory write scopes, compare-and-set revisions, tombstones, and no payload field | `new (dive addendum)` | M |
 
 **Files likely affected.** `packages/core/src/agent/managed-agent.ts`, `packages/core/src/agent/action.ts`, `packages/core/src/agent/multi-step-agent.ts`, `packages/core/src/session/run-store.ts`, `packages/core/src/events.ts`, plus an example under `examples/`.
 
-**Exit criterion.** A parent starts a child, ends, and a later run re-attaches to the child's typed result; a transfer survives a restart; a nested child's events filter by path.
+**Exit criterion.** A parent starts a child, ends, and a later run re-attaches to the child's typed result; a send reaches a running child at its next step and a parked child resumes for it; a wait returns `noProgress` when no child can move; a transfer survives a restart; a nested child's events filter by path; a claim board refuses a stale revision.
 
-**Verification.** New tests for each item, the existing managed-agent suite unchanged, `pnpm gate` exit 0.
+**Verification.** New tests for each item, the existing managed-agent suite unchanged, a fixture that parks and resumes a child, `pnpm gate` exit 0.
 
 ### Phase 3 — Memory and streams
 
@@ -185,7 +188,7 @@ Items here are independent and can be interleaved with Phases 3 and 5 by package
 
 ## Rollback
 
-Every phase ends at a commit with `pnpm gate` green, so stopping between phases leaves the project usable. Phase 0 items are individually revertable because each touches one seam. **Phase 1.2 cannot be rolled back once a store holds a v2 record** — the checkpoint is the dual reader, and v1 may only be retired after one full phase has shipped on top of v2. **Phase 1.4 cannot be rolled back once a journal exists in a durable store**: the journal must stay an additive field that old readers ignore. Phase 2's background child is the only item that creates a new row type; it lands last in its phase and is guarded by a flag until the resume path is proven.
+Every phase ends at a commit with `pnpm gate` green, so stopping between phases leaves the project usable. Phase 0 items are individually revertable because each touches one seam. **Phase 1.2 cannot be rolled back once a store holds a v2 record** — the checkpoint is the dual reader, and v1 may only be retired after one full phase has shipped on top of v2. **Phase 1.4 cannot be rolled back once a journal exists in a durable store**: the journal must stay an additive field that old readers ignore. Phase 2's background child and claim board are the only items that create new row types; they land last in the phase and stay behind a flag until the resume path is proven.
 
 ## Open questions
 
@@ -193,7 +196,8 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 - [x] **Public API posture for Phase 0**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — `structuredOutput` is removed now, while nothing is published; the mode enum lands with a model-seam schema channel and its consumer.
 - [x] **Docker deny-all**: answered by [`0021`](docs/09-decisions/0021-docker-exec-transport.md) — the exec transport replaces the Jupyter port, so deny-all is enforced from 4.8; docker refuses until then.
 - [x] **Record vocabulary**: answered by [`0023`](docs/09-decisions/0023-one-identity-per-run.md) — `runId` is the identity, `waiting` the state, `pending` the reason, `resume` the verb; the public `checkpoint` option is renamed in 1.1.
-- [ ] **`MA-05`**: the delegation model needs explaining before the owner decides (teams, reports, whether agents message each other). Not blocking.
+- [x] **`MA-05`**: answered by [`0025`](docs/09-decisions/0025-no-blackboard.md) — no data blackboard; a typed report, a message that is a record entry, and a claim board only with a background child; delegation is opt-in and the team shelf is out of scope.
+- [x] **The dive's adoptable list**: approved 2026-10-24. The ten ideas are folded into 0.1, 0.4, 0.5, 0.7, 0.8, 0.9, 1.3 and the Phase 2 cut, and no new phase item is opened for them.
 - [ ] **`MD-10`**: retrieval in or out; the plan defaults to out. Blocks Phase 6.4 only.
 - [x] **The refuse list**: adopted by [`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md), with the blackboard row held for the delegation decision.
 - [x] **`T-14` timing**: answered by [`0024`](docs/09-decisions/0024-publication-waits-for-corrections.md) — 0.1.0 waits for the correction pass and for the package to be near finished.
@@ -201,7 +205,7 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 
 ## Tasks
 
-`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **Still awaiting the owner's approval of the program**; the six design questions are answered and Phase 0 is cut into two waves.
+`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The delegation ruling and the dive intake are approved; the program itself still waits for the owner's go-ahead**, which is what opens `T-41` and starts Wave 1.
 
 | Task ID | Phase | Status |
 |---|---|---|
