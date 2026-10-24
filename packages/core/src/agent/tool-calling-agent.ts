@@ -124,7 +124,11 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
       yield { type: "action.requested", callId, name: request.name, args: parsed.data };
       const startedAt = Date.now();
+      const approvals: AgentEvent[] = [];
+      this.captureApprovals((decision) => approvals.push(this.approvalEvent(decision)));
       const result = await this.invoke(definition, parsed.data, callId, stepIndex, context);
+      this.captureApprovals(undefined);
+      for (const event of approvals) yield event;
       const durationMs = Date.now() - startedAt;
 
       if (result.ok) {

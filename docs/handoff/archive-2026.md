@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T08:05:00+03:00 — five of the six design questions are decided; delegation is the last one open
+
+**State.** Decisions `0022` (refuse list), `0023` (one identity per run) and `0024` (publication ordering) are accepted, and the plan records the two-wave Phase 0 cut. No package source changed. `MA-05` waits on an explanation of the delegation model; `MD-10` is deferred by the owner.
+
+**Did.** Adopted the study's refuse list as the boundary with each reopen trigger paraphrased, holding the blackboard row for the delegation answer; fixed the run vocabulary (`runId`, `waiting`, `pending`, `resume`, and the public `checkpoint` option renamed in Phase 1.1); made 0.1.0 wait for the correction pass. Folded all three into the plan: non-goals cite `0022`, Phase 1.1 carries the rename, 1.6 names `--resume <runId>`, Phase 0 gained its wave sequencing, and four open questions closed.
+
+**Verified.** Validator 0 errors and 0 warnings; `rotate.py --check` clean; docs-site suite passes with three new decisions linked from the index and the plan.
+
+**Unverified / open.** `MA-05`: the owner asked what the delegation process actually is and whether agents form teams or message each other, so the answer comes before the decision. `MD-10` stays open deliberately. The program itself is still unapproved, so no phase row is open.
+
+**Next.** Explain the delegation model — typed child report, transfer, background child, steering, no peer messaging — then decide `MA-05`, then write the Phase 0 execution plan.
+
+**Blockers.** `T-14` on credentials and now on `0024`; `T-40` on program approval.
+
+**Artifacts.** `docs/09-decisions/0022-the-refuse-list-is-the-boundary.md`; `0023-one-identity-per-run.md`; `0024-publication-waits-for-corrections.md`; `docs/research/competitors/_synthesis/17-multi-agent-brief.md:88-106`.
+
+## 2026-10-22T15:20:00+03:00 — Docker abandons the published Jupyter port for exec, so deny-all becomes enforceable there too
+
+**State.** Decision `0021` accepted; `0020` stands with its Docker clause superseded. No source changed.
+
+**Did.** Recorded the owner's choice of the exec transport: one long-lived `docker exec -i` Python process speaks the frame protocol over stdio, the container is created with `network mode` derived from egress, no port is published, readiness is a handshake frame, and `jupyter.ts` plus the WebSocket options are deleted. Added Phase 4.8 for the L-sized transport, made 0.4 say Docker refuses until it lands, and closed the Docker open question.
+
+**Verified.** Validator 0 errors and 0 warnings; `rotate.py --check` clean; docs-site suite passes with the new decision linked from the index and the plan.
+
+**Unverified / open.** The transport is unbuilt, so deny-all is enforced only by E2B today and Docker refuses. Signal-to-guest interruption and stdio buffering are the two design hazards the phase plan must cover.
+
+**Next.** The owner decides the six remaining questions below (vocabulary, blackboard, retrieval, refuse list, publication timing, execution wave); then Phase 0's execution plan.
+
+**Blockers.** `T-14`; `T-40` on plan approval.
+
+**Artifacts.** `docs/09-decisions/0021-docker-exec-transport.md`; `packages/exec-remote/src/backends/docker.ts:25-36`, `:120-158`.
+
 ## 2026-10-22T15:05:00+03:00 — a capability must now be consulted or enforced: the two blocking questions are answered
 
 **State.** Decision `0020` is accepted and the plan's Phase 0 is unblocked; no package source changed. The owner approved the egress answer (A) and the output answer (E) after a session that read the code behind both bags rather than the study's summary of them.

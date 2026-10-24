@@ -116,4 +116,9 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
 
 ## Changes
 
-None yet.
+- **2026-10-24 — 0.1 as built.** As built, the audit is one event per ask (`approval.decided`)
+  rather than an asked/decided pair, because one record already carries the decision and the
+  handler count stays the invariant a test can check; the session snapshot carries the same
+  records as `approvals`, additive to its shape. `approvalPolicy: "never"` maps to `rejected`
+  with a reason naming the policy. The digest is FNV-1a over canonical JSON, internal to
+  `packages/core/src/utils/digest.ts` and not exported from the barrel.

@@ -76,6 +76,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     if (action.code === undefined) return { observations: "", isFinalAnswer: false };
 
     const queue = createAsyncQueue<AgentEvent>();
+    this.captureApprovals((decision) => queue.push(this.approvalEvent(decision)));
     const toolCalls: ToolCall[] = [];
     let submitted: unknown;
     let submittedFinal = false;
@@ -125,6 +126,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     }
 
     const settled = await execution;
+    this.captureApprovals(undefined);
     if (!settled.ok) throw settled.error;
 
     step.toolCalls = toolCalls;

@@ -16,6 +16,10 @@ const SAMPLES: Record<AgentEventType, AgentEvent> = {
     type: "action.failed", callId: "c", name: "n",
     error: { name: "AgentError", message: "m", code: "AGENT_TOOL_CALL" },
   },
+  "approval.decided": {
+    type: "approval.decided", requestId: "c", digest: "v1:0", name: "n",
+    stepIndex: 0, outcome: "allowed-once",
+  },
   "toolcalls.requested": { type: "toolcalls.requested", stepIndex: 0, calls: [] },
   "logs.appended": { type: "logs.appended", stepIndex: 0, text: "log" },
   "observation.completed": { type: "observation.completed", stepIndex: 0, text: "o", isFinalAnswer: false },
@@ -39,7 +43,7 @@ const SAMPLES: Record<AgentEventType, AgentEvent> = {
 describe("the event contract is complete", () => {
   it("covers every declared AgentEventType", () => {
     const declared = Object.keys(SAMPLES).sort();
-    expect(declared).toHaveLength(20);
+    expect(declared).toHaveLength(21);
   });
 
   it("classifies exactly the delta events as advisory", () => {

@@ -103,6 +103,18 @@ export function renderEvent(event: AgentEvent, options: RenderOptions): string |
               event.error.message,
           )
         : undefined;
+    case "approval.decided":
+      return v >= 1
+        ? line(
+            "Approval " +
+              event.outcome +
+              ": " +
+              event.name +
+              " (call " +
+              event.requestId +
+              ")",
+          )
+        : undefined;
     case "toolcalls.requested":
       return v >= 2 ? line(String(event.calls.length) + " tool call(s) requested") : undefined;
     case "logs.appended":

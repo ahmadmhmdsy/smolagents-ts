@@ -1,6 +1,7 @@
 import { AgentError } from "../errors.js";
 import type { AgentErrorInfo } from "../errors.js";
 import type { AgentEvent, AgentEventType } from "../events.js";
+import type { ApprovalOutcome } from "../agent/approval.js";
 import type { MultiStepAgent } from "../agent/multi-step-agent.js";
 import type { RunResult } from "../agent/run-result.js";
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
@@ -48,6 +49,17 @@ export interface PlanningView {
   readonly endedAt?: number;
 }
 
+/** One approval decision, as the session keeps it. The event stream carries the same record. */
+export interface ApprovalView {
+  readonly requestId: string;
+  readonly digest: string;
+  readonly name: string;
+  readonly stepIndex: number;
+  readonly outcome: ApprovalOutcome;
+  readonly reason?: string;
+  readonly decidedAt: number;
+}
+
 export interface AgentSessionSnapshot {
   readonly runId: string | null;
   readonly task: string | null;
@@ -56,6 +68,7 @@ export interface AgentSessionSnapshot {
   readonly isRunning: boolean;
   readonly steps: readonly StepView[];
   readonly planning: readonly PlanningView[];
+  readonly approvals: readonly ApprovalView[];
   readonly output: unknown;
   readonly error: AgentErrorInfo | null;
   readonly usage: TokenUsage;
@@ -92,6 +105,7 @@ interface RunDraft {
   status: SessionStatus;
   steps: StepDraft[];
   planning: PlanningDraft[];
+  approvals: ApprovalView[];
   output: unknown;
   error: AgentErrorInfo | null;
   usage: TokenUsage;
@@ -107,6 +121,7 @@ function emptyRun(): RunDraft {
     status: "idle",
     steps: [],
     planning: [],
+    approvals: [],
     output: undefined,
     error: null,
     usage: EMPTY_TOKEN_USAGE,
@@ -394,6 +409,20 @@ export class AgentSession<TOut = unknown> {
         this.draft.endedAt = Date.now();
         return;
 
+      case "approval.decided": {
+        const decided: ApprovalView = {
+          requestId: event.requestId,
+          digest: event.digest,
+          name: event.name,
+          stepIndex: event.stepIndex,
+          outcome: event.outcome,
+          ...(event.reason === undefined ? {} : { reason: event.reason }),
+          decidedAt: Date.now(),
+        };
+        this.draft.approvals.push(decided);
+        return;
+      }
+
       // code.delta is advisory: code.completed replaces the step's code wholesale, so a
       // partial line never reaches the snapshot.
       default:
@@ -488,6 +517,19 @@ function freezeRun(draft: RunDraft, lastEventType: AgentEventType | null): Agent
           text: planning.text,
           startedAt: planning.startedAt,
           ...(planning.endedAt === undefined ? {} : { endedAt: planning.endedAt }),
+        }),
+      ),
+    ),
+    approvals: Object.freeze(
+      draft.approvals.map((approval) =>
+        Object.freeze({
+          requestId: approval.requestId,
+          digest: approval.digest,
+          name: approval.name,
+          stepIndex: approval.stepIndex,
+          outcome: approval.outcome,
+          ...(approval.reason === undefined ? {} : { reason: approval.reason }),
+          decidedAt: approval.decidedAt,
         }),
       ),
     ),

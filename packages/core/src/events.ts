@@ -1,6 +1,7 @@
 import type { RunResult } from "./agent/run-result.js";
 import type { AgentErrorInfo } from "./errors.js";
 import type { TokenUsage, ToolCall } from "./types.js";
+import type { ApprovalOutcome } from "./agent/approval.js";
 
 /**
  * Every observable thing that happens during a run.
@@ -21,6 +22,7 @@ export type AgentEvent =
   | { type: "action.requested"; callId: string; name: string; args: unknown }
   | { type: "action.result"; callId: string; name: string; output: unknown; durationMs: number }
   | { type: "action.failed"; callId: string; name: string; error: AgentErrorInfo }
+  | { type: "approval.decided"; requestId: string; digest: string; name: string; stepIndex: number; outcome: ApprovalOutcome; reason?: string }
   | { type: "toolcalls.requested"; stepIndex: number; calls: ToolCall[] }
   | { type: "logs.appended"; stepIndex: number; text: string }
   | { type: "observation.completed"; stepIndex: number; text: string; isFinalAnswer: boolean }
@@ -70,6 +72,7 @@ export function describeEvent(event: AgentEvent): string {
     case "action.requested": return event.name;
     case "action.result": return event.name + " done";
     case "action.failed": return event.name + " failed";
+    case "approval.decided": return event.outcome === "allowed-once" ? "approval granted" : "approval " + event.outcome;
     case "toolcalls.requested": return String(event.calls.length) + " tool call(s)";
     case "logs.appended": return "output";
     case "observation.completed": return event.isFinalAnswer ? "final answer" : "observation";

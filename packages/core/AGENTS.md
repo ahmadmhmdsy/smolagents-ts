@@ -27,8 +27,10 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 37 test files and 363 tests pass, exit code 0. Measured on
-2026-10-21 as "Test Files 37 passed (37)" and "Tests 363 passed (363)". The
+Expected result: 37 test files and 367 tests pass, exit code 0. Measured on
+2026-10-21 as "Test Files 37 passed (37)" and "Tests 363 passed (363)";
+Phase 0.1's approval suite replaced two boolean cases with eight named ones,
+so the count moved to 367. The
 adoption revision reported 27 and 273; the S2a work reported 28 and 286, and
 S4's two release tests took it to 288; S5's planning-lane test added the
 twenty-ninth file and its two cases, S1.5's parity suite added the thirtieth file

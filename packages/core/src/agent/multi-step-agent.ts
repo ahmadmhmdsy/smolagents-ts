@@ -33,7 +33,12 @@ import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } f
 import { makeRunResult, type RunResult, type RunState } from "./run-result.js";
 import type { ActionOutcome, InterpretedAction } from "./action.js";
 import { managedAgent, type ManagedAgent } from "./managed-agent.js";
-import { withApproval, type ApprovalHandler } from "./approval.js";
+import {
+  withApproval,
+  type ApprovalDecision,
+  type ApprovalHandler,
+  type ApprovalPolicy,
+} from "./approval.js";
 import type { Guardrails } from "./guardrail.js";
 import type { RunStore } from "../session/run-store.js";
 import type { z } from "zod";
@@ -65,6 +70,11 @@ export interface AgentOptions {
   store?: RunStore;
   /** Gates every tool call: asked before a tool runs, and a denial fails that one call. */
   approve?: ApprovalHandler;
+  /**
+   * The session approval policy. Defaults to `ask`, which consults `approve` when one is set.
+   * `never` refuses every tool call before the handler is consulted, for a headless or CI run.
+   */
+  approvalPolicy?: ApprovalPolicy;
   /**
    * Tripwires on the run: `input` inspects the task before the loop starts, `output` inspects the
    * final answer before the run completes. A tripped wire halts the run with an
@@ -132,12 +142,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly listeners = new Set<AgentEventListener>();
   private readonly store: RunStore | undefined;
   private readonly approve: ApprovalHandler | undefined;
+  private readonly approvalPolicy: ApprovalPolicy;
+  /** Set by a subclass for the duration of one step, so decisions land in that step's stream. */
+  private approvalSink: ((decision: ApprovalDecision) => void) | undefined;
   private readonly guardrails: Guardrails | undefined;
   private readonly outputSchema: z.ZodType | undefined;
 
   constructor(options: AgentOptions) {
     this.model = options.model;
     this.approve = options.approve;
+    this.approvalPolicy = options.approvalPolicy ?? "ask";
     this.store = options.store;
     this.guardrails = options.guardrails;
     this.outputSchema = options.outputSchema;
@@ -149,9 +163,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
     } else {
       this.tools = new ToolRegistry(options.tools ?? []);
     }
-    if (this.approve !== undefined) {
+    if (this.approve !== undefined || this.approvalPolicy === "never") {
       const approve = this.approve;
-      this.tools = new ToolRegistry(this.tools.list().map((entry) => withApproval(entry, approve)));
+      const gate = (request: Parameters<ApprovalHandler>[0]) =>
+        approve === undefined ? Promise.resolve(false) : approve(request);
+      const options = { policy: this.approvalPolicy, onDecision: (d: ApprovalDecision) => this.recordApproval(d) };
+      this.tools = new ToolRegistry(this.tools.list().map((entry) => withApproval(entry, gate, options)));
     }
     this.maxSteps = options.maxSteps ?? 20;
     this.planningInterval = options.planningInterval ?? 0;
@@ -164,9 +181,43 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.managedAgents = managedAgents;
     for (const entry of this.managedAgents) {
       const wrapped = managedAgent(entry);
-      this.tools.add(this.approve === undefined ? wrapped : withApproval(wrapped, this.approve));
+      const gated =
+        this.approve === undefined && this.approvalPolicy !== "never"
+          ? wrapped
+          : withApproval(wrapped, this.approve ?? (() => Promise.resolve(false)), {
+              policy: this.approvalPolicy,
+              onDecision: (d: ApprovalDecision) => this.recordApproval(d),
+            });
+      this.tools.add(gated);
       this.managedAgentNames.add(wrapped.name);
     }
+  }
+
+  /**
+   * Record one approval decision. A subclass sets the sink for the step it is executing, so an
+   * approval always lands in the stream of the step that asked, and an ask outside a step (a
+   * direct `withApproval` use) records nowhere.
+   */
+  protected captureApprovals(sink: ((decision: ApprovalDecision) => void) | undefined): void {
+    this.approvalSink = sink;
+  }
+
+  private recordApproval(decision: ApprovalDecision): void {
+    this.approvalSink?.(decision);
+  }
+
+  /** The event a decision becomes. One per ask, so the stream and the handler count agree. */
+  protected approvalEvent(decision: ApprovalDecision): AgentEvent {
+    const event: AgentEventOf<"approval.decided"> = {
+      type: "approval.decided",
+      requestId: decision.requestId,
+      digest: decision.digest,
+      name: decision.name,
+      stepIndex: decision.stepIndex,
+      outcome: decision.outcome,
+      ...(decision.reason === undefined ? {} : { reason: decision.reason }),
+    };
+    return event;
   }
 
   protected get customInstructionsValue(): string | undefined {
