@@ -4,8 +4,9 @@ export {
   dockerfileTar,
   imageTagFor,
   type ContainerCreateRequest,
-  type ContainerEndpoint,
   type ContainerRuntime,
   type DockerSandboxOptions,
+  type ExecSession,
+  type ExecSessionOptions,
   type ImageBuildRequest,
 } from "../docker.js";

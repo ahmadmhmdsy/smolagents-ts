@@ -67,12 +67,13 @@ downstream of it:
 
     docker version --format '{{.Server.Version}}'
 
-The backend builds its own image from a Dockerfile it carries in the source — a Jupyter
-kernel gateway listening on 8888 — tagged from that text, so editing the Dockerfile
-rebuilds and an unchanged one reuses the layer cache. It then creates a container that
-publishes 8888/tcp to 127.0.0.1 on an ephemeral host port, mints a random token unless one
-is supplied, and polls until the kernel answers. The tool round trip on this backend runs
-over the kernel's own stdin channel.
+The backend builds its own image from a Dockerfile it carries in the source — a plain
+Python base that only stays alive — tagged from that text, so editing the Dockerfile
+rebuilds and an unchanged one reuses the layer cache. It then creates a container (network
+mode `bridge`, or `none` under `deny-all`), starts it, and opens one long-lived
+`docker exec` session whose program is the guest prelude plus the step loop. `start` resolves
+on the guest's `ready` frame; the tool round trip crosses that session's stdin, and an aborted
+step kills the session, which stops the container.
 
     node scripts/exec-remote-smoke.mjs docker
 

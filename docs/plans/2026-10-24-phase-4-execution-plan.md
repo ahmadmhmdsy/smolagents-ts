@@ -277,6 +277,32 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.8 — The Docker exec transport (2026-10-24)
+
+Landed as a rewritten `packages/exec-remote/test/docker.test.ts` (nine cases, watched red on the
+deny-all refusal, the missing `endpoint` on the new seam, and every exec assertion).
+
+`SandboxFrame` gained `{ type: "ready" }`; the step loop emits it before its first read and
+`parseFrameLine` types it. A stdio backend drops it (readiness belongs to start, not to a step)
+and the executor never sees it. `ContainerRuntime` lost `endpoint()`/`ContainerEndpoint` and
+gained `execSession(containerId, { argv, stdin })` returning a duplex session
+(`write`, `onData`, `onClose`, `end`, `kill`); the dockerode implementation opens the exec
+with hijacked stdio, and the session's kill path stops the container because killing the exec
+client would leave the interpreter alive. `ContainerCreateRequest` carries `networkMode`
+(`none`/`bridge`) instead of a published port, and `DOCKERFILE` is a plain `python:3.12-slim`
+base whose only job is to stay alive. `start` builds, creates, starts, opens one session whose
+program is the prelude plus the step loop, and resolves on the `ready` frame under a
+`startTimeoutMs` budget (default 60 000); the token, port bindings, readiness poll and
+HTTP/WebSocket options are gone. `deny-all` is enforced as network mode `none` and reported as
+`capabilities.network: "none"` instead of refused.
+
+`jupyter.ts`, `rpc.ts`, `test/jupyter.test.ts`, `test/rpc.test.ts` and `test/ws-server.ts`
+are deleted, with the live docs that described the kernel gateway (project table, environment
+services, the live-backend runbook, the component README and scoped entry) updated to the exec
+transport. The four entry pins are unchanged (root 10, process 3, docker 5, e2b 4); exec-remote
+is 12 files / 93 tests. One addition beyond the registered design: `startTimeoutMs`, because a
+guest that never announces readiness would otherwise hang start forever.
+
 ### 4.7 — E2B depth (2026-10-24)
 
 Landed as `packages/exec-remote/test/e2b-depth.test.ts` (eight cases, the 14th exec-remote

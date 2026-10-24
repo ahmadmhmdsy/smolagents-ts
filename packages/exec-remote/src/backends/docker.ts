@@ -1,27 +1,18 @@
-import { createHash, randomBytes } from "node:crypto";
-import {
-  EgressUnsupportedError,
-  MissingPeerDependencyError,
-  SandboxError,
-  UnsupportedOptionError,
-} from "../errors.js";
-import {
-  JupyterGateway,
-  globalWebSocketFactory,
-  type JupyterKernel,
-  type WebSocketFactory,
-} from "../jupyter.js";
+import { createHash } from "node:crypto";
+import { MissingPeerDependencyError, SandboxError, UnsupportedOptionError } from "../errors.js";
 import type {
   EgressPolicy,
   RemoteSandbox,
   SandboxCapabilities,
+  SandboxFrame,
+  SandboxOutput,
   SandboxRunOptions,
   SandboxRunResult,
   SandboxStartOptions,
+  SandboxToolCall,
 } from "../sandbox.js";
-
-/** The port the gateway listens on when the caller names none. */
-const DEFAULT_CONTAINER_PORT = 8888;
+import { encodeValue } from "../serialize.js";
+import { buildStepLoopSource, parseFrameLine } from "../shim-source.js";
 
 /** The container's memory cap in bytes when the caller names none (512 MiB). */
 const DEFAULT_MEMORY_LIMIT_BYTES = 512 * 1024 * 1024;
@@ -29,26 +20,21 @@ const DEFAULT_MEMORY_LIMIT_BYTES = 512 * 1024 * 1024;
 /** The container's pid cap when the caller names none. */
 const DEFAULT_PIDS_LIMIT = 256;
 
-/**
- * The image a sandbox on `containerPort` builds. The port is part of the text, so the tag that
- * hashes it changes with the port and the kernel cannot be told to listen somewhere the
- * published binding does not point at.
- */
-function dockerfileFor(containerPort: number): string {
-  return [
-    "FROM python:3.12-bullseye",
-    "RUN pip install --no-cache-dir jupyter_kernel_gateway jupyter_client ipykernel",
-    "EXPOSE " + String(containerPort),
-    'CMD ["jupyter", "kernelgateway", "--KernelGatewayApp.ip=0.0.0.0", ' +
-      '"--KernelGatewayApp.port=' +
-      String(containerPort) +
-      '", "--KernelGatewayApp.allow_origin=*"]',
-    "",
-  ].join("\n");
-}
+/** How long start waits for the guest's ready frame when the caller names no budget. */
+const DEFAULT_START_TIMEOUT_MS = 60_000;
 
-/** The image every default-port sandbox builds, kept inline so the same text can be hashed for a tag. */
-export const DOCKERFILE = dockerfileFor(DEFAULT_CONTAINER_PORT);
+const DOCKERFILE_LINES: readonly string[] = [
+  "FROM python:3.12-slim",
+  'CMD ["python", "-u", "-c", "import time; time.sleep(31536000)"]',
+  "",
+];
+
+/**
+ * The image a sandbox builds: a plain Python base whose only job is to stay alive, because the
+ * guest arrives through `docker exec` and speaks the frame protocol on that session's stdio.
+ * It publishes no port and installs no kernel gateway.
+ */
+export const DOCKERFILE = DOCKERFILE_LINES.join("\n");
 
 export function imageTagFor(dockerfile: string = DOCKERFILE): string {
   return "smolagents-ts-exec-remote:" + createHash("sha256").update(dockerfile).digest("hex").slice(0, 12);
@@ -62,18 +48,35 @@ export interface ImageBuildRequest {
 export interface ContainerCreateRequest {
   readonly image: string;
   readonly env: readonly string[];
-  readonly portBindings: Readonly<Record<string, readonly { readonly HostIp: string; readonly HostPort: string }[]>>;
-  /** The container port the kernel listens on; also the key in `portBindings`. */
-  readonly containerPort: number;
+  /** `none` is how `deny-all` is enforced; `bridge` is the daemon's own default reach. */
+  readonly networkMode: "none" | "bridge";
   /** The container's memory cap in bytes, forwarded as `HostConfig.Memory`. */
   readonly memoryLimitBytes: number;
   /** The container's pid cap, forwarded as `HostConfig.PidsLimit`. */
   readonly pidsLimit: number;
 }
 
-export interface ContainerEndpoint {
-  readonly host: string;
-  readonly port: number;
+/** What one long-lived guest session needs to be opened. */
+export interface ExecSessionOptions {
+  readonly argv: readonly string[];
+  /** Keep the guest's stdin open: both the step requests and the tool replies arrive there. */
+  readonly stdin: boolean;
+}
+
+/**
+ * A duplex stdio session onto a running container. One session serves the whole run: the prelude
+ * is its program and every later step is a JSON line on its stdin.
+ */
+export interface ExecSession {
+  write(data: string): void;
+  onData(listener: (chunk: string) => void): void;
+  onClose(listener: (info: { readonly code: number | null }) => void): void;
+  end(): void;
+  /**
+   * Kill the guest. Killing the exec client alone would leave the interpreter running, so a
+   * backend's implementation stops the container.
+   */
+  kill(): Promise<void>;
 }
 
 /**
@@ -85,98 +88,99 @@ export interface ContainerRuntime {
   buildImage(request: ImageBuildRequest): Promise<string>;
   createContainer(request: ContainerCreateRequest): Promise<string>;
   startContainer(containerId: string): Promise<void>;
-  endpoint(containerId: string, containerPort: number): Promise<ContainerEndpoint>;
+  execSession(containerId: string, options: ExecSessionOptions): Promise<ExecSession>;
   stopContainer(containerId: string): Promise<void>;
   removeContainer(containerId: string): Promise<void>;
 }
 
 export interface DockerSandboxOptions {
   readonly runtime?: ContainerRuntime;
-  readonly token?: string;
-  readonly containerPort?: number;
   /** The container's memory cap in bytes. Defaults to 512 MiB. */
   readonly memoryLimitBytes?: number;
   /** The container's pid cap. Defaults to 256, so a fork bomb cannot exhaust the host. */
   readonly pidsLimit?: number;
-  readonly fetch?: typeof globalThis.fetch;
-  readonly webSocketFactory?: WebSocketFactory;
-  readonly readyAttempts?: number;
-  readonly readyIntervalMs?: number;
-  readonly requestTimeoutMs?: number;
+  /** How long start waits for the guest's ready frame. Defaults to 60 000 ms. */
+  readonly startTimeoutMs?: number;
   /**
-   * What the guest may reach. This backend cannot confine egress until the exec transport
-   * replaces the kernel gateway, so it only accepts `unmanaged`; `deny-all` throws
-   * `EgressUnsupportedError` before an image is built.
+   * What the guest may reach. `deny-all` is enforced by creating the container with network
+   * mode `none`, so the guarantee is the daemon's network layer; the capability reports it.
    */
   readonly egress?: EgressPolicy;
 }
 
-/** A Docker-hosted Jupyter Kernel Gateway. */
+interface PendingStep {
+  resolve: (result: SandboxRunResult) => void;
+  reject: (error: unknown) => void;
+  readonly startedAt: number;
+  readonly options: SandboxRunOptions;
+  readonly frames: SandboxFrame[];
+  readonly outputs: SandboxOutput[];
+  detach: (() => void) | undefined;
+  settled: boolean;
+}
+
+interface ReadyWaiter {
+  readonly resolve: () => void;
+  readonly reject: (error: unknown) => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+}
+
+/**
+ * A Docker-hosted guest reached over one long-lived `docker exec` session. The guest program is
+ * the generated prelude plus the step loop; the host answers tool frames on the same stdin the
+ * step arrived on, exactly as the process backend does.
+ */
 export class DockerSandbox implements RemoteSandbox {
-  readonly capabilities: SandboxCapabilities = {
-    isolation: "remote",
-    network: "direct",
-    timers: true,
-    toolRoundTrip: true,
-  };
+  readonly capabilities: SandboxCapabilities;
 
   private readonly options: DockerSandboxOptions;
   private readonly egress: EgressPolicy;
-  private readonly token: string;
-  private readonly containerPort: number;
   private runtime: ContainerRuntime | undefined;
   private containerId: string | undefined;
-  private kernel: JupyterKernel | undefined;
+  private session: ExecSession | undefined;
+  private buffer = "";
+  private pending: PendingStep | undefined;
+  private ready: ReadyWaiter | undefined;
   private disposed = false;
+  private exited = false;
 
   constructor(options: DockerSandboxOptions = {}) {
     this.options = options;
     this.egress = options.egress ?? "unmanaged";
-    this.token = options.token ?? randomBytes(16).toString("base64url");
-    this.containerPort = options.containerPort ?? DEFAULT_CONTAINER_PORT;
     this.runtime = options.runtime;
+    this.capabilities = {
+      isolation: "remote",
+      network: this.egress === "deny-all" ? "none" : "direct",
+      timers: true,
+      toolRoundTrip: true,
+    };
   }
 
   async start(options: SandboxStartOptions): Promise<void> {
-    if (this.egress === "deny-all") throw new EgressUnsupportedError("docker", this.egress);
     if (this.disposed) throw new SandboxError("This Docker sandbox has been disposed; one sandbox serves one run.");
     if (this.containerId !== undefined) throw new SandboxError("This Docker sandbox has already started.");
     try {
       const runtime = this.options.runtime ?? (await loadDockerodeRuntime());
       this.runtime = runtime;
-      const dockerfile = dockerfileFor(this.containerPort);
-      const tag = await runtime.buildImage({ tag: imageTagFor(dockerfile), dockerfile });
+      const tag = await runtime.buildImage({ tag: imageTagFor(DOCKERFILE), dockerfile: DOCKERFILE });
       const containerId = await runtime.createContainer({
         image: tag,
-        env: ["KG_AUTH_TOKEN=" + this.token],
-        portBindings: { [String(this.containerPort) + "/tcp"]: [{ HostIp: "127.0.0.1", HostPort: "" }] },
-        containerPort: this.containerPort,
+        env: [],
+        networkMode: this.egress === "deny-all" ? "none" : "bridge",
         memoryLimitBytes: this.options.memoryLimitBytes ?? DEFAULT_MEMORY_LIMIT_BYTES,
         pidsLimit: this.options.pidsLimit ?? DEFAULT_PIDS_LIMIT,
       });
       // Record the id before anything else can fail, so dispose always has something to remove.
       this.containerId = containerId;
       await runtime.startContainer(containerId);
-      const endpoint = await runtime.endpoint(containerId, this.containerPort);
-      const gateway = new JupyterGateway({
-        baseUrl: "http://" + endpoint.host + ":" + String(endpoint.port),
-        token: this.token,
-        webSocketFactory: this.options.webSocketFactory ?? globalWebSocketFactory,
-        ...(this.options.fetch === undefined ? {} : { fetch: this.options.fetch }),
-        ...(this.options.readyAttempts === undefined ? {} : { readyAttempts: this.options.readyAttempts }),
-        ...(this.options.readyIntervalMs === undefined ? {} : { readyIntervalMs: this.options.readyIntervalMs }),
-        ...(this.options.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: this.options.requestTimeoutMs }),
+      const session = await runtime.execSession(containerId, {
+        argv: ["python3", "-u", "-c", options.shimSource + buildStepLoopSource()],
+        stdin: true,
       });
-      await gateway.waitForReady();
-      const kernelId = await gateway.createKernel();
-      const kernel = gateway.connect(kernelId);
-      this.kernel = kernel;
-      // Install the prelude once; every later step shares the kernel's globals.
-      await kernel.run({
-        code: options.shimSource,
-        timeoutMs: this.options.requestTimeoutMs ?? 60_000,
-        signal: new AbortController().signal,
-      });
+      this.session = session;
+      session.onData((chunk) => this.onChunk(chunk));
+      session.onClose((info) => this.onExit(info.code));
+      await this.waitForReady();
     } catch (error) {
       // A missing optional peer is already a typed refusal naming the peer; do not bury it
       // inside a SandboxError the way an untyped start failure is bundled.
@@ -195,18 +199,62 @@ export class DockerSandbox implements RemoteSandbox {
         "it runs one guest with a single namespace, so there is no second context to select.",
       );
     }
-    const kernel = this.kernel;
-    if (kernel === undefined) throw new SandboxError("This Docker sandbox has not been started.");
-    return kernel.run(options);
+    if (this.session === undefined || this.exited) {
+      throw new SandboxError("This Docker sandbox has not been started.");
+    }
+    if (this.pending !== undefined) throw new SandboxError("A step is already running on this Docker sandbox.");
+    const pending: PendingStep = {
+      resolve: () => undefined,
+      reject: () => undefined,
+      startedAt: Date.now(),
+      options,
+      frames: [],
+      outputs: [],
+      detach: undefined,
+      settled: false,
+    };
+    const result = new Promise<SandboxRunResult>((resolve, reject) => {
+      pending.resolve = resolve;
+      pending.reject = reject;
+    });
+    this.pending = pending;
+    if (options.signal.aborted) {
+      // Settle on the next tick, so the caller always receives the promise it just made.
+      queueMicrotask(() => this.abortStep(pending));
+    } else {
+      const onAbort = (): void => this.abortStep(pending);
+      options.signal.addEventListener("abort", onAbort, { once: true });
+      pending.detach = () => options.signal.removeEventListener("abort", onAbort);
+    }
+    // A write failure settles the step through fail(), not by rejecting here.
+    this.write(JSON.stringify({ type: "step", code: options.code }) + "\n");
+    return result;
   }
 
   async dispose(): Promise<void> {
+    if (this.disposed) return;
     this.disposed = true;
-    this.kernel?.dispose();
-    this.kernel = undefined;
+    this.exited = true;
+    const session = this.session;
+    this.session = undefined;
     const runtime = this.runtime;
     const containerId = this.containerId;
     this.containerId = undefined;
+    const pending = this.pending;
+    if (pending !== undefined) this.finish(pending);
+    // The session is closed before the container, so the guest sees its stdin end.
+    if (session !== undefined) {
+      try {
+        session.end();
+      } catch {
+        // The stream may already be closed.
+      }
+      try {
+        await session.kill();
+      } catch {
+        // The kill path may already have stopped the container.
+      }
+    }
     if (runtime === undefined || containerId === undefined) return;
     // Teardown must not reject: a failed stop would otherwise replace the run's real result.
     // The removal is still attempted, so a stop failure does not also skip it.
@@ -220,6 +268,160 @@ export class DockerSandbox implements RemoteSandbox {
     } catch {
       // The container may already be gone.
     }
+  }
+
+  /** Resolve once the guest announces it is reading; a session that closes first is a failure. */
+  private waitForReady(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.ready = undefined;
+        reject(
+          new SandboxError(
+            "The guest did not announce readiness within " +
+              String(this.options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS) +
+              " ms.",
+          ),
+        );
+      }, this.options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS);
+      this.ready = { resolve, reject, timer };
+    });
+  }
+
+  private onChunk(chunk: string): void {
+    const combined = this.buffer + chunk;
+    const lines = combined.split("\n");
+    this.buffer = lines.pop() ?? "";
+    for (const raw of lines) {
+      this.handleLine(raw.endsWith("\r") ? raw.slice(0, -1) : raw);
+    }
+  }
+
+  private handleLine(line: string): void {
+    let frame: SandboxFrame | undefined;
+    try {
+      frame = parseFrameLine(line, { allowPickle: this.pending?.options.allowPickle === true });
+    } catch (error) {
+      this.fail(error);
+      return;
+    }
+    if (frame === undefined) {
+      const pending = this.pending;
+      if (pending !== undefined) this.pushOutput(pending, line);
+      return;
+    }
+    if (frame.type === "ready") {
+      const ready = this.ready;
+      if (ready !== undefined) {
+        this.ready = undefined;
+        clearTimeout(ready.timer);
+        ready.resolve();
+      }
+      return;
+    }
+    const pending = this.pending;
+    if (pending === undefined) return;
+    pending.frames.push(frame);
+    if (frame.type === "step_end") {
+      this.finish(pending);
+      return;
+    }
+    if (frame.type === "tool_call") void this.answerToolCall(pending, frame);
+  }
+
+  /** Answer a guest tool frame on the same stdin the step arrived on. */
+  private async answerToolCall(
+    pending: PendingStep,
+    frame: { callId: string; name: string; args: unknown },
+  ): Promise<void> {
+    const call: SandboxToolCall = { callId: frame.callId, name: frame.name, args: frame.args };
+    const callTool = pending.options.callTool;
+    let reply: { ok: boolean; value?: unknown; error?: string };
+    if (callTool === undefined) {
+      reply = { ok: false, error: "This backend has no tool-call channel." };
+    } else {
+      try {
+        reply = { ok: true, value: encodeValue(await callTool(call)) };
+      } catch (error) {
+        reply = { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+    this.write(JSON.stringify(reply) + "\n");
+  }
+
+  private write(text: string): void {
+    const session = this.session;
+    if (session === undefined || this.exited) {
+      this.fail(new SandboxError("The guest session's stdin is not writable."));
+      return;
+    }
+    try {
+      session.write(text);
+    } catch (error) {
+      this.fail(new SandboxError("Writing to the guest session failed.", { cause: error }));
+    }
+  }
+
+  /** A step that loses its signal: the session's kill path stops the container, then it settles. */
+  private abortStep(pending: PendingStep): void {
+    if (pending.settled) return;
+    const session = this.session;
+    this.session = undefined;
+    this.exited = true;
+    this.finish(pending);
+    if (session !== undefined) {
+      // The kill path stops the container; a failure here cannot change the step's outcome.
+      session.kill().catch(() => undefined);
+    }
+  }
+
+  private fail(error: unknown): void {
+    const pending = this.pending;
+    if (pending !== undefined) this.finish(pending, error);
+    const ready = this.ready;
+    if (ready !== undefined) {
+      this.ready = undefined;
+      clearTimeout(ready.timer);
+      ready.reject(
+        error instanceof SandboxError ? error : new SandboxError("The Docker sandbox could not start.", { cause: error }),
+      );
+    }
+  }
+
+  private onExit(code: number | null): void {
+    this.exited = true;
+    this.session = undefined;
+    const ready = this.ready;
+    if (ready !== undefined) {
+      this.ready = undefined;
+      clearTimeout(ready.timer);
+      ready.reject(new SandboxError("The guest exited before it announced readiness, with code " + String(code) + "."));
+    }
+    const pending = this.pending;
+    if (pending !== undefined) this.finish(pending, undefined, code);
+  }
+
+  private pushOutput(pending: PendingStep, text: string): void {
+    const output: SandboxOutput = { stream: "stdout", text };
+    pending.outputs.push(output);
+    pending.options.onOutput?.(output);
+  }
+
+  private finish(pending: PendingStep, error?: unknown, exitStatus: number | null = null): void {
+    if (pending.settled) return;
+    pending.settled = true;
+    pending.detach?.();
+    pending.detach = undefined;
+    if (this.pending === pending) this.pending = undefined;
+    if (error !== undefined) {
+      pending.reject(error);
+      return;
+    }
+    pending.resolve({
+      frames: pending.frames,
+      outputs: pending.outputs,
+      exitStatus,
+      durationMs: Date.now() - pending.startedAt,
+    });
   }
 }
 
@@ -254,16 +456,28 @@ export function dockerfileTar(dockerfile: string = DOCKERFILE): Uint8Array {
   return tar;
 }
 
+interface DockerodeStreamLike {
+  write(data: string): unknown;
+  end(): unknown;
+  on(event: string, listener: (value: unknown) => void): unknown;
+}
+
+interface DockerodeExecLike {
+  start(options: { hijack?: boolean; stdin?: boolean }): Promise<DockerodeStreamLike>;
+}
+
 interface DockerodeContainerLike {
   start(): Promise<unknown>;
-  inspect(): Promise<{ NetworkSettings?: { Ports?: Record<string, { HostIp?: string; HostPort?: string }[] | null> } }>;
   stop(): Promise<unknown>;
   remove(options?: { force?: boolean }): Promise<unknown>;
+  inspect(): Promise<{ Id?: string }>;
+  exec(options: Record<string, unknown>): Promise<DockerodeExecLike>;
 }
 
 interface DockerodeLike {
   buildImage(tar: Uint8Array, options: { t: string }): { on(event: string, listener: (value: unknown) => void): unknown };
   createContainer(options: Record<string, unknown>): Promise<DockerodeContainerLike>;
+  getContainer(id: string): DockerodeContainerLike;
 }
 
 interface DockerodeConstructor {
@@ -282,6 +496,19 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
     throw new MissingPeerDependencyError("dockerode", "@smolagents-ts/exec-remote/docker");
   }
   const docker = new Docker();
+
+  const stopContainer = async (containerId: string): Promise<void> => {
+    await docker.getContainer(containerId).stop();
+  };
+  /** Killing the exec client alone would leave the interpreter alive, so this stops the container. */
+  const killContainer = async (containerId: string): Promise<void> => {
+    try {
+      await stopContainer(containerId);
+    } catch {
+      // A container that is already stopped is already dead for this purpose.
+    }
+  };
+
   return {
     async buildImage(request) {
       await new Promise<void>((resolve, reject) => {
@@ -295,39 +522,62 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
       const container = await docker.createContainer({
         Image: request.image,
         Env: [...request.env],
-        ExposedPorts: { [String(request.containerPort) + "/tcp"]: {} },
         HostConfig: {
-          PortBindings: request.portBindings,
+          // Deny-all is the daemon's own network rule: the container has no interface to reach out.
+          NetworkMode: request.networkMode,
           Memory: request.memoryLimitBytes,
           PidsLimit: request.pidsLimit,
         },
       });
       const inspected = await container.inspect();
-      const id = (inspected as { Id?: string }).Id;
-      if (typeof id !== "string") throw new SandboxError("The Docker daemon did not return a container id.");
-      return id;
+      if (typeof inspected.Id !== "string") throw new SandboxError("The Docker daemon did not return a container id.");
+      return inspected.Id;
     },
     async startContainer(containerId) {
-      const container = (docker as unknown as { getContainer(id: string): DockerodeContainerLike }).getContainer(containerId);
-      await container.start();
+      await docker.getContainer(containerId).start();
     },
-    async endpoint(containerId, containerPort) {
-      const container = (docker as unknown as { getContainer(id: string): DockerodeContainerLike }).getContainer(containerId);
-      const inspected = await container.inspect();
-      const bindings = inspected.NetworkSettings?.Ports?.[String(containerPort) + "/tcp"];
-      const binding = bindings?.[0];
-      if (binding?.HostPort === undefined || binding.HostIp === undefined) {
-        throw new SandboxError("The container published no host port for " + String(containerPort) + "/tcp.");
-      }
-      return { host: binding.HostIp === "" ? "127.0.0.1" : binding.HostIp, port: Number(binding.HostPort) };
+    async execSession(containerId, options) {
+      const exec = await docker.getContainer(containerId).exec({
+        Cmd: [...options.argv],
+        AttachStdin: options.stdin,
+        AttachStdout: true,
+        AttachStderr: true,
+        Tty: false,
+      });
+      const stream = await exec.start({ hijack: true, stdin: options.stdin });
+      return {
+        write(data) {
+          stream.write(data);
+        },
+        onData(listener) {
+          stream.on("data", (chunk) => {
+            listener(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk as Uint8Array));
+          });
+        },
+        onClose(listener) {
+          let done = false;
+          const close = (): void => {
+            if (done) return;
+            done = true;
+            listener({ code: null });
+          };
+          stream.on("end", close);
+          stream.on("close", close);
+          stream.on("error", close);
+        },
+        end() {
+          stream.end();
+        },
+        async kill() {
+          await killContainer(containerId);
+        },
+      };
     },
     async stopContainer(containerId) {
-      const container = (docker as unknown as { getContainer(id: string): DockerodeContainerLike }).getContainer(containerId);
-      await container.stop();
+      await stopContainer(containerId);
     },
     async removeContainer(containerId) {
-      const container = (docker as unknown as { getContainer(id: string): DockerodeContainerLike }).getContainer(containerId);
-      await container.remove({ force: true });
+      await docker.getContainer(containerId).remove({ force: true });
     },
   };
 }

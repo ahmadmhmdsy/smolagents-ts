@@ -22,6 +22,7 @@ export interface SandboxToolCall {
  * the same lines.
  */
 export type SandboxFrame =
+  | { readonly type: "ready" }
   | { readonly type: "final_answer"; readonly value: unknown }
   | { readonly type: "tool_call"; readonly callId: string; readonly name: string; readonly args: unknown }
   | { readonly type: "error"; readonly name: string; readonly message: string; readonly traceback?: string }

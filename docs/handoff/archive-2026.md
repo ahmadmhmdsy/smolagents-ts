@@ -4,6 +4,37 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T03:48:00+03:00 — Phase 4.4 landed: per-step tool policy as data
+
+**State.** 4.1–4.4 are landed; 4.5–4.8 and the phase close remain.
+
+**Did.** `tool-policy.test.ts` (13 tests, the 55th core file) was watched red on the missing
+module, then 4.4 landed: `src/tool/policy.ts` holds the policy types, `mergeToolPolicy`
+(intersecting allowed sets, unioning hidden by name, dropping a forced name the allowed set does
+not admit, concatenating requirements deduped by tool), `applyToolPolicy` (hidden tools become
+stubs that throw `ToolPolicyDeniedError` with the reason), `advertisedToolRegistry` and
+`validateToolPolicy` (a forced or required unknown name is a `ToolDefinitionError` at
+construction). `AgentOptions.toolPolicy` takes a policy or a per-step provider; the loop resolves
+one view per step and the prompt, the request specs, the executor registry and the lookup all
+read it. A forced tool must run in that step and a requirement in the run before an answer is
+accepted; a refusal is a correction observation plus `tool.requirementUnmet`, the third ends the
+run with `AgentGuardrailError`. `tool.policy` is announced once per changed view, and
+`buildTrace` learns both events. One runtime name, `ToolPolicyDeniedError`; type-only policy
+exports; core pins 109, 55 files / 620 tests.
+
+**Verified.** `pnpm vitest run --project core` exits 0 (55 files, 620 tests); the core typecheck
+passes; the 4.4 suite passes 13/13.
+
+**Unverified / open.** 4.5–4.8 and the phase close are not implemented.
+
+**Next.** 4.5: write `packages/core/test/tool-generator.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/tool/policy.ts`, `packages/core/src/errors.ts`,
+`packages/core/src/events.ts`, `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/test/tool-policy.test.ts`.
+
 ## 2026-10-25T03:22:00+03:00 — Phase 4.3 landed: progress, cancellation and typed notifications
 
 **State.** 4.1–4.3 are landed; 4.4–4.8 and the phase close remain.

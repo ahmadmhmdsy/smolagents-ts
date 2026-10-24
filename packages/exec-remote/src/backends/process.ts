@@ -310,7 +310,8 @@ export class ProcessSandbox implements RemoteSandbox {
       if (pending !== undefined) this.pushOutput(pending, line, "stdout");
       return;
     }
-    if (pending === undefined) return;
+    // Readiness belongs to start, not to a step; a stdio guest announces it once, before it reads.
+    if (frame.type === "ready" || pending === undefined) return;
     pending.frames.push(frame);
     if (frame.type === "step_end") {
       this.finish(pending, undefined);

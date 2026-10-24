@@ -33,6 +33,37 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T04:58:00+03:00 — Phase 4.8 landed: the Docker exec transport
+
+**State.** 4.1–4.8 are landed; the phase close remains (two exit tests, report, parent-plan
+check, `T-45` closed).
+
+**Did.** `docker.test.ts` was rewritten (9 tests) and watched red on the deny-all refusal, the
+missing `endpoint` on the new seam and every exec assertion. The Docker backend now starts one
+container from a plain `python:3.12-slim` image, opens one long-lived `docker exec` session
+whose program is the prelude plus the step loop, and resolves `start` on the guest's `ready`
+frame; steps and tool replies both cross that session's stdin, and an aborted step kills the
+session, whose kill path stops the container. `ContainerRuntime` replaced `endpoint()` with
+`execSession()`, `ContainerCreateRequest` carries `networkMode` instead of a published port,
+and `deny-all` is enforced as `none` and reported in the capability instead of refused.
+`jupyter.ts`, `rpc.ts` and their two tests plus `test/ws-server.ts` are deleted; the live docs
+that described the kernel gateway are updated.
+
+**Verified.** `pnpm vitest run --project exec-remote` → 12 files / 93 tests, exit 0; `pnpm -r
+typecheck` and `pnpm lint` are clean; `python scripts/validate_context.py` → 0 errors, 0
+warnings; the item gate is recorded in the plan.
+
+**Unverified / open.** No live daemon was touched: the dockerode exec implementation (hijacked
+stdio, kill-stops-container) is exercised only by the seam's double. The phase close is not
+started.
+
+**Next.** Write `packages/mcp/test/phase-4-exit.test.ts` and `packages/exec-remote/test/phase-4-exit.test.ts` and watch them fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:222` and `:276`,
+`packages/exec-remote/src/backends/docker.ts`, `packages/exec-remote/test/docker.test.ts`.
+
 ## 2026-10-25T04:38:00+03:00 — Phase 4.7 landed: E2B depth
 
 **State.** 4.1–4.7 are landed; 4.8 and the phase close remain.
@@ -128,35 +159,4 @@ recorded in the plan's 4.5 entry (declaration-time hosted validation; the refusi
 **Artifacts.** `packages/core/src/tool/tool.ts`, `packages/core/src/errors.ts`,
 `packages/core/src/events.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
 `packages/core/test/tool-generator.test.ts`.
-
-## 2026-10-25T03:48:00+03:00 — Phase 4.4 landed: per-step tool policy as data
-
-**State.** 4.1–4.4 are landed; 4.5–4.8 and the phase close remain.
-
-**Did.** `tool-policy.test.ts` (13 tests, the 55th core file) was watched red on the missing
-module, then 4.4 landed: `src/tool/policy.ts` holds the policy types, `mergeToolPolicy`
-(intersecting allowed sets, unioning hidden by name, dropping a forced name the allowed set does
-not admit, concatenating requirements deduped by tool), `applyToolPolicy` (hidden tools become
-stubs that throw `ToolPolicyDeniedError` with the reason), `advertisedToolRegistry` and
-`validateToolPolicy` (a forced or required unknown name is a `ToolDefinitionError` at
-construction). `AgentOptions.toolPolicy` takes a policy or a per-step provider; the loop resolves
-one view per step and the prompt, the request specs, the executor registry and the lookup all
-read it. A forced tool must run in that step and a requirement in the run before an answer is
-accepted; a refusal is a correction observation plus `tool.requirementUnmet`, the third ends the
-run with `AgentGuardrailError`. `tool.policy` is announced once per changed view, and
-`buildTrace` learns both events. One runtime name, `ToolPolicyDeniedError`; type-only policy
-exports; core pins 109, 55 files / 620 tests.
-
-**Verified.** `pnpm vitest run --project core` exits 0 (55 files, 620 tests); the core typecheck
-passes; the 4.4 suite passes 13/13.
-
-**Unverified / open.** 4.5–4.8 and the phase close are not implemented.
-
-**Next.** 4.5: write `packages/core/test/tool-generator.test.ts` and watch it fail.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/src/tool/policy.ts`, `packages/core/src/errors.ts`,
-`packages/core/src/events.ts`, `packages/core/src/agent/multi-step-agent.ts`,
-`packages/core/test/tool-policy.test.ts`.
 <!-- rotate:end -->

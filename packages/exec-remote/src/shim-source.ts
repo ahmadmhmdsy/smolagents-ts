@@ -115,6 +115,8 @@ export function parseFrameLine(line: string, options: DecodeFrameOptions = {}): 
       if (typeof record["traceback"] === "string") frame.traceback = record["traceback"];
       return frame;
     }
+    case "ready":
+      return { type: "ready" };
     case "step_end":
       return { type: "step_end" };
     default:
@@ -305,5 +307,7 @@ const STEP_LOOP: readonly string[] = [
   "            _emit({\"type\": \"step_end\"})",
   "",
   "",
+  "# Announce readiness before the first read, so a host that has no readiness poll waits on this.",
+  "_emit({\"type\": \"ready\"})",
   "_step_loop()",
 ];

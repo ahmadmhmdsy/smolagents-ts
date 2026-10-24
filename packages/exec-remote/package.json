@@ -3,14 +3,13 @@
   "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
-  "description": "Remote Python CodeExecutor backends for the core seam: a local child process, a Docker-hosted Jupyter kernel and an E2B sandbox. Node-only.",
+  "description": "Remote Python CodeExecutor backends for the core seam: a local child process, a Docker-hosted guest over one exec session and an E2B sandbox. Node-only.",
   "keywords": [
     "smolagents",
     "code-execution",
     "python",
     "docker",
-    "e2b",
-    "jupyter"
+    "e2b"
   ],
   "license": "Apache-2.0",
   "repository": {

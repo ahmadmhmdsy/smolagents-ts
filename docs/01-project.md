@@ -110,7 +110,7 @@ only; the rest follow the milestones below.
 | `@smolagents-ts/tools` | the `tool()` ecosystem and default tools |
 | `@smolagents-ts/exec-pyodide` | a `CodeExecutor` implemented on WASM CPython (Pyodide), in-process on Node and in a page |
 | `@smolagents-ts/exec-quickjs` | a `CodeExecutor` implemented on QuickJS-WASM |
-| `@smolagents-ts/exec-remote` | three Python executors behind one seam — a child process on this host, a Docker-hosted Jupyter kernel gateway and an E2B sandbox — each reached through its own subpath |
+| `@smolagents-ts/exec-remote` | three Python executors behind one seam — a child process on this host, a Docker-hosted guest reached over one `docker exec` session and an E2B sandbox — each reached through its own subpath |
 | `@smolagents-ts/react` | L2 hooks, L3 headless primitives over `AgentSession`, and the L4 patterns that compose them into a run inspector and a chat surface |
 | `@smolagents-ts/react-ui` | the L5 styled layer: four wrappers over the headless primitives and patterns, and a plain stylesheet a consumer copies and then owns |
 | `@smolagents-ts/cli` | the Node command line: upstream `cli.py`'s arguments and interactive questions, the model and tool factories over this port's adapters, and a renderer for the event stream |

@@ -80,12 +80,11 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 
 | Service | Where | Port | Started by |
 |---|---|---|---|
-| none | everything the build, the tests and the gate do runs in-process, apart from the loopback listener below | — | — |
-| loopback Jupyter stand-in | the `exec-remote` suite binds `127.0.0.1` on an ephemeral port and speaks the kernel-gateway subset to it over the loopback interface | ephemeral, chosen by the operating system | `packages/exec-remote/test/ws-server.ts` |
+| none | everything the build, the tests and the gate do runs in-process | — | — |
 
-No daemon and no external service is opened by a build, a test run or the gate.
-The only socket any test opens is the `exec-remote` suite's own loopback
-listener, and that traffic never leaves this host.
+No daemon and no external service is opened by a build, a test run or the gate,
+and no test opens a socket: the Docker backend is driven through an injected
+`ContainerRuntime` double whose fake guest answers on the session's own stdin.
 
 ## Credentials
 
