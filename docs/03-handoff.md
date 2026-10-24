@@ -34,6 +34,22 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-24T09:20:00+03:00 — deepseek-harness filed as a post-synthesis dive; its team model answers the delegation question
+
+**State.** The harness we run inside is now dive twenty-two: five files under `docs/research/competitors/deepseek-harness/` and an addendum row in the register, read at `687f282e86` (MIT, version 0.2.1-rc.2; the owner's cited rc.3 is six days newer and changes only client menus). No package source changed. The plan is still unapproved and nothing from this dive is applied to it.
+
+**Did.** Read the team subsystem page, both team package READMEs, the design note with its rejected alternatives, the subagent seam, approval, jobs, goal and plan pages, and the timing of 117 team commits in seven waves. Filed the dive: roster of named continuable children, peer messages as inbox writes delivered at a step boundary, a task board that stores claims not data, wait edges with a typed `noProgress`, and a closed approval outcome set with a per-session `never` policy. Recorded what not to copy: the durable mailbox that became dead decoder code, the nine tools before the usage shape, the separate profile layers, and a shared checkout with advisory write scopes.
+
+**Verified.** Validator 0 errors and 0 warnings; every harness path in the dive is prefixed `clone:/` so it does not resolve into this tree; contracts present in all five files. Not verified: the adjacent-feature sweep (approval/jobs/goal/plan transferable ideas) was still running when the dive was filed; its findings belong in the dive's gap file as a follow-up edit or a newer note.
+
+**Unverified / open.** `MA-05` is now answerable from evidence: no blackboard for data, messages as record entries, a claim board only when background children exist. The owner has not decided. The program is still unapproved, so no phase row is open.
+
+**Next.** Brainstorm the five adoptable ideas with the owner — messaging at step boundaries, edge waits, claim board, closed approval outcomes, identity in runtime context — and get the `MA-05` wording and the Phase 2 amendment approved or rejected.
+
+**Blockers.** `T-40` on program approval; `T-14` on credentials and on `0024`.
+
+**Artifacts.** `docs/research/competitors/deepseek-harness/00-profile.md` through `04-sources.md`; `docs/research/competitors/README.md` addendum.
+
 ## 2026-10-24T08:05:00+03:00 — five of the six design questions are decided; delegation is the last one open
 
 **State.** Decisions `0022` (refuse list), `0023` (one identity per run) and `0024` (publication ordering) are accepted, and the plan records the two-wave Phase 0 cut. No package source changed. `MA-05` waits on an explanation of the delegation model; `MD-10` is deferred by the owner.

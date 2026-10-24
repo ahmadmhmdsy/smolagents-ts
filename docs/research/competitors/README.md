@@ -9,7 +9,7 @@
 **Status:** research record. Not a design, not a decision, not a commitment.
 **Owner:** owner
 **Started:** 2026-10-21
-**Filed:** 2026-10-21 — twenty-one repositories, 13,105 lines of research, 533 gap rows.
+**Filed:** 2026-10-21 — twenty-one repositories, 13,105 lines of research, 533 gap rows. One addendum dive followed on 2026-10-24: `deepseek-harness`, filed after the synthesis and before this register's next rewrite.
 **Related:** [the capability baseline](_synthesis/00-our-baseline.md), [the method](_method.md), [the gap matrix](_synthesis/10-gap-matrix.md), [the ranked backlog](_synthesis/20-ranked-backlog.md), the earlier landscape survey `docs/research/2026-10-16-agent-framework-landscape.md`, decision 0018 and decision 0019.
 **Licence position:** no competitor code is copied into this repository. Clones live under `reference/competitors/`, which is gitignored. Files under this tree describe behaviour and cite `path:line` pointers; they quote at most a few lines where the wording itself is the evidence.
 
@@ -91,6 +91,17 @@ The long tail is covered in one file rather than one folder each: [`_synthesis/0
 | `langfuse` | `langfuse/langfuse` | an observability product, not a framework; relevant to S9 exporters only |
 | `openllmetry` | `traceloop/openllmetry` | the OpenTelemetry GenAI convention in practice; relevant to a future exporter |
 | `_long-tail` | eleven more, see the file | semantic-kernel, haystack, dspy, LlamaIndex, humanlayer, browser-use, stagehand, temporal, restate and two smolagents ports, each with a verdict |
+
+### Addendum — post-synthesis dives
+
+| slug | repository | licence | why it was added | status |
+|---|---|---|---|---|
+| `deepseek-harness` | `deepseek-ai/deepseek-harness` | MIT | the harness this project is developed inside: agent teams, durable sessions, a typed subagent seam, approvals and the plugin composition model; added on the owner's request and filed after the synthesis | filed, five files, read at `687f282e86` |
+
+The addendum is read for the same reason as a tier-1 dive: it is the mature
+implementation of a capability on the roadmap (multi-agent delegation, Phase 2). Its
+files cite the baseline rows and mark genuinely new proposals as `*new*` rather than
+inventing row ids, because the baseline is frozen to the synthesis revision.
 
 ## How a dive is judged
 
