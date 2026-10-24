@@ -7,6 +7,7 @@
  * record vocabulary: a store commits a `RunRecord` under a run id and loads it back.
  */
 import { describe, expect, it } from "vitest";
+import { RunClaimedError, StaleWriterError } from "../../src/errors.js";
 import type { StepJSON } from "../../src/memory/steps.js";
 import {
   RUN_RECORD_VERSION,
@@ -27,6 +28,8 @@ const MODE = {
   copy: "returns data a caller cannot mutate behind its back",
   visible: "makes a resolved commit visible to the next load",
   concurrent: "keeps concurrent commits to different runs apart",
+  claim: "bumps the fence once and refuses the loser of a claim race",
+  stale: "refuses a stale commit and leaves the stored record untouched",
 } as const;
 
 type Mode = keyof typeof MODE;
@@ -202,6 +205,8 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
       same(second.memory.steps, STEPS_B, "concurrent");
     },
   },
+  { mode: "claim", check: claimCheck },
+  { mode: "stale", check: staleCheck },
 ];
 
 type Memory = Map<string, StoredRun>;
@@ -211,10 +216,12 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
   unknown: () => ({
     commit: () => undefined,
     load: () => record("x", []),
+    claim: (runId) => record(runId, []),
   }),
   roundTrip: () => ({
     commit: () => undefined,
     load: () => record("x", []),
+    claim: (runId) => record(runId, []),
   }),
   empty: () => {
     const memory: Memory = new Map();
@@ -224,6 +231,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
         else memory.set(runId, saved);
       },
       load: (runId) => memory.get(runId),
+      claim: (runId) => record(runId, []),
     };
   },
   overwrite: () => {
@@ -238,6 +246,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
         memory.set(runId, record(runId, [...previousSteps, ...saved.memory.steps]));
       },
       load: (runId) => memory.get(runId),
+      claim: (runId) => record(runId, []),
     };
   },
   isolation: () => {
@@ -247,6 +256,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
         only = saved;
       },
       load: () => only,
+      claim: (runId) => record(runId, []),
     };
   },
   keys: () => {
@@ -257,6 +267,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
         memory.set(runId, saved);
       },
       load: (runId) => memory.get(runId),
+      claim: (runId) => record(runId, []),
     };
   },
   repeatable: () => {
@@ -268,6 +279,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
         memory.delete(runId);
         return value;
       },
+      claim: (runId) => record(runId, []),
     };
   },
   copy: () => {
@@ -275,6 +287,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
     return {
       commit: (runId, saved) => void memory.set(runId, saved),
       load: (runId) => memory.get(runId),
+      claim: (runId) => record(runId, []),
     };
   },
   visible: () => {
@@ -285,6 +298,7 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
         return Promise.resolve();
       },
       load: (runId) => memory.get(runId),
+      claim: (runId) => record(runId, []),
     };
   },
   concurrent: () => {
@@ -292,11 +306,88 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
     return {
       commit: (_runId, saved) => void memory.set("only", saved),
       load: (_runId) => memory.get("only"),
+      claim: (runId) => record(runId, []),
+    };
+  },
+  claim: () => {
+    const memory: Memory = new Map();
+    return {
+    commit: (runId, saved) => void memory.set(runId, saved),
+    load: (runId) => memory.get(runId),
+    // Bumps nothing and names nobody: the first claim check must reject it.
+    claim: (runId) => record(runId, []),
+    };
+  },
+  stale: () => {
+    const memory: Memory = new Map();
+    return {
+      // Ignores the fence on commit and keeps no generation on claim.
+      commit: (runId, saved) => void memory.set(runId, saved),
+      load: (runId) => memory.get(runId),
+      claim: (runId, expectedGeneration, owner) => {
+        const claimed = { ...record(runId, []), generation: expectedGeneration + 1, owner };
+        memory.set(runId, claimed);
+        return claimed;
+      },
     };
   },
 };
 
 export type RunStoreFactory = () => RunStore | Promise<RunStore>;
+
+// --- claim and stale checks -------------------------------------------------------------
+// Both checks speak only the interface: a generation read from `load` is the fence a claim and a
+// commit compare-and-set.
+
+async function claimCheck(store: RunStore): Promise<void> {
+  await write(store, "run-j", STEPS_A);
+  const first = await store.claim("run-j", 0, "owner-a");
+  if (first.generation !== 1) {
+    refuse("claim", "the first claim left generation at " + String(first.generation));
+  }
+  if (first.owner !== "owner-a") {
+    refuse("claim", "the claim wrote owner " + JSON.stringify(first.owner));
+  }
+  same(first.memory.steps, STEPS_A, "claim");
+  let lost: unknown;
+  try {
+    await store.claim("run-j", 0, "owner-b");
+  } catch (error) {
+    lost = error;
+  }
+  if (!(lost instanceof RunClaimedError)) {
+    refuse("claim", "the second claim at generation 0 was not refused with RunClaimedError");
+  }
+  const second = await store.claim("run-j", 1, "owner-b");
+  if (second.generation !== 2) {
+    refuse("claim", "the claim at generation 1 left generation at " + String(second.generation));
+  }
+  if (second.owner !== "owner-b") refuse("claim", "the second claim kept the first owner");
+}
+
+async function staleCheck(store: RunStore): Promise<void> {
+  await write(store, "run-k", STEPS_A);
+  await store.claim("run-k", 0, "owner-a");
+  let refused: unknown;
+  try {
+    await store.commit("run-k", { ...record("run-k", STEPS_B), generation: 0 }, 0);
+  } catch (error) {
+    refused = error;
+  }
+  if (!(refused instanceof StaleWriterError)) {
+    refuse("stale", "a commit at the overtaken generation 0 was not refused with StaleWriterError");
+  }
+  const after = await read(store, "run-k");
+  if (after === undefined) refuse("stale", "the record vanished after the refused commit");
+  if (after.generation !== 1) {
+    refuse("stale", "the refused commit moved the fence to " + String(after.generation));
+  }
+  same(after.memory.steps, STEPS_A, "stale");
+  await store.commit("run-k", { ...after, memory: { steps: STEPS_B } }, 1);
+  const visible = await read(store, "run-k");
+  if (visible === undefined) refuse("stale", "the in-fence commit was not visible");
+  same(visible.memory.steps, STEPS_B, "stale");
+}
 
 /**
  * Register the contract for one implementation. Every check runs against a fresh store, and its

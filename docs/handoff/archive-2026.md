@@ -4,6 +4,37 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T14:20:00+03:00 — Phase 0 closed: all ten items landed
+
+**State.** Phase 0 is done and `T-41` is `done`: ten correction items landed, each with
+its pre-registered acceptance test, its plan entry, its handoff entry and its commit.
+`pnpm gate` exits 0; core reports 39 files and 460 tests. Nothing is pushed, and the
+unpublished `0.1.0` still waits on `T-14`'s credentials. `T-40` (the parent research
+plan) stays `in_progress`: Phase 1 has not been opened.
+
+**Did.** 0.10: the tool-calling agent advertises tools only to a model that claims
+`toolCalls`, sends the bound schema in the prompt to one that does not, reads a JSON
+text reply as the answer, and spends the bounded repair turn when the text answer has the
+wrong shape. The acceptance test fails twice and then succeeds inside the attempt bound,
+with no tool schema on the wire. No `packages/models` change was needed —
+`CustomModel` already reports `toolCalls: false`.
+
+**Verified.** `pnpm gate` exit 0; core 39 files, 460 tests; validator 0 errors,
+0 warnings; `rotate.py --check` clean.
+
+**Unverified / open.** Phase 1 is unopened. Two items remain parked outside this phase:
+`MD-10` (deferred by the owner) and `T-14` (blocked on registry credentials). The
+publication hold stands until the corrections ship.
+
+**Next.** The owner picks the next phase (or a release); `T-40` is the row to reopen.
+
+**Blockers.** None in this phase.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-0-execution-plan.md`,
+`packages/core/src/agent/tool-calling-agent.ts`,
+`packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/test/guardrail.test.ts`.
+
 ## 2026-10-24T13:45:00+03:00 — 0.9 landed: a budget record, a typed limit, a handle
 
 **State.** Nine Phase 0 items in (0.1–0.9). Last one is 0.10: structured output on a

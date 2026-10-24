@@ -291,6 +291,33 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.3 as built.** `generation` is the fence and `owner` names its holder;
+  `RunRecord` gains optional `owner`, `step {index, stepId, startedAt}` and
+  `completed [{stepId, index, state, result?, usage?, finishedAt}]`. The seam gains
+  `claim(runId, expectedGeneration, owner)` — a compare-and-set refused with
+  `RunClaimedError` — and `commit(runId, record, expectedGeneration)`, refused with
+  `StaleWriterError` before a byte is written. `MemoryRunStore` and the temporary-file
+  double both fence; the contract gained a `claim` and a `stale` mode with rejecting
+  counterexamples, so it now runs twelve modes against each store.
+- **Repair forward.** Continuing a stored run claims it first, and a resume is validated
+  against the record *before* the claim, so a wrong request id runs no effect and leaves no
+  owner. A waiting record is claimed, settled and committed `running`; a `running` record
+  left by a dead process is claimed and repaired: every step kept, one synthetic
+  `completed` closer appended for the open `step` with `state: "interrupted"`, and the
+  loop re-enters that index. A completed record is claimed but not repaired, because a
+  session may continue it as a fresh turn.
+- **One entry per finished step.** The loop records the step when it adds it and closes it
+  at the boundary (the answering step is closed by `complete()`), so every commit carries
+  `step` while a step is in flight and `completed` accumulates one entry per finished
+  step. The list is appended to and never truncated; the parked step is dropped from memory
+  and never gets an entry, because it did not run.
+- **Ownership lifecycle.** A terminal commit drops `owner` and `step`; a pause keeps the
+  owner while the record waits. Commits carry the claimed generation, so a writer overtaken
+  by a later claim gets `StaleWriterError` instead of last-write-wins. Core grew from 479
+  to 496 tests.
+- **Left to 1.4.** Effects inside an interrupted step still run again; the repair guarantees
+  the step is named, not that its side effects are known.
+
 - **2026-10-24 — 1.2 as built.** The approval verdict set gains `pending`: the gate records the
   decision, throws `ToolApprovalPendingError`, the loop drops the unfinished step, and commits
   the record `waiting` with `pending {kind, requestId, toolName, argsDigest, stepIndex, createdAt,

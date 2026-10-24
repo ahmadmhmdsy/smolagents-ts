@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ToolCallingAgent, FINAL_ANSWER_TOOL_NAME } from "../src/agent/tool-calling-agent.js";
-import { AgentMaxStepsError, RunRecordVersionError } from "../src/errors.js";
+import {
+  AgentMaxStepsError,
+  RunClaimedError,
+  RunNotFoundError,
+  RunRecordVersionError,
+  StaleWriterError,
+} from "../src/errors.js";
 import {
   ActionStep,
   FinalAnswerStep,
@@ -108,6 +114,10 @@ class RecordingStore implements RunStore {
   readonly commits: { runId: string; status: RunStatus; actions: number }[] = [];
   private readonly inner = new MemoryRunStore();
 
+  claim(runId: string, expectedGeneration: number, owner: string): RunRecord {
+    return this.inner.claim(runId, expectedGeneration, owner);
+  }
+
   commit(runId: string, record: RunRecord): void {
     this.commits.push({
       runId,
@@ -174,6 +184,91 @@ describe("run store", () => {
     expect(stored.memory.steps.some((step) => step.kind === "action")).toBe(false);
   });
 
+  it("lets exactly one of two racing resumers claim the record", async () => {
+    const store = new MemoryRunStore();
+    store.commit("race", {
+      schemaVersion: RUN_RECORD_VERSION,
+      runId: "race",
+      status: "failed",
+      generation: 0,
+      memory: { steps: [] },
+    });
+    const outcomes = await Promise.allSettled([
+      Promise.resolve().then(() => store.claim("race", 0, "owner-a")),
+      Promise.resolve().then(() => store.claim("race", 0, "owner-b")),
+    ]);
+    const fulfilled = outcomes.filter((entry) => entry.status === "fulfilled");
+    const rejected = outcomes.filter((entry) => entry.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(RunClaimedError);
+    const stored = store.load("race")!;
+    expect(stored).toMatchObject({ generation: 1 });
+  });
+
+  it("refuses a stale writer and leaves the claimed record exactly as it was", async () => {
+    const store = new MemoryRunStore();
+    store.commit("stale", {
+      schemaVersion: RUN_RECORD_VERSION,
+      runId: "stale",
+      status: "running",
+      generation: 0,
+      memory: { steps: [] },
+    });
+    const claimed = store.claim("stale", 0, "owner-a");
+    expect(claimed.generation).toBe(1);
+    const before = JSON.stringify(store.load("stale"));
+    expect(() =>
+      store.commit("stale", { ...claimed, generation: 0, memory: { steps: [] } }, 0),
+    ).toThrow(StaleWriterError);
+    expect(JSON.stringify(store.load("stale"))).toBe(before);
+    // The record still names its live owner, and the in-fence writer can continue it.
+    expect(store.load("stale")).toMatchObject({ generation: 1, owner: "owner-a" });
+    store.commit("stale", { ...claimed, status: "completed" }, 1);
+    expect(store.load("stale")).toMatchObject({ status: "completed" });
+  });
+
+  it("repairs a crashed run, closing its open step as interrupted, then finishes it", async () => {
+    const store = new MemoryRunStore();
+    const first = new ActionStep("call add once");
+    store.commit("crashed", {
+      schemaVersion: RUN_RECORD_VERSION,
+      runId: "crashed",
+      status: "running",
+      generation: 3,
+      memory: { steps: [new TaskStep("add"), first].map(stepToJSON) },
+      step: { index: 1, stepId: "crashed-open", startedAt: "2026-10-24T00:00:00.000Z" },
+      completed: [
+        { stepId: first.id, index: 0, state: "completed", finishedAt: "2026-10-24T00:00:01.000Z" },
+      ],
+    });
+    const agent = new ToolCallingAgent({
+      model: new MockModel([
+        {
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: 2 }, "c-resume")],
+        },
+      ]),
+      tools: [addTool()],
+      store,
+    });
+
+    const result = await agent.run("add", { runId: "crashed", resume: {} });
+
+    expect(result.output).toBe(2);
+    const stored = translateRecord(store.load("crashed")!);
+    expect(stored.status).toBe("completed");
+    expect(stored.generation).toBe(4);
+    expect(stored.owner).toBeUndefined();
+    expect(stored.memory.steps.length).toBeGreaterThanOrEqual(2);
+    expect(stored.completed).toHaveLength(3);
+    expect(stored.completed?.[0]).toMatchObject({ stepId: first.id, state: "completed" });
+    expect(stored.completed?.[1]).toMatchObject({ stepId: "crashed-open", state: "interrupted" });
+    // The step that answered after the repair finished normally.
+    expect(stored.completed?.[2]).toMatchObject({ index: 1, state: "completed" });
+  });
+
   it("resumes a stopped run from its record and finishes it", async () => {
     const store = new MemoryRunStore();
     const add = addTool();
@@ -236,6 +331,13 @@ describe("run store", () => {
         stored.length === 0
           ? undefined
           : (JSON.parse(stored[0]!) as ReturnType<typeof stepToJSON>[]),
+      claim: (runId, expectedGeneration, owner) => {
+        const raw = stored.length === 0 ? undefined : (JSON.parse(stored[0]!) as StoredRun);
+        if (raw === undefined) throw new RunNotFoundError("no legacy record yet");
+        const current = translateRecord(raw, runId);
+        if (current.generation !== expectedGeneration) throw new RunClaimedError("overtaken");
+        return { ...current, generation: expectedGeneration + 1, owner };
+      },
     };
 
     const first = new ToolCallingAgent({
@@ -269,6 +371,9 @@ describe("run store", () => {
   it("fails a resumed run when the stored record declares a newer version", async () => {
     const newerStore: RunStore = {
       commit: () => undefined,
+      claim: () => {
+        throw new Error("unreachable: the load refuses the record first");
+      },
       load: (runId): RunRecord => ({
         schemaVersion: RUN_RECORD_VERSION + 1,
         runId,

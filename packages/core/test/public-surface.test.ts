@@ -74,6 +74,8 @@ const RUNTIME_EXPORTS = [
   "RunRequestExpiredError",
   "RunAlreadySettledError",
   "RunApprovalMismatchError",
+  "RunClaimedError",
+  "StaleWriterError",
   // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
   "RUN_LIMITS_CEILING",
   "resolveBudget",

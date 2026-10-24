@@ -11,6 +11,7 @@ import {
   RunRecordVersionError,
   RunRequestExpiredError,
   RunRequestMismatchError,
+  StaleWriterError,
 } from "../errors.js";
 import { isTerminal, type AgentEvent, type AgentEventOf, type AgentEventType } from "../events.js";
 import { type Logger, noopLogger } from "../logger.js";
@@ -55,6 +56,8 @@ import {
   RUN_RECORD_VERSION,
   translateRecord,
   type ApprovalSettlement,
+  type CompletedStep,
+  type OpenStep,
   type PendingApproval,
   type RunRecord,
   type RunStatus,
@@ -138,10 +141,13 @@ export interface RunOptions {
    */
   budget?: RunBudgetHandle;
   /**
-   * Settle the pending request of a parked run and continue it. Requires `runId`; the loop loads
-   * the record, settles the request exactly once, and re-enters the unfinished step.
+   * Continue a run from its record. With `requestId` and `outcome`, settle that pending request
+   * exactly once and re-enter the unfinished step; without them, repair a record whose process
+   * died by closing its open step as interrupted and running forward.
    */
-  resume?: { readonly requestId: string; readonly outcome: SettledApprovalOutcome };
+  resume?: { readonly requestId?: string; readonly outcome?: SettledApprovalOutcome };
+  /** The owner name this run claims its record under. Defaults to a fresh id per run. */
+  owner?: string;
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
@@ -172,6 +178,12 @@ export interface RunContext {
   settlements: readonly ApprovalSettlement[];
   /** The memory as the last successful commit wrote it, so a park replays from that boundary. */
   committedSteps: RunRecord["memory"]["steps"];
+  /** The claim holder written on every commit; dropped by a terminal commit. */
+  owner: string;
+  /** Finished steps, the closer a repair appended included. */
+  completed: CompletedStep[];
+  /** The step in flight, committed while it runs so a repair can name it. */
+  openStep: OpenStep | undefined;
 }
 
 export type AgentEventListener = (event: AgentEvent) => void;
@@ -541,6 +553,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
       resumedSettlement: undefined,
       settlements: [],
       committedSteps: [],
+      owner: options.owner ?? crypto.randomUUID(),
+      completed: [],
+      openStep: undefined,
     };
 
     this.activeContext = context;
@@ -564,32 +579,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
         yield this.emit({ type: "run.failed", error: failure.info });
         return;
       }
-      if (loaded !== undefined) {
-        this.memory.restore(loaded.memory.steps);
-        context.generation = loaded.generation;
-        context.settlements = loaded.settlements ?? [];
-        context.committedSteps = loaded.memory.steps;
-      }
-      if (options.resume !== undefined) {
-        const refusal = this.prepareResume(context, options.resume, loaded);
+      const resume = options.resume;
+      // Validate before claiming: a refused resume must leave the record exactly as it found it.
+      if (resume !== undefined) {
+        const refusal = this.validateResume(loaded, resume);
         if (refusal !== undefined) {
           yield this.emit({ type: "run.failed", error: refusal.info });
           return;
         }
-        // Consume the pause before re-entering the step: a crash past this point leaves a
-        // running record, never a request that could be settled twice.
-        const commitFailure = await this.commitRun(context, "running");
-        if (commitFailure !== undefined) {
-          yield* this.failRun(context, commitFailure);
-          return;
-        }
-        const settlement = context.resumedSettlement as ApprovalSettlement;
-        yield this.emit({
-          type: "run.resumed",
-          runId,
-          requestId: settlement.requestId,
-          outcome: settlement.outcome,
-        });
       } else if (loaded !== undefined && loaded.status === "waiting" && loaded.pending !== undefined) {
         yield this.emit({
           type: "run.failed",
@@ -600,6 +597,47 @@ export abstract class MultiStepAgent<TOut = unknown> {
           ).info,
         });
         return;
+      }
+      if (loaded !== undefined) {
+        // One owner at a time: the claim fences every commit that follows.
+        let claimed: RunRecord;
+        try {
+          claimed = await this.store.claim(options.runId, loaded.generation, context.owner);
+        } catch (error) {
+          yield this.emit({ type: "run.failed", error: AgentError.from(error).info });
+          return;
+        }
+        loaded = claimed;
+        context.generation = claimed.generation;
+        context.settlements = claimed.settlements ?? [];
+        context.completed = [...(claimed.completed ?? [])];
+        context.committedSteps = claimed.memory.steps;
+        this.memory.restore(claimed.memory.steps);
+        if (resume !== undefined && claimed.status === "waiting") {
+          const settled = this.consumeResume(context, claimed, resume);
+          if (settled !== undefined) {
+            yield this.emit({ type: "run.failed", error: settled.info });
+            return;
+          }
+          // Consume the pause before re-entering the step: a crash past this point leaves a
+          // running record, never a request that could be settled twice.
+          const commitFailure = await this.commitRun(context, "running");
+          if (commitFailure !== undefined) {
+            yield* this.failRun(context, commitFailure);
+            return;
+          }
+          const settlement = context.resumedSettlement as ApprovalSettlement;
+          yield this.emit({
+            type: "run.resumed",
+            runId,
+            requestId: settlement.requestId,
+            outcome: settlement.outcome,
+          });
+        } else if (claimed.status === "running") {
+          // The process that owned this record died mid-step: keep every step, close the open
+          // one as interrupted and run forward from the next index.
+          this.repairOpenStep(context, claimed);
+        }
       }
       // A resumed run continues the budget its record already spent. Without a store there is
       // nothing to seed from, and without a handle the caller asked for a fresh run.
@@ -654,7 +692,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       return;
     }
 
-    for (let stepIndex = 0; stepIndex < this.maxSteps; stepIndex += 1) {
+    for (let stepIndex = context.stepIndex; stepIndex < this.maxSteps; stepIndex += 1) {
       context.stepIndex = stepIndex;
 
       if (signal.aborted) {
@@ -716,13 +754,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
           const correction = this.answerFailure(invalid, context.finishReason, stepIndex);
           step.observations = correction;
           this.memory.addStep(step);
+          this.openStep(context, step, stepIndex);
           yield this.emit({
             type: "observation.completed",
             stepIndex,
             text: correction,
             isFinalAnswer: false,
           });
-          const saveFailure = await this.commitRun(context, "running");
+          const saveFailure = await this.commitAfterStep(context);
           if (saveFailure !== undefined) {
             yield* this.failRun(context, saveFailure);
             return;
@@ -741,6 +780,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
 
       this.memory.addStep(step);
+      this.openStep(context, step, stepIndex);
 
       if (action.kind === "empty") {
         const parsingError = new AgentParsingError(
@@ -755,7 +795,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
           text: parsingError.message,
           isFinalAnswer: false,
         });
-        const saveFailure = await this.commitRun(context, "running");
+        const saveFailure = await this.commitAfterStep(context);
         if (saveFailure !== undefined) {
           yield* this.failRun(context, saveFailure);
           return;
@@ -806,7 +846,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         return;
       }
 
-      const saveFailure = await this.commitRun(context, "running");
+      const saveFailure = await this.commitAfterStep(context);
       if (saveFailure !== undefined) {
         yield* this.failRun(context, saveFailure);
         return;
@@ -879,6 +919,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
    */
   private async commitRun(context: RunContext, status: RunStatus): Promise<AgentError | undefined> {
     if (this.store === undefined || !context.durable) return undefined;
+    const terminal = status === "completed" || status === "failed";
     try {
       const steps = this.memory.toJSON();
       const record: RunRecord = {
@@ -886,18 +927,47 @@ export abstract class MultiStepAgent<TOut = unknown> {
         runId: context.runId,
         status,
         generation: context.generation,
+        // A terminal commit releases the claim; a pause keeps it while the record waits.
+        ...(terminal ? {} : { owner: context.owner }),
+        ...(terminal || context.openStep === undefined ? {} : { step: context.openStep }),
+        ...(context.completed.length === 0 ? {} : { completed: context.completed }),
         memory: { steps },
         ...(context.pending === undefined ? {} : { pending: context.pending }),
         ...(context.settlements.length === 0 ? {} : { settlements: context.settlements }),
         createdAt: context.createdAt,
         updatedAt: new Date().toISOString(),
       };
-      await this.store.commit(context.runId, record);
+      await this.store.commit(context.runId, record, context.generation);
       context.committedSteps = steps;
       return undefined;
     } catch (error) {
+      // A stale refusal is the writer's answer, not a store outage: surface it as itself.
+      if (error instanceof StaleWriterError) return error;
       return storeError("commit", error, context.stepIndex);
     }
+  }
+
+  /** Record the step that starts now, so a crash can name it. */
+  private openStep(context: RunContext, step: ActionStep, stepIndex: number): void {
+    context.openStep = { index: stepIndex, stepId: step.id, startedAt: new Date().toISOString() };
+    context.stepIndex = stepIndex;
+  }
+
+  /** Mark the step in flight finished, so the next commit carries its closer. */
+  private markStepFinished(context: RunContext): void {
+    const open = context.openStep;
+    if (open === undefined) return;
+    context.completed = [
+      ...context.completed,
+      { stepId: open.stepId, index: open.index, state: "completed", finishedAt: new Date().toISOString() },
+    ];
+    context.openStep = undefined;
+  }
+
+  /** Finish the step, then commit the boundary. */
+  private async commitAfterStep(context: RunContext, status: RunStatus = "running"): Promise<AgentError | undefined> {
+    this.markStepFinished(context);
+    return this.commitRun(context, status);
   }
 
   /**
@@ -909,6 +979,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.parkingDecision = undefined;
     if (decision === undefined) return;
     this.memory.restore([...context.committedSteps]);
+    // The parked step was dropped from memory, so nothing is in flight while the run waits.
+    context.openStep = undefined;
     context.pending = {
       kind: "approval",
       requestId: decision.requestId,
@@ -925,54 +997,81 @@ export abstract class MultiStepAgent<TOut = unknown> {
     yield this.emit({ type: "run.waiting", result: this.buildResult(undefined, context, "waiting") });
   }
 
-  /** Validate and consume a resume against the loaded record, or return the typed refusal. */
-  private prepareResume(
-    context: RunContext,
-    resume: { readonly requestId: string; readonly outcome: SettledApprovalOutcome },
+  /**
+   * Check a resume against the record without touching it. A refusal therefore leaves the record
+   * exactly as it was found, which is what lets a wrong request id run no effect at all.
+   */
+  private validateResume(
     loaded: RunRecord | undefined,
+    resume: { readonly requestId?: string; readonly outcome?: SettledApprovalOutcome },
   ): AgentError | undefined {
     if (loaded === undefined) {
       return new RunNotFoundError(
-        "The store holds no record for run " +
-          context.runId +
-          ", so request " +
-          resume.requestId +
-          " cannot be resumed.",
+        "The store holds no record for run " + (resume.requestId ?? "") + " to resume.",
       );
     }
-    const settled = (loaded.settlements ?? []).find((entry) => entry.requestId === resume.requestId);
-    if (settled !== undefined) {
-      return new RunAlreadySettledError(
-        "Request " +
-          resume.requestId +
-          " was already settled as " +
-          settled.outcome +
-          "; resuming it again runs nothing.",
-        {},
-        settled.outcome,
-      );
+    const requestId = resume.requestId;
+    if (requestId !== undefined) {
+      const settled = (loaded.settlements ?? []).find((entry) => entry.requestId === requestId);
+      if (settled !== undefined) {
+        return new RunAlreadySettledError(
+          "Request " +
+            requestId +
+            " was already settled as " +
+            settled.outcome +
+            "; resuming it again runs nothing.",
+          {},
+          settled.outcome,
+        );
+      }
     }
-    const pending = loaded.pending;
-    if (loaded.status !== "waiting" || pending === undefined) {
-      return new RunNotWaitingError(
-        "The run record is " + loaded.status + ", not waiting on a request to resume.",
-      );
+    if (loaded.status === "waiting") {
+      const pending = loaded.pending;
+      if (pending === undefined || requestId === undefined || resume.outcome === undefined) {
+        return new RunNotWaitingError(
+          "The run record is waiting, so a resume must name the pending request and its outcome.",
+        );
+      }
+      if (pending.requestId !== requestId) {
+        return new RunRequestMismatchError(
+          "The run is waiting on request " +
+            pending.requestId +
+            ", not " +
+            requestId +
+            "; nothing was settled.",
+        );
+      }
+      if (pending.expiresAt !== undefined && Date.now() > Date.parse(pending.expiresAt)) {
+        return new RunRequestExpiredError(
+          "Request " + pending.requestId + " expired at " + pending.expiresAt + "; it cannot be settled.",
+          {},
+          pending.expiresAt,
+        );
+      }
+      return undefined;
     }
-    if (pending.requestId !== resume.requestId) {
-      return new RunRequestMismatchError(
-        "The run is waiting on request " +
-          pending.requestId +
-          ", not " +
-          resume.requestId +
-          "; nothing was settled.",
-      );
+    if (loaded.status === "running") {
+      if (requestId !== undefined || resume.outcome !== undefined) {
+        return new RunRequestMismatchError(
+          "The run record is running, not waiting on a request; there is nothing to settle.",
+        );
+      }
+      return undefined;
     }
-    if (pending.expiresAt !== undefined && Date.now() > Date.parse(pending.expiresAt)) {
-      return new RunRequestExpiredError(
-        "Request " + pending.requestId + " expired at " + pending.expiresAt + "; it cannot be settled.",
-        {},
-        pending.expiresAt,
-      );
+    return new RunNotWaitingError(
+      "The run record is " + loaded.status + ", not a crashed or waiting run to resume.",
+    );
+  }
+
+  /** Append the settlement a validated resume settled, and re-enter the step that asked. */
+  private consumeResume(
+    context: RunContext,
+    record: RunRecord,
+    resume: { readonly requestId?: string; readonly outcome?: SettledApprovalOutcome },
+  ): AgentError | undefined {
+    const pending = record.pending;
+    if (pending === undefined || resume.outcome === undefined) {
+      return new RunNotWaitingError("The record has no pending request to settle.");
     }
     const settlement: ApprovalSettlement = {
       requestId: pending.requestId,
@@ -985,7 +1084,31 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context.resumedSettlement = settlement;
     context.pending = undefined;
     context.stepIndex = pending.stepIndex;
+    context.openStep = undefined;
     return undefined;
+  }
+
+  /**
+   * Close a record whose process died: keep every step and every earlier closer, append one
+   * synthetic interrupted closer for the open step, and continue from the next index.
+   */
+  private repairOpenStep(context: RunContext, record: RunRecord): void {
+    const open = record.step;
+    if (open !== undefined && !context.completed.some((entry) => entry.stepId === open.stepId)) {
+      context.completed = [
+        ...context.completed,
+        {
+          stepId: open.stepId,
+          index: open.index,
+          state: "interrupted",
+          finishedAt: new Date().toISOString(),
+        },
+      ];
+      context.stepIndex = open.index;
+      return;
+    }
+    const last = context.completed[context.completed.length - 1];
+    context.stepIndex = last === undefined ? 0 : last.index + 1;
   }
 
   /** Commit the terminal failure, then report it. A failed commit does not hide the cause. */
@@ -1225,6 +1348,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       value = parsed.data;
     }
     this.memory.addStep(new FinalAnswerStep(value));
+    this.markStepFinished(context);
     // The terminal commit is the record's last write. A caller that finds no completed record must
     // not believe the run finished, so a store failure here fails the run rather than the answer.
     const commitFailure = await this.commitRun(context, "completed");

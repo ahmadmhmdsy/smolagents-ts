@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
+import { RunClaimedError, RunNotFoundError, StaleWriterError } from "../../src/errors.js";
 import {
   MemoryRunStore,
   type RunStore,
@@ -33,8 +34,50 @@ class TemporaryFileRunStore implements RunStore {
     return join(this.directory, encodeURIComponent(runId) + ".json");
   }
 
-  commit(runId: string, record: RunRecord): void {
-    writeFileSync(this.pathFor(runId), JSON.stringify(record), "utf8");
+  commit(runId: string, record: RunRecord, expectedGeneration?: number): void {
+    const path = this.pathFor(runId);
+    if (expectedGeneration !== undefined && existsSync(path)) {
+      const stored = JSON.parse(readFileSync(path, "utf8")) as RunRecord;
+      if (stored.generation !== expectedGeneration) {
+        throw new StaleWriterError(
+          "The record for run " +
+            runId +
+            " is at generation " +
+            String(stored.generation) +
+            ", not " +
+            String(expectedGeneration) +
+            ".",
+        );
+      }
+    }
+    writeFileSync(path, JSON.stringify(record), "utf8");
+  }
+
+  claim(runId: string, expectedGeneration: number, owner: string): RunRecord {
+    const stored = this.load(runId);
+    if (stored === undefined) {
+      throw new RunNotFoundError("The store holds no record for run " + runId + " to claim.");
+    }
+    const record = stored as RunRecord;
+    if (record.generation !== expectedGeneration) {
+      throw new RunClaimedError(
+        "Run " +
+          runId +
+          " is at generation " +
+          String(record.generation) +
+          ", not " +
+          String(expectedGeneration) +
+          "; another writer holds it.",
+      );
+    }
+    const claimed: RunRecord = {
+      ...record,
+      generation: record.generation + 1,
+      owner,
+      updatedAt: new Date().toISOString(),
+    };
+    this.commit(runId, claimed);
+    return claimed;
   }
 
   load(runId: string): StoredRun | undefined {
@@ -49,9 +92,13 @@ runStoreContract("MemoryRunStore", () => new MemoryRunStore());
 runStoreContract("a store that answers asynchronously", async () => {
   const inner = new MemoryRunStore();
   return {
-    commit: async (runId, record) => {
+    commit: async (runId, record, expectedGeneration) => {
       await Promise.resolve();
-      inner.commit(runId, record);
+      inner.commit(runId, record, expectedGeneration);
+    },
+    claim: async (runId, expectedGeneration, owner) => {
+      await Promise.resolve();
+      return inner.claim(runId, expectedGeneration, owner);
     },
     load: async (runId) => await Promise.resolve(inner.load(runId)),
   };

@@ -16,7 +16,9 @@ export type AgentErrorCode =
   | "AGENT_RUN_REQUEST_MISMATCH"
   | "AGENT_RUN_REQUEST_EXPIRED"
   | "AGENT_RUN_ALREADY_SETTLED"
-  | "AGENT_RUN_APPROVAL_MISMATCH";
+  | "AGENT_RUN_APPROVAL_MISMATCH"
+  | "AGENT_RUN_CLAIMED"
+  | "AGENT_RUN_STALE_WRITER";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -232,6 +234,22 @@ export class RunApprovalMismatchError extends AgentError {
   }
 }
 
+/** Raised when a live claim loses the generation race; another writer owns the run. */
+export class RunClaimedError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_CLAIMED" });
+    this.name = "RunClaimedError";
+  }
+}
+
+/** Raised when a commit names a generation another claim has already moved past. */
+export class StaleWriterError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_STALE_WRITER" });
+    this.name = "StaleWriterError";
+  }
+}
+
 /** Raised when a tool does not settle inside its deadline. */
 export class ToolTimeoutError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -268,4 +286,6 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_RUN_REQUEST_EXPIRED: RunRequestExpiredError,
   AGENT_RUN_ALREADY_SETTLED: RunAlreadySettledError,
   AGENT_RUN_APPROVAL_MISMATCH: RunApprovalMismatchError,
+  AGENT_RUN_CLAIMED: RunClaimedError,
+  AGENT_RUN_STALE_WRITER: StaleWriterError,
 };

@@ -114,6 +114,7 @@ describe("terminal-event contract", () => {
     const store: RunStore = {
       commit: () => undefined,
       load: () => Promise.reject(new Error("disk gone")),
+      claim: () => Promise.reject(new Error("disk gone")),
     };
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn]), store });
 
@@ -129,6 +130,9 @@ describe("terminal-event contract", () => {
         throw new Error("quota exceeded");
       },
       load: () => undefined,
+      claim: () => {
+        throw new Error("unreachable: a fresh run never claims");
+      },
     };
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn]), store });
 
@@ -148,6 +152,9 @@ describe("terminal-event contract", () => {
         if (saves === 2) throw new Error("planning commit failed");
       },
       load: () => undefined,
+      claim: () => {
+        throw new Error("unreachable: a fresh run never claims");
+      },
     };
     const agent = new ToolCallingAgent({
       model: new MockModel(["no tool call", "1. answer", answerTurn]),

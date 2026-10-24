@@ -1,6 +1,7 @@
 import type { SettledApprovalOutcome } from "../agent/approval.js";
 import { RunRecordVersionError, RunSnapshotVersionError } from "../errors.js";
 import type { StepJSON } from "../memory/steps.js";
+import type { TokenUsage } from "../types.js";
 
 /** The format version a run record is written in. One integer per format change. */
 export const RUN_RECORD_VERSION = 2;
@@ -39,6 +40,26 @@ export interface ApprovalSettlement {
   readonly at: string;
 }
 
+/** The step the run was executing when its last commit was written. */
+export interface OpenStep {
+  readonly index: number;
+  readonly stepId: string;
+  readonly startedAt: string;
+}
+
+/**
+ * One finished step. `interrupted` is the synthetic closer a repair appends for the open step of a
+ * record whose process died: the step is kept, never rewritten, and never run again silently.
+ */
+export interface CompletedStep {
+  readonly stepId: string;
+  readonly index: number;
+  readonly state: "completed" | "interrupted";
+  readonly result?: unknown;
+  readonly usage?: TokenUsage;
+  readonly finishedAt: string;
+}
+
 /**
  * A run as its store keeps it: one identity, one status, one fence number, and the memory the loop
  * replays. Later durability items extend this type with the fields they introduce.
@@ -47,8 +68,14 @@ export interface RunRecord {
   readonly schemaVersion: number;
   readonly runId: string;
   readonly status: RunStatus;
-  /** The ownership fence. It changes only when a store claims the run (Phase 1.3). */
+  /** The ownership fence. Every claim bumps it; a commit at another generation is refused. */
   readonly generation: number;
+  /** The live holder of the claim, cleared by a terminal commit. */
+  readonly owner?: string;
+  /** The step in flight when the record was written; a repair closes it as interrupted. */
+  readonly step?: OpenStep;
+  /** Every finished step, appended to and never truncated. */
+  readonly completed?: readonly CompletedStep[];
   readonly memory: { readonly steps: readonly StepJSON[] };
   /** Present while the run is parked. It is what a resume settles and what a UI renders. */
   readonly pending?: PendingApproval;
