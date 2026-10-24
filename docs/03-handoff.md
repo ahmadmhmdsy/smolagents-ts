@@ -33,6 +33,33 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T21:45:00+03:00 — Phase 2 opened; 2.1 gives a child a typed report
+
+**State.** Phase 2 (delegation that survives its parent) is open under
+`docs/plans/2026-10-24-phase-2-execution-plan.md` and `T-43`. Item 2.1 is landed; 2.3, 2.6,
+2.7, then 2.2, 2.4, 2.5 and 2.8 follow. Nothing pushed.
+
+**Did.** The plan registers every item's acceptance test before code and records the design
+each item lands. 2.1 added `child-report.ts`: `ChildReport<T>` carries a schema-validated
+`value` or a `failure` channel, a `stopReason` (`success`/`failure`/`max_steps`/`waiting`),
+and a diagnostic bounded to 300 characters with the task text and key-shaped tokens removed.
+`ManagedAgent.outputSchema` is the declaration; `runManagedAgent` is the typed path; the
+model-facing `managedAgent` tool keeps the Phase 1 report template.
+
+**Verified.** The suite was red first (module missing), then 7 cases green; core 44 files/527
+tests; `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** 2.3, 2.6, 2.7 and the second slice (2.2, 2.4, 2.5, 2.8) are not
+started. A schema failure reports issue paths and codes only, by design.
+
+**Next.** 2.3: every event carries the agent path, enriched at emission, and the record keeps
+the path its run ran under.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18` and `T-21` remain owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-2-execution-plan.md`;
+`packages/core/src/agent/child-report.ts`; `packages/core/test/child-report.test.ts`.
+
 ## 2026-10-24T21:20:00+03:00 — Phase 1 closed: the durability spine holds across processes
 
 **State.** Phase 1 (items 1.1–1.8) is complete and closed; `T-42` is done. Everything is
@@ -121,34 +148,4 @@ no test covers that pair. 1.8 remains.
 
 **Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`;
 `packages/core/src/session/run-store.ts`; `packages/cli/src/run.ts`.
-
-## 2026-10-24T19:35:00+03:00 — 1.6 landed: the CLI can park and resume
-
-**State.** Phase 1 items 1.1–1.6 are in the tree; Wave B is half done. A durable CLI run now
-writes a record, exits 3 on an approval it cannot decide, and a second invocation settles that
-request and finishes. Nothing is pushed.
-
-**Did.** `--run-id`, `--resume`, `--approve` and `--state-dir` in the parser, with
-`--approve` refused unless `--resume` names the run. A durable run (`--run-id`) or a resume
-gets a `FileRunStore` over `nodeRunFileSystem`; a headless process answers `pending`, so the
-run parks with exit 3 and the renderer prints the exact resume command. A resume loads the record
-first, so a missing directory names `--state-dir`, an absent record names the run, and a waiting
-run without `--approve` prints its request id. `--approve` settles `allowed-once` and re-enters
-the parked step with the task read back from the record; no model request or recorded effect is
-paid for twice. A resume runbook walks the two commands.
-
-**Verified.** CLI 10 files and 70 tests, typecheck; core untouched by the item, still 42 and 509.
-`resume-e2e` parks a real `CodeAgent` at exit 3, reads the stored request id, resumes it, and
-finishes at exit 0 with the tool run once and the parked model request replayed. `pnpm gate`
-exit 0.
-
-**Unverified-open.** A durable run parks once per tool call, and there is no interactive approval
-prompt yet. The two-process manual run is recorded in the phase report when the last item lands.
-
-**Next.** 1.7: `conversationId`, `latestForConversation` and `--conversation`.
-
-**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
-
-**Artifacts.** `packages/cli/src/{args,errors,run,renderer,main}.ts`,
-`packages/cli/test/{args,resume-e2e}.test.ts`, `docs/10-runbooks/resume-a-parked-run.md`.
 <!-- rotate:end -->

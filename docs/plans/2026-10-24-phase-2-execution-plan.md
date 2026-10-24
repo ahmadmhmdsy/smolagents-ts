@@ -196,3 +196,15 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+- **2026-10-24 — 2.1 as built.** New `child-report.ts` exports `ChildReport<T>`, `ChildFailure`,
+  `ChildStopReason`, `RunManagedAgentOptions` and `runManagedAgent`. `ManagedAgent` gains an optional
+  `outputSchema`; a managed run reports `{stopReason, value?, failure?}` with the value validated
+  against that schema, schema issues as paths and codes only, and a failure diagnostic bounded to
+  300 characters with the task text and key-shaped tokens replaced. `stopReason` is `success`,
+  `failure`, `max_steps` or `waiting`; a parked child is `waiting`; an exhausted one is
+  `max_steps`. The model-facing `managedAgent` tool keeps the Phase 1 report template, rendering
+  the value on success and the failure channel otherwise, so the manager loses no text. Public
+  surface: `runManagedAgent` only (the types are pinned through the barrel's exported names).
+  Core 44 files/527 tests, `pnpm gate` exit 0.
+

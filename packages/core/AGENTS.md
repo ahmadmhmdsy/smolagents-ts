@@ -27,31 +27,16 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 43 test files and 519 tests pass, exit code 0. Measured on
-2026-10-21 as 37 files and 363 tests;
-Phase 0.1's approval suite added six cases,
-Phase 0.2's schema binding added three, the snapshot envelope eight, and the
-repair budget three, the redaction rule one and the tool deadline suite four, so the
-count moved to 386, and the store contract added the thirty-eighth file and its sixty
-cases, so the count moved to 446, and the budget suite added the thirty-ninth file and its seven cases,
-so the count moved to 458; the tool-less answer path added two cases, so the count moved
-to 460, and the run record replaced the store test's snapshot cases with record cases and
-added three, so the count moved to 466; the resume suite added the fortieth file and its six
-cases, the approval pending path one more in the event contract and the gate unit tests, and the
-session status one, so the count moved to 479; the ownership fence added the claim and stale modes with their counterexamples and three
-run-store cases, moving the count to 496; the effects journal added the forty-first file and its
-six cases and the redacted-journal pass, moving it to 503, and the file store added the forty-second
-file and five cases, moving it to 509; the conversation lookup added a thirteenth
-contract mode and two run-store cases, moving it to 517; the fork suite added the forty-third
-file and its two cases, moving it to 519. S5's planning-lane test added the
-twenty-ninth file and its two cases, S1.5's parity suite added the thirtieth file
-and its six cases, S7's managed-agent suite added the thirty-first file and its
-eight cases, S8's resume and approval suites added the thirty-second and
-thirty-third files and their six cases, S9's observability suite added the
-thirty-fourth file and its four cases, S10's session-persistence suite added the
-thirty-fifth file and its two cases, and S11's guardrail suite added the
-thirty-sixth file and its five cases; the core-loop-fixes suite added the
-thirty-seventh file and its twenty-one cases.
+Expected result: 44 test files and 527 tests pass, exit code 0. Measured on
+2026-10-21 as 37 files and 363 tests. Phase 0's approval, schema, snapshot, budget and
+deadline suites moved the count to 386; the store contract added the thirty-eighth file and its
+sixty cases (446); the budget suite added the thirty-ninth and seven cases (458); the run record
+and resume suites added the fortieth and its cases (479); the ownership fence moved it to 496;
+the effects journal added the forty-first and the redacted-journal pass (503); the file store the
+forty-second (509); the conversation lookup a thirteenth contract mode and two cases (517); the
+fork suite the forty-third and two cases (519); and Phase 2.1's child-report suite the
+forty-fourth file and its seven cases (527). The S5–S11 packages and the core-loop-fixes suite
+added files twenty-nine through thirty-seven and their cases.
 
 Use `pnpm typecheck` as well when a type changed and no test covers it.
 

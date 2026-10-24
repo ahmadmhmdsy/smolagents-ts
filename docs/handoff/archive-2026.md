@@ -4,6 +4,36 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T19:35:00+03:00 — 1.6 landed: the CLI can park and resume
+
+**State.** Phase 1 items 1.1–1.6 are in the tree; Wave B is half done. A durable CLI run now
+writes a record, exits 3 on an approval it cannot decide, and a second invocation settles that
+request and finishes. Nothing is pushed.
+
+**Did.** `--run-id`, `--resume`, `--approve` and `--state-dir` in the parser, with
+`--approve` refused unless `--resume` names the run. A durable run (`--run-id`) or a resume
+gets a `FileRunStore` over `nodeRunFileSystem`; a headless process answers `pending`, so the
+run parks with exit 3 and the renderer prints the exact resume command. A resume loads the record
+first, so a missing directory names `--state-dir`, an absent record names the run, and a waiting
+run without `--approve` prints its request id. `--approve` settles `allowed-once` and re-enters
+the parked step with the task read back from the record; no model request or recorded effect is
+paid for twice. A resume runbook walks the two commands.
+
+**Verified.** CLI 10 files and 70 tests, typecheck; core untouched by the item, still 42 and 509.
+`resume-e2e` parks a real `CodeAgent` at exit 3, reads the stored request id, resumes it, and
+finishes at exit 0 with the tool run once and the parked model request replayed. `pnpm gate`
+exit 0.
+
+**Unverified-open.** A durable run parks once per tool call, and there is no interactive approval
+prompt yet. The two-process manual run is recorded in the phase report when the last item lands.
+
+**Next.** 1.7: `conversationId`, `latestForConversation` and `--conversation`.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `packages/cli/src/{args,errors,run,renderer,main}.ts`,
+`packages/cli/test/{args,resume-e2e}.test.ts`, `docs/10-runbooks/resume-a-parked-run.md`.
+
 ## 2026-10-24T18:55:00+03:00 — 1.5 landed: a store you can keep
 
 **State.** Phase 1 items 1.1–1.5 are in the tree; Wave B has started. Core now ships a durable
