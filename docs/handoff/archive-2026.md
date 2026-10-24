@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T01:15:00+03:00 — 3.1: condensation as a step and an event
+
+**State.** Phase 3 is open; 3.1 is landed, 3.2 (the event-log cursor) is next. `T-44` stays
+in progress. Nothing pushed.
+
+**Did.** `CondensationStep` (kind `condensation`) carries the summary, the forgotten step ids and
+the trigger. `AgentMemory` projects at read time: forgotten ids are dropped from the transcript
+and each summary renders as an "Earlier steps, condensed:" user turn, so the stored steps stay
+and a reload projects identically. `AgentOptions.condensation` is opt-in (`softLimit`,
+`hardLimit`, `keepRecent` default 4, optional `summarize` and `estimate`); the loop checks at
+each step boundary, forgets only action and planning steps beyond `keepRecent`, and never the
+system prompt, the task or a message step. It emits `memory.condensed`, which `buildTrace` folds
+into a `memory.condensed` span. A soft trigger whose summarizer throws defers; a hard trigger
+falls back to "Condensed N earlier step(s)."
+
+**Verified.** `condensation.test.ts` (52nd core file, six cases) green, including a reloaded
+record projecting once per condensation and a trace carrying the forgotten ids. Core 52
+files/598 tests; pins 114; lint clean. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The thresholds are estimates over characters, not a provider tokenizer;
+the soft and hard defaults are first values. A hard condensation while a summary already covers
+the same steps cannot happen (forgotten ids are filtered), but repeated condensations each render
+their own summary turn.
+
+**Next.** 3.2: `seq` on every event, the additive `events` tail on the record, `readEvents` and
+the react `useRunEvents`.
+
+**Blockers.** None; the six owner-blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/memory/steps.ts`; `packages/core/src/memory/memory.ts`;
+`packages/core/test/condensation.test.ts`.
+
 ## 2026-10-25T00:45:00+03:00 — Phase 3 opened
 
 **State.** The owner opened Phase 3 (memory and streams). The plan is written with both items'

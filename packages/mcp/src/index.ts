@@ -47,6 +47,19 @@ export {
   MCPToolError,
   MCPTransportError,
 } from "./errors.js";
+export type {
+  MCPCompletionRequest,
+  MCPCompletionResult,
+  MCPListOptions,
+  MCPPrompt,
+  MCPPromptArgument,
+  MCPPromptContent,
+  MCPPromptMessage,
+  MCPPromptResult,
+  MCPReadOptions,
+  MCPResource,
+  MCPResourceContents,
+} from "./catalog.js";
 export type { MCPTransport } from "./transport.js";
 export {
   isErrorResponse,

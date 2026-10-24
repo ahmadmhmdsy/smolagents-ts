@@ -30,7 +30,7 @@ dependency from this package.
 
     pnpm vitest run --project mcp
 
-Expected result: eleven files with one hundred and twenty-two tests, exit code 0. The
+Expected result: twelve files with one hundred and twenty-nine tests, exit code 0. The
 suite drives a recorded fixture transport, so it needs no live server and no
 key. Run
 `pnpm --filter @smolagents-ts/mcp run typecheck` beside it: the runner erases

@@ -30,6 +30,21 @@ import {
   type MCPTool,
   type MCPToolListEntry,
 } from "./tool-adapter.js";
+import {
+  parseCompletion,
+  parsePrompt,
+  parsePromptResult,
+  parseResource,
+  parseResourceContents,
+  type MCPCompletionRequest,
+  type MCPCompletionResult,
+  type MCPListOptions,
+  type MCPPrompt,
+  type MCPPromptResult,
+  type MCPReadOptions,
+  type MCPResource,
+  type MCPResourceContents,
+} from "./catalog.js";
 import { VERSION } from "./version.js";
 
 /** The client's own protocol identity, sent in clientInfo. */
@@ -206,6 +221,57 @@ export class MCPClient {
   /** The tools, for a caller that already awaited the connection. */
   get tools(): Promise<Tool[]> {
     return this.getTools();
+  }
+
+  /** Every resource the servers list, walking pages up to the caller's bound. */
+  async listResources(options: MCPListOptions = {}): Promise<MCPResource[]> {
+    const connection = this.connectionFor(options.server, "resources/list");
+    const entries = await this.paginate(connection, "resources/list", "resources", options);
+    return entries.map((entry) => parseResource(entry));
+  }
+
+  /** The content blocks one resource holds. Nothing is cached: every call is a request. */
+  async readResource(
+    uri: string,
+    options: MCPReadOptions = {},
+  ): Promise<MCPResourceContents[]> {
+    const connection = this.connectionFor(options.server, "resources/read");
+    const result = await this.requestFor(connection, "resources/read", { uri }, options.signal);
+    return parseResourceContents(result);
+  }
+
+  /** Every prompt the servers list, walking pages up to the caller's bound. */
+  async listPrompts(options: MCPListOptions = {}): Promise<MCPPrompt[]> {
+    const connection = this.connectionFor(options.server, "prompts/list");
+    const entries = await this.paginate(connection, "prompts/list", "prompts", options);
+    return entries.map((entry) => parsePrompt(entry));
+  }
+
+  /** What one prompt expands to, with the caller's argument values. */
+  async getPrompt(
+    name: string,
+    args?: Record<string, string>,
+    options: MCPReadOptions = {},
+  ): Promise<MCPPromptResult> {
+    const connection = this.connectionFor(options.server, "prompts/get");
+    const params = args === undefined ? { name } : { name, arguments: args };
+    const result = await this.requestFor(connection, "prompts/get", params, options.signal);
+    return parsePromptResult(result);
+  }
+
+  /** The completion values a server offers for one prompt or resource argument. */
+  async complete(
+    request: MCPCompletionRequest,
+    options: MCPReadOptions = {},
+  ): Promise<MCPCompletionResult> {
+    const connection = this.connectionFor(options.server, "completion/complete");
+    const result = await this.requestFor(
+      connection,
+      "completion/complete",
+      { ref: request.ref, argument: request.argument },
+      options.signal,
+    );
+    return parseCompletion(result);
   }
 
   /**
@@ -562,36 +628,82 @@ export class MCPClient {
     await connection.transport.send({ jsonrpc: "2.0", method: "notifications/initialized" });
   }
 
+  /** The connection a caller named, or the first one. */
+  private connectionFor(server: string | undefined, method: string): ServerConnection {
+    if (server === undefined) {
+      const first = this.connections[0];
+      if (first === undefined) {
+        throw new MCPConnectionError("The MCP client has no server connected.");
+      }
+      return first;
+    }
+    const found = this.connections.find((connection) => connection.server === server);
+    if (found === undefined) {
+      throw new MCPConnectionError(
+        "The MCP client has no server named '" +
+          server +
+          "', so " +
+          method +
+          " cannot be sent; it knows " +
+          this.connections.map((connection) => connection.server).join(", ") +
+          ".",
+      );
+    }
+    return found;
+  }
+
+  /**
+   * Reads every page of one listing, stopping at the caller's bound. A server that answers
+   * a cursor with another cursor stops here with MCPListLimitError instead of looping.
+   */
+  private async paginate(
+    connection: ServerConnection,
+    method: string,
+    key: string,
+    options: MCPListOptions,
+  ): Promise<unknown[]> {
+    const collected: unknown[] = [];
+    const maxPages = options.maxPages ?? this.maxListPages;
+    let cursor = options.cursor;
+    let pages = 0;
+    for (;;) {
+      if (pages === maxPages) {
+        throw new MCPListLimitError(
+          "The MCP server '" +
+            connection.server +
+            "' answered " +
+            method +
+            " with another page after " +
+            String(pages) +
+            " pages; the client's bound is " +
+            String(maxPages) +
+            ".",
+          method,
+          connection.server,
+          pages,
+        );
+      }
+      pages += 1;
+      const params: Record<string, unknown> = cursor === undefined ? {} : { cursor };
+      const result = await this.requestFor(connection, method, params, options.signal);
+      const page = result[key];
+      if (Array.isArray(page)) collected.push(...page);
+      const next = result["nextCursor"];
+      if (typeof next !== "string" || next === "") break;
+      cursor = next;
+    }
+    return collected;
+  }
+
   private async listTools(): Promise<Tool[]> {
     const collected: MCPTool[] = [];
     for (const connection of this.connections) {
-      const entries: MCPToolListEntry[] = [];
-      let cursor: string | undefined;
-      let pages = 0;
-      for (;;) {
-        if (pages === this.maxListPages) {
-          throw new MCPListLimitError(
-            "The MCP server '" +
-              connection.server +
-              "' answered tools/list with another page after " +
-              String(pages) +
-              " pages; the client's bound is " +
-              String(this.maxListPages) +
-              ".",
-            "tools/list",
-            connection.server,
-            pages,
-          );
-        }
-        pages += 1;
-        const params: Record<string, unknown> = cursor === undefined ? {} : { cursor };
-        const result = await this.requestFor(connection, "tools/list", params);
-        const page = result["tools"];
-        if (Array.isArray(page)) entries.push(...(page as MCPToolListEntry[]));
-        const next = result["nextCursor"];
-        if (typeof next !== "string" || next === "") break;
-        cursor = next;
-      }
+      const entries = (await this.paginate(
+        connection,
+        "tools/list",
+        "tools",
+        {},
+      )) as MCPToolListEntry[];
       const adapted: MCPTool[] = adaptTools(entries, connection.server, {
         logger: this.logger,
         structuredOutput: this.structuredOutput,

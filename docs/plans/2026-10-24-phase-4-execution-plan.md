@@ -277,6 +277,19 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.2 — Resources, prompts and completions (2026-10-24)
+
+Landed as `packages/mcp/test/resources.test.ts` (7 tests, watched red on the missing methods),
+with one deviation: the read verbs take `{ server?, signal? }` and only the two listings take
+`{ server?, cursor?, maxPages? }`, because a cursor means nothing to `readResource`,
+`getPrompt` or `complete`. Every verb resolves its connection by the name `getTools()`
+reports, and an unknown name raises `MCPConnectionError` listing the names the client knows.
+
+The shapes and their parsers live in a new internal `src/catalog.ts`; a malformed answer raises
+`MCPProtocolError` naming the method rather than passing a half-typed object to the caller. The
+tools listing now shares the same bounded `paginate` helper, so one implementation enforces
+`maxListPages`. Types only reach the barrel: mcp stays at 32 pins, 12 files / 129 tests.
+
 ### 4.1 — MCP depth (2026-10-24)
 
 Landed as designed, with two deviations recorded here rather than silently:
