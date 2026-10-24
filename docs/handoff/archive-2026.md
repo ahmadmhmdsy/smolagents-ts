@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-22T15:05:00+03:00 — a capability must now be consulted or enforced: the two blocking questions are answered
+
+**State.** Decision `0020` is accepted and the plan's Phase 0 is unblocked; no package source changed. The owner approved the egress answer (A) and the output answer (E) after a session that read the code behind both bags rather than the study's summary of them.
+
+**Did.** Wrote `docs/09-decisions/0020-a-capability-is-a-claim.md`: four clauses (a bag field has a read site or is not a capability; every claim names its consuming site and its test; description and policy are separate axes; a backend refuses what it cannot honour) and two applications. Egress gains an `egress` policy axis beside `network`: e2b passes the vendor's deny through its seam, docker and process refuse typed, allow-lists wait for a fetch capability. Output drops `structuredOutput` instead of gaining a mode enum: the schema binds to `final_answer` in both flavours and a mismatch becomes a repair observation. Folded both into Phase 0 rows 0.2, 0.4 and 0.10, marked the two questions answered, added the Docker deny-all deferral, and cleared the plan's four leftover template placeholders.
+
+**Verified.** `python scripts/validate_context.py --root . --baseline docs/.baseline.json` reports 0 errors and 0 warnings; `python scripts/rotate.py --check` is clean; `pnpm --filter docs-site test` passes, including the unresolved-link check over the new decision and its index row.
+
+**Unverified / open.** The plan itself is still draft: the owner approved the two decisions, not the program. Six questions remain, all non-blocking. Docker deny-all needs a sidecar or an exec-based transport, deferred to the guest contract. `0020`'s follow-ups are the Phase 0 items, so none of them has a bite-sized plan yet.
+
+**Next.** The owner approves the program and picks Phase 0; its execution plan is the first artifact of the work, and 0.2 is the smallest entry into it.
+
+**Blockers.** `T-14` unchanged; `T-40` waits on plan approval. Nothing else new.
+
+**Artifacts.** `docs/09-decisions/0020-a-capability-is-a-claim.md`; `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md:50-61`; `docs/09-decisions/README.md:31`.
+
+## 2026-10-22T14:15:00+03:00 — the findings became a six-phase plan; nothing approved, nothing built
+
+**State.** `a8573e1` plus this entry; the study's ranked backlog is now sequenced into a plan with phases, exit criteria, risks and rollback. No package source changed.
+
+**Did.** Wrote `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`: Phase 0 truth pass (ten small items), Phase 1 durability spine (record, pending request, owner, journal, file store, CLI — strictly ordered), Phase 2 delegation, Phase 3 memory and streams, Phase 4 protocol and tool breadth, Phase 5 observation and cost, Phase 6 model depth; pointed `T-40` at it.
+
+**Verified.** Validator reports 0 errors and 0 warnings; `rotate.py --check` is clean; the docs-site suite passes 25 tests.
+
+**Unverified / open.** Owner approval; eight open questions, of which `EX-06` (enforce or remove) blocks Phase 0.4 and the API posture blocks its changeset. No phase has a bite-sized execution plan yet.
+
+**Next.** The owner answers the two blocking questions and picks Phase 0; its execution plan is the first artifact of the work.
+
+**Blockers.** `T-14` unchanged; `T-40` waits on approval.
+
+**Artifacts.** `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`; `docs/research/competitors/_synthesis/20-ranked-backlog.md`.
+
 ## 2026-10-21T19:55:00+03:00 — the competitor study is filed: 22 dives, 565 gap rows, and a ranked backlog nobody has started
 
 **State.** `e6b4661` plus this session's untracked research tree; no package source changed. `docs/research/competitors/` holds thirteen deep dives and nine profiles, 22 folders and about 13.6k lines, plus a synthesis layer: the baseline, the long-tail sweep, lane briefs 15–19, two verification records, the gap matrix and the ranked backlog.
@@ -19,6 +51,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** None new; T-14, T-16, T-18, T-21, T-25 and T-39 unchanged. T-30 is closed: the event is emitted and tested.
 
 **Artifacts.** `docs/research/competitors/README.md`; `_synthesis/10-gap-matrix.md`; `_synthesis/20-ranked-backlog.md`; `_synthesis/30-findings-about-us.md`.
+
 ## 2026-10-21T19:05:00+03:00 — OmniRoute needs no code: gateway support is a documented recipe, and the package is the owner's call
 
 **State.** `e6b4661` plus this session's records; no source file changed. A delegated investigation answered "add OmniRoute support": the shipped `OpenAICompatibleModel` already serves the gateway's `/v1` surface unmodified, verified against the frame shapes OmniRoute 3.8.53's own source emits.
@@ -34,6 +67,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** T-39 on that phase choice; T-14, T-16, T-18, T-21 and T-25 unchanged.
 
 **Artifacts.** `docs/research/2026-10-21-omniroute-gateway-support.md`; `docs/design/2026-10-12-smolagents-ts-v1-design.md:664-669`; `docs/09-decisions/0019-post-0.1.0-roadmap-is-s7-s11.md:35-40`.
+
 
 ## 2026-10-21T16:20:00+03:00 — pushed: CI green on all six jobs, and Pages deployed only after it
 
@@ -51,6 +85,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 **Artifacts.** https://github.com/ahmadmhmdsy/smolagents-ts/actions/runs/39604784765 ; https://github.com/ahmadmhmdsy/smolagents-ts/actions/runs/39605192267 ; https://ahmadmhmdsy.github.io/smolagents-ts/
 
+
 ## 2026-10-21T16:10:00+03:00 — remediation committed, eleven-stage gate green, stale worktrees gone
 
 **State.** HEAD `5b5fab8` is the review remediation on top of the four merged fix branches; the tree is clean. `pnpm gate` (eleven stages) exits 0: 134 test files / 945 tests, eleven packages built, publint/attw clean, `ci:check` OK, pack smoke green (11 tarballs incl. the `mcp/stdio` and `exec-remote` subpaths), site build green (76 pages). 32 stale worktrees (28 review exports, 4 merged fix worktrees) are removed and pruned; one empty ignored directory is held by a running process. CI has not run on this tree; `main` is not pushed yet.
@@ -67,6 +102,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 **Artifacts.** `docs/reports/2026-10-21-full-project-review.md` (addendum); `docs/09-decisions/0019-post-0.1.0-roadmap-is-s7-s11.md`; `docs/10-runbooks/gate.md`; commit `5b5fab8`.
 
+
 ## 2026-10-21T15:55:00+03:00 — the review's fixes are merged, and the docs truth pass closes its drift
 
 **State.** The 2026-10-21 review's fixes are merged as four commits (`e2c18fa`, `c5c4f5a`, `3c8d776`, `b323ae6`; HEAD `b323ae6`). This session ran the docs truth pass it asked for. 0.1.0 is unpublished; CI has never run on this tree. The 2026-10-16 entry's "whole post-0.1.0 roadmap" line overstated: S7–S11 was the closed roadmap, and 0018's sixth gap was never scheduled — 0019 records that.
@@ -82,6 +118,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** T-14 needs registry credentials; T-16, T-18, T-21, T-25 need the owner's decision.
 
 **Artifacts.** `docs/reports/2026-10-21-full-project-review.md`; 0019; `docs/10-runbooks/gate.md`.
+
 
 ## 2026-10-16T21:20:00+03:00 — S11 lands: guardrails halt a run, the schema binds the final answer
 
@@ -100,6 +137,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Artifacts.** `packages/core/src/agent/guardrail.ts`; `packages/core/src/errors.ts`; `packages/core/test/guardrail.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 5).
 
 
+
 ## 2026-10-16T20:45:00+03:00 — S10 lands: a session continues the agent's memory across turns behind the store seam
 
 **State.** Pre-release and clean. S10 (persistent sessions and memory) is complete: the milestone reads `done`, its row (T-37) is archived, and no live task row is open. S7 through S10 have landed this session.
@@ -115,6 +153,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** None. T-14, T-16, T-18, T-21 and T-25 wait on the owner.
 
 **Artifacts.** `packages/core/src/session/agent-session.ts` (`AgentSessionOptions`); `packages/core/test/session-persistence.test.ts`; `docs/01-project.md` (S10 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 4).
+
 
 ## 2026-10-16T20:35:00+03:00 — S9 lands: an event-stream trace exporter and an eval harness over the golden run
 
@@ -132,6 +171,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 **Artifacts.** `packages/core/src/monitoring/trace.ts`; `packages/core/src/monitoring/eval.ts`; `packages/core/test/observability.test.ts`; `packages/core/test/golden/fibonacci.transcript.json`; `docs/01-project.md` (S9 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 3).
 
+
 ## 2026-10-16T17:55:00+03:00 — S8 lands: a run checkpoints and resumes, and an approval gate holds a tool call
 
 **State.** Pre-release and clean. S8 (durable runs and human-in-the-loop) is complete: the milestone reads `done`, its live row (T-35) is archived, and no S8 row is open.
@@ -147,6 +187,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** None. T-14, T-16, T-18, T-21, T-25 wait on the owner.
 
 **Artifacts.** `packages/core/src/session/run-store.ts`; `packages/core/src/agent/approval.ts`; `packages/core/src/memory/steps.ts`; `packages/core/src/agent/multi-step-agent.ts`; `packages/core/test/run-store.test.ts`; `packages/core/test/approval.test.ts`.
+
 
 ## 2026-10-16T15:30:00+03:00 — S7 closes: the example app delegates to a child agent end to end
 
@@ -164,6 +205,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 **Artifacts.** `examples/vite-app/src/agent.ts` (`createDelegationRun`); `examples/vite-app/test/delegation.test.ts`; `docs/04-tasks.md`; `docs/01-project.md` (S7 `done`); `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md` (Phase 1).
 
+
 ## 2026-10-16T14:20:00+03:00 — S7's core lands: a manager delegates to a child agent exposed as a tool, with no change to the loop
 
 **State.** Pre-release and clean. S7 multi-agent is implemented and verified at the library level; only the example-app delegation run is outstanding, so the milestone reads `in_progress`.
@@ -179,6 +221,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** None. T-14 (publish), T-16 and T-18 still wait on the owner.
 
 **Artifacts.** `packages/core/src/agent/managed-agent.ts`; `packages/core/src/agent/multi-step-agent.ts` (`managedAgents` fold); `packages/core/src/prompts/templates.ts`; `packages/core/test/managed-agent.test.ts`; `docs/01-project.md`; `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`.
+
 
 ## 2026-10-16T12:45:00+03:00 — the owner approved the post-0.1.0 roadmap; S7–S11 are in the spec and decision 0018 is accepted
 
@@ -196,6 +239,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 **Artifacts.** `docs/01-project.md` (Milestones, revision 9), `docs/09-decisions/0018-post-0.1.0-scope-boundary.md`, `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, `docs/04-tasks.md` (T-34), `docs/tasks/archive-2026.md` (T-33).
 
+
 ## 2026-10-16T12:30:00+03:00 — the post-0.1.0 roadmap is scoped from a competitor scan and recorded, pending owner approval
 
 **State.** Pre-release; the tree is clean after five fixes landed in the previous session. The owner asked what the port lacks against the frameworks a TypeScript team would otherwise choose, then to capture it as plan, tasks, milestones and memory. The scan is recorded; the roadmap is a draft plan, a proposed decision and one live task row. No code was written this session.
@@ -212,6 +256,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 **Artifacts.** `docs/research/2026-10-16-agent-framework-landscape.md`, `docs/plans/2026-10-16-post-0.1.0-roadmap-plan.md`, `docs/09-decisions/0018-post-0.1.0-scope-boundary.md`, `docs/04-tasks.md` (T-33), `docs/memory/general.md`.
 
+
 ## 2026-10-16T00:35:00+03:00 — the UI is verified live; the CLI's dropped environment was the last defect before a release
 
 **State.** The v1 functional scope is done across eleven packages and unpublished. The owner asked whether the browser app works and what comes next. Verified live it does, scripted and against Gemini. The one defect, the CLI passing no environment to the run, is fixed; everything else waits on the owner.
@@ -227,6 +272,7 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 **Blockers.** T-14 needs registry credentials and a public repository; T-16, T-18, T-21 and T-25 need owner decisions.
 
 **Artifacts.** `docs/plans/2026-10-16-release-0.1.0-readiness-plan.md`; `packages/cli/src/main.ts`; `examples/vite-app/src/App.tsx`.
+
 
 ## 2026-10-14T22:05:00+03:00 — the live UI's "Failed" was the dev server answering the wasm with HTML
 
@@ -259,6 +305,7 @@ decisions.
 
 **Artifacts.** `examples/vite-app/vite.config.ts`;
 `examples/vite-app/test/resolution.test.ts`; `docs/memory/general.md`.
+
 
 ## 2026-10-14T18:52:00+03:00 — the audit finds one real defect, and the pre-publish pass closes it
 
@@ -296,6 +343,7 @@ owner decisions.
 `packages/react/test/server-render.test.tsx`; `packages/smolagents-ts/README.md`;
 `vitest.config.ts`.
 
+
 ## 2026-10-14T15:40:00+03:00 — probe C is measured, and the close of T-13 is verified
 
 **State.** T-13's last two gaps are filled and the numbers in the entry below are
@@ -330,6 +378,7 @@ T-21 and T-25 each wait on a decision rather than on work.
 **Artifacts.** `docs/reports/2026-10-14-t13-probe-c-keyboard.md`;
 `packages/react-ui/test/stylesheet.probe.test.ts`;
 `docs/plans/2026-10-14-t13-l4-l5-plan.md`.
+
 
 ## 2026-10-14T15:35:00+03:00 — the gate was green while CI was red
 
@@ -367,6 +416,7 @@ decisions; T-19 and T-24 are deferred.
 `examples/vite-app/tsconfig.json`; `packages/exec-remote/src/sandbox.ts`;
 `packages/models/src/openai-compatible.ts`; `docs/memory/general.md`.
 
+
 ## 2026-10-14T14:40:00+03:00 — the remote executors land as the tenth package
 
 **State.** T-13's fifth module is delivered: `@smolagents-ts/exec-remote` is the tenth
@@ -398,6 +448,7 @@ is an eleventh package, and the workspace may not grow one until this commit lan
 
 **Artifacts.** `docs/plans/2026-10-14-t13-remote-executors-plan.md`,
 `docs/10-runbooks/exec-remote-live-backends.md`, `docs/09-decisions/0017-release-age-quarantine.md`.
+
 
 ## 2026-10-14T14:05:00+03:00 — the Pyodide executor lands, and the remote executors are planned
 
@@ -435,6 +486,7 @@ decisions.
 `docs/09-decisions/0016-pyodide-in-process-and-fidelity.md`,
 `docs/plans/2026-10-14-t13-remote-executors-plan.md`,
 `docs/10-runbooks/exec-pyodide-browser-probe.md`.
+
 
 ## 2026-10-14T15:00:00+03:00 — L4 and L5 land, and T-13 closes
 
@@ -490,6 +542,7 @@ T-19, T-21 and T-25 each wait on an owner decision, not on work.
 `docs/plans/2026-10-14-t13-l4-l5-plan.md`.
 
 
+
 ## 2026-10-14T12:25:00+03:00 — the MCP client lands, live-checked, and Pyodide is measured
 
 **State.** T-13's third module is delivered: `@smolagents-ts/mcp` builds, typechecks,
@@ -524,6 +577,7 @@ unmeasured numbers. The package is unpublished (T-14).
 **Artifacts.** `packages/mcp/`, `docs/10-runbooks/mcp-live-check.md`,
 `docs/research/2026-10-14-pyodide-recon.md`.
 
+
 ## 2026-10-14T11:45:00+03:00 — the docs site is live, and T-20 retires the parity cast
 
 **State.** The pushed revision is green everywhere, and the site answers at
@@ -554,6 +608,7 @@ are not a rendered page. Nothing is published to npm.
 <!-- rotate:end -->
 
 Rotated entries: `docs/handoff/archive-2026.md`. Rotation moves; it never deletes.
+
 
 ## 2026-10-14T11:35:00+03:00 — the docs site lands, and two CI-only defects are fixed
 
@@ -586,6 +641,7 @@ nothing is published.
 
 **Artifacts.** `apps/docs-site/`, `docs/09-decisions/0014-internal-packages-stay-implementation.md`,
 `docs/plans/2026-10-14-v1.5-modules-plan.md`.
+
 
 ## 2026-10-14T10:45:00+03:00 — the first v1.5 module lands and the browser example runs
 
@@ -621,6 +677,7 @@ the example's build.
 **Artifacts.** `docs/09-decisions/0012-web-surface-host.md`,
 `docs/plans/2026-10-14-v1.5-modules-plan.md`, `examples/vite-app/`, `packages/cli/`.
 
+
 ## 2026-10-14T03:20:00+03:00 — the v1 roadmap is closed: S3, S4, S5, S6's v1 share and S1.5 are reached
 
 **State.** Every v1 milestone the design record names is reached. S3, S4 and S5 read `done`;
@@ -648,6 +705,7 @@ repository URL this tree has none of. S1.5's two measured divergences are open o
 
 **Artifacts.** `docs/01-project.md:118`, `docs/plans/2026-10-14-s6-distribution-plan.md`,
 `docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/`.
+
 
 ## 2026-10-14T03:10:32+03:00 — S1.5 is complete: the parity harness compares our loop with upstream
 
@@ -681,6 +739,7 @@ choose the first T-13 module.
 **Artifacts.** `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`,
 `docs/10-runbooks/record-parity-traces.md`, `docs/09-decisions/0007-parity-harness-scope.md`,
 `packages/core/test/parity.test.ts`.
+
 
 ## 2026-10-14T02:45:00+03:00 — S6 is complete: the six packages are publishable
 
@@ -716,6 +775,7 @@ tracks the over-cap S2 entry there.
 **Artifacts.** `docs/plans/2026-10-14-s6-distribution-plan.md`,
 `docs/09-decisions/0006-distribution-shape.md`, `packages/smolagents-ts/AGENTS.md`.
 
+
 ## 2026-10-14T02:31:12+03:00 — S5 is complete: the React layer renders a run
 
 **State.** `@smolagents-ts/react` exports four hooks and two compound primitives over
@@ -742,6 +802,7 @@ package stays private, so its changeset line is inert until S6 picks a version l
 **Blockers.** T-5, T-10 and T-12 stay with the owner.
 
 **Artifacts.** `packages/react/AGENTS.md`, `docs/09-decisions/0005-react-layer-surface.md`.
+
 
 ## 2026-10-14T01:22:29+03:00 — S4 is complete: agent code runs in QuickJS
 
@@ -775,6 +836,7 @@ entry is over the pack's per-entry cap) stay with the owner.
 **Artifacts.** `packages/exec-quickjs/src/executor.ts`, `packages/exec-quickjs/AGENTS.md`,
 `docs/plans/2026-10-14-s4-quickjs-executor-plan.md`, `.changeset/s4-exec-quickjs.md`.
 
+
 ## 2026-10-14T00:29:15+03:00 — S3 is complete: the tool ecosystem ships
 
 **State.** `@smolagents-ts/tools` exports `ToolCollection`, `htmlToText`, `userInputTool`,
@@ -806,6 +868,7 @@ T-10 holds that for the owner.
 
 **Artifacts.** `packages/tools/`, `packages/tools/AGENTS.md`,
 `docs/plans/2026-10-14-s3-tool-system-plan.md`, `docs/tasks/archive-2026.md`.
+
 
 ## 2026-10-14T00:09:45+03:00 — S2 is complete: three adapters ship and the model layer closes
 
@@ -851,6 +914,7 @@ and the changeset merge — whichever the owner picks.
 `packages/models/src/huggingface.ts`, `.changeset/s2b-model-adapters.md`,
 `docs/plans/2026-10-13-s2b-anthropic-gemini-huggingface-plan.md`.
 
+
 ## 2026-10-13T20:40:53+03:00 — main is the S2a state; the branch is gone
 
 **State.** The work sits on `main` at `79a4f9c` and `context-pack-adoption` is deleted, so the
@@ -871,6 +935,7 @@ already passed. Working tree clean. T-7 moved to in_progress.
 proposed, not accepted.
 
 **Artifacts.** `docs/04-tasks.md`, `git log --oneline -1`.
+
 
 ## 2026-10-13T20:54:22+03:00 — the S2b plan is written; execution is the next step
 
@@ -895,6 +960,7 @@ wire facts come from published documentation rather than from a call this projec
 
 **Artifacts.** `docs/plans/2026-10-13-s2b-anthropic-gemini-huggingface-plan.md`,
 `.superpowers/validate-s2b-plan.json`.
+
 
 ## 2026-10-13T20:09:21+03:00 — S2a landed: the seam is closed and one real adapter ships
 
@@ -937,6 +1003,7 @@ proposed, not accepted.
 `packages/models/test/agent-e2e.test.ts`,
 `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`.
 
+
 ## 2026-10-13T19:41:34+03:00 — the S2a plan is written; execution is the next step
 
 **State.** S2 is in progress and now has a plan it can be executed from. Nothing under
@@ -968,6 +1035,7 @@ the fallback. No fresh session has answered the five boot questions.
 
 **Artifacts.** `docs/plans/2026-10-13-s2a-model-seam-and-openai-compatible-plan.md`,
 `docs/04-tasks.md`, `docs/memory/general.md`.
+
 
 ## 2026-10-13T19:34:09+03:00 — the adoption is closed out; S2 chosen; both pack patches recorded
 
@@ -1001,6 +1069,7 @@ deviations; T-5 waits on the owner.
 
 **Artifacts.** `docs/09-decisions/0003-pruning-surface-walker.md`,
 `.superpowers/validate-before-prune.json`, `docs/01-project.md`.
+
 
 ## 2026-10-13T18:47:31+03:00 — context pack adopted; S1 state recorded
 

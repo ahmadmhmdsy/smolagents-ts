@@ -22,6 +22,10 @@ have it.
 | compaction | condense retained history when the context budget is exceeded | `clone:/docs/subsystems/compaction.md` | shipped |
 | same-session goals | one durable objective that survives turns and compaction | `clone:/docs/subsystems/goal.md` | shipped |
 | plan mode | plan as logged state with recovery, a pre-step append and an exit tool | `clone:/docs/subsystems/plan.md` | shipped |
+| format version and migrations | one hand-maintained session-format integer, one migration package per integer, a generated catalog that rejects gaps, and a newer minimum that refuses | `clone:/docs/session-format-status.md:20`; `clone:/docs/subsystems/persistence.md:147-152,189` | shipped |
+| storage contract suite | the storage backend contract is normative clause by clause, and one shared suite in `tests/contract.ts` checks every backend | `clone:/docs/subsystems/storage.md:47` | shipped |
+| token meter | an immutable measurement at one log revision, consumed by compaction before request derivation | `clone:/docs/subsystems/token-meter.md:9-27`; `compaction.md:101` | shipped |
+| resume repairs forward | replay, then append synthetic `turn/end{kind:'interrupted'}` and the missing tool results; a concurrent writer refuses | `clone:/docs/subsystems/persistence.md:110-112` | shipped |
 | projections | derived views published to clients from the owning session, never a second store | `clone:/docs/subsystems/session-projection.md` | shipped |
 
 ## Models, tools, execution
@@ -30,6 +34,8 @@ have it.
 |---|---|---|---|
 | model adapters and streaming | provider adapters on a streaming seam; model selection per session | `clone:/docs/subsystems/llm-streaming.md`, `core.md` | shipped |
 | declared tool results | every tool declares its complete result schema; the compiler checks `execute` against it and the runtime renders compact JSON | `tool-agent-team/README.md` "Design philosophy" | shipped |
+| per-tool deadline | `timeoutMs` is a definition field never sent to the model; an around-wrapper swaps a derived deadline and replaces the result only when its own timer fired, typed `TOOL_TIMEOUT` | `clone:/packages/guard/timeout-policy/src/index.ts:18-79`; `clone:/docs/subsystems/tools.md:63-70` | shipped |
+| deny-only guard stage | after the reorderable policy waterfall, a second stage whose return type has no allow result, so listener order cannot undo a denial | `clone:/docs/subsystems/tools.md:182,325-336,541-551` | shipped |
 | tool pipeline with approval gate | approvals are asked inside the tool pipeline and callers fail closed | `clone:/docs/subsystems/approval.md`; `clone:/docs/subsystems/tool-execution-pipeline.md` | shipped |
 | sandboxed execution | sandbox domain with profiles; shell and subprocess tools behind it | `clone:/docs/subsystems/sandbox.md`, `shell.md`, `subprocess.md` | shipped |
 | background jobs | long-running processes with ids, status, an output ring and session lifecycle records | `clone:/docs/subsystems/jobs.md` | shipped |
