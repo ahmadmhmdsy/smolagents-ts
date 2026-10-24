@@ -21,7 +21,7 @@ The study filed 565 gap rows against 97 capabilities, and 75 of those capabiliti
 
 ## Non-goals
 
-- Nothing on the study's refuse list: no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
+- Nothing on the study's refuse list ([`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md)): no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
 - A re-run of the study. The research is a pinned snapshot; phases cite it and do not re-litigate it.
 - Retrieval, multimodal and provider-spec versioning are in Phase 6 and gated by a decision, not assumed.
 - A Python port. The `strands` dive prices it as a second implementation, not a translation, and that is a product decision this plan does not take.
@@ -61,6 +61,8 @@ Each phase below is a candidate for its own execution plan in this folder, with 
 | 0.9 | request-owned turn, output-token and total-token limits; typed stop reason; a result handle that continues the same budget | `RT-06`, `RT-08`, `RT-13` | a second call with the returned handle keeps counting and reports `limitTotalTokens` |
 | 0.10 | structured output proven on a model that cannot call tools: the bound schema plus the repair turn, not a forced tool | `GR-06`, `GR-05` | a scripted model with `toolCalls: false` still ends with a schema-valid answer inside the attempt bound |
 
+**Sequencing.** Two waves, with the loop single-writer. Wave 1 is 0.1, 0.2 and 0.5 — the approval binding, the schema binding and the schema version, which Phase 1.1 depends on. 0.4 runs beside Wave 1 on its own scope, `packages/exec-remote/**` and its tests, so no writer touches `multi-step-agent.ts` twice. Wave 2 is 0.3, 0.6, 0.7, 0.8, 0.9 and 0.10, all behind the same loop surface. Each wave ends at a commit with `pnpm gate` green.
+
 **Exit criterion.** No row in the baseline that this phase touches is described as "declared" while the code does nothing, and every item has a test that failed first.
 
 **Verification.** `pnpm --filter @smolagents-ts/core test`, `pnpm --filter @smolagents-ts/models test`, `pnpm --filter @smolagents-ts/tools test`, `pnpm --filter @smolagents-ts/exec-remote test`, then `pnpm gate` exit 0.
@@ -73,12 +75,12 @@ This phase is strictly ordered. Each item extends the type the previous one intr
 
 | # | item | ids | depends on |
 |---|---|---|---|
-| 1.1 | the record type and its commit boundary; the loop commits at one place, the store never invents one | `HL-03`, `HL-04`, `HL-09` | Phase 0.5 |
+| 1.1 | the record type and its commit boundary; the loop commits at one place, the store never invents one; the public `checkpoint` option becomes `runId` ([`0023`](docs/09-decisions/0023-one-identity-per-run.md)) | `HL-03`, `HL-04`, `HL-09` | Phase 0.5 |
 | 1.2 | a pending request as state: kind, request id, digest, payload, and `resume(requestId, value)` | `HL-02`, `HL-06` | 1.1 |
 | 1.3 | one owner at a time, by compare-and-set generation or a claim record; a stale writer is refused typed | `HL-04` | 1.1 |
 | 1.4 | an effects journal: the model request and each wrapped tool call are recorded and replayed, with an explicit in-doubt state for effects we cannot verify | `HL-05` | 1.1–1.3 |
 | 1.5 | a file store implementation that passes the Phase 0.8 suite | `HL-09` | 1.1–1.4 |
-| 1.6 | `--resume` and `--approve` in the CLI, against the same store | `CL-03` | 1.2, 1.5 |
+| 1.6 | `--resume <runId>` and `--approve <requestId>` in the CLI, against the same store | `CL-03` | 1.2, 1.5 |
 | 1.7 | a conversation identity that outlives a run, with the run pointing at it | `HL-08` | 1.1 |
 | 1.8 | fork or replay from a named step, without repeating effects | `HL-07` | 1.4 |
 
@@ -190,16 +192,16 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 - [x] **`EX-06`**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — a policy axis, enforced on e2b and refused typed on the backends that cannot confine; the allow-list waits for a fetch capability.
 - [x] **Public API posture for Phase 0**: answered by [`0020`](docs/09-decisions/0020-a-capability-is-a-claim.md) — `structuredOutput` is removed now, while nothing is published; the mode enum lands with a model-seam schema channel and its consumer.
 - [x] **Docker deny-all**: answered by [`0021`](docs/09-decisions/0021-docker-exec-transport.md) — the exec transport replaces the Jupyter port, so deny-all is enforced from 4.8; docker refuses until then.
-- [ ] **Record vocabulary**: is the durable pause called a *pending request*, a *pause*, or an *interrupt*? Blocks Phase 1.2 naming, not its design.
-- [ ] **`MA-05`**: confirm in writing that there is no shared blackboard by default. Not blocking.
+- [x] **Record vocabulary**: answered by [`0023`](docs/09-decisions/0023-one-identity-per-run.md) — `runId` is the identity, `waiting` the state, `pending` the reason, `resume` the verb; the public `checkpoint` option is renamed in 1.1.
+- [ ] **`MA-05`**: the delegation model needs explaining before the owner decides (teams, reports, whether agents message each other). Not blocking.
 - [ ] **`MD-10`**: retrieval in or out; the plan defaults to out. Blocks Phase 6.4 only.
-- [ ] **The refuse list**: record it as an accepted decision so it stops being re-argued. Not blocking.
-- [ ] **`T-14` timing**: if 0.1.0 publishes before Phase 0 lands, decide whether the known-wrong declarations ship with a documented note or wait. Blocks the release, not the work.
-- [ ] **Execution wave**: one phase per session with its own plan, or Phase 0 items split across two sessions? Not blocking.
+- [x] **The refuse list**: adopted by [`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md), with the blackboard row held for the delegation decision.
+- [x] **`T-14` timing**: answered by [`0024`](docs/09-decisions/0024-publication-waits-for-corrections.md) — 0.1.0 waits for the correction pass and for the package to be near finished.
+- [x] **Execution wave**: answered — Phase 0 runs in two waves, the loop single-writer: Wave 1 is 0.1, 0.2, 0.5, with 0.4 beside it on the disjoint `exec-remote` scope; Wave 2 is 0.3, 0.6, 0.7, 0.8, 0.9, 0.10.
 
 ## Tasks
 
-`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row.
+`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **Still awaiting the owner's approval of the program**; the six design questions are answered and Phase 0 is cut into two waves.
 
 | Task ID | Phase | Status |
 |---|---|---|

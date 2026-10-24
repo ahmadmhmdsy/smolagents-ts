@@ -28,6 +28,9 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0024 | 0.1.0 waits for the correction pass | accepted | 2026-10-24 |
+| 0023 | one identity per run: runId, waiting, pending, resume | accepted | 2026-10-24 |
+| 0022 | the study's refuse list is the boundary | accepted | 2026-10-24 |
 | 0021 | the Docker backend reaches its guest over exec, so deny-all can be enforced | accepted | 2026-10-22 |
 | 0020 | a capability is a claim the runtime consults or enforces | accepted | 2026-10-22 |
 | 0019 | the closed roadmap is S7–S11, and provider routing with local runtimes stays a later candidate | accepted | 2026-10-21 |

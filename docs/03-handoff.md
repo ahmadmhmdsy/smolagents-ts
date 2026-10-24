@@ -34,6 +34,22 @@ entry is prepended inside the markers below.
 
 <!-- rotate:begin -->
 
+## 2026-10-24T08:05:00+03:00 — five of the six design questions are decided; delegation is the last one open
+
+**State.** Decisions `0022` (refuse list), `0023` (one identity per run) and `0024` (publication ordering) are accepted, and the plan records the two-wave Phase 0 cut. No package source changed. `MA-05` waits on an explanation of the delegation model; `MD-10` is deferred by the owner.
+
+**Did.** Adopted the study's refuse list as the boundary with each reopen trigger paraphrased, holding the blackboard row for the delegation answer; fixed the run vocabulary (`runId`, `waiting`, `pending`, `resume`, and the public `checkpoint` option renamed in Phase 1.1); made 0.1.0 wait for the correction pass. Folded all three into the plan: non-goals cite `0022`, Phase 1.1 carries the rename, 1.6 names `--resume <runId>`, Phase 0 gained its wave sequencing, and four open questions closed.
+
+**Verified.** Validator 0 errors and 0 warnings; `rotate.py --check` clean; docs-site suite passes with three new decisions linked from the index and the plan.
+
+**Unverified / open.** `MA-05`: the owner asked what the delegation process actually is and whether agents form teams or message each other, so the answer comes before the decision. `MD-10` stays open deliberately. The program itself is still unapproved, so no phase row is open.
+
+**Next.** Explain the delegation model — typed child report, transfer, background child, steering, no peer messaging — then decide `MA-05`, then write the Phase 0 execution plan.
+
+**Blockers.** `T-14` on credentials and now on `0024`; `T-40` on program approval.
+
+**Artifacts.** `docs/09-decisions/0022-the-refuse-list-is-the-boundary.md`; `0023-one-identity-per-run.md`; `0024-publication-waits-for-corrections.md`; `docs/research/competitors/_synthesis/17-multi-agent-brief.md:88-106`.
+
 ## 2026-10-22T15:20:00+03:00 — Docker abandons the published Jupyter port for exec, so deny-all becomes enforceable there too
 
 **State.** Decision `0021` accepted; `0020` stands with its Docker clause superseded. No source changed.
