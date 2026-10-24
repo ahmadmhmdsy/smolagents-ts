@@ -33,6 +33,36 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T21:20:00+03:00 — Phase 1 closed: the durability spine holds across processes
+
+**State.** Phase 1 (items 1.1–1.8) is complete and closed; `T-42` is done. Everything is
+committed on `main`, nothing pushed. Phase 2 (delegation that survives its parent) is the next
+phase in the parent plan and has not started.
+
+**Did.** Added the exit criterion as `packages/cli/test/phase-1-close.test.ts` (park → competing
+claim refused → claim → resume → `allowed-once`; crash after a journaled tool result repaired
+without a second effect), wrote `docs/reports/2026-10-24-phase-1-report.md` with the manual
+two-process run (process 1 exit 3, counter 0; process 2 exit 0, counter 1; record `completed`),
+recorded the close in the execution plan and closed `T-42` in `04-tasks`.
+
+**Verified.** The exit-criterion test was red first, then green; `pnpm gate` exit 0 on the close
+tree; contract's thirteen modes still certify three stores; validator 0/0; `rotate.py --check`
+clean. The manual run used built `dist` plus `MockModel`/`ScriptedExecutor`, no provider.
+
+**Unverified / open.** A fork at a step whose journal holds an in-doubt `intent` would surface
+`EffectOutcomeUnknownError`; untested. The parent plan's "agent fingerprint" is in the phase
+deliverable but in none of its items, so it is not landed — a candidate follow-up. CLI approval is
+a flag, not a prompt (deliberate).
+
+**Next.** Begin Phase 2.1–2.7 (the first slice needs no new durable rows) under a fresh execution
+plan with pre-registered acceptance tests.
+
+**Blockers.** None for Phase 2. `T-14`, `T-39`, `T-16`, `T-18` and `T-21` remain owner-blocked.
+
+**Artifacts.** `docs/reports/2026-10-24-phase-1-report.md`;
+`docs/plans/2026-10-24-phase-1-execution-plan.md`;
+`packages/cli/test/phase-1-close.test.ts`; `packages/core/src/session/run-store.ts`.
+
 ## 2026-10-24T20:55:00+03:00 — 1.8 landed: a run can branch without repeating effects
 
 **State.** All eight Phase 1 items are in the tree; Phase 1 close is next (exit-criterion test,
@@ -121,34 +151,4 @@ prompt yet. The two-process manual run is recorded in the phase report when the 
 
 **Artifacts.** `packages/cli/src/{args,errors,run,renderer,main}.ts`,
 `packages/cli/test/{args,resume-e2e}.test.ts`, `docs/10-runbooks/resume-a-parked-run.md`.
-
-## 2026-10-24T18:55:00+03:00 — 1.5 landed: a store you can keep
-
-**State.** Phase 1 items 1.1–1.5 are in the tree; Wave B has started. Core now ships a durable
-store a caller can keep: `FileRunStore` writes one JSON file per run through an injected
-filesystem seam, and the CLI binds that seam to `node:fs/promises`. Nothing is pushed.
-
-**Did.** `RunFileSystem` (`read`, `write`, `rename`, `delete`, `list`) and
-`FileRunStore` in core; one file named by the escaped run id, committed via a random temporary
-name and a rename, with the temporary removed when the rename fails. A stale commit is refused
-before anything is written. `packages/cli/src/store.ts` adds `nodeRunFileSystem(directory)` and
-`DEFAULT_STATE_DIRECTORY`; it creates the directory on first write and refuses a non-flat name.
-The conformance suite now certifies the shipped store over a real temporary directory (memory,
-async memory, file — twelve modes each), and `test/file-run-store.test.ts` covers the torn write.
-
-**Verified.** Core 42 files and 509 tests; CLI 9 files and 63 tests. Both typecheck. The core
-acceptance test was red on the missing module first; the CLI test was re-run red with the binding
-moved aside. `pnpm gate` exit 0.
-
-**Unverified-open.** The stale check and the rename are per-process: two processes writing one
-run are fenced by the claim at the loop, not by an atomic compare-and-set in the store. The
-contract's record group is the twelve existing modes; `latestForConversation` belongs to 1.7.
-
-**Next.** 1.6: `--run-id`, `--resume`, `--approve`, `--state-dir`; park with exit 3, resume
-by id and approve, with a resume runbook.
-
-**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
-
-**Artifacts.** `core/src/session/file-run-store.ts`, `core/test/file-run-store.test.ts`,
-`cli/src/store.ts`, `cli/test/store.test.ts`, `docs/plans/2026-10-24-phase-1-execution-plan.md`.
 <!-- rotate:end -->

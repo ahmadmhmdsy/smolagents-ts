@@ -4,6 +4,36 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T18:55:00+03:00 — 1.5 landed: a store you can keep
+
+**State.** Phase 1 items 1.1–1.5 are in the tree; Wave B has started. Core now ships a durable
+store a caller can keep: `FileRunStore` writes one JSON file per run through an injected
+filesystem seam, and the CLI binds that seam to `node:fs/promises`. Nothing is pushed.
+
+**Did.** `RunFileSystem` (`read`, `write`, `rename`, `delete`, `list`) and
+`FileRunStore` in core; one file named by the escaped run id, committed via a random temporary
+name and a rename, with the temporary removed when the rename fails. A stale commit is refused
+before anything is written. `packages/cli/src/store.ts` adds `nodeRunFileSystem(directory)` and
+`DEFAULT_STATE_DIRECTORY`; it creates the directory on first write and refuses a non-flat name.
+The conformance suite now certifies the shipped store over a real temporary directory (memory,
+async memory, file — twelve modes each), and `test/file-run-store.test.ts` covers the torn write.
+
+**Verified.** Core 42 files and 509 tests; CLI 9 files and 63 tests. Both typecheck. The core
+acceptance test was red on the missing module first; the CLI test was re-run red with the binding
+moved aside. `pnpm gate` exit 0.
+
+**Unverified-open.** The stale check and the rename are per-process: two processes writing one
+run are fenced by the claim at the loop, not by an atomic compare-and-set in the store. The
+contract's record group is the twelve existing modes; `latestForConversation` belongs to 1.7.
+
+**Next.** 1.6: `--run-id`, `--resume`, `--approve`, `--state-dir`; park with exit 3, resume
+by id and approve, with a resume runbook.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `core/src/session/file-run-store.ts`, `core/test/file-run-store.test.ts`,
+`cli/src/store.ts`, `cli/test/store.test.ts`, `docs/plans/2026-10-24-phase-1-execution-plan.md`.
+
 ## 2026-10-24T18:20:00+03:00 — 1.4 landed: effects journaled, not re-run
 
 **State.** Phase 1 items 1.1–1.4 are in the tree; 1.4 closes Wave A. A run record now carries

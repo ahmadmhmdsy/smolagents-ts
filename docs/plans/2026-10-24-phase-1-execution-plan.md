@@ -291,6 +291,17 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — Phase 1 closed.** The exit criterion is two cases in
+  `packages/cli/test/phase-1-close.test.ts`: a parked record is read by a second
+  `FileRunStore`, a claim at another generation is refused, the recorded generation is claimed,
+  and the resume finishes with one effect and `allowed-once`; and a store that dies on the first
+  commit after a tool result leaves a running record whose `done` journal entry lets a later
+  process repair the step without running the tool again. The two-process run against `dist`
+  parks with exit 3, leaves the counter at 0, resumes with `--approve`, and exits 0 with the
+  counter at 1 and the record `completed`; it is recorded in the phase report. The parent plan's
+  rows 1.1–1.8 match the code; its "agent fingerprint" is not among the items and was not landed,
+  and `agent-session.ts`, `run-result.ts` and `events.ts` needed no change. `T-42` is complete.
+  Core 43 files/519 tests, CLI 11 files/76 tests, `pnpm gate` exit 0, validator 0/0, rotate clean.
 - **2026-10-24 — 1.8 as built.** `RunOptions.fork` accepts `{fromRunId, atStep}`. With a store, the
   child loads the parent record, copies the memory before the fork step and the journal through
   it, and re-enters that step under the parent's attempt id, so its recorded model reply and tool
