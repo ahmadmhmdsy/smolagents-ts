@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T01:15:00+03:00 — 3.1: condensation as a step and an event
+
+**State.** Phase 3 is open; 3.1 is landed, 3.2 (the event-log cursor) is next. `T-44` stays
+in progress. Nothing pushed.
+
+**Did.** `CondensationStep` (kind `condensation`) carries the summary, the forgotten step ids and
+the trigger. `AgentMemory` projects at read time: forgotten ids are dropped from the transcript
+and each summary renders as an "Earlier steps, condensed:" user turn, so the stored steps stay
+and a reload projects identically. `AgentOptions.condensation` is opt-in (`softLimit`,
+`hardLimit`, `keepRecent` default 4, optional `summarize` and `estimate`); the loop checks at
+each step boundary, forgets only action and planning steps beyond `keepRecent`, and never the
+system prompt, the task or a message step. It emits `memory.condensed`, which `buildTrace` folds
+into a `memory.condensed` span. A soft trigger whose summarizer throws defers; a hard trigger
+falls back to "Condensed N earlier step(s)."
+
+**Verified.** `condensation.test.ts` (52nd core file, six cases) green, including a reloaded
+record projecting once per condensation and a trace carrying the forgotten ids. Core 52
+files/598 tests; pins 114; lint clean. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The thresholds are estimates over characters, not a provider tokenizer;
+the soft and hard defaults are first values. A hard condensation while a summary already covers
+the same steps cannot happen (forgotten ids are filtered), but repeated condensations each render
+their own summary turn.
+
+**Next.** 3.2: `seq` on every event, the additive `events` tail on the record, `readEvents` and
+the react `useRunEvents`.
+
+**Blockers.** None; the six owner-blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/memory/steps.ts`; `packages/core/src/memory/memory.ts`;
+`packages/core/test/condensation.test.ts`.
+
 ## 2026-10-25T00:45:00+03:00 — Phase 3 opened
 
 **State.** The owner opened Phase 3 (memory and streams). The plan is written with both items'
@@ -123,32 +155,4 @@ T-43 row, a final gate and one commit.
 
 **Artifacts.** `packages/core/src/session/claim-board.ts`;
 `packages/core/test/claim-board.test.ts`.
-
-## 2026-10-24T23:30:00+03:00 — 2.5: the supervisor shape
-
-**State.** Phase 2 is open; 2.1–2.7 are landed except 2.8 (claim board). Next is 2.8, then the
-phase close. Nothing pushed.
-
-**Did.** `examples/supervisor/` declares two managed agents with output schemas. The researcher's
-answer validates; the auditor's omits the `confidence` field its schema requires. The schema sits
-on the `ManagedAgent` entry, not on the child agent, so the mismatch lands in the report's
-`schema` channel (`ChildSchemaError`, `issues: ["confidence: invalid_type"]`) instead of the
-child's own guardrail. The sample calls both through `runManagedAgent` — the path the
-model-facing tool uses — and routes on the reports: the researcher's value and the auditor's
-failure produce the `hold` route and an answer stating both outcomes. It ships
-`package.json`, `tsconfig.json` with a `typecheck` script, its own `vitest.config.ts` project,
-a README and a test, and the examples index gained its row.
-
-**Verified.** `pnpm vitest run --project example-supervisor` green; `pnpm --filter
-example-supervisor run typecheck` clean; `pnpm --filter example-supervisor run start` prints
-`route: hold` and both reports. `pnpm gate` exit 0; validator 0/0; rotate clean.
-
-**Unverified / open.** The sample's model is scripted; it shows the report channel, not a live
-model deciding where to route. 2.8 is the last item before the close.
-
-**Next.** 2.8: the claim board with revision compare-and-set, blockers and tombstones.
-
-**Blockers.** None; the owner-blocked rows were unchanged.
-
-**Artifacts.** `examples/supervisor/src/index.ts`; `examples/supervisor/test/example.test.ts`.
 <!-- rotate:end -->

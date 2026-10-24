@@ -29,6 +29,12 @@ export type AgentEventPayload =
   | { type: "observation.completed"; stepIndex: number; text: string; isFinalAnswer: boolean }
   | { type: "message.delta"; text: string }
   | { type: "message.completed"; text: string }
+  | {
+      type: "memory.condensed";
+      forgotten: readonly string[];
+      summary: string;
+      trigger: "soft" | "hard";
+    }
   | { type: "usage.updated"; usage: TokenUsage }
   | { type: "run.completed"; result: RunResult }
   | { type: "run.failed"; error: AgentErrorInfo }
@@ -95,6 +101,7 @@ export function describeEvent(event: AgentEvent): string {
     case "observation.completed": return event.isFinalAnswer ? "final answer" : "observation";
     case "message.delta": return "message";
     case "message.completed": return "message";
+    case "memory.condensed": return "memory condensed";
     case "usage.updated": return "usage";
     case "run.completed": return "run completed";
     case "run.failed": return "run failed";

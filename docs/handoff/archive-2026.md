@@ -4,6 +4,34 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T23:30:00+03:00 — 2.5: the supervisor shape
+
+**State.** Phase 2 is open; 2.1–2.7 are landed except 2.8 (claim board). Next is 2.8, then the
+phase close. Nothing pushed.
+
+**Did.** `examples/supervisor/` declares two managed agents with output schemas. The researcher's
+answer validates; the auditor's omits the `confidence` field its schema requires. The schema sits
+on the `ManagedAgent` entry, not on the child agent, so the mismatch lands in the report's
+`schema` channel (`ChildSchemaError`, `issues: ["confidence: invalid_type"]`) instead of the
+child's own guardrail. The sample calls both through `runManagedAgent` — the path the
+model-facing tool uses — and routes on the reports: the researcher's value and the auditor's
+failure produce the `hold` route and an answer stating both outcomes. It ships
+`package.json`, `tsconfig.json` with a `typecheck` script, its own `vitest.config.ts` project,
+a README and a test, and the examples index gained its row.
+
+**Verified.** `pnpm vitest run --project example-supervisor` green; `pnpm --filter
+example-supervisor run typecheck` clean; `pnpm --filter example-supervisor run start` prints
+`route: hold` and both reports. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The sample's model is scripted; it shows the report channel, not a live
+model deciding where to route. 2.8 is the last item before the close.
+
+**Next.** 2.8: the claim board with revision compare-and-set, blockers and tombstones.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `examples/supervisor/src/index.ts`; `examples/supervisor/test/example.test.ts`.
+
 ## 2026-10-24T23:10:00+03:00 — 2.4: a child the parent can find again
 
 **State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.4, 2.6 and 2.7 are landed. Next is 2.5 (supervisor

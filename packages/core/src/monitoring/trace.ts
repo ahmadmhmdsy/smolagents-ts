@@ -65,6 +65,15 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
           planning.endTimeMs = at;
         }
         break;
+      case "memory.condensed":
+        root.children.push(
+          span("memory.condensed", at, {
+            forgotten: event.forgotten,
+            trigger: event.trigger,
+            summary: event.summary,
+          }),
+        );
+        break;
       case "step.started":
         if (step !== undefined) step.endTimeMs = at;
         step = span("step." + event.stepIndex, at, { stepIndex: event.stepIndex });

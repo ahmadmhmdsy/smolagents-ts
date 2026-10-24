@@ -4,6 +4,7 @@ import {
   stepToJSON,
   type ActionStep,
   type AnyAgentStep,
+  type CondensationStep,
   type FinalAnswerStep,
   type StepJSON,
   type SystemPromptStep,
@@ -72,6 +73,20 @@ export class AgentMemory {
     return this.items.filter((s): s is ActionStep => s.kind === "action");
   }
 
+  /** The condensations this memory carries, in the order they happened. */
+  get condensationSteps(): readonly CondensationStep[] {
+    return this.items.filter((s): s is CondensationStep => s.kind === "condensation");
+  }
+
+  /** The ids a condensation hid; the projection drops exactly these. */
+  get forgottenIds(): ReadonlySet<string> {
+    const ids = new Set<string>();
+    for (const step of this.condensationSteps) {
+      for (const id of step.forgotten) ids.add(id);
+    }
+    return ids;
+  }
+
   /**
    * The transcript handed to the model. Mirrors upstream's to_messages() semantics:
    * the system prompt, the task, then one assistant turn plus one observation turn
@@ -83,7 +98,15 @@ export class AgentMemory {
     if (systemPrompt !== undefined) {
       messages.push({ role: "system", content: systemPrompt });
     }
+    // A condensation is a read-time projection: the stored steps stay, and the transcript shows
+    // the summary in their place. Rendering every summary once, before the surviving steps, keeps
+    // the projection pure — restoring the same steps always produces the same messages.
+    const forgotten = this.forgottenIds;
+    for (const step of this.condensationSteps) {
+      messages.push({ role: "user", content: "Earlier steps, condensed:\n" + step.summary });
+    }
     for (const step of this.items) {
+      if (forgotten.has(step.id)) continue;
       switch (step.kind) {
         case "task":
           messages.push({ role: "user", content: step.task });
@@ -128,6 +151,7 @@ export class AgentMemory {
           break;
         case "final_answer":
         case "system_prompt":
+        case "condensation":
           break;
         default:
           break;

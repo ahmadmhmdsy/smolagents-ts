@@ -7,6 +7,7 @@ export type AgentStepKind =
   | "planning"
   | "action"
   | "message"
+  | "condensation"
   | "final_answer";
 
 /**
@@ -93,6 +94,25 @@ export class MessageStep extends AgentStep {
   }
 }
 
+/**
+ * A condensation: the record of what an earlier projection hid from the model. The forgotten
+ * steps stay in memory — this step names their ids — so the loss is a fact a reader can audit,
+ * and the projection at read time is what turns it into a summary turn.
+ */
+export class CondensationStep extends AgentStep {
+  override readonly kind = "condensation";
+  readonly summary: string;
+  readonly forgotten: readonly string[];
+  readonly trigger: "soft" | "hard";
+
+  constructor(summary: string, forgotten: readonly string[], trigger: "soft" | "hard") {
+    super();
+    this.summary = summary;
+    this.forgotten = forgotten;
+    this.trigger = trigger;
+  }
+}
+
 export class FinalAnswerStep extends AgentStep {
   override readonly kind = "final_answer";
   readonly output: unknown;
@@ -109,6 +129,7 @@ export type AnyAgentStep =
   | PlanningStep
   | ActionStep
   | MessageStep
+  | CondensationStep
   | FinalAnswerStep;
 
 /** The fields every step carries, as they appear in a checkpoint. */
@@ -137,6 +158,12 @@ export type StepJSON =
       readonly isFinalAnswer: boolean;
     })
   | (StepMetaJSON & { readonly kind: "message"; readonly from: string; readonly text: string })
+  | (StepMetaJSON & {
+      readonly kind: "condensation";
+      readonly summary: string;
+      readonly forgotten: readonly string[];
+      readonly trigger: "soft" | "hard";
+    })
   | (StepMetaJSON & { readonly kind: "final_answer"; readonly output: unknown });
 
 function stepMeta(step: AgentStep): StepMetaJSON {
@@ -171,6 +198,14 @@ export function stepToJSON(step: AnyAgentStep): StepJSON {
       };
     case "message":
       return { ...meta, kind: "message", from: step.from, text: step.text };
+    case "condensation":
+      return {
+        ...meta,
+        kind: "condensation",
+        summary: step.summary,
+        forgotten: step.forgotten,
+        trigger: step.trigger,
+      };
     case "final_answer":
       return { ...meta, kind: "final_answer", output: step.output };
   }
@@ -212,6 +247,8 @@ function constructStep(json: StepJSON): AnyAgentStep {
     }
     case "message":
       return new MessageStep(json.from, json.text);
+    case "condensation":
+      return new CondensationStep(json.summary, json.forgotten, json.trigger);
     case "final_answer":
       return new FinalAnswerStep(json.output);
   }

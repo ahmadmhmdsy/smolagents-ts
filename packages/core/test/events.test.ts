@@ -25,6 +25,12 @@ const SAMPLES: Record<AgentEventType, AgentEvent> = {
   "observation.completed": { type: "observation.completed", stepIndex: 0, text: "o", isFinalAnswer: false },
   "message.delta": { type: "message.delta", text: "x" },
   "message.completed": { type: "message.completed", text: "x" },
+  "memory.condensed": {
+    type: "memory.condensed",
+    forgotten: ["s1"],
+    summary: "condensed",
+    trigger: "soft",
+  },
   "usage.updated": { type: "usage.updated", usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } },
   "run.completed": {
     type: "run.completed",
@@ -68,7 +74,7 @@ const SAMPLES: Record<AgentEventType, AgentEvent> = {
 describe("the event contract is complete", () => {
   it("covers every declared AgentEventType", () => {
     const declared = Object.keys(SAMPLES).sort();
-    expect(declared).toHaveLength(25);
+    expect(declared).toHaveLength(26);
   });
 
   it("classifies exactly the delta events as advisory", () => {

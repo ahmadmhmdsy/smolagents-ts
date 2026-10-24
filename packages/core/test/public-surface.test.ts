@@ -97,6 +97,8 @@ const RUNTIME_EXPORTS = [
   "MANAGED_AGENT_INPUT_SCHEMA",
   // delegation report: a child's answer as a validated value or a typed failure
   "runManagedAgent",
+  // memory: the condensation step a read-time projection hides
+  "CondensationStep",
   // claim board: rows with a revision token, blockers, tombstones and advisory scopes
   "createTask",
   "claimTask",

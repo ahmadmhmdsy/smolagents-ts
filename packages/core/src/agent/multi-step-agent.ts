@@ -18,6 +18,7 @@ import { type Logger, noopLogger } from "../logger.js";
 import { AgentMemory } from "../memory/memory.js";
 import {
   ActionStep,
+  CondensationStep,
   FinalAnswerStep,
   MessageStep,
   PlanningStep,
@@ -106,6 +107,12 @@ export interface AgentOptions {
    */
   transfers?: readonly TransferTarget[];
   /**
+   * Opt-in condensation: when the transcript's estimated size crosses a threshold, the oldest
+   * action steps are hidden behind a summary step and a `memory.condensed` event names them.
+   * Off by default, so no existing run condenses.
+   */
+  condensation?: CondensationOptions;
+  /**
    * Where a run's record lives. With a `runId` on the run, the agent commits the record after
    * each boundary and reads it back to resume, so a run survives its process.
    */
@@ -131,6 +138,26 @@ export interface AgentOptions {
    * a typed `run.limitReached` reason. Omitted fields take the ceiling.
    */
   limits?: RunLimits;
+}
+
+/**
+ * The condensation budget. The estimate is a heuristic over the transcript, not a provider's
+ * tokenizer: the loop asks before a model call, so it needs a number before the usage arrives.
+ */
+export interface CondensationOptions {
+  /** Estimated tokens at which a condensation is due. */
+  readonly softLimit: number;
+  /** Estimated tokens at which the next model call is unsafe without condensing. */
+  readonly hardLimit: number;
+  /** The newest action steps never forgotten. Defaults to 4. */
+  readonly keepRecent?: number;
+  /** Produces the summary; absent uses a deterministic one. A throw defers a soft trigger. */
+  readonly summarize?: (
+    forgotten: readonly AnyAgentStep[],
+    transcript: readonly ChatMessage[],
+  ) => string | Promise<string>;
+  /** Estimates the transcript's size. Defaults to ceil(characters / 4). */
+  readonly estimate?: (messages: readonly ChatMessage[]) => number;
 }
 
 export interface RunOptions {
@@ -294,6 +321,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private toolsGated = false;
   private readonly guardrails: Guardrails | undefined;
   private readonly outputSchema: z.ZodType | undefined;
+  private readonly condensation: CondensationOptions | undefined;
 
   constructor(options: AgentOptions) {
     this.model = options.model;
@@ -303,6 +331,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.store = options.store;
     this.guardrails = options.guardrails;
     this.outputSchema = options.outputSchema;
+    this.condensation = options.condensation;
     const managedAgents = options.managedAgents ?? [];
     const transfers = options.transfers ?? [];
     // Managed agents and transfers are added to this agent's registry, so a caller's registry is
@@ -820,6 +849,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
         yield* this.failRun(context, deliveryFailure);
         return;
       }
+
+      yield* this.maybeCondense();
 
       if (this.planningInterval > 0 && stepIndex > 0 && stepIndex % this.planningInterval === 0) {
         const planning = yield* this.runPlanningStep(stepIndex, context);
@@ -1802,6 +1833,55 @@ export abstract class MultiStepAgent<TOut = unknown> {
     });
   }
 
+  /**
+   * Hide the oldest action steps behind a summary when the transcript is over budget. The stored
+   * steps stay: this appends a condensation step whose ids the read-time projection drops, and
+   * emits the event that names the loss. A soft trigger whose summarizer throws defers to the next
+   * boundary; a hard trigger falls back to a deterministic summary, because the next model call is
+   * the risk it exists to avoid.
+   */
+  private async *maybeCondense(): AsyncGenerator<AgentEvent, void> {
+    const options = this.condensation;
+    if (options === undefined) return;
+    const transcript = this.transcript();
+    const estimate = options.estimate ?? estimatedTokens;
+    const size = estimate(transcript);
+    // Whichever limit is lower decides that a condensation is due; the hard one only decides how
+    // it may proceed when the summarizer is unavailable.
+    if (size < Math.min(options.softLimit, options.hardLimit)) return;
+
+    const keepRecent = options.keepRecent ?? 4;
+    const forgottenIds = this.memory.forgottenIds;
+    const candidates = this.memory.steps.filter(
+      (step) =>
+        (step.kind === "action" || step.kind === "planning") && !forgottenIds.has(step.id),
+    );
+    const forgettable = candidates.slice(0, Math.max(0, candidates.length - keepRecent));
+    if (forgettable.length === 0) return;
+
+    const trigger: "soft" | "hard" = size >= options.hardLimit ? "hard" : "soft";
+    let summary: string;
+    try {
+      summary =
+        options.summarize === undefined
+          ? deterministicSummary(forgettable.length)
+          : await options.summarize(forgettable, transcript);
+    } catch (error) {
+      if (trigger === "soft") return;
+      this.logger.warn("The summarizer threw; the hard trigger used a deterministic summary", error);
+      summary = deterministicSummary(forgettable.length);
+    }
+
+    const step = new CondensationStep(summary, forgettable.map((entry) => entry.id), trigger);
+    this.memory.addStep(step);
+    yield this.emit({
+      type: "memory.condensed",
+      forgotten: step.forgotten,
+      summary: step.summary,
+      trigger: step.trigger,
+    });
+  }
+
   private emit(event: AgentEvent): AgentEvent {
     // Enrich at emission, the one place every event passes: the path names the agents that
     // produced it, so a nested child's events are attributable without a second event shape.
@@ -1818,6 +1898,18 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
     return enriched;
   }
+}
+
+/** The default size estimate: a quarter of the transcript's characters, rounded up. */
+function estimatedTokens(messages: readonly ChatMessage[]): number {
+  let characters = 0;
+  for (const message of messages) characters += message.content.length;
+  return Math.ceil(characters / 4);
+}
+
+/** The summary a hard trigger uses when no summarizer is configured, or it throws. */
+function deterministicSummary(count: number): string {
+  return "Condensed " + String(count) + " earlier step" + (count === 1 ? "" : "s") + ".";
 }
 
 /** A guardrail that throws has still stopped the run; it fails as a guardrail, not as a crash. */

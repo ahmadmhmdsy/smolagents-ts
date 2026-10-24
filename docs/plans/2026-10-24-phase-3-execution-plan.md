@@ -115,7 +115,9 @@ subscribes through `store.watch`, and appends only the events after it, returnin
 
 ## Public-surface accounting
 
-- 3.1: no runtime export (the step kind, the option type and the event are type-level).
+- 3.1: `CondensationStep` is a runtime export — an exported `AnyAgentStep` union cannot name a
+  private class, so the step class is pinned: core 113 → 114. (The plan first said 3.1 added no
+  runtime export; the compiler proved otherwise, and the `## Changes` entry records it.)
 - 3.2: `readEvents` is a new core runtime export — core pins 113 → 114.
 - 3.2: `useRunEvents` is a new react runtime export — react pins 12 → 13.
 - The exit test adds no export.
@@ -138,4 +140,17 @@ the phase task; handoff entry; final gate and commit.
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+- **2026-10-24 — 3.1 as built.** `CondensationStep` (kind `condensation`) carries a summary, the
+  forgotten step ids and the trigger; `AgentMemory` projects at read time — the forgotten ids are
+  dropped from the transcript and each summary renders as an "Earlier steps, condensed:" user
+  turn, so the stored steps stay and a reload projects identically. `AgentOptions.condensation`
+  is opt-in (`softLimit`, `hardLimit`, `keepRecent` default 4, optional `summarize` and
+  `estimate`); the loop checks at each step boundary, forgets only action and planning steps
+  beyond `keepRecent`, never the system prompt, the task or a message step, and emits
+  `memory.condensed`. A soft trigger whose summarizer throws defers; a hard trigger falls back to
+  "Condensed N earlier step(s)." `buildTrace` folds the event into a `memory.condensed` span.
+  The test file has six cases, one more than the table's five clauses (the hard and the soft
+  summarizer paths are separate cases). Core 52 files/598 tests; pins 114; `pnpm gate` exit 0.
+
 
