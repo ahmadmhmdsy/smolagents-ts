@@ -4,6 +4,28 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T02:30:00+03:00 — Phase 4 opened: protocol and tool breadth
+
+**State.** Phase 4 is open and nothing in it has landed yet. `T-45` is the row that carries it.
+
+**Did.** Wrote `docs/plans/2026-10-24-phase-4-execution-plan.md`: eight items, each with the
+acceptance tests registered before its code, a design, the public-surface accounting (mcp 29 → 32,
+core 108 → 110, exec-remote root 9 → 10) and a close plan. Opened `T-45` in `docs/04-tasks.md`,
+moved the parent plan's row, and narrowed `T-40`'s gate cell to name the open phase.
+
+**Verified.** Validator reads 0 errors / 0 warnings; rotation is clean; `pnpm gate` exits 0.
+
+**Unverified / open.** No Phase 4 item is implemented. The pin counts above were measured from each
+package's pinned list; the Phase 3 report's "core 115" does not match the 108-name list, so this
+phase counts from the list itself.
+
+**Next.** 4.1: write `packages/mcp/test/client-depth.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:1`; the `T-45` row in
+`docs/04-tasks.md`.
+
 ## 2026-10-25T02:05:00+03:00 — Phase 3 closed: memory and streams
 
 **State.** Phase 3 is complete; 3.1 and 3.2 are landed and the exit criterion runs as two cases.

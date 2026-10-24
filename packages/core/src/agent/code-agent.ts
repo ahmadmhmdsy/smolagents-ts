@@ -113,7 +113,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
             toolCalls.push({ id: event.callId, name: event.name, arguments: event.args });
           } else if (event.type === "result") {
             completeToolCall(toolCalls, event.callId, event.output, undefined, event.durationMs);
-          } else {
+          } else if (event.type === "failed") {
             completeToolCall(toolCalls, event.callId, undefined, event.error.message, 0);
           }
         },
@@ -166,19 +166,22 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
    */
   private journaledTools(context: RunContext): ToolRegistry {
     const stepId = context.openStep?.stepId;
-    const registry = this.stepRegistry();
-    if (stepId === undefined || !this.journals(context)) return registry;
+    // A hosted tool is the provider's to run, so it never reaches the executor at all.
+    const runnable = this.stepRegistry()
+      .list()
+      .filter((definition) => definition.kind !== "hosted");
+    if (stepId === undefined || !this.journals(context)) return new ToolRegistry(runnable);
     return new ToolRegistry(
-      registry.list().map((definition) => this.journaledTool(definition, context, stepId)),
+      runnable.map((definition) => this.journaledTool(definition, context, stepId)),
     );
   }
 
-  private journaledTool(definition: Tool, context: RunContext, stepId: string): Tool {
+  private journaledTool<T extends Tool>(definition: T, context: RunContext, stepId: string): T {
     return {
       ...definition,
-      execute: (input, toolContext) =>
+      execute: (input: unknown, toolContext: ToolContext) =>
         this.journaledCall(definition, context, stepId, input, toolContext),
-    } as Tool;
+    } as T;
   }
 
   private async journaledCall(
@@ -255,6 +258,13 @@ function toAgentEvent(event: ToolCallEvent): AgentEventPayload {
   switch (event.type) {
     case "requested":
       return { type: "action.requested", callId: event.callId, name: event.name, args: event.args };
+    case "progress":
+      return {
+        type: "action.progress",
+        callId: event.callId,
+        name: event.name,
+        progress: event.progress,
+      };
     case "result":
       return {
         type: "action.result",

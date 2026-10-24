@@ -110,6 +110,8 @@ export class ToolBridge {
       stepIndex: options.stepIndex,
       logger: options.logger,
       ...(options.agentPath === undefined ? {} : { agentPath: options.agentPath }),
+      onProgress: (progress) =>
+        options.onToolCall?.({ type: "progress", callId, name, progress }),
     };
     try {
       const output = await tool.execute(parsed.data, context);

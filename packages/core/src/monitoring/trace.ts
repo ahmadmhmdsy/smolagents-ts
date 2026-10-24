@@ -117,6 +117,17 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
         tools.set(event.callId, tool);
         break;
       }
+      case "action.progress": {
+        // A trace keeps the latest report and a count, not the whole stream: a long tool must not
+        // grow the span without bound.
+        const tool = tools.get(event.callId);
+        if (tool !== undefined) {
+          tool.attributes.lastProgress = event.progress;
+          const seen = tool.attributes.progressCount;
+          tool.attributes.progressCount = typeof seen === "number" ? seen + 1 : 1;
+        }
+        break;
+      }
       case "action.result": {
         const tool = tools.get(event.callId);
         if (tool !== undefined) {

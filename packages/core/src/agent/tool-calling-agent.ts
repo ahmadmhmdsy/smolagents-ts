@@ -4,6 +4,7 @@ import {
   AgentError,
   AgentToolCallError,
   EffectOutcomeUnknownError,
+  ToolHostedError,
   ToolTimeoutError,
 } from "../errors.js";
 import type { AgentEventPayload } from "../events.js";
@@ -146,6 +147,20 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
         continue;
       }
 
+      if (definition.kind === "hosted") {
+        // The provider runs this tool, so the host never runs a body for it: the refusal names
+        // the provider instead of pretending the name was unknown.
+        const provider = definition.hosted?.provider ?? "its provider";
+        const info = new ToolHostedError(
+          'Tool "' + request.name + '" is run by ' + provider + ", not by this host.",
+          { stepIndex, provider },
+        ).info;
+        yield { type: "action.failed", callId, name: request.name, error: info };
+        calls.push({ id: callId, name: request.name, arguments: args, error: info.message });
+        observations.push("Error: " + info.message);
+        continue;
+      }
+
       const parsed = definition.inputSchema.safeParse(args);
       if (!parsed.success) {
         const info = new AgentToolCallError(
@@ -162,9 +177,12 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       const startedAt = Date.now();
       const approvals: AgentEventPayload[] = [];
       this.captureApprovals((decision) => approvals.push(this.approvalEvent(decision)));
+      const progress: unknown[] = [];
       let result: Awaited<ReturnType<ToolCallingAgent["invoke"]>>;
       try {
-        result = await this.invoke(definition, parsed.data, callId, stepIndex, context);
+        result = await this.invoke(definition, parsed.data, callId, stepIndex, context, (value) =>
+          progress.push(value),
+        );
       } catch (error) {
         // A park or a typed refusal must reach the loop; the decision it made still goes out
         // first, so the stream shows the ask, never a call that silently vanished.
@@ -174,6 +192,11 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       }
       this.captureApprovals(undefined);
       for (const event of approvals) yield event;
+      // The call has finished by now, so its reports are replayed in the order they arrived;
+      // the stream still shows every one of them before the result.
+      for (const value of progress) {
+        yield { type: "action.progress", callId, name: request.name, progress: value };
+      }
       const durationMs = Date.now() - startedAt;
 
       if (result.ok) {
@@ -201,6 +224,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     callId: string,
     stepIndex: number,
     context: RunContext,
+    onProgress?: (progress: unknown) => void,
   ): Promise<{ ok: true; output: unknown } | { ok: false; error: AgentErrorInfo }> {
     const toolContext: ToolContext = {
       signal: context.signal,
@@ -209,6 +233,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       stepIndex,
       logger: this.logger,
       agentPath: context.agentPath,
+      ...(onProgress === undefined ? {} : { onProgress }),
     };
     const stepId = context.openStep?.stepId;
     let retried = false;

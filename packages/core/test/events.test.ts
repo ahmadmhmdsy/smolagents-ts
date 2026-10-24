@@ -11,6 +11,7 @@ const SAMPLES: Record<AgentEventType, AgentEventPayload> = {
   "code.delta": { type: "code.delta", stepIndex: 0, text: "x" },
   "code.completed": { type: "code.completed", stepIndex: 0, code: "x" },
   "action.requested": { type: "action.requested", callId: "c", name: "n", args: {} },
+  "action.progress": { type: "action.progress", callId: "c", name: "n", progress: 1 },
   "action.result": { type: "action.result", callId: "c", name: "n", output: 1, durationMs: 2 },
   "action.failed": {
     type: "action.failed", callId: "c", name: "n",
@@ -83,7 +84,7 @@ const SAMPLES: Record<AgentEventType, AgentEventPayload> = {
 describe("the event contract is complete", () => {
   it("covers every declared AgentEventType", () => {
     const declared = Object.keys(SAMPLES).sort();
-    expect(declared).toHaveLength(28);
+    expect(declared).toHaveLength(29);
   });
 
   it("classifies exactly the delta events as advisory", () => {

@@ -33,6 +33,39 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T04:10:00+03:00 — Phase 4.5 landed: generator and hosted tools
+
+**State.** 4.1–4.5 are landed; 4.6–4.8 and the phase close remain.
+
+**Did.** `tool-generator.test.ts` (9 tests, the 56th core file) was watched red on the missing
+drain, the missing `action.progress` and the absent `ToolHostedError`, then 4.5 landed:
+`ToolDefinition.execute` may return an async generator, and `tool()` drains it inside the same
+`withToolTimeout` call — each yield goes to `ToolContext.onProgress` (validated by the new
+`progressSchema`; an invalid yield is logged and dropped) and the return value is the result, so
+a generator that never settles still times out. `ToolCallEvent` gained `progress`, mapped to
+`action.progress`; the QuickJS and Pyodide bridges emit it, `ToolCallingAgent` replays collected
+reports between `action.requested` and `action.result`, and `buildTrace` keeps
+`progressCount` plus `lastProgress`. A tool may declare `kind: "hosted"` with
+`hosted: { provider, spec }`: it is advertised with that payload in `ToolSpec`, excluded from the
+executor registry, refused by the structured lookup with `ToolHostedError` (`AGENT_TOOL_HOSTED`,
+naming the provider), and passed through by `withApproval`. `Tool` keeps a required `execute`
+whose hosted form refuses, so no consumer narrows. core pins 109 → 110, 56 files / 631 tests.
+
+**Verified.** `pnpm vitest run --project core` exits 0 (56 files, 631 tests); the core typecheck
+passes; the 4.5 suite passes 9/9.
+
+**Unverified / open.** 4.6–4.8 and the phase close are not implemented. Two honest deviations are
+recorded in the plan's 4.5 entry (declaration-time hosted validation; the refusing hosted
+`execute`).
+
+**Next.** 4.6: write `packages/exec-remote/test/transfer.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/tool/tool.ts`, `packages/core/src/errors.ts`,
+`packages/core/src/events.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
+`packages/core/test/tool-generator.test.ts`.
+
 ## 2026-10-25T03:48:00+03:00 — Phase 4.4 landed: per-step tool policy as data
 
 **State.** 4.1–4.4 are landed; 4.5–4.8 and the phase close remain.
@@ -138,26 +171,4 @@ passes; validator 0/0; `pnpm gate` exits 0.
 
 **Artifacts.** `packages/mcp/src/client.ts`, `packages/mcp/test/client-depth.test.ts`,
 `docs/plans/2026-10-24-phase-4-execution-plan.md` (Changes).
-
-## 2026-10-25T02:30:00+03:00 — Phase 4 opened: protocol and tool breadth
-
-**State.** Phase 4 is open and nothing in it has landed yet. `T-45` is the row that carries it.
-
-**Did.** Wrote `docs/plans/2026-10-24-phase-4-execution-plan.md`: eight items, each with the
-acceptance tests registered before its code, a design, the public-surface accounting (mcp 29 → 32,
-core 108 → 110, exec-remote root 9 → 10) and a close plan. Opened `T-45` in `docs/04-tasks.md`,
-moved the parent plan's row, and narrowed `T-40`'s gate cell to name the open phase.
-
-**Verified.** Validator reads 0 errors / 0 warnings; rotation is clean; `pnpm gate` exits 0.
-
-**Unverified / open.** No Phase 4 item is implemented. The pin counts above were measured from each
-package's pinned list; the Phase 3 report's "core 115" does not match the 108-name list, so this
-phase counts from the list itself.
-
-**Next.** 4.1: write `packages/mcp/test/client-depth.test.ts` and watch it fail.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:1`; the `T-45` row in
-`docs/04-tasks.md`.
 <!-- rotate:end -->

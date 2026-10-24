@@ -6,6 +6,10 @@ export interface ToolSpec {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Present on a tool its provider runs itself; the host never executes it. */
+  kind?: "hosted";
+  /** The provider's payload for a hosted tool, passed through for an adapter to render. */
+  hosted?: { provider: string; spec: Readonly<Record<string, unknown>> };
 }
 
 export type FinishReason = "stop" | "tool_calls" | "length" | "other";

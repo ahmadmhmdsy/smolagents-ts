@@ -25,7 +25,8 @@ export type AgentErrorCode =
   | "AGENT_TASK_BLOCKED"
   | "AGENT_TASK_DELETED"
   | "AGENT_EFFECT_UNKNOWN"
-  | "AGENT_TOOL_POLICY";
+  | "AGENT_TOOL_POLICY"
+  | "AGENT_TOOL_HOSTED";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -354,6 +355,20 @@ export class ToolPolicyDeniedError extends AgentError {
   }
 }
 
+/**
+ * Raised when a model names a tool the provider runs itself. The host never executes a hosted
+ * tool: the refusal names the provider so a caller knows which adapter was supposed to run it.
+ */
+export class ToolHostedError extends AgentError {
+  readonly provider: string | undefined;
+
+  constructor(message: string, options: AgentErrorOptions & { readonly provider?: string } = {}) {
+    super(message, { ...options, code: "AGENT_TOOL_HOSTED" });
+    this.name = "ToolHostedError";
+    this.provider = options.provider;
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -384,4 +399,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_TASK_DELETED: TaskDeletedError,
   AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
   AGENT_TOOL_POLICY: ToolPolicyDeniedError,
+  AGENT_TOOL_HOSTED: ToolHostedError,
 };

@@ -21,6 +21,7 @@ export type AgentEventPayload =
   | { type: "code.delta"; stepIndex: number; text: string }
   | { type: "code.completed"; stepIndex: number; code: string }
   | { type: "action.requested"; callId: string; name: string; args: unknown }
+  | { type: "action.progress"; callId: string; name: string; progress: unknown }
   | { type: "action.result"; callId: string; name: string; output: unknown; durationMs: number }
   | { type: "action.failed"; callId: string; name: string; error: AgentErrorInfo }
   | { type: "approval.decided"; requestId: string; digest: string; name: string; stepIndex: number; outcome: ApprovalOutcome; reason?: string }
@@ -107,6 +108,7 @@ export function describeEvent(event: AgentEvent): string {
     case "code.delta": return "writing code";
     case "code.completed": return "code";
     case "action.requested": return event.name;
+    case "action.progress": return event.name + " progress";
     case "action.result": return event.name + " done";
     case "action.failed": return event.name + " failed";
     case "approval.decided": return event.outcome === "allowed-once" ? "approval granted" : "approval " + event.outcome;

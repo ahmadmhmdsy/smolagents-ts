@@ -29,6 +29,7 @@ export interface FinalAnswerSink {
 
 export type ToolCallEvent =
   | { type: "requested"; callId: string; name: string; args: unknown }
+  | { type: "progress"; callId: string; name: string; progress: unknown }
   | { type: "result"; callId: string; name: string; output: unknown; durationMs: number }
   | { type: "failed"; callId: string; name: string; error: AgentErrorInfo };
 

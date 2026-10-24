@@ -277,6 +277,32 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.5 — Generator tools and hosted tools (2026-10-24)
+
+Landed as `packages/core/test/tool-generator.test.ts` (nine cases, the 56th core file, watched
+red on the missing drain, the missing `action.progress` and the absent `ToolHostedError`), plus
+the two pin cases and one `events.test.ts` sample.
+
+`ToolDefinition.execute` may return an async generator. `tool()` awaits what the declaration
+returned and, when it is one, drains it inside the same `withToolTimeout` call: a generator that
+never settles times out, each yield reaches `ToolContext.onProgress` (validated by
+`progressSchema`; an invalid yield is logged and dropped) and the resolved value is the
+generator's return. `Tool` keeps a required `execute`, so no consumer has to narrow; a hosted
+tool's refuses with `ToolHostedError` and is never reached, because `journaledTools` leaves hosted
+tools out of the executor registry and the `ToolCallingAgent` lookup refuses one by name first.
+
+`ToolCallEvent` and `AgentEvent` gained `progress`/`action.progress`; the QuickJS and Pyodide
+bridges emit it from the sink they build, `CodeAgent` maps it, `ToolCallingAgent` replays the
+collected reports between `action.requested` and `action.result`, and `buildTrace` keeps a
+`progressCount` plus `lastProgress` so a chatty tool cannot grow the span. A hosted tool is
+advertised with `kind: "hosted"` and its `{ provider, spec }` payload, carried into `ToolSpec`
+for an adapter to render in the provider's own shape, and `withApproval` passes it through.
+
+Two honest deviations from the registered design: the hosted `kind`/`hosted` pair is validated
+where the tool is declared rather than only in `toSpec()`, and a hosted `Tool` carries a refusing
+`execute` — `Tool` stays uniform for every consumer — instead of having none. core: pins 110,
+56 files, 631 tests.
+
 ### 4.4 — Per-step tool policy as data (2026-10-24)
 
 Landed as `packages/core/test/tool-policy.test.ts` (13 tests, the 55th core file, watched red

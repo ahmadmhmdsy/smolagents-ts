@@ -128,11 +128,13 @@ function resolveVerdict(
  * tools from the registry — generated code through the executor, structured calls through the
  * agent — so gating once, here at the seam every caller routes through, covers both.
  */
-export function withApproval(
-  entry: Tool,
+export function withApproval<T extends Tool>(
+  entry: T,
   approve: ApprovalHandler,
   options: ApprovalGateOptions = {},
-): Tool {
+): T {
+  // A hosted tool has no body to gate: its provider runs it, so the gate has nothing to decide.
+  if (entry.kind === "hosted") return entry;
   return {
     ...entry,
     async execute(input, context) {
@@ -190,5 +192,5 @@ export function withApproval(
       }
       return entry.execute(input, context);
     },
-  };
+  } as T;
 }
