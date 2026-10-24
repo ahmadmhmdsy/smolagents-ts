@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T13:10:00+03:00 — 0.8 landed: the store contract, with counterexamples
+
+**State.** Eight Phase 0 items in (0.1–0.8). Next is 0.9's budget record, then 0.10's
+tool-less structured output.
+
+**Did.** Wrote `test/contract/run-store.contract.ts`: ten store modes, each check paired
+with a deliberately broken counterexample the suite must reject. Certified three
+implementations — `MemoryRunStore`, an asynchronous wrapper and a temporary-file store
+double that stands in for the durable file store Phase 1.5 has not built. The contract
+found a real leak: `MemoryRunStore` handed out its internal steps array, so a caller that
+mutated a loaded checkpoint changed the stored one. It now copies on both sides of the
+boundary.
+
+**Verified.** `pnpm gate` exit 0; core 38 files, 446 tests (the contract file alone
+registers sixty).
+
+**Unverified / open.** The file store certified here is a test double, not the 1.5
+artifact; when 1.5 lands, its store joins this file and the double goes.
+
+**Next.** 0.9: turn/output/total-token limits on the record, a typed terminal reason and
+a handle that continues the budget.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/test/contract/run-store.contract.ts`,
+`packages/core/test/contract/run-store.conformance.test.ts`,
+`packages/core/src/session/run-store.ts`.
+
 ## 2026-10-24T12:40:00+03:00 — 0.7 landed: every tool has a finite deadline
 
 **State.** Seven Phase 0 items in (0.1–0.7). Next is 0.8's conformance suite, then 0.9's

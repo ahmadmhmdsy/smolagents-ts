@@ -160,3 +160,13 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   gets the wrapper's `AgentCancelledError`; a timer that fires on an aborted run is
   classified as cancellation. The 120 s default is deliberately loose because a managed
   agent is a tool too.
+- **2026-10-24 — 0.8 as built.** `packages/core/test/contract/` holds the store contract:
+  ten modes (unknown key, non-empty round-trip, empty round-trip, overwrite, isolation,
+  opaque keys, repeatable load, defensively copied data, read-your-write, concurrent
+  writes), each with a deliberately broken counterexample the suite must reject — so the
+  file proves it can fail. Three implementations are certified against it: `MemoryRunStore`,
+  an asynchronous wrapper and a temporary-file store double, because Phase 1.5's durable
+  file store does not exist yet; the double is the shape that store will have (one JSON
+  file per key under a fresh temporary directory). The contract caught a real defect:
+  `MemoryRunStore` handed out its internal array, so a caller could mutate a stored
+  checkpoint; it now copies on save and on load.

@@ -43,12 +43,16 @@ export interface RunStore {
 export class MemoryRunStore implements RunStore {
   private readonly snapshots = new Map<string, RunSnapshot>();
 
+  // The store is a boundary, so it copies on the way in and on the way out: a caller that
+  // mutates the list it saved, or the one it loaded, cannot reach the stored checkpoint. A
+  // StepJSON is JSON-safe by definition, so a JSON round-trip is a faithful deep copy.
   save(checkpoint: string, snapshot: RunSnapshot): void {
-    this.snapshots.set(checkpoint, snapshot);
+    this.snapshots.set(checkpoint, copy(snapshot));
   }
 
   load(checkpoint: string): RunSnapshot | undefined {
-    return this.snapshots.get(checkpoint);
+    const stored = this.snapshots.get(checkpoint);
+    return stored === undefined ? undefined : copy(stored);
   }
 
   has(checkpoint: string): boolean {
@@ -58,4 +62,8 @@ export class MemoryRunStore implements RunStore {
   delete(checkpoint: string): boolean {
     return this.snapshots.delete(checkpoint);
   }
+}
+
+function copy(snapshot: RunSnapshot): RunSnapshot {
+  return JSON.parse(JSON.stringify(snapshot)) as RunSnapshot;
 }
