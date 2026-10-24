@@ -51,6 +51,7 @@ const RUNTIME_EXPORTS = [
   "SystemPromptStep",
   "PlanningStep",
   "ActionStep",
+  "MessageStep",
   "FinalAnswerStep",
   "Monitor",
   // observability: fold an event stream into an OTel-shaped trace, and score a run against a fixture
@@ -78,6 +79,9 @@ const RUNTIME_EXPORTS = [
   "RunClaimedError",
   "StaleWriterError",
   "EffectOutcomeUnknownError",
+  "RunMessageRefusedError",
+  // messages: an ordinary record entry a send appends, and the delivery the run performs
+  "sendRunMessage",
   // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
   "RUN_LIMITS_CEILING",
   "resolveBudget",

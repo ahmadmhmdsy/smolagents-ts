@@ -52,6 +52,12 @@ export * from "./agent/guardrail.js";
 export * from "./middleware.js";
 export * from "./session/agent-session.js";
 export * from "./session/run-store.js";
+export {
+  sendRunMessage,
+  type RunMessage,
+  type SendRunMessageInput,
+  type SendRunMessageReceipt,
+} from "./session/messages.js";
 export * from "./session/file-run-store.js";
 export * from "./session/budget.js";
 

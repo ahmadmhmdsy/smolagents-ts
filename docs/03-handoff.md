@@ -33,6 +33,37 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T22:20:00+03:00 — 2.6: a send is an ordinary record entry, delivery a boundary
+
+**State.** Phase 2 is open; 2.1, 2.3 and 2.6 are landed. Next is 2.7 (`waitForRun` and the
+store's `watch` mode), then the second slice. Nothing pushed.
+
+**Did.** `RunRecord.messages` keeps `RunMessage` entries and `sendRunMessage(store, runId, {from,
+text})` appends one: it loads the record, refuses an unknown or ended run typed, commits at the
+generation it read without taking a claim, and returns an `accepted` receipt — acceptance, not
+processing. The loop joins messages another writer appended before every commit, so an effect's
+commit cannot drop a send. At each step boundary it delivers the undelivered entries as an
+ordinary `MessageStep`, stamps `deliveredAt` and `deliveredStep` in that same commit, and renders
+the step as a user turn prefixed with its sender. A parked run accepts a send and delivers it on
+the resumed step; a delivered entry is not delivered again.
+
+**Verified.** `run-messages.test.ts` (46th core file, 10 cases) green, covering the receipt, a
+running target's next step seeing the text (including the transcript), a parked run's resumed
+step, no redelivery of a stamped entry, typed refusals, and the file-store round trip. Core 46
+files/542 tests; `pnpm typecheck` clean; `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** 2.7 and the second slice are not started. A send racing the loop's own
+commit inside the same generation is resolved by the commit that lands last; the merge keeps the
+common interleavings, not a distributed guarantee.
+
+**Next.** 2.7: `RunStore.watch` as the fourteenth contract mode and `waitForRun`, which reads,
+waits and never claims.
+
+**Blockers.** None; the owner's blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/session/messages.ts`; `packages/core/src/memory/steps.ts`;
+`packages/core/test/run-messages.test.ts`.
+
 ## 2026-10-24T22:10:00+03:00 — 2.3: every event and record names its agent path
 
 **State.** Phase 2 is open; 2.1 (typed child report) and 2.3 (agent path) are landed. Next is 2.6,
@@ -119,35 +150,4 @@ plan with pre-registered acceptance tests.
 **Artifacts.** `docs/reports/2026-10-24-phase-1-report.md`;
 `docs/plans/2026-10-24-phase-1-execution-plan.md`;
 `packages/cli/test/phase-1-close.test.ts`; `packages/core/src/session/run-store.ts`.
-
-## 2026-10-24T20:55:00+03:00 — 1.8 landed: a run can branch without repeating effects
-
-**State.** All eight Phase 1 items are in the tree; Phase 1 close is next (exit-criterion test,
-phase report, task closure). Nothing pushed.
-
-**Did.** `RunOptions.fork {fromRunId, atStep}`: a child run loads the parent record, copies the
-memory before the step and the journal through it, and re-enters that step under the parent's
-attempt id, so the recorded model reply and tool results replay instead of running. The record
-names `parentRunId`/`parentStep`, keeps its own conversation, starts at generation 0 with no
-pending request, owner or settlements, and reports its own `runId`. The CLI adds `--fork` plus
-`--fork-step`, refuses either alone or with `--resume`, and reads a missing task from the parent;
-the bin now also forwards `--conversation`, which 1.7 parsed but did not pass on.
-
-**Verified.** `fork.test.ts` was red first. Core 43 files/519 tests, CLI 10/74, `pnpm gate` exit 0,
-validator 0/0, `rotate.py --check` clean. The core acceptance: a three-step parent forked at step
-1 yields a child naming parent/step whose journal holds the step-1 tool result with the counting
-tool unmoved, finishing under its own id; a waiting parent forked at step 0 leaves `pending` off
-the child. The CLI case forks a finished parent and keeps the tool run once.
-
-**Unverified / open.** Phase 1 close: the two-process exit criterion, the phase report, and the
-parent-plan check. A fork at a step with an in-doubt `intent` would fail as an unknown effect;
-not covered by a test.
-
-**Next.** Write the exit-criterion test and the Phase 1 report, close `T-42`, then mark the goal
-complete.
-
-**Blockers.** None for Phase 1; the owner-blocked rows were unchanged.
-
-**Artifacts.** `packages/core/test/fork.test.ts`; `packages/core/src/agent/multi-step-agent.ts`;
-`docs/plans/2026-10-24-phase-1-execution-plan.md`.
 <!-- rotate:end -->

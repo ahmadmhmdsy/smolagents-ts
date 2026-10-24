@@ -19,6 +19,7 @@ import { AgentMemory } from "../memory/memory.js";
 import {
   ActionStep,
   FinalAnswerStep,
+  MessageStep,
   PlanningStep,
   SystemPromptStep,
   TaskStep,
@@ -65,6 +66,7 @@ import {
   type RunStatus,
 } from "../session/run-record.js";
 import type { RunStore } from "../session/run-store.js";
+import { undeliveredMessages, type RunMessage } from "../session/messages.js";
 import {
   budgetSeedFromSteps,
   resolveBudget,
@@ -200,6 +202,8 @@ export interface RunContext {
   owner: string;
   /** The conversation the record is tagged with, kept across a resume or left absent. */
   conversationId: string | undefined;
+  /** The messages the record holds, delivered or not; the loop appends and stamps deliveries. */
+  messages: RunMessage[];
   /** The agents this run produced events as, root first; empty at the root. */
   readonly agentPath: readonly string[];
   /** The parent run and step of a fork, written on every commit of the branch. */
@@ -587,6 +591,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       committedSteps: [],
       owner: options.owner ?? crypto.randomUUID(),
       conversationId: options.conversationId,
+      messages: [],
       agentPath: options.agentPath ?? [],
       parentRunId: undefined,
       parentStep: undefined,
@@ -656,6 +661,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         context.generation = claimed.generation;
         // A run resumed without a conversation keeps the one its record carries.
         context.conversationId = options.conversationId ?? claimed.conversationId;
+        context.messages = [...(claimed.messages ?? [])];
         context.settlements = claimed.settlements ?? [];
         context.completed = [...(claimed.completed ?? [])];
         context.journal = [...(claimed.journal ?? [])];
@@ -752,6 +758,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
       if (signal.aborted) {
         yield* this.cancelRun(context);
+        return;
+      }
+
+      // A message sent while the last step ran becomes a step of its own before this turn.
+      const deliveryFailure = await this.deliverMessages(context);
+      if (deliveryFailure !== undefined) {
+        yield* this.failRun(context, deliveryFailure);
         return;
       }
 
@@ -971,6 +984,44 @@ export abstract class MultiStepAgent<TOut = unknown> {
    * writes at: after a step, and at the terminal status. A store failure is returned rather than
    * thrown, so the loop can end the run on it.
    */
+  /**
+   * Keep the messages other writers appended to the record. A send commits the record whole, so
+   * the loop joins by message id before every commit instead of trusting the list it started with;
+   * a delivery it stamps itself is never overwritten by an older copy of that entry.
+   */
+  private async mergeMessages(context: RunContext): Promise<readonly RunMessage[]> {
+    if (this.store === undefined || !context.durable) return context.messages;
+    const stored = await this.store.load(context.runId);
+    if (stored === undefined) return context.messages;
+    const known = new Set(context.messages.map((message) => message.id));
+    const added = (translateRecord(stored, context.runId).messages ?? []).filter(
+      (message) => !known.has(message.id),
+    );
+    if (added.length > 0) context.messages = [...context.messages, ...added];
+    return context.messages;
+  }
+
+  /**
+   * Deliver the messages sent to this run, at the step boundary and before the model turn. A
+   * message becomes an ordinary user-role step in memory, stamped on the record in the same
+   * commit, so a resumed run that reads the record back does not deliver it a second time.
+   */
+  private async deliverMessages(context: RunContext): Promise<AgentError | undefined> {
+    if (this.store === undefined || !context.durable) return undefined;
+    await this.mergeMessages(context);
+    const pending = undeliveredMessages(context.messages);
+    if (pending.length === 0) return undefined;
+    const deliveredAt = new Date().toISOString();
+    const ids = new Set(pending.map((message) => message.id));
+    context.messages = context.messages.map((message) =>
+      ids.has(message.id)
+        ? { ...message, deliveredAt, deliveredStep: context.stepIndex }
+        : message,
+    );
+    for (const message of pending) this.memory.addStep(new MessageStep(message.from, message.text));
+    return this.commitRun(context, "running");
+  }
+
   private async commitRun(context: RunContext, status: RunStatus): Promise<AgentError | undefined> {
     if (this.store === undefined || !context.durable) return undefined;
     // One record write at a time: a code block may announce several effects concurrently, and
@@ -986,11 +1037,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
       // The step in flight is not durable: its record is replayed from the journal, and the
       // restored memory holds only the boundary that preceded it (what parkRun relies on).
       const steps = context.openStep === undefined ? this.memory.toJSON() : context.committedSteps;
+      const messages = await this.mergeMessages(context);
       const record: RunRecord = {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
         ...(context.conversationId === undefined ? {} : { conversationId: context.conversationId }),
         agentPath: context.agentPath,
+        ...(messages.length === 0 ? {} : { messages }),
         ...(context.parentRunId === undefined ? {} : { parentRunId: context.parentRunId }),
         ...(context.parentStep === undefined ? {} : { parentStep: context.parentStep }),
         status,

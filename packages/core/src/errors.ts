@@ -19,6 +19,7 @@ export type AgentErrorCode =
   | "AGENT_RUN_APPROVAL_MISMATCH"
   | "AGENT_RUN_CLAIMED"
   | "AGENT_RUN_STALE_WRITER"
+  | "AGENT_RUN_MESSAGE_REFUSED"
   | "AGENT_EFFECT_UNKNOWN";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
@@ -272,6 +273,17 @@ export class StaleWriterError extends AgentError {
   }
 }
 
+/**
+ * Raised when a send names a run that cannot take a message: an unknown run, or one whose record
+ * already ended. Acceptance is not processing, so a refusal never writes and never claims.
+ */
+export class RunMessageRefusedError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_MESSAGE_REFUSED" });
+    this.name = "RunMessageRefusedError";
+  }
+}
+
 /** Raised when a tool does not settle inside its deadline. */
 export class ToolTimeoutError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -310,5 +322,6 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_RUN_APPROVAL_MISMATCH: RunApprovalMismatchError,
   AGENT_RUN_CLAIMED: RunClaimedError,
   AGENT_RUN_STALE_WRITER: StaleWriterError,
+  AGENT_RUN_MESSAGE_REFUSED: RunMessageRefusedError,
   AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
 };

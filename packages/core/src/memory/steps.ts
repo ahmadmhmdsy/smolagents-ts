@@ -1,7 +1,13 @@
 import type { AgentErrorInfo } from "../errors.js";
 import type { Timing, TokenUsage, ToolCall } from "../types.js";
 
-export type AgentStepKind = "task" | "system_prompt" | "planning" | "action" | "final_answer";
+export type AgentStepKind =
+  | "task"
+  | "system_prompt"
+  | "planning"
+  | "action"
+  | "message"
+  | "final_answer";
 
 /**
  * One unit of agent memory. Ported from upstream smolagents memory.py, with the
@@ -71,6 +77,22 @@ export class ActionStep extends AgentStep {
   }
 }
 
+/**
+ * A message another party sent to the run, delivered at a step boundary. It renders as an ordinary
+ * user turn prefixed with its sender, so the model sees it where it arrived in the transcript.
+ */
+export class MessageStep extends AgentStep {
+  override readonly kind = "message";
+  readonly from: string;
+  readonly text: string;
+
+  constructor(from: string, text: string) {
+    super();
+    this.from = from;
+    this.text = text;
+  }
+}
+
 export class FinalAnswerStep extends AgentStep {
   override readonly kind = "final_answer";
   readonly output: unknown;
@@ -86,6 +108,7 @@ export type AnyAgentStep =
   | SystemPromptStep
   | PlanningStep
   | ActionStep
+  | MessageStep
   | FinalAnswerStep;
 
 /** The fields every step carries, as they appear in a checkpoint. */
@@ -113,6 +136,7 @@ export type StepJSON =
       readonly error?: AgentErrorInfo;
       readonly isFinalAnswer: boolean;
     })
+  | (StepMetaJSON & { readonly kind: "message"; readonly from: string; readonly text: string })
   | (StepMetaJSON & { readonly kind: "final_answer"; readonly output: unknown });
 
 function stepMeta(step: AgentStep): StepMetaJSON {
@@ -145,6 +169,8 @@ export function stepToJSON(step: AnyAgentStep): StepJSON {
         ...(step.error === undefined ? {} : { error: step.error }),
         isFinalAnswer: step.isFinalAnswer,
       };
+    case "message":
+      return { ...meta, kind: "message", from: step.from, text: step.text };
     case "final_answer":
       return { ...meta, kind: "final_answer", output: step.output };
   }
@@ -184,6 +210,8 @@ function constructStep(json: StepJSON): AnyAgentStep {
       step.isFinalAnswer = json.isFinalAnswer;
       return step;
     }
+    case "message":
+      return new MessageStep(json.from, json.text);
     case "final_answer":
       return new FinalAnswerStep(json.output);
   }

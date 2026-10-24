@@ -197,6 +197,18 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.6 as built.** `session/messages.ts` exports `RunMessage`,
+  `SendRunMessageInput`, `SendRunMessageReceipt`, `sendRunMessage` and `RunMessageRefusedError`
+  (the error lives in `errors.ts` under the new `AGENT_RUN_MESSAGE_REFUSED` code).
+  `RunRecord.messages` keeps the entries. A send loads the record, refuses an unknown or ended
+  one, appends the entry and commits at the generation it read, taking no claim; the receipt says
+  `accepted`, not processed. `commitRun` joins messages other writers appended before every
+  commit, so an effect's own commit cannot drop a send. At every step boundary the loop delivers
+  undelivered entries as an ordinary `MessageStep`, stamps `deliveredAt` and `deliveredStep` in the
+  same commit, and renders the step as a user turn prefixed with its sender. Core 46 files/542
+  tests, `pnpm gate` exit 0.
+
+
 - **2026-10-24 — 2.3 as built.** `AgentEvent` is now the event payload intersected with
   `{ agentPath?: readonly string[] }`; `emit` writes the running context's path onto every event,
   so the runtime form always carries it (the root's is empty). `RunOptions.agentPath` seeds a run,

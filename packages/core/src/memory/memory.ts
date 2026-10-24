@@ -123,6 +123,9 @@ export class AgentMemory {
           }
           break;
         }
+        case "message":
+          messages.push({ role: "user", content: step.from + ": " + step.text });
+          break;
         case "final_answer":
         case "system_prompt":
           break;
@@ -146,6 +149,8 @@ export class AgentMemory {
     for (const step of this.items) {
       if (step.kind === "action" && step.modelOutput !== null) {
         messages.push({ role: "assistant", content: step.modelOutput });
+      } else if (step.kind === "message") {
+        messages.push({ role: "user", content: step.from + ": " + step.text });
       } else if (step.kind === "final_answer") {
         messages.push({ role: "assistant", content: stringifyOutput(step.output) });
       }
