@@ -86,6 +86,27 @@ export class EgressUnsupportedError extends Error {
   }
 }
 
+/** A backend was asked for an option it cannot honour; refusing beats accepting and ignoring. */
+export class UnsupportedOptionError extends Error {
+  readonly backend: string;
+  readonly option: string;
+
+  constructor(backend: string, option: string, remedy: string) {
+    super(
+      'The ' +
+        backend +
+        ' backend cannot honour the option "' +
+        option +
+        '": ' +
+        remedy +
+        " Pass the option only to a backend that can honour it.",
+    );
+    this.name = "UnsupportedOptionError";
+    this.backend = backend;
+    this.option = option;
+  }
+}
+
 /** The vendor SDK's own Node floor is above the one this package declares. */
 export class UnsupportedNodeVersionError extends Error {
   readonly backend: string;

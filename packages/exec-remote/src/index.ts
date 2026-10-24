@@ -16,9 +16,11 @@ export {
   SerializationError,
   ToolRoundTripUnsupportedError,
   UnsupportedNodeVersionError,
+  UnsupportedOptionError,
 } from "./errors.js";
 export type {
   EgressPolicy,
+  SandboxTransfer,
   RemoteSandbox,
   RemoteSandboxFactory,
   SandboxCapabilities,

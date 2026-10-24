@@ -1,7 +1,7 @@
 import type { ToolSpec } from "@smolagents-ts/core";
 import { describe, expect, it } from "vitest";
 import { ProcessSandbox } from "../src/backends/process.js";
-import { PickleRefusedError } from "../src/errors.js";
+import { PickleRefusedError, SerializationError } from "../src/errors.js";
 import { buildShimSource, buildStepSource } from "../src/shim-source.js";
 
 const echo: ToolSpec = {
@@ -113,5 +113,29 @@ describe("the guest shim", () => {
     expect([...answer.value]).toEqual([0, 0, 0]);
     await sandbox.dispose();
     await allowed.dispose();
+  });
+
+  it("binds a declared variable through the value wire and refuses a name Python could not take", async () => {
+    const shimSource = buildShimSource({
+      tools: [],
+      allowToolCalls: false,
+      variables: { seed: 41, rows: [1, 2] },
+    });
+    expect(shimSource).toContain('globals()["seed"] = _decode(41)');
+    expect(shimSource).toContain('globals()["rows"] = _decode([1,2])');
+    expect(() =>
+      buildShimSource({ tools: [], allowToolCalls: false, variables: { "not-an-identifier": 1 } }),
+    ).toThrow(SerializationError);
+
+    // The printed binding is only half the claim: run it, so the guest really holds the value.
+    const sandbox = new ProcessSandbox();
+    await sandbox.start({ shimSource });
+    const result = await sandbox.run({
+      code: "final_answer(seed + 1)",
+      timeoutMs: 5_000,
+      signal: signal(),
+    });
+    expect(result.frames[0]).toEqual({ type: "final_answer", value: 42 });
+    await sandbox.dispose();
   });
 });

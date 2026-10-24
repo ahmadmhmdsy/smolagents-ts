@@ -24,7 +24,7 @@ client.
 
     pnpm vitest run --project exec-remote
 
-Expected result: twelve files with ninety-two tests, exit code 0. Run
+Expected result: thirteen files with ninety-seven tests, exit code 0. Run
 `pnpm --filter @smolagents-ts/exec-remote run typecheck` beside it: the runner
 erases types, and the subpath entry points are only checked by the compiler.
 
@@ -42,7 +42,11 @@ are not re-exported here. The facade depends on it; nothing else does.
   the operating system's rather than a boundary the package draws.
 - A backend that has no mid-run channel runs code in one shot, so a guest can
   only reach `final_answer`; the attempt to call anything else is refused by
-  name rather than answered with nothing.
+  name rather than answered with nothing, and a declared tool set is refused
+  before the vendor sandbox is created.
+- A declared transfer is opt-in: with one the prelude installs exactly the
+  tools it names and binds its variables as globals; without one every registry
+  tool is installed and no variable is bound.
 - The Docker path needs a reachable daemon and a kernel that answers a readiness
   poll; the kernel's own stdin channel is what lets a blocking read finish, and
   a backend that skips it hangs instead of failing.

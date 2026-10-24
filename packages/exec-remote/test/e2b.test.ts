@@ -6,7 +6,12 @@ import {
   type E2BClient,
   type E2BSandboxLike,
 } from "../src/backends/e2b.js";
-import { MissingPeerDependencyError, SandboxError, UnsupportedNodeVersionError } from "../src/errors.js";
+import {
+  MissingPeerDependencyError,
+  SandboxError,
+  UnsupportedNodeVersionError,
+  UnsupportedOptionError,
+} from "../src/errors.js";
 import { FRAME_PREFIX } from "../src/shim-source.js";
 
 // Force the optional peer's dynamic import to fail, so the typed missing-peer refusal is
@@ -177,5 +182,41 @@ describe("the E2B backend", () => {
     expect(refusal?.name).toBe("ToolRoundTripUnsupportedError");
     expect(refusal?.message).toContain('"echo"');
     await sandbox.dispose();
+  });
+
+  it("refuses a declared tool transfer at start without creating a sandbox", async () => {
+    const client = fakeClient();
+    const sandbox = new E2BSandbox({ client, nodeVersion: "24.0.0" });
+    await expect(
+      sandbox.start({
+        shimSource: "PRELUDE",
+        transfer: {
+          tools: [
+            {
+              name: "echo",
+              description: "Echo.",
+              inputSchema: { type: "object", properties: {}, additionalProperties: false },
+            },
+          ],
+          variables: { seed: 1 },
+        },
+      }),
+    ).rejects.toThrow(UnsupportedOptionError);
+    await expect(
+      sandbox.start({
+        shimSource: "PRELUDE",
+        transfer: {
+          tools: [
+            {
+              name: "echo",
+              description: "Echo.",
+              inputSchema: { type: "object", properties: {}, additionalProperties: false },
+            },
+          ],
+          variables: { seed: 1 },
+        },
+      }),
+    ).rejects.toThrow(/transfer\.tools/);
+    expect(client.creates).toBe(0);
   });
 });

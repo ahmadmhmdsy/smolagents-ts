@@ -277,6 +277,28 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.6 — Declared transfers (2026-10-24)
+
+Landed as `packages/exec-remote/test/transfer.test.ts` (three cases, the 13th exec-remote file,
+watched red on variables that never reached the guest, a transfer that did not narrow the
+installed set, and an unrefused bad variable name), plus one case in `shim.test.ts` and one in
+`e2b.test.ts`, and one pin case for the new error.
+
+`SandboxTransfer { tools, variables }` is declared on `RemoteExecutorOptions.transfer` and
+carried to the backend as `SandboxStartOptions.transfer`. With one, the prelude installs exactly
+the declared tool specs and binds each variable through the existing value wire
+(`globals()["seed"] = _decode(41)`) before step 0; without one, every registry tool is installed
+and no variable is bound, so opt-in cannot change an existing run. The E2B backend refuses a
+declared `transfer.tools` with the new `UnsupportedOptionError` — naming the backend, the option
+and the remedy — before it loads the client or creates a sandbox; the other two backends honour
+both halves because each already installs the prelude.
+
+Two honest deviations. The executor reports the bad-name refusal as a failed step whose error
+name is `SerializationError` (a `CodeExecutor` returns failures rather than throwing), so the
+test asserts the typed name and that nothing started rather than a rejected promise. The accepted
+identifier set is the ASCII subset of Python's (`[A-Za-z_][A-Za-z0-9_]*`), a narrower promise
+than the language makes. exec-remote root pins 9 → 10, and exec-remote is 13 files / 97 tests.
+
 ### 4.5 — Generator tools and hosted tools (2026-10-24)
 
 Landed as `packages/core/test/tool-generator.test.ts` (nine cases, the 56th core file, watched

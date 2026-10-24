@@ -1,7 +1,7 @@
 import type { ToolSpec } from "@smolagents-ts/core";
 import { SerializationError } from "./errors.js";
 import type { SandboxFrame } from "./sandbox.js";
-import { decodeValue } from "./serialize.js";
+import { decodeValue, encodeValue } from "./serialize.js";
 
 /** The host-owned sentinel that turns one stdout line into a frame. */
 export const FRAME_PREFIX = "@@SMOLAGENTS_FRAME@@";
@@ -10,7 +10,15 @@ export interface ShimOptions {
   readonly tools: readonly ToolSpec[];
   /** false installs the refusing stub, for a backend with no mid-run call channel (E2B). */
   readonly allowToolCalls: boolean;
+  /**
+   * Values bound as Python globals before step 0. A name Python could not take is refused here,
+   * with `SerializationError`, rather than producing a prelude that fails on import.
+   */
+  readonly variables?: Readonly<Record<string, unknown>>;
 }
+
+/** The identifier subset the wire accepts: Python is wider, and a narrower promise is honest. */
+const PYTHON_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export interface DecodeFrameOptions {
   /** Accept a `pickle:` final answer as raw bytes instead of refusing it. */
@@ -22,6 +30,16 @@ export function buildShimSource(options: ShimOptions): string {
   const lines = PYTHON_PRELUDE.map((line) =>
     line.replace("__TOOL_CALLS_ENABLED__", options.allowToolCalls ? "True" : "False"),
   );
+  for (const [name, value] of Object.entries(options.variables ?? {})) {
+    if (!PYTHON_IDENTIFIER.test(name)) {
+      throw new SerializationError(
+        'Cannot bind "' + name + '" as a guest variable: the name is not a Python identifier.',
+      );
+    }
+    lines.push(
+      "globals()[" + JSON.stringify(name) + "] = _decode(" + JSON.stringify(encodeValue(value)) + ")",
+    );
+  }
   for (const spec of options.tools) {
     const properties = (spec.inputSchema["properties"] ?? {}) as Record<string, unknown>;
     const argNames = JSON.stringify(Object.keys(properties));

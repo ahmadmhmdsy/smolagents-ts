@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T04:24:00+03:00 — Phase 4.6 landed: declared transfers
+
+**State.** 4.1–4.6 are landed; 4.7–4.8 and the phase close remain.
+
+**Did.** `transfer.test.ts` (3 tests, the 13th exec-remote file) was watched red on variables
+that never reached the guest, a transfer that did not narrow the installed set, and an
+unrefused bad variable name; one case each was added to `shim.test.ts` and `e2b.test.ts`, and
+one pin case for the new error. `SandboxTransfer { tools, variables }` is declared on
+`RemoteExecutorOptions.transfer` and carried to the backend as `SandboxStartOptions.transfer`.
+With one, the prelude installs exactly the declared tool specs and binds each variable through
+the existing value wire (`globals()["seed"] = _decode(41)`) before step 0; without one, every
+registry tool is installed and no variable is bound. E2B refuses a declared `transfer.tools`
+with the new `UnsupportedOptionError` (backend, option, remedy) before it loads the client or
+creates a sandbox. Two honest deviations: the executor reports the bad-name refusal as a failed
+step named `SerializationError` because a `CodeExecutor` returns failures rather than throwing,
+and the accepted name set is Python's ASCII subset.
+
+**Verified.** `pnpm vitest run --project exec-remote` → 13 files / 97 tests, exit 0; the
+package typecheck is clean; `python scripts/validate_context.py` → 0 errors, 0 warnings; the
+item gate is recorded in the plan.
+
+**Unverified / open.** No live daemon or hosted sandbox was touched; 4.7 and 4.8 are not
+started. The declared transfer has no facade-level test yet.
+
+**Next.** Write `packages/exec-remote/test/e2b-options.test.ts` and watch it fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:280`,
+`packages/exec-remote/src/sandbox.ts`, `packages/exec-remote/src/shim-source.ts`,
+`packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/transfer.test.ts`.
+
 ## 2026-10-25T04:10:00+03:00 — Phase 4.5 landed: generator and hosted tools
 
 **State.** 4.1–4.5 are landed; 4.6–4.8 and the phase close remain.
@@ -123,52 +155,4 @@ mcp and core typechecks pass; validator 0/0.
 
 **Artifacts.** `packages/mcp/src/notifications.ts`, `packages/mcp/src/client.ts`,
 `packages/mcp/src/tool-adapter.ts`, `packages/mcp/test/notifications.test.ts`.
-
-## 2026-10-25T03:12:00+03:00 — Phase 4.2 landed: resources, prompts and completions
-
-**State.** 4.1 and 4.2 are landed; 4.3–4.8 and the phase close remain.
-
-**Did.** `resources.test.ts` (7 tests, the 12th mcp file) was watched red on the missing methods,
-then the five reads landed on `MCPClient`: `listResources`, `readResource`, `listPrompts`,
-`getPrompt` and `complete`. Shapes and parsers are internal in `src/catalog.ts`; a malformed
-answer raises `MCPProtocolError` naming the method. `server` resolves by the name `getTools()`
-reports and an unknown name raises `MCPConnectionError`. Nothing is cached, and both listings use
-the same bounded `paginate` helper 4.1 gave the tools listing. Read verbs take `{ server?,
-signal? }`; listings add `{ cursor?, maxPages? }`. mcp is 12 files / 129 tests, pins still 32.
-
-**Verified.** `pnpm vitest run --project mcp` exits 0 (12 files, 129 tests); the mcp typecheck
-passes; validator 0/0; `pnpm gate` exits 0.
-
-**Unverified / open.** 4.3–4.8 and the phase close are not implemented.
-
-**Next.** 4.3: write `notifications.test.ts` and watch it fail.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/mcp/src/catalog.ts`, `packages/mcp/src/client.ts`,
-`packages/mcp/test/resources.test.ts`.
-
-## 2026-10-25T02:58:00+03:00 — Phase 4.1 landed: MCP depth
-
-**State.** 4.1 is landed; 4.2–4.8 and the phase close remain.
-
-**Did.** `client-depth.test.ts` (8 tests, the 11th mcp file) was watched red on the missing
-exports, then 4.1 landed: each connection reads the `initialize` capabilities and a gated verb is
-refused before sending (`MCPCapabilityError`); every paginated read is bounded by
-`maxListPages` (default 100, `MCPListLimitError`); a 404 that arrives with a session id clears
-it, re-handshakes and retries once, and `MCPHttpStatusError` keeps `status` and `method`.
-Gating lives in a private `requestFor`, not the public raw `request`; two existing doubles now
-declare `capabilities: { tools: {} }`. mcp is 11 files / 122 tests, pins 29 → 32.
-
-**Verified.** `pnpm vitest run --project mcp` exits 0 (11 files, 122 tests); the mcp typecheck
-passes; validator 0/0; `pnpm gate` exits 0.
-
-**Unverified / open.** 4.2–4.8 and the phase close are not implemented.
-
-**Next.** 4.2: write the resources/prompts/completions test and watch it fail.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/mcp/src/client.ts`, `packages/mcp/test/client-depth.test.ts`,
-`docs/plans/2026-10-24-phase-4-execution-plan.md` (Changes).
 <!-- rotate:end -->

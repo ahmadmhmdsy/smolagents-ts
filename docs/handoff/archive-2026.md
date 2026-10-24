@@ -4,6 +4,54 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T03:12:00+03:00 — Phase 4.2 landed: resources, prompts and completions
+
+**State.** 4.1 and 4.2 are landed; 4.3–4.8 and the phase close remain.
+
+**Did.** `resources.test.ts` (7 tests, the 12th mcp file) was watched red on the missing methods,
+then the five reads landed on `MCPClient`: `listResources`, `readResource`, `listPrompts`,
+`getPrompt` and `complete`. Shapes and parsers are internal in `src/catalog.ts`; a malformed
+answer raises `MCPProtocolError` naming the method. `server` resolves by the name `getTools()`
+reports and an unknown name raises `MCPConnectionError`. Nothing is cached, and both listings use
+the same bounded `paginate` helper 4.1 gave the tools listing. Read verbs take `{ server?,
+signal? }`; listings add `{ cursor?, maxPages? }`. mcp is 12 files / 129 tests, pins still 32.
+
+**Verified.** `pnpm vitest run --project mcp` exits 0 (12 files, 129 tests); the mcp typecheck
+passes; validator 0/0; `pnpm gate` exits 0.
+
+**Unverified / open.** 4.3–4.8 and the phase close are not implemented.
+
+**Next.** 4.3: write `notifications.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/mcp/src/catalog.ts`, `packages/mcp/src/client.ts`,
+`packages/mcp/test/resources.test.ts`.
+
+## 2026-10-25T02:58:00+03:00 — Phase 4.1 landed: MCP depth
+
+**State.** 4.1 is landed; 4.2–4.8 and the phase close remain.
+
+**Did.** `client-depth.test.ts` (8 tests, the 11th mcp file) was watched red on the missing
+exports, then 4.1 landed: each connection reads the `initialize` capabilities and a gated verb is
+refused before sending (`MCPCapabilityError`); every paginated read is bounded by
+`maxListPages` (default 100, `MCPListLimitError`); a 404 that arrives with a session id clears
+it, re-handshakes and retries once, and `MCPHttpStatusError` keeps `status` and `method`.
+Gating lives in a private `requestFor`, not the public raw `request`; two existing doubles now
+declare `capabilities: { tools: {} }`. mcp is 11 files / 122 tests, pins 29 → 32.
+
+**Verified.** `pnpm vitest run --project mcp` exits 0 (11 files, 122 tests); the mcp typecheck
+passes; validator 0/0; `pnpm gate` exits 0.
+
+**Unverified / open.** 4.2–4.8 and the phase close are not implemented.
+
+**Next.** 4.2: write the resources/prompts/completions test and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/mcp/src/client.ts`, `packages/mcp/test/client-depth.test.ts`,
+`docs/plans/2026-10-24-phase-4-execution-plan.md` (Changes).
+
 ## 2026-10-25T02:30:00+03:00 — Phase 4 opened: protocol and tool breadth
 
 **State.** Phase 4 is open and nothing in it has landed yet. `T-45` is the row that carries it.

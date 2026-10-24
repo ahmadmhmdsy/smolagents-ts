@@ -10,7 +10,13 @@ import {
   type ExecutorCapabilities,
 } from "@smolagents-ts/core";
 
-import type { RemoteSandbox, RemoteSandboxFactory, SandboxOutput, SandboxToolCall } from "./sandbox.js";
+import type {
+  RemoteSandbox,
+  RemoteSandboxFactory,
+  SandboxOutput,
+  SandboxToolCall,
+  SandboxTransfer,
+} from "./sandbox.js";
 import { buildShimSource } from "./shim-source.js";
 import { LogStream } from "./streams.js";
 
@@ -35,6 +41,12 @@ export interface RemoteExecutorOptions {
    * opcodes, so a payload that needs unpickling is refused with a typed error instead.
    */
   readonly allowPickle?: boolean;
+  /**
+   * Declare what the guest may receive. With one, the prelude installs exactly the declared
+   * tools and binds each variable before step 0; without one, it installs every registry tool
+   * and binds nothing, so the change is opt-in.
+   */
+  readonly transfer?: SandboxTransfer;
 }
 
 type StopReason = "timeout" | "cancelled";
@@ -53,6 +65,7 @@ export class RemoteExecutor implements CodeExecutor {
   private readonly factory: RemoteSandboxFactory | undefined;
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly allowPickle: boolean;
+  private readonly transfer: SandboxTransfer | undefined;
   private sandbox: RemoteSandbox;
   private started = false;
   private disposed = false;
@@ -67,6 +80,7 @@ export class RemoteExecutor implements CodeExecutor {
     }
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.allowPickle = options.allowPickle === true;
+    this.transfer = options.transfer;
     this.capabilities = {
       language: "python",
       isolation: this.sandbox.capabilities.isolation,
@@ -207,13 +221,15 @@ export class RemoteExecutor implements CodeExecutor {
   /** Install the prelude once, with this step's tool specs, before the first guest step runs. */
   private async ensureStarted(options: ExecuteOptions): Promise<void> {
     if (this.started) return;
+    const transfer = this.transfer;
     const shimSource = buildShimSource({
-      tools: options.tools.toSpecs(),
+      tools: transfer === undefined ? options.tools.toSpecs() : transfer.tools,
       allowToolCalls: this.sandbox.capabilities.toolRoundTrip,
+      ...(transfer === undefined ? {} : { variables: transfer.variables }),
     });
     const sandbox = this.sandbox;
     try {
-      await sandbox.start({ shimSource });
+      await sandbox.start(transfer === undefined ? { shimSource } : { shimSource, transfer });
     } catch (error) {
       // A start() that threw may still hold a container or a vendor sandbox. Hand the next
       // attempt a fresh backend from the factory, then dispose the old one so the half-live

@@ -1,4 +1,4 @@
-import type { ExecutorIsolation, ExecutorNetwork } from "@smolagents-ts/core";
+import type { ExecutorIsolation, ExecutorNetwork, ToolSpec } from "@smolagents-ts/core";
 
 /** One stream the guest wrote on. */
 export type SandboxOutputStream = "stdout" | "stderr";
@@ -43,9 +43,21 @@ export interface SandboxCapabilities {
   readonly toolRoundTrip: boolean;
 }
 
-/** What a sandbox needs once, at start: the generated Python prelude. */
+/**
+ * What a guest may receive, declared by the caller. `tools` replaces the registry-derived set
+ * the prelude installs; `variables` binds each value as a Python global before step 0. A
+ * backend that cannot honour a part of it refuses at start, before it opens anything.
+ */
+export interface SandboxTransfer {
+  readonly tools: readonly ToolSpec[];
+  readonly variables: Readonly<Record<string, unknown>>;
+}
+
+/** What a sandbox needs once, at start: the generated Python prelude, and what it carries. */
 export interface SandboxStartOptions {
   readonly shimSource: string;
+  /** Declared transfer a backend checks before it opens anything; the prelude already carries it. */
+  readonly transfer?: SandboxTransfer;
 }
 
 /** What one step needs. The host's `callTool` answers a guest frame mid-run. */

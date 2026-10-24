@@ -24,6 +24,7 @@ describe("the pinned public surface", () => {
       "SerializationError",
       "ToolRoundTripUnsupportedError",
       "UnsupportedNodeVersionError",
+      "UnsupportedOptionError",
       "VERSION",
     ]);
   });

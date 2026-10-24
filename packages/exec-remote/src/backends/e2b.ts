@@ -1,4 +1,10 @@
-import { MissingPeerDependencyError, SandboxError, ToolRoundTripUnsupportedError, UnsupportedNodeVersionError } from "../errors.js";
+import {
+  MissingPeerDependencyError,
+  SandboxError,
+  ToolRoundTripUnsupportedError,
+  UnsupportedNodeVersionError,
+  UnsupportedOptionError,
+} from "../errors.js";
 import type { EgressPolicy } from "../sandbox.js";
 import type {
   RemoteSandbox,
@@ -114,6 +120,15 @@ export class E2BSandbox implements RemoteSandbox {
   async start(options: SandboxStartOptions): Promise<void> {
     if (this.disposed) throw new SandboxError("This E2B sandbox has been disposed; one sandbox serves one run.");
     if (this.sandbox !== undefined) throw new SandboxError("This E2B sandbox has already started.");
+    // A declared tool set needs the mid-run channel this backend does not have. Refuse before
+    // the client is loaded or a sandbox is created, rather than install tools nothing can answer.
+    if (options.transfer !== undefined && options.transfer.tools.length > 0) {
+      throw new UnsupportedOptionError(
+        "e2b",
+        "transfer.tools",
+        "its one-shot channel has no mid-run tool round trip, so a guest can reach final_answer() only; use the process or Docker backend for a declared tool set.",
+      );
+    }
     const client = this.options.client ?? (await loadE2BClient());
     this.client = client;
     const createOptions: {
