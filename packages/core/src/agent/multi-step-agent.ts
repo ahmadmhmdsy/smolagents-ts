@@ -155,6 +155,12 @@ export interface RunOptions {
    * newest record of the conversation instead of starting from nothing.
    */
   conversationId?: string;
+  /**
+   * Branch a fresh run from a parent record at one of its steps. The child copies the parent's
+   * memory and journal up to that step, names the parent on its own record, and re-enters the
+   * step with the copied journal, so a recorded effect replays instead of running twice.
+   */
+  fork?: { readonly fromRunId: string; readonly atStep: number };
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
@@ -189,6 +195,9 @@ export interface RunContext {
   owner: string;
   /** The conversation the record is tagged with, kept across a resume or left absent. */
   conversationId: string | undefined;
+  /** The parent run and step of a fork, written on every commit of the branch. */
+  parentRunId: string | undefined;
+  parentStep: number | undefined;
   /** Finished steps, the closer a repair appended included. */
   completed: CompletedStep[];
   /** The step in flight, committed while it runs so a repair can name it. */
@@ -549,6 +558,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     options: RunOptions = {},
   ): AsyncGenerator<AgentEvent, void> {
     const runId = options.runId ?? crypto.randomUUID();
+    const fork = options.fork;
     const signal = options.signal ?? new AbortController().signal;
     const context: RunContext = {
       runId,
@@ -560,7 +570,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       budget: options.budget?.budget ?? resolveBudget(this.limits),
       limitReached: undefined,
       stepIndex: 0,
-      durable: this.store !== undefined && options.runId !== undefined,
+      durable: this.store !== undefined && (options.runId !== undefined || fork !== undefined),
       generation: 0,
       createdAt: new Date().toISOString(),
       finishReason: undefined,
@@ -570,6 +580,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       committedSteps: [],
       owner: options.owner ?? crypto.randomUUID(),
       conversationId: options.conversationId,
+      parentRunId: undefined,
+      parentStep: undefined,
       completed: [],
       openStep: undefined,
       journal: [],
@@ -584,7 +596,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.monitor = new Monitor(context.startedAt);
     yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
 
-    if ((options.reset ?? true) && options.resume === undefined) {
+    if (fork !== undefined) {
+      const failure = await this.loadFork(context, fork);
+      if (failure !== undefined) {
+        yield this.emit({ type: "run.failed", error: failure.info });
+        return;
+      }
+    } else if ((options.reset ?? true) && options.resume === undefined) {
       this.memory.reset();
     } else if (this.store !== undefined && options.runId !== undefined) {
       let loaded: RunRecord | undefined;
@@ -678,7 +696,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
       });
       return;
     }
-    if (options.resume === undefined) this.memory.addStep(new TaskStep(task));
+    if (options.resume === undefined && fork === undefined) this.memory.addStep(new TaskStep(task));
+    // A fork continues the budget its copied steps already spent.
+    if (fork !== undefined && options.budget === undefined) {
+      const seed = budgetSeedFromSteps(this.memory.steps);
+      context.budget.turns = seed.turns ?? 0;
+      context.budget.outputTokens = seed.outputTokens ?? 0;
+      context.budget.totalTokens = seed.totalTokens ?? 0;
+    }
     // A continued memory already holds a system prompt, and the transcript renders the current
     // prompt in its place, so a second copy would only pile up in every record.
     if (this.memory.systemPrompt === undefined) {
@@ -957,6 +982,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
         ...(context.conversationId === undefined ? {} : { conversationId: context.conversationId }),
+        ...(context.parentRunId === undefined ? {} : { parentRunId: context.parentRunId }),
+        ...(context.parentStep === undefined ? {} : { parentStep: context.parentStep }),
         status,
         generation: context.generation,
         // A terminal commit releases the claim; a pause keeps it while the record waits.
@@ -980,6 +1007,68 @@ export abstract class MultiStepAgent<TOut = unknown> {
     } finally {
       release();
     }
+  }
+
+  /**
+   * Branch this run from a parent record. The child keeps the parent's memory and journal up to
+   * the fork step, names the parent on its record, starts at generation 0 with no pending request
+   * or owner, and re-enters the fork step so the copied journal answers its effects.
+   */
+  private async loadFork(
+    context: RunContext,
+    fork: { readonly fromRunId: string; readonly atStep: number },
+  ): Promise<AgentError | undefined> {
+    if (this.store === undefined) {
+      return AgentError.from(new Error("A fork needs a store to read the parent run from."));
+    }
+    let parent: RunRecord | undefined;
+    try {
+      const stored = await this.store.load(fork.fromRunId);
+      parent = stored === undefined ? undefined : translateRecord(stored, fork.fromRunId);
+    } catch (error) {
+      return error instanceof RunRecordVersionError ? error : storeError("load", error);
+    }
+    if (parent === undefined) {
+      return new RunNotFoundError(
+        "The fork's parent run " + JSON.stringify(fork.fromRunId) + " holds no record.",
+      );
+    }
+    const atStep = fork.atStep;
+    const target =
+      parent.step?.index === atStep
+        ? parent.step.stepId
+        : (parent.completed?.find((step) => step.index === atStep)?.stepId ??
+          (parent.pending?.stepIndex === atStep ? parent.pending.stepId : undefined));
+    if (target === undefined) {
+      return AgentError.from(
+        new Error(
+          "The parent run has no step " +
+            String(atStep) +
+            " to fork at; its steps end at " +
+            String(parent.step?.index ?? parent.completed?.at(-1)?.index ?? -1) +
+            ".",
+        ),
+      );
+    }
+    const steps = [...parent.memory.steps];
+    const position = steps.findIndex((step) => step.id === target);
+    const copiedSteps = position === -1 ? steps : steps.slice(0, position);
+    const journal = [...(parent.journal ?? [])];
+    let last = -1;
+    for (let index = 0; index < journal.length; index += 1) {
+      if (journal[index]?.stepId === target) last = index;
+    }
+    context.parentRunId = parent.runId;
+    context.parentStep = atStep;
+    context.completed = [...(parent.completed ?? [])].filter((step) => step.index < atStep);
+    context.journal = last === -1 ? [] : journal.slice(0, last + 1);
+    context.conversationId = context.conversationId ?? parent.conversationId;
+    // Re-enter the fork step with the parent's attempt id, so its journaled effects replay.
+    context.replayStepId = target;
+    context.stepIndex = atStep;
+    this.memory.restore(copiedSteps);
+    context.committedSteps = copiedSteps;
+    return this.commitRun(context, "running");
   }
 
   /**

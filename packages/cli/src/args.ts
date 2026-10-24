@@ -22,6 +22,10 @@ export interface CliArguments {
   approve?: string;
   /** The conversation to tag a new run with or to find the newest run of. */
   conversation?: string;
+  /** Branch a fresh run from this parent run's record. Needs forkStep. */
+  fork?: string;
+  /** The parent step a fork re-enters. */
+  forkStep?: number;
   /** The directory run records live in. Defaults to DEFAULT_STATE_DIRECTORY beside the cwd. */
   stateDir: string;
 }
@@ -65,6 +69,8 @@ export const USAGE = [
   "                        or --conversation to name the run)",
   "  --conversation ID     tag a new run with ID, or resume the newest run tagged with",
   "                        it instead of starting another; --run-id names a second run",
+  "  --fork ID             branch a fresh run from run ID's record at --fork-step",
+  "  --fork-step N         the parent step --fork re-enters (needs --fork)",
   "  --state-dir DIR       where run records live (default .smolagents)",
   "",
   "Environment:",
@@ -85,6 +91,8 @@ type ValueOption =
   | "resume"
   | "approve"
   | "conversation"
+  | "fork"
+  | "forkStep"
   | "stateDir";
 
 const VALUE_OPTIONS: ReadonlyMap<string, ValueOption> = new Map([
@@ -99,6 +107,8 @@ const VALUE_OPTIONS: ReadonlyMap<string, ValueOption> = new Map([
   ["--resume", "resume"],
   ["--approve", "approve"],
   ["--conversation", "conversation"],
+  ["--fork", "fork"],
+  ["--fork-step", "forkStep"],
   ["--state-dir", "stateDir"],
 ]);
 
@@ -202,14 +212,28 @@ export function parseArguments(argv: readonly string[]): CliArguments {
       index += 1;
     }
 
-    if (valueKey === "verbosityLevel") {
+    if (valueKey === "verbosityLevel" || valueKey === "forkStep") {
       if (!INTEGER.test(value)) {
-        throw new CliUsageError("argument --verbosity-level: invalid int value: '" + value + "'");
+        throw new CliUsageError("argument --" + (valueKey === "forkStep" ? "fork-step" : "verbosity-level") + ": invalid int value: '" + value + "'");
       }
-      parsed.verbosityLevel = Number.parseInt(value, 10);
+      parsed[valueKey] = Number.parseInt(value, 10);
     } else {
       parsed[valueKey] = value;
     }
+  }
+
+  if (parsed.fork !== undefined && parsed.forkStep === undefined) {
+    throw new CliUsageError(
+      "argument --fork: it re-enters one parent step, so it needs --fork-step <n> to name it.",
+    );
+  }
+  if (parsed.forkStep !== undefined && parsed.fork === undefined) {
+    throw new CliUsageError("argument --fork-step: it names a parent step, so it needs --fork <runId>.");
+  }
+  if (parsed.fork !== undefined && parsed.resume !== undefined) {
+    throw new CliUsageError(
+      "argument --fork: a forked run is a new run, so it cannot be combined with --resume.",
+    );
   }
 
   if (parsed.approve !== undefined && parsed.resume === undefined && parsed.conversation === undefined) {

@@ -140,6 +140,20 @@ describe("parseArguments", () => {
     expect(parseArguments([]).stateDir).toBe(".smolagents");
   });
 
+  it("carries the fork pair and rejects a half of it", () => {
+    const args = parseArguments(["--fork", "parent-1", "--fork-step", "2", "go"]);
+    expect(args.fork).toBe("parent-1");
+    expect(args.forkStep).toBe(2);
+    expect(() => parseArguments(["--fork", "parent-1", "go"])).toThrow(CliUsageError);
+    expect(() => parseArguments(["--fork-step", "2", "go"])).toThrow(CliUsageError);
+    expect(() => parseArguments(["--fork", "parent-1", "--fork-step", "x", "go"])).toThrow(
+      CliUsageError,
+    );
+    expect(() =>
+      parseArguments(["--fork", "parent-1", "--fork-step", "1", "--resume", "r", "go"]),
+    ).toThrow(CliUsageError);
+  });
+
   it("carries a conversation id", () => {
     expect(parseArguments(["--conversation", "conv-2", "go"]).conversation).toBe("conv-2");
   });
@@ -160,6 +174,7 @@ describe("parseArguments", () => {
       expect(usage).toContain("--resume");
       expect(usage).toContain("--approve");
       expect(usage).toContain("--conversation");
+      expect(usage).toContain("--fork");
       expect(usage).toContain("--state-dir");
     }
   });

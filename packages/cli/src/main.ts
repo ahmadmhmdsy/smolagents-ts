@@ -51,7 +51,12 @@ export async function main(
   }
 
   let selection: InteractiveSelection;
-  if (args.prompt === undefined && args.resume === undefined) {
+  if (
+    args.prompt === undefined &&
+    args.resume === undefined &&
+    args.fork === undefined &&
+    args.conversation === undefined
+  ) {
     const prompter = (options.createPrompter ?? createTerminalPrompter)();
     try {
       selection = await interactiveMode({
@@ -93,6 +98,10 @@ export async function main(
     ...(args.runId === undefined ? {} : { runId: args.runId }),
     ...(args.resume === undefined ? {} : { resume: args.resume }),
     ...(args.approve === undefined ? {} : { approve: args.approve }),
+    ...(args.conversation === undefined ? {} : { conversation: args.conversation }),
+    ...(args.fork === undefined
+      ? {}
+      : { fork: { fromRunId: args.fork, atStep: args.forkStep ?? 0 } }),
   });
 }
 

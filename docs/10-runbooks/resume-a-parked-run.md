@@ -85,6 +85,10 @@ step 2 with a `Final answer:` line on stdout.
 
 ## Notes
 
+A run can also be branched instead of resumed: `--fork <parentRunId> --fork-step <n>` starts a
+new record with `parentRunId`/`parentStep`, re-entering that parent step from the copied journal so
+recorded effects do not run again. A fork is a new run, so it is not combined with `--resume`.
+
 The record is written through a temporary file and a rename, so a crash during a resume leaves
 the previous record authoritative; rerunning the same command is safe. `--approve` settles as
 `allowed-once`: there is no sticky grant, and a resumed call whose arguments differ from the

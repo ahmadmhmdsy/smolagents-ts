@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T18:20:00+03:00 — 1.4 landed: effects journaled, not re-run
+
+**State.** Phase 1 items 1.1–1.4 are in the tree; 1.4 closes Wave A. A run record now carries
+an effects journal: every tool effect and every model request is announced (`intent`) before
+it starts and completed (`done`) after it returns. A resumed run replays finished effects,
+refuses to guess at an in-doubt non-idempotent one, and retries only a tool that declares
+`idempotent`. Nothing is pushed.
+
+**Did.** `RunRecord.journal` and `JournalEntry` (stepId is the attempt id; model request is
+`toolName ""`); `EffectOutcomeUnknownError`; `ToolDefinition.idempotent`;
+intent/result commits serialised through one tail promise; model requests journaled and replayed
+without new usage; in-flight steps kept out of the durable `memory` (a park restores the last
+boundary); the answer guardrail now redacts the journal too; `CodeAgent` hands its executor a
+journaled tool registry. `JournalEntry`/`JournalState` exported; the public surface pinned
+`EffectOutcomeUnknownError`.
+
+**Verified.** Core 41 files and 503 tests, including six new journal cases in
+`test/journal.test.ts`: intent before the effect, crash between steps, in-doubt effect refused,
+idempotent retry recorded `unknown`, model replayed, code-agent effect replayed. `pnpm gate` exit 0.
+
+**Unverified-open.** A replay inside generated code surfaces as a tool failure, not a loop
+failure (recorded in the plan, not solved). 1.1's exact commit counts are superseded by journal
+writes; the store test now asserts monotonic actions and one terminal commit.
+
+**Next.** 1.5: the file store — `FileRunStore` over a `RunFileSystem` seam in core plus the Node
+binding in `packages/cli`, certified against the twelve-mode contract first.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`,
+`core/src/session/run-record.ts`, `core/src/agent/multi-step-agent.ts`,
+`core/test/journal.test.ts`.
+
 ## 2026-10-24T17:40:00+03:00 — 1.3 landed: one owner at a time
 
 **State.** Phase 1 items 1.1–1.3 are in the tree. A run record is fenced: `generation` is the

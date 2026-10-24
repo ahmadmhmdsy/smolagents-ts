@@ -92,6 +92,10 @@ export interface RunRecord {
   readonly runId: string;
   /** The conversation this run belongs to, when the caller names one; later runs can find it. */
   readonly conversationId?: string;
+  /** The run this one was forked from, when it was; absent for an original run. */
+  readonly parentRunId?: string;
+  /** The parent's step the fork re-enters, so the branch point is recoverable. */
+  readonly parentStep?: number;
   readonly status: RunStatus;
   /** The ownership fence. Every claim bumps it; a commit at another generation is refused. */
   readonly generation: number;

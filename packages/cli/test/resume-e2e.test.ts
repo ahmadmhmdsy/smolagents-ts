@@ -218,6 +218,56 @@ describe("runSmolagent durability", () => {
     }
   });
 
+  it("forks a completed run from a named step without re-running its effect", async () => {
+    const directory = temporaryDirectory();
+    try {
+      const counter = { calls: 0 };
+      const parked = await runSmolagent({
+        prompt: "Double 21, then answer.",
+        model: new MockModel([TOOL_REPLY]),
+        executor: executorFor(),
+        toolset: [doubleTool(counter)],
+        runId: "parent-fork",
+        stateDir: directory,
+        out: () => {},
+      });
+      expect(parked).toBe(3);
+      const waiting = await storedRecord(directory, "parent-fork");
+      const requestId = waiting.pending?.requestId;
+      if (requestId === undefined) throw new Error("the parked record names no request");
+      const finished = await runSmolagent({
+        model: new MockModel([ANSWER_REPLY]),
+        executor: executorFor(),
+        toolset: [doubleTool(counter)],
+        resume: "parent-fork",
+        approve: requestId,
+        stateDir: directory,
+        out: () => {},
+      });
+      expect(finished).toBe(0);
+      expect(counter.calls).toBe(1);
+
+      const forked = await runSmolagent({
+        model: new MockModel([ANSWER_REPLY]),
+        executor: executorFor(),
+        toolset: [doubleTool(counter)],
+        runId: "child-fork",
+        fork: { fromRunId: "parent-fork", atStep: 0 },
+        stateDir: directory,
+        out: () => {},
+      });
+
+      expect(forked).toBe(0);
+      const child = await storedRecord(directory, "child-fork");
+      expect(child.status).toBe("completed");
+      expect(child.parentRunId).toBe("parent-fork");
+      expect(child.parentStep).toBe(0);
+      expect(counter.calls).toBe(1);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("refuses a resume when the state directory does not exist", async () => {
     const parent = temporaryDirectory();
     try {

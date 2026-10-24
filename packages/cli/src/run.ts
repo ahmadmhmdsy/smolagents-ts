@@ -71,6 +71,8 @@ export interface RunSmolagentOptions {
    * With --run-id it tags a second run of the same conversation.
    */
   conversation?: string;
+  /** Branch a fresh run from this parent record at one of its steps. */
+  fork?: { readonly fromRunId: string; readonly atStep: number };
   /** The run records' directory. Defaults to DEFAULT_STATE_DIRECTORY beside the cwd. */
   stateDir?: string;
   /** The directory a relative state directory is resolved against. Defaults to the cwd. */
@@ -221,9 +223,14 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
     }
 
     const prompt = options.prompt;
-    if (prompt === undefined && options.resume === undefined && options.conversation === undefined) {
+    if (
+      prompt === undefined &&
+      options.resume === undefined &&
+      options.conversation === undefined &&
+      options.fork === undefined
+    ) {
       throw new CliUsageError(
-        "A run needs a task. Pass a prompt, or use --resume <runId> or --conversation <id>.",
+        "A run needs a task. Pass a prompt, or use --resume <runId>, --conversation <id> or --fork <runId>.",
       );
     }
 
@@ -256,6 +263,7 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
       runId?: string;
       resume?: { requestId?: string; outcome?: SettledApprovalOutcome };
       conversationId?: string;
+      fork?: { readonly fromRunId: string; readonly atStep: number };
     } = {};
 
     if (options.resume !== undefined) {
@@ -267,6 +275,19 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
       if (record === undefined) throw new UnknownRunError(options.resume, stateDirectory);
       streamOptions = { runId: options.resume, resume: resumeRequest(record, options.resume, options.approve) };
       task = prompt ?? taskOf(record) ?? "";
+    } else if (options.fork !== undefined) {
+      if (!existsSync(stateDirectory)) {
+        throw new MissingStateDirectoryError(stateDirectory);
+      }
+      store = new FileRunStore(nodeRunFileSystem(stateDirectory));
+      const parent = await loadRecord(store, options.fork.fromRunId);
+      if (parent === undefined) throw new UnknownRunError(options.fork.fromRunId, stateDirectory);
+      streamOptions = {
+        runId: options.runId ?? randomUUID(),
+        fork: options.fork,
+        ...(options.conversation === undefined ? {} : { conversationId: options.conversation }),
+      };
+      task = prompt ?? taskOf(parent) ?? "";
     } else if (options.conversation !== undefined && options.runId === undefined) {
       store = new FileRunStore(nodeRunFileSystem(stateDirectory));
       const latest = existsSync(stateDirectory)

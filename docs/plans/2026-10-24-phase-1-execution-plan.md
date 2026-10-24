@@ -291,6 +291,27 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.8 as built.** `RunOptions.fork` accepts `{fromRunId, atStep}`. With a store, the
+  child loads the parent record, copies the memory before the fork step and the journal through
+  it, and re-enters that step under the parent's attempt id, so its recorded model reply and tool
+  results replay instead of running twice. The record names `parentRunId`/`parentStep`, starts at
+  generation 0 with a fresh owner, conversation and timestamps, inherits no `pending` request and
+  no settlements, and is committed as `running` before the first effect. The child's id is the
+  caller's `runId` or a generated one; the task comes from the copied memory.
+- **CLI.** `--fork <runId>` plus `--fork-step <n>` start that branch (both required together, and
+  `--fork` cannot combine with `--resume`); `--run-id` names the child, a missing task is read from
+  the parent's record, and a missing parent or state directory is refused like a resume. The bin
+  also now passes `--conversation` through, which 1.7 parsed but did not forward, and skips the
+  interactive setup for a fork or conversation.
+- **Acceptance.** `fork.test.ts` was red before the branch existed. It forks a three-step parent at
+  step 1: the child's record names the parent and step, its journal holds the parent's step-1 tool
+  result, the counting tool does not move, and the child finishes under its own id; forking a
+  waiting parent at an earlier completed step leaves `pending` and `owner` off the child. The CLI
+  case parks and finishes a parent, forks it at step 0, and finishes the child with the tool still
+  run once.
+- **Public surface.** No new export: `fork` is an option and `parentRunId`/`parentStep` are fields.
+  Core grew from 517 to 519 tests in a forty-third file and the CLI from 72 to 74.
+
 - **2026-10-24 — 1.7 as built.** `RunRecord` and `RunOptions` gain `conversationId`; the loop
   writes it on every commit and keeps the record's value when a resume does not name one.
   `RunStore` gains `latestForConversation(conversationId)`: `MemoryRunStore` scans its map and

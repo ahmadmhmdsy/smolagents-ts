@@ -33,6 +33,37 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T20:55:00+03:00 — 1.8 landed: a run can branch without repeating effects
+
+**State.** All eight Phase 1 items are in the tree; Phase 1 close is next (exit-criterion test,
+phase report, task closure). Nothing pushed.
+
+**Did.** `RunOptions.fork {fromRunId, atStep}`: a child run loads the parent record, copies the
+memory before the step and the journal through it, and re-enters that step under the parent's
+attempt id, so the recorded model reply and tool results replay instead of running. The record
+names `parentRunId`/`parentStep`, keeps its own conversation, starts at generation 0 with no
+pending request, owner or settlements, and reports its own `runId`. The CLI adds `--fork` plus
+`--fork-step`, refuses either alone or with `--resume`, and reads a missing task from the parent;
+the bin now also forwards `--conversation`, which 1.7 parsed but did not pass on.
+
+**Verified.** `fork.test.ts` was red first. Core 43 files/519 tests, CLI 10/74, `pnpm gate` exit 0,
+validator 0/0, `rotate.py --check` clean. The core acceptance: a three-step parent forked at step
+1 yields a child naming parent/step whose journal holds the step-1 tool result with the counting
+tool unmoved, finishing under its own id; a waiting parent forked at step 0 leaves `pending` off
+the child. The CLI case forks a finished parent and keeps the tool run once.
+
+**Unverified / open.** Phase 1 close: the two-process exit criterion, the phase report, and the
+parent-plan check. A fork at a step with an in-doubt `intent` would fail as an unknown effect;
+not covered by a test.
+
+**Next.** Write the exit-criterion test and the Phase 1 report, close `T-42`, then mark the goal
+complete.
+
+**Blockers.** None for Phase 1; T-14, T-16, T-18, T-21 and T-39 stay owner-blocked.
+
+**Artifacts.** `packages/core/test/fork.test.ts`; `packages/core/src/agent/multi-step-agent.ts`;
+`docs/plans/2026-10-24-phase-1-execution-plan.md`.
+
 ## 2026-10-24T20:05:00+03:00 — 1.7 landed: a run belongs to a conversation
 
 **State.** Phase 1 items 1.1–1.7 are in the tree; only 1.8 (fork) remains. A run can carry a
@@ -120,37 +151,4 @@ by id and approve, with a resume runbook.
 
 **Artifacts.** `core/src/session/file-run-store.ts`, `core/test/file-run-store.test.ts`,
 `cli/src/store.ts`, `cli/test/store.test.ts`, `docs/plans/2026-10-24-phase-1-execution-plan.md`.
-
-## 2026-10-24T18:20:00+03:00 — 1.4 landed: effects journaled, not re-run
-
-**State.** Phase 1 items 1.1–1.4 are in the tree; 1.4 closes Wave A. A run record now carries
-an effects journal: every tool effect and every model request is announced (`intent`) before
-it starts and completed (`done`) after it returns. A resumed run replays finished effects,
-refuses to guess at an in-doubt non-idempotent one, and retries only a tool that declares
-`idempotent`. Nothing is pushed.
-
-**Did.** `RunRecord.journal` and `JournalEntry` (stepId is the attempt id; model request is
-`toolName ""`); `EffectOutcomeUnknownError`; `ToolDefinition.idempotent`;
-intent/result commits serialised through one tail promise; model requests journaled and replayed
-without new usage; in-flight steps kept out of the durable `memory` (a park restores the last
-boundary); the answer guardrail now redacts the journal too; `CodeAgent` hands its executor a
-journaled tool registry. `JournalEntry`/`JournalState` exported; the public surface pinned
-`EffectOutcomeUnknownError`.
-
-**Verified.** Core 41 files and 503 tests, including six new journal cases in
-`test/journal.test.ts`: intent before the effect, crash between steps, in-doubt effect refused,
-idempotent retry recorded `unknown`, model replayed, code-agent effect replayed. `pnpm gate` exit 0.
-
-**Unverified-open.** A replay inside generated code surfaces as a tool failure, not a loop
-failure (recorded in the plan, not solved). 1.1's exact commit counts are superseded by journal
-writes; the store test now asserts monotonic actions and one terminal commit.
-
-**Next.** 1.5: the file store — `FileRunStore` over a `RunFileSystem` seam in core plus the Node
-binding in `packages/cli`, certified against the twelve-mode contract first.
-
-**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`,
-`core/src/session/run-record.ts`, `core/src/agent/multi-step-agent.ts`,
-`core/test/journal.test.ts`.
 <!-- rotate:end -->
