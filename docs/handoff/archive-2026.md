@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T23:10:00+03:00 — 2.4: a child the parent can find again
+
+**State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.4, 2.6 and 2.7 are landed. Next is 2.5 (supervisor
+example), then 2.8 (claim board), then the phase close. Nothing pushed.
+
+**Did.** `agent/background-child.ts` starts a child that outlives the call. The parent record
+gains a `children` row — `provisioning`, then `active`, then `completed`/`failed` carrying the
+typed `ChildReport` — each write its own commit at the parent's next fence. The child runs under
+its own id with `parentRunId` on its record, so the two records point at each other. The cap
+(default 4) counts rows in `provisioning`/`active` and refuses the next start with
+`ChildLimitError` before writing anything. `listChildren` reads rows and resumes nothing;
+`resumeBackgroundChild` returns a stored report, adopts a child record behind a `provisioning`
+row, fails a row that has no record, and resumes an unfinished child.
+
+**Verified.** `background-child.test.ts` (49th core file, 5 cases) green: the parent commits
+provisioning and then completed rows and the child record names `parentRunId`; a start over the
+cap is `ChildLimitError` and writes nothing; listing twice is stable and commits nothing; cold
+resume adopts a completed record and fails a recordless row; a child's typed failure report lands
+on its row with a bounded message. Core 49 files/571 tests (four new pins); CLI 11/77.
+`pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The child's agent must be built with the same store; the helper cannot
+check that. Rows are written by the parent's record, so a concurrent parent commit can lose a row
+write to `StaleWriterError` — 2.5 keeps the supervisor idle while it starts children.
+
+**Next.** 2.5: the supervisor example with two schema'd managed agents, one failing.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `packages/core/src/agent/background-child.ts`;
+`packages/core/test/background-child.test.ts`.
+
 ## 2026-10-24T22:50:00+03:00 — 2.2: a handover the record can name
 
 **State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.6 and 2.7 are landed. Next is 2.4 (bounded background

@@ -53,6 +53,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-29 | settle `agent.on(type, handler)` against the shipped `agent.on(event)` | pending | next session | `packages/core/src/agent/` | a caller following the design gets a `TypeError`; add the overload or correct the design | - |
 | T-40 | apply the research plan | in_progress | next session | `docs/research/competitors/**` | Phase 0, Phase 1 and Phase 2 are closed; the next phase row waits on the owner opening it | `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`; `0025` |
 | T-39 | decide how OmniRoute gateway support ships: docs plus one fixture, or the pre-registered `models-gateway` package | blocked | owner | `docs/**`, `examples/**` and `packages/models/**` for phase 0; `packages/models-gateway/**` for phase 1 | the owner picks a phase; phase 1 needs a new record because 0019 leaves routing unscheduled | `docs/research/2026-10-21-omniroute-gateway-support.md` |
+| T-44 | Phase 3: memory and streams | in_progress | lead | `packages/core/src/memory/**`, `packages/core/src/agent/**`, `packages/core/src/session/**`, `packages/react/src/**` | 3.1 then 3.2; the plan pre-registers every test | `docs/plans/2026-10-24-phase-3-execution-plan.md` |
 <!-- rotate:end -->
 
 ## Blocked
