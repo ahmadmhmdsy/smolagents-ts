@@ -21,6 +21,9 @@ export type AgentErrorCode =
   | "AGENT_RUN_STALE_WRITER"
   | "AGENT_RUN_MESSAGE_REFUSED"
   | "AGENT_CHILD_LIMIT"
+  | "AGENT_TASK_STALE_REVISION"
+  | "AGENT_TASK_BLOCKED"
+  | "AGENT_TASK_DELETED"
   | "AGENT_EFFECT_UNKNOWN";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
@@ -296,6 +299,30 @@ export class ChildLimitError extends AgentError {
   }
 }
 
+/** Raised when a board mutation's expected revision is no longer the row's revision. */
+export class TaskStaleRevisionError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_TASK_STALE_REVISION" });
+    this.name = "TaskStaleRevisionError";
+  }
+}
+
+/** Raised when a claim names a row whose blockers are not all done. */
+export class TaskBlockedError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_TASK_BLOCKED" });
+    this.name = "TaskBlockedError";
+  }
+}
+
+/** Raised when a mutation reaches a row that was tombstoned; the row itself stays readable. */
+export class TaskDeletedError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_TASK_DELETED" });
+    this.name = "TaskDeletedError";
+  }
+}
+
 /** Raised when a tool does not settle inside its deadline. */
 export class ToolTimeoutError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -336,5 +363,8 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_RUN_STALE_WRITER: StaleWriterError,
   AGENT_RUN_MESSAGE_REFUSED: RunMessageRefusedError,
   AGENT_CHILD_LIMIT: ChildLimitError,
+  AGENT_TASK_STALE_REVISION: TaskStaleRevisionError,
+  AGENT_TASK_BLOCKED: TaskBlockedError,
+  AGENT_TASK_DELETED: TaskDeletedError,
   AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
 };

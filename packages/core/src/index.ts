@@ -61,6 +61,7 @@ export {
   type SendRunMessageReceipt,
 } from "./session/messages.js";
 export * from "./session/wait.js";
+export * from "./session/claim-board.js";
 export * from "./session/file-run-store.js";
 export * from "./session/budget.js";
 

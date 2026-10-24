@@ -197,6 +197,16 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.8 as built.** `session/claim-board.ts` keeps rows on the parent record under
+  `board`, each `{ id, title, owner?, status, blockers, writeScopes, revision, updatedAt }`. There
+  is no payload field in the type, and write scopes are recorded as advisory. Every mutation —
+  create, claim, update, complete, tombstone — loads the record, checks the row's revision against
+  the caller's expectation and commits at the parent's next fence, so a stale revision is
+  `TaskStaleRevisionError`. A claim whose blockers are not all `done` is `TaskBlockedError`. A
+  tombstone stays in the list with status `deleted` and refuses every mutation with
+  `TaskDeletedError`. Core 50 files/585 tests, CLI 11/77, `pnpm gate` exit 0.
+
+
 - **2026-10-24 — 2.5 as built.** `examples/supervisor/` declares two managed agents with
   output schemas. The researcher's answer validates; the auditor's omits the `confidence` field
   its schema requires, and because the schema sits on the entry rather than on the child agent,

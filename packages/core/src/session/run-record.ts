@@ -4,6 +4,7 @@ import type { StepJSON } from "../memory/steps.js";
 import type { RunMessage } from "./messages.js";
 import type { TransferSignal } from "../agent/transfer.js";
 import type { ChildRow } from "../agent/background-child.js";
+import type { BoardTask } from "./claim-board.js";
 import type { TokenUsage } from "../types.js";
 
 /** The format version a run record is written in. One integer per format change. */
@@ -103,6 +104,8 @@ export interface RunRecord {
   readonly transfer?: TransferSignal;
   /** The background children this run started, with the phase each one reached. */
   readonly children?: readonly ChildRow[];
+  /** The claim board rows a run owns, when it uses one. */
+  readonly board?: readonly BoardTask[];
   /** The run this one was forked from, when it was; absent for an original run. */
   readonly parentRunId?: string;
   /** The parent's step the fork re-enters, so the branch point is recoverable. */

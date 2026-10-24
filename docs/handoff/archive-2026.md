@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T22:35:00+03:00 — 2.7: a wait is an edge, not a poll
+
+**State.** Phase 2 is open; the first slice (2.1, 2.3, 2.6, 2.7) is landed. Next is the second
+slice: 2.2 (transfer), 2.4 (bounded background child), 2.5 (supervisor example), 2.8 (claim
+board). Nothing pushed.
+
+**Did.** `RunStore.watch(runId, listener)` is the contract's fourteenth mode: a commit or claim
+that lands after registration hands the listener the record, the returned function
+unsubscribes, and watching never writes. `MemoryRunStore` notifies synchronously; `FileRunStore`
+notifies its own writes and reaches another process's through the optional
+`RunFileSystem.watchFile`, which the CLI now binds to `fs.watchFile` with a 50 ms poll, so the
+store's rename-into-place publish survives it. `session/wait.ts` exports `waitForRun`: the
+baseline is the record read at call time, the wait resolves on the first notification whose
+status, fence, step or updatedAt differs, times out and aborts without claiming, and answers
+`noProgress` at once for an unknown or already terminal run.
+
+**Verified.** `wait-for-run.test.ts` (47th core file, 5 cases) green: first edge, terminal
+`noProgress` with no claim, timeout that releases its edge, abort with the generation unchanged,
+and the contract mode run against both shipped stores. Core 47 files/553 tests (six of the new
+cases are the contract mode on three stores); CLI 11 files/77 tests, including a file-watch case
+over a real directory. `pnpm typecheck` clean; `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The second slice is not started. `watchFile` polls; a caller needing
+sub-50 ms latency needs its own watcher.
+
+**Next.** 2.2: a declared transfer target becomes a tool that ends the run with `run.transferred`
+and a typed `TransferSignal`.
+
+**Blockers.** None; the owner's blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/session/wait.ts`; `packages/core/src/session/run-store.ts`;
+`packages/core/src/session/file-run-store.ts`; `packages/cli/src/store.ts`.
+
 ## 2026-10-24T22:20:00+03:00 — 2.6: a send is an ordinary record entry, delivery a boundary
 
 **State.** Phase 2 is open; 2.1, 2.3 and 2.6 are landed. Next is 2.7 (`waitForRun` and the

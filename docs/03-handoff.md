@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T23:55:00+03:00 — 2.8: a claim board, not a data blackboard
+
+**State.** Phase 2's items 2.1–2.8 are all landed. What remains is the close: the exit criterion
+as `phase-2-exit.test.ts`, the phase report, the parent-plan check and the T-43 row. Nothing
+pushed.
+
+**Did.** `session/claim-board.ts` keeps rows on the parent record under `board`. A row is
+`{ id, title, owner?, status, blockers, writeScopes, revision, updatedAt }` and has no payload
+field; write scopes are recorded as advisory and never enforced. Every mutation — create, claim,
+update, complete, tombstone — loads the record, checks the row's revision against the caller's
+expectation and commits at the parent's next fence. A stale revision is
+`TaskStaleRevisionError`; a claim whose blockers are not all `done` is `TaskBlockedError`; a
+tombstone stays in the list with status `deleted` and refuses every mutation with
+`TaskDeletedError`. `listBoard` reads and writes nothing.
+
+**Verified.** `claim-board.test.ts` (50th core file, 5 cases) green: the five mutations bump the
+revision in order (0→4), a stale revision is refused with the row untouched, a blocked claim
+waits for its blocker and then succeeds, a deleted row keeps its tombstone and refuses claim,
+update and delete, and the row carries exactly the documented keys with scopes recorded. Core
+50 files/585 tests (nine new pins); CLI 11/77. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The board's CAS is per record generation: two processes mutating different
+rows still race on the parent's fence, so a lost commit is a refusal rather than a merge.
+
+**Next.** The Phase 2 close: `phase-2-exit.test.ts`, the phase report, the parent-plan check, the
+T-43 row, a final gate and one commit.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `packages/core/src/session/claim-board.ts`;
+`packages/core/test/claim-board.test.ts`.
+
 ## 2026-10-24T23:30:00+03:00 — 2.5: the supervisor shape
 
 **State.** Phase 2 is open; 2.1–2.7 are landed except 2.8 (claim board). Next is 2.8, then the
@@ -125,37 +157,4 @@ starting it.
 
 **Artifacts.** `packages/core/src/agent/transfer.ts`; `packages/core/test/transfer.test.ts`;
 `packages/core/src/events.ts`; `packages/core/src/agent/run-result.ts`.
-
-## 2026-10-24T22:35:00+03:00 — 2.7: a wait is an edge, not a poll
-
-**State.** Phase 2 is open; the first slice (2.1, 2.3, 2.6, 2.7) is landed. Next is the second
-slice: 2.2 (transfer), 2.4 (bounded background child), 2.5 (supervisor example), 2.8 (claim
-board). Nothing pushed.
-
-**Did.** `RunStore.watch(runId, listener)` is the contract's fourteenth mode: a commit or claim
-that lands after registration hands the listener the record, the returned function
-unsubscribes, and watching never writes. `MemoryRunStore` notifies synchronously; `FileRunStore`
-notifies its own writes and reaches another process's through the optional
-`RunFileSystem.watchFile`, which the CLI now binds to `fs.watchFile` with a 50 ms poll, so the
-store's rename-into-place publish survives it. `session/wait.ts` exports `waitForRun`: the
-baseline is the record read at call time, the wait resolves on the first notification whose
-status, fence, step or updatedAt differs, times out and aborts without claiming, and answers
-`noProgress` at once for an unknown or already terminal run.
-
-**Verified.** `wait-for-run.test.ts` (47th core file, 5 cases) green: first edge, terminal
-`noProgress` with no claim, timeout that releases its edge, abort with the generation unchanged,
-and the contract mode run against both shipped stores. Core 47 files/553 tests (six of the new
-cases are the contract mode on three stores); CLI 11 files/77 tests, including a file-watch case
-over a real directory. `pnpm typecheck` clean; `pnpm gate` exit 0; validator 0/0; rotate clean.
-
-**Unverified / open.** The second slice is not started. `watchFile` polls; a caller needing
-sub-50 ms latency needs its own watcher.
-
-**Next.** 2.2: a declared transfer target becomes a tool that ends the run with `run.transferred`
-and a typed `TransferSignal`.
-
-**Blockers.** None; the owner's blocked rows are unchanged.
-
-**Artifacts.** `packages/core/src/session/wait.ts`; `packages/core/src/session/run-store.ts`;
-`packages/core/src/session/file-run-store.ts`; `packages/cli/src/store.ts`.
 <!-- rotate:end -->
