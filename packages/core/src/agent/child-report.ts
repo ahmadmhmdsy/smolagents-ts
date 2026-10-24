@@ -32,6 +32,8 @@ export interface ChildReport<T = unknown> {
 /** Options for a managed-agent run. The signal is the caller's cancellation. */
 export interface RunManagedAgentOptions {
   readonly signal?: AbortSignal;
+  /** The parent's agent path; the child's run appends its own name to it. */
+  readonly agentPath?: readonly string[];
 }
 
 const MAX_DIAGNOSTIC = 300;
@@ -50,7 +52,10 @@ export async function runManagedAgent<T = unknown>(
   const prompt = populateTemplate(MANAGED_AGENT_TASK_TEMPLATE, { name: entry.name, task });
   let result: RunResult;
   try {
-    result = await entry.agent.run(prompt, options.signal === undefined ? {} : { signal: options.signal });
+    result = await entry.agent.run(prompt, {
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+      ...(options.agentPath === undefined ? {} : { agentPath: options.agentPath }),
+    });
   } catch (error) {
     return { stopReason: stopReasonOf(error), failure: failureOf(error, task) };
   }

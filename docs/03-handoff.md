@@ -33,6 +33,36 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T22:10:00+03:00 — 2.3: every event and record names its agent path
+
+**State.** Phase 2 is open; 2.1 (typed child report) and 2.3 (agent path) are landed. Next is 2.6,
+then 2.7, then the second slice. Nothing pushed.
+
+**Did.** `AgentEvent` is the payload union intersected with an optional `agentPath`, and `emit`
+writes the running context's path onto every event, so the runtime form always carries it. The
+root run's path is empty; a managed child runs with its parent's path plus its own name, so a
+second level reads `["researcher","writer"]`. `RunOptions.agentPath` seeds a run and
+`RunRecord.agentPath` keeps it; both executor seams forward the path to every tool call's
+`ToolContext`, which is how the managed-agent tool knows where to extend it. A caller-supplied
+path is extended, never replaced.
+
+**Verified.** `agent-path.test.ts` (45th core file, 5 cases) green: empty root path, one-level and
+two-level child paths, the stored record path, and extension of a caller's path. Core 45
+files/532 tests; `pnpm typecheck` clean across the workspace; `pnpm gate` exit 0; validator
+0/0; rotate clean. Two exact event-shape assertions moved to `toMatchObject` because the event
+contract grew a field.
+
+**Unverified / open.** 2.6, 2.7, 2.2, 2.4, 2.5 and 2.8 are not started. A child's record is not
+durable unless its own run names a run id; the path is on the record either way.
+
+**Next.** 2.6: `sendRunMessage` writes an ordinary user-role message into a run's record and
+returns a receipt; a running target sees it at its next step boundary, a parked one resumes.
+
+**Blockers.** None; the owner's blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/events.ts`; `packages/core/src/agent/multi-step-agent.ts`;
+`packages/core/src/session/run-record.ts`; `packages/core/test/agent-path.test.ts`.
+
 ## 2026-10-24T21:45:00+03:00 — Phase 2 opened; 2.1 gives a child a typed report
 
 **State.** Phase 2 (delegation that survives its parent) is open under
@@ -116,36 +146,8 @@ not covered by a test.
 **Next.** Write the exit-criterion test and the Phase 1 report, close `T-42`, then mark the goal
 complete.
 
-**Blockers.** None for Phase 1; T-14, T-16, T-18, T-21 and T-39 stay owner-blocked.
+**Blockers.** None for Phase 1; the owner-blocked rows were unchanged.
 
 **Artifacts.** `packages/core/test/fork.test.ts`; `packages/core/src/agent/multi-step-agent.ts`;
 `docs/plans/2026-10-24-phase-1-execution-plan.md`.
-
-## 2026-10-24T20:05:00+03:00 — 1.7 landed: a run belongs to a conversation
-
-**State.** Phase 1 items 1.1–1.7 are in the tree; only 1.8 (fork) remains. A run can carry a
-conversation id, the store can name the newest run of one, and the CLI resumes it. Nothing pushed.
-
-**Did.** `RunRecord`/`RunOptions` gained `conversationId`, written on every commit and kept on a
-resume that does not name one. `RunStore.latestForConversation` is answered by both stores with a
-timestamp-then-run-id tie-break and certified by a thirteenth contract mode. The CLI reads
-`--conversation <id>`: it resumes the newest run of that conversation (same settlement rules as
-`--resume`; `--approve` now accepts either name) or starts one tagged with the id, minting a run
-id when `--run-id` is absent. `--run-id` plus `--conversation` starts a second run of the same
-conversation.
-
-**Verified.** Contract and run-store cases were red on the missing method first. The CLI case
-starts a conversation, starts a second run that parks, then resumes it by conversation with the
-tool run once and two records left. Core 42 files/517 tests, CLI 10/72, `pnpm gate` exit 0,
-validator 0/0, `rotate.py --check` clean.
-
-**Unverified / open.** `--conversation` together with `--resume` is accepted and `--resume` wins;
-no test covers that pair. 1.8 remains.
-
-**Next.** 1.8: fork a run from a named step.
-
-**Blockers.** None for Phase 1; T-14, T-16, T-18, T-21 and T-39 stay owner-blocked.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`;
-`packages/core/src/session/run-store.ts`; `packages/cli/src/run.ts`.
 <!-- rotate:end -->

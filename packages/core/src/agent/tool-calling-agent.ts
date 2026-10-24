@@ -207,6 +207,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       callId,
       stepIndex,
       logger: this.logger,
+      agentPath: context.agentPath,
     };
     const stepId = context.openStep?.stepId;
     let retried = false;

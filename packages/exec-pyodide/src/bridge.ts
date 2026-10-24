@@ -33,6 +33,7 @@ export interface ToolBridgeOptions {
   readonly stepIndex: number;
   readonly logger: Logger;
   readonly fetch: typeof globalThis.fetch;
+  readonly agentPath?: readonly string[];
   readonly onToolCall?: (event: ToolCallEvent) => void;
 }
 
@@ -108,6 +109,7 @@ export class ToolBridge {
       callId,
       stepIndex: options.stepIndex,
       logger: options.logger,
+      ...(options.agentPath === undefined ? {} : { agentPath: options.agentPath }),
     };
     try {
       const output = await tool.execute(parsed.data, context);

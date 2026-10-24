@@ -197,6 +197,16 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.3 as built.** `AgentEvent` is now the event payload intersected with
+  `{ agentPath?: readonly string[] }`; `emit` writes the running context's path onto every event,
+  so the runtime form always carries it (the root's is empty). `RunOptions.agentPath` seeds a run,
+  `RunRecord.agentPath` keeps it, and both executor seams forward it to every tool call's
+  `ToolContext`, so a managed child runs with the parent's path plus its own name. A caller's path
+  is extended, never replaced. Two exact event-shape assertions in the budget and max-steps tests
+  moved to `toMatchObject` because the contract grew a field. Core 45 files/532 tests,
+  `pnpm gate` exit 0.
+
+
 - **2026-10-24 — 2.1 as built.** New `child-report.ts` exports `ChildReport<T>`, `ChildFailure`,
   `ChildStopReason`, `RunManagedAgentOptions` and `runManagedAgent`. `ManagedAgent` gains an optional
   `outputSchema`; a managed run reports `{stopReason, value?, failure?}` with the value validated

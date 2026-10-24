@@ -39,6 +39,8 @@ export interface ExecuteOptions {
   readonly timeoutMs: number;
   readonly stepIndex: number;
   readonly logger: Logger;
+  /** The agents this step runs under, forwarded to every tool call's context. */
+  readonly agentPath?: readonly string[];
   readonly onToolCall?: (event: ToolCallEvent) => void;
   readonly onLog?: (line: string) => void;
 }

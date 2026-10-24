@@ -4,6 +4,34 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T20:05:00+03:00 — 1.7 landed: a run belongs to a conversation
+
+**State.** Phase 1 items 1.1–1.7 are in the tree; only 1.8 (fork) remains. A run can carry a
+conversation id, the store can name the newest run of one, and the CLI resumes it. Nothing pushed.
+
+**Did.** `RunRecord`/`RunOptions` gained `conversationId`, written on every commit and kept on a
+resume that does not name one. `RunStore.latestForConversation` is answered by both stores with a
+timestamp-then-run-id tie-break and certified by a thirteenth contract mode. The CLI reads
+`--conversation <id>`: it resumes the newest run of that conversation (same settlement rules as
+`--resume`; `--approve` now accepts either name) or starts one tagged with the id, minting a run
+id when `--run-id` is absent. `--run-id` plus `--conversation` starts a second run of the same
+conversation.
+
+**Verified.** Contract and run-store cases were red on the missing method first. The CLI case
+starts a conversation, starts a second run that parks, then resumes it by conversation with the
+tool run once and two records left. Core 42 files/517 tests, CLI 10/72, `pnpm gate` exit 0,
+validator 0/0, `rotate.py --check` clean.
+
+**Unverified / open.** `--conversation` together with `--resume` is accepted and `--resume` wins;
+no test covers that pair. 1.8 remains.
+
+**Next.** 1.8: fork a run from a named step.
+
+**Blockers.** None for Phase 1; T-14, T-16, T-18, T-21 and T-39 stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`;
+`packages/core/src/session/run-store.ts`; `packages/cli/src/run.ts`.
+
 ## 2026-10-24T19:35:00+03:00 — 1.6 landed: the CLI can park and resume
 
 **State.** Phase 1 items 1.1–1.6 are in the tree; Wave B is half done. A durable CLI run now

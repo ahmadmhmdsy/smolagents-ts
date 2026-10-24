@@ -92,6 +92,8 @@ export interface RunRecord {
   readonly runId: string;
   /** The conversation this run belongs to, when the caller names one; later runs can find it. */
   readonly conversationId?: string;
+  /** The agents that produced this run: empty at the root, the child names below it. */
+  readonly agentPath?: readonly string[];
   /** The run this one was forked from, when it was; absent for an original run. */
   readonly parentRunId?: string;
   /** The parent's step the fork re-enters, so the branch point is recoverable. */

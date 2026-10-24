@@ -125,6 +125,7 @@ export class PyodideExecutor implements CodeExecutor {
       stepIndex: options.stepIndex,
       logger: options.logger,
       fetch: this.fetchImpl,
+      ...(options.agentPath === undefined ? {} : { agentPath: options.agentPath }),
       ...(options.onToolCall === undefined ? {} : { onToolCall: options.onToolCall }),
     });
     const run: RunState = { options, logs: new LogStream(options.onLog), bridge };

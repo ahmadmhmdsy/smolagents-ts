@@ -167,7 +167,7 @@ describe("MultiStepAgent", () => {
       agent: { maxSteps: 2 },
     });
     const events = await collect(agent, "Q");
-    expect(events.at(-1)).toEqual({ type: "run.maxStepsReached", steps: 2 });
+    expect(events.at(-1)).toMatchObject({ type: "run.maxStepsReached", steps: 2 });
   });
 
   it("throws AgentMaxStepsError from run()", async () => {

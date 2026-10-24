@@ -16,6 +16,8 @@ export interface ToolContext {
   readonly callId: string;
   readonly stepIndex: number;
   readonly logger: Logger;
+  /** The agents that reached this tool call, root first; empty for a root run. */
+  readonly agentPath?: readonly string[];
 }
 
 export interface ToolDefinition<TIn extends z.ZodType, TOut = unknown> {

@@ -101,6 +101,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
         timeoutMs: this.executionTimeoutMs,
         stepIndex,
         logger: this.logger,
+        agentPath: context.agentPath,
         onLog: (text) => {
           queue.push({ type: "logs.appended", stepIndex, text });
         },

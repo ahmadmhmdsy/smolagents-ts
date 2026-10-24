@@ -100,7 +100,7 @@ describe("the run budget", () => {
 
     const events = await drain(agent, "spend the budget");
 
-    expect(events.at(-1)).toEqual({ type: "run.limitReached", reason: "limitTotalTokens" });
+    expect(events.at(-1)).toMatchObject({ type: "run.limitReached", reason: "limitTotalTokens" });
     expect(events.some((event) => event.type === "run.completed")).toBe(false);
   });
 
@@ -117,7 +117,7 @@ describe("the run budget", () => {
     const second = agentWith([workTurn(2, "c3")], { maxTotalTokens: 5 });
     const secondEvents = await drain(second, "keep working", { budget });
 
-    expect(secondEvents.at(-1)).toEqual({ type: "run.limitReached", reason: "limitTotalTokens" });
+    expect(secondEvents.at(-1)).toMatchObject({ type: "run.limitReached", reason: "limitTotalTokens" });
     expect(budget.budget.totalTokens).toBe(6);
   });
 
@@ -136,7 +136,7 @@ describe("the run budget", () => {
     });
     const events = await drain(resumed, "continue", { reset: false, runId: "run" });
 
-    expect(events.at(-1)).toEqual({ type: "run.limitReached", reason: "limitTotalTokens" });
+    expect(events.at(-1)).toMatchObject({ type: "run.limitReached", reason: "limitTotalTokens" });
     expect(model.callCount).toBe(0);
   });
 });

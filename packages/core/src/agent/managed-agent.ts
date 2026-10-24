@@ -57,7 +57,13 @@ export function managedAgent<T = unknown>(
     inputSchema: MANAGED_AGENT_INPUT_SCHEMA,
     outputSchema: z.string(),
     async execute(input, ctx) {
-      const report = await runManagedAgent(entry, input.task, { signal: ctx.signal });
+      // The child's events name the path it ran under; the parent's path reaches this tool
+      // through the tool context the loop fills for every call.
+      const parentPath = ctx.agentPath ?? [];
+      const report = await runManagedAgent(entry, input.task, {
+        signal: ctx.signal,
+        agentPath: [...parentPath, entry.name],
+      });
       return renderReport(entry.name, report);
     },
   });

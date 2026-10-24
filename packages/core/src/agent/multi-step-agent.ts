@@ -156,6 +156,11 @@ export interface RunOptions {
    */
   conversationId?: string;
   /**
+   * The agents to report in every event's path, root first. A managed child appends its own
+   * name to its parent's path; an ordinary run leaves this empty.
+   */
+  agentPath?: readonly string[];
+  /**
    * Branch a fresh run from a parent record at one of its steps. The child copies the parent's
    * memory and journal up to that step, names the parent on its own record, and re-enters the
    * step with the copied journal, so a recorded effect replays instead of running twice.
@@ -195,6 +200,8 @@ export interface RunContext {
   owner: string;
   /** The conversation the record is tagged with, kept across a resume or left absent. */
   conversationId: string | undefined;
+  /** The agents this run produced events as, root first; empty at the root. */
+  readonly agentPath: readonly string[];
   /** The parent run and step of a fork, written on every commit of the branch. */
   parentRunId: string | undefined;
   parentStep: number | undefined;
@@ -580,6 +587,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       committedSteps: [],
       owner: options.owner ?? crypto.randomUUID(),
       conversationId: options.conversationId,
+      agentPath: options.agentPath ?? [],
       parentRunId: undefined,
       parentStep: undefined,
       completed: [],
@@ -982,6 +990,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
         ...(context.conversationId === undefined ? {} : { conversationId: context.conversationId }),
+        agentPath: context.agentPath,
         ...(context.parentRunId === undefined ? {} : { parentRunId: context.parentRunId }),
         ...(context.parentStep === undefined ? {} : { parentStep: context.parentStep }),
         status,
@@ -1644,14 +1653,20 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   private emit(event: AgentEvent): AgentEvent {
+    // Enrich at emission, the one place every event passes: the path names the agents that
+    // produced it, so a nested child's events are attributable without a second event shape.
+    const enriched: AgentEvent = {
+      ...event,
+      agentPath: this.activeContext?.agentPath ?? [],
+    } as AgentEvent;
     for (const listener of this.listeners) {
       try {
-        listener(event);
+        listener(enriched);
       } catch (error) {
         this.logger.warn("An agent event listener threw", error);
       }
     }
-    return event;
+    return enriched;
   }
 }
 

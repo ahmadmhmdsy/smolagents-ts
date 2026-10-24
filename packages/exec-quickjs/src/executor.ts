@@ -311,6 +311,7 @@ export class QuickJSExecutor implements CodeExecutor {
       callId,
       stepIndex: options.stepIndex,
       logger: options.logger,
+      ...(options.agentPath === undefined ? {} : { agentPath: options.agentPath }),
     };
     try {
       const output = await tool.execute(parsed.data, toolContext);

@@ -12,7 +12,7 @@ import type { LimitStopReason } from "./session/budget.js";
  * matching ".completed" event. AgentSession implements this rule and never lets a delta
  * mutate its authoritative snapshot.
  */
-export type AgentEvent =
+export type AgentEventPayload =
   | { type: "run.started"; runId: string; task: string; modelId: string }
   | { type: "planning.started"; stepIndex: number }
   | { type: "planning.delta"; stepIndex: number; text: string }
@@ -38,10 +38,18 @@ export type AgentEvent =
   | { type: "run.waiting"; result: RunResult }
   | { type: "run.resumed"; runId: string; requestId: string; outcome: ApprovalOutcome };
 
-export type AgentEventType = AgentEvent["type"];
+/**
+ * Every event a run emits, carrying the path of the agents that produced it. The root run's
+ * path is empty; a managed child appends its own name to its parent's path.
+ */
+export type AgentEvent = AgentEventPayload & { readonly agentPath?: readonly string[] };
+
+export type AgentEventType = AgentEventPayload["type"];
 
 /** Extract the event variant for a given type, so consumers can narrow precisely. */
-export type AgentEventOf<T extends AgentEventType> = Extract<AgentEvent, { type: T }>;
+export type AgentEventOf<T extends AgentEventType> = Extract<AgentEventPayload, { type: T }> & {
+  readonly agentPath?: readonly string[];
+};
 
 /** True for advisory events: progressive enhancement only, never authoritative. */
 export function isAdvisory(type: AgentEventType): boolean {
