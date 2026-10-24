@@ -68,6 +68,11 @@ export interface SandboxRunOptions {
   readonly timeoutMs: number;
   readonly signal: AbortSignal;
   readonly allowPickle?: boolean;
+  /**
+   * Which guest context this step runs in. Only a backend that keeps several contexts can
+   * honour it; one that owns a single namespace refuses it rather than selecting nothing.
+   */
+  readonly contextId?: string;
 }
 
 /** One step's outcome, as the backend saw it. */

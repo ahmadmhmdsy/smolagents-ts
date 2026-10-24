@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { EgressUnsupportedError, MissingPeerDependencyError, SandboxError } from "../errors.js";
+import {
+  EgressUnsupportedError,
+  MissingPeerDependencyError,
+  SandboxError,
+  UnsupportedOptionError,
+} from "../errors.js";
 import {
   JupyterGateway,
   globalWebSocketFactory,
@@ -183,6 +188,13 @@ export class DockerSandbox implements RemoteSandbox {
 
   async run(options: SandboxRunOptions): Promise<SandboxRunResult> {
     if (this.disposed) throw new SandboxError("This Docker sandbox has been disposed.");
+    if (options.contextId !== undefined) {
+      throw new UnsupportedOptionError(
+        "docker",
+        "contextId",
+        "it runs one guest with a single namespace, so there is no second context to select.",
+      );
+    }
     const kernel = this.kernel;
     if (kernel === undefined) throw new SandboxError("This Docker sandbox has not been started.");
     return kernel.run(options);

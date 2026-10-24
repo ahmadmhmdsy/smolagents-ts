@@ -40,6 +40,7 @@ export interface E2BExecution {
 
 export interface E2BRunOptions {
   readonly timeoutMs?: number;
+  readonly contextId?: string;
   readonly onStdout?: (line: string) => void;
   readonly onStderr?: (line: string) => void;
 }
@@ -49,6 +50,10 @@ export interface E2BSandboxLike {
   readonly sandboxId: string;
   runCode(code: string, options?: E2BRunOptions): Promise<E2BExecution>;
   kill(): Promise<void>;
+  /** Present when the vendor sandbox can extend its own lifetime; absent ones refuse keepAliveMs. */
+  setTimeout?(timeoutMs: number): Promise<void>;
+  /** Present when the vendor sandbox samples its guest; guestMetrics() reports undefined without it. */
+  getMetrics?(): Promise<unknown>;
 }
 
 export interface E2BClient {
@@ -57,6 +62,8 @@ export interface E2BClient {
     readonly timeoutMs: number;
     readonly template?: string;
     readonly egress: EgressPolicy;
+    /** The vendor stores this on the sandbox, so an orphan can be found by it. */
+    readonly metadata?: Readonly<Record<string, string>>;
   }): Promise<E2BSandboxLike>;
 }
 
@@ -75,9 +82,23 @@ export interface E2BSandboxOptions {
    * reduced reach.
    */
   readonly egress?: EgressPolicy;
+  /** Stored on the vendor sandbox at create, so an orphan can be found by this map. */
+  readonly metadata?: Readonly<Record<string, string>>;
+  /**
+   * A step's deadline when the step names none. The sandbox lifetime is a different number and
+   * is never used as an execution deadline.
+   */
+  readonly executionTimeoutMs?: number;
+  /** Extend the lifetime before a step when this long has passed since the last extension. */
+  readonly keepAliveMs?: number;
+  /** Which guest context a step runs in; a step may name its own. */
+  readonly contextId?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 300_000;
+
+/** A step's deadline when neither the step nor the caller names one. */
+const DEFAULT_EXECUTION_TIMEOUT_MS = 60_000;
 
 /** Compare dotted version strings; true when `actual` is at or above `required`. */
 export function satisfiesNodeFloor(actual: string, required: string): boolean {
@@ -95,6 +116,8 @@ export class E2BSandbox implements RemoteSandbox {
   readonly capabilities: SandboxCapabilities;
 
   private readonly options: E2BSandboxOptions;
+  private readonly executionTimeoutMs: number;
+  private lastKeepAliveAt: number | undefined;
   private client: E2BClient | undefined;
   private sandbox: E2BSandboxLike | undefined;
   private disposed = false;
@@ -105,6 +128,7 @@ export class E2BSandbox implements RemoteSandbox {
       throw new UnsupportedNodeVersionError("e2b", E2B_NODE_FLOOR, actual);
     }
     this.options = options;
+    this.executionTimeoutMs = options.executionTimeoutMs ?? DEFAULT_EXECUTION_TIMEOUT_MS;
     this.capabilities = {
       isolation: "remote",
       network: options.egress === "deny-all" ? "none" : "direct",
@@ -136,12 +160,14 @@ export class E2BSandbox implements RemoteSandbox {
       template?: string;
       timeoutMs: number;
       egress: EgressPolicy;
+      metadata?: Readonly<Record<string, string>>;
     } = {
       timeoutMs: this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       egress: this.options.egress ?? "unmanaged",
     };
     if (this.options.apiKey !== undefined) createOptions.apiKey = this.options.apiKey;
     if (this.options.template !== undefined) createOptions.template = this.options.template;
+    if (this.options.metadata !== undefined) createOptions.metadata = this.options.metadata;
     let sandbox: E2BSandboxLike;
     try {
       sandbox = await client.create(createOptions);
@@ -149,9 +175,27 @@ export class E2BSandbox implements RemoteSandbox {
       throw new SandboxError("The E2B sandbox could not be created.", { cause: error });
     }
     this.sandbox = sandbox;
+    const keepAliveMs = this.options.keepAliveMs;
+    if (keepAliveMs !== undefined) {
+      if (sandbox.setTimeout === undefined) {
+        // A lifetime that cannot be extended would expire mid-run; refusing beats a silent loss.
+        this.sandbox = undefined;
+        try {
+          await sandbox.kill();
+        } catch {
+          // The refusal is the answer; a teardown failure must not replace it.
+        }
+        throw new UnsupportedOptionError(
+          "e2b",
+          "keepAliveMs",
+          "this client seam exposes no setTimeout, so the lifetime cannot be extended before a slow step.",
+        );
+      }
+      this.lastKeepAliveAt = Date.now();
+    }
     // Install the prelude once; every later step shares the hosted kernel's globals.
     try {
-      await sandbox.runCode(options.shimSource, { timeoutMs: this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS });
+      await sandbox.runCode(options.shimSource, { timeoutMs: this.executionTimeoutMs });
     } catch (error) {
       throw new SandboxError("The E2B prelude could not be installed.", { cause: error });
     }
@@ -161,6 +205,7 @@ export class E2BSandbox implements RemoteSandbox {
     if (this.disposed) throw new SandboxError("This E2B sandbox has been disposed.");
     const sandbox = this.sandbox;
     if (sandbox === undefined) throw new SandboxError("This E2B sandbox has not been started.");
+    await this.refreshLifetime(sandbox);
     const startedAt = Date.now();
     const frames: SandboxFrame[] = [];
     const outputs: SandboxOutput[] = [];
@@ -194,13 +239,16 @@ export class E2BSandbox implements RemoteSandbox {
       }
       frames.push(frame);
     };
+    const contextId = options.contextId ?? this.options.contextId;
+    const runOptions: E2BRunOptions = {
+      timeoutMs: options.timeoutMs > 0 ? options.timeoutMs : this.executionTimeoutMs,
+      onStdout: (line) => collect("stdout", line),
+      onStderr: (line) => collect("stderr", line),
+      ...(contextId === undefined ? {} : { contextId }),
+    };
     let execution: E2BExecution;
     try {
-      execution = await sandbox.runCode(buildStepSource(options.code), {
-        timeoutMs: options.timeoutMs > 0 ? options.timeoutMs : (this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
-        onStdout: (line) => collect("stdout", line),
-        onStderr: (line) => collect("stderr", line),
-      });
+      execution = await sandbox.runCode(buildStepSource(options.code), runOptions);
     } catch (error) {
       throw new SandboxError("The E2B code execution failed.", { cause: error });
     }
@@ -215,6 +263,25 @@ export class E2BSandbox implements RemoteSandbox {
     }
     if (!frames.some((frame) => frame.type === "step_end")) frames.push({ type: "step_end" });
     return { frames, outputs, exitStatus: null, durationMs: Date.now() - startedAt };
+  }
+
+  /** The vendor's own guest sample, or undefined when the seam exposes none. */
+  async guestMetrics(): Promise<unknown> {
+    const sandbox = this.sandbox;
+    if (sandbox?.getMetrics === undefined) return undefined;
+    return await sandbox.getMetrics();
+  }
+
+  /** Extend the lifetime first when the last extension is older than keepAliveMs. */
+  private async refreshLifetime(sandbox: E2BSandboxLike): Promise<void> {
+    const keepAliveMs = this.options.keepAliveMs;
+    if (keepAliveMs === undefined) return;
+    const last = this.lastKeepAliveAt ?? 0;
+    if (Date.now() - last < keepAliveMs) return;
+    const setTimeoutOnSandbox = sandbox.setTimeout;
+    if (setTimeoutOnSandbox === undefined) return;
+    await setTimeoutOnSandbox.call(sandbox, this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    this.lastKeepAliveAt = Date.now();
   }
 
   async dispose(): Promise<void> {
@@ -241,6 +308,8 @@ interface VendorSandboxLike {
   readonly sandboxId?: unknown;
   runCode(code: string, options?: Record<string, unknown>): Promise<VendorExecutionLike>;
   kill(): Promise<unknown>;
+  setTimeout?(timeoutMs: number): Promise<unknown>;
+  getMetrics?(): Promise<unknown>;
 }
 
 interface VendorSandboxConstructor {
@@ -289,12 +358,28 @@ async function loadE2BClient(): Promise<E2BClient> {
       // Deny-all is the vendor's own outbound rule, evaluated in the sandbox's network layer:
       // the vendor's guarantee, not one this package draws.
       if (options.egress === "deny-all") vendorOptions["network"] = { denyOut: ["0.0.0.0/0"] };
+      if (options.metadata !== undefined) vendorOptions["metadata"] = options.metadata;
       const created = await Sandbox.create(vendorOptions);
+      const setTimeoutOnVendor = created.setTimeout;
+      const getMetricsFromVendor = created.getMetrics;
       return {
         sandboxId: typeof created.sandboxId === "string" ? created.sandboxId : "e2b",
+        ...(setTimeoutOnVendor === undefined
+          ? {}
+          : {
+              setTimeout: async (timeoutMs: number): Promise<void> => {
+                await setTimeoutOnVendor.call(created, timeoutMs);
+              },
+            }),
+        ...(getMetricsFromVendor === undefined
+          ? {}
+          : {
+              getMetrics: async (): Promise<unknown> => await getMetricsFromVendor.call(created),
+            }),
         async runCode(code, runOptions) {
           const vendorRun: Record<string, unknown> = {};
           if (runOptions?.timeoutMs !== undefined) vendorRun["timeoutMs"] = runOptions.timeoutMs;
+          if (runOptions?.contextId !== undefined) vendorRun["contextId"] = runOptions.contextId;
           vendorRun["onStdout"] = (output: unknown) => {
             runOptions?.onStdout?.(asLine((output as { line?: unknown } | null)?.line));
           };

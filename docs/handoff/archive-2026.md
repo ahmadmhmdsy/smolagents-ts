@@ -4,6 +4,33 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T03:22:00+03:00 — Phase 4.3 landed: progress, cancellation and typed notifications
+
+**State.** 4.1–4.3 are landed; 4.4–4.8 and the phase close remain.
+
+**Did.** `notifications.test.ts` (5 tests, the 13th mcp file) was watched red on the missing
+listener and progress plumbing, then 4.3 landed: a typed `MCPNotification` union with a mapper
+in `src/notifications.ts`; `MCPClientOptions.onNotification` and `client.onNotification` with an
+unsubscribe, where a throwing listener is logged and skipped; `request` grew a fifth
+`MCPRequestOptions` argument (`signal`, `onProgress`, `progressToken`) while the positional
+signal stays; progress routes only to the call that owns its token and still reaches every
+listener; an abort sends `notifications/cancelled` with the request id before rejecting; the
+adapter issues one token per call and adds `_meta.progressToken` only when
+`ToolContext.onProgress` exists. Core's `ToolContext` gained that optional member — type-only,
+so core's pins and counts are unchanged. mcp is 13 files / 134 tests, pins still 32.
+
+**Verified.** `pnpm vitest run --project core --project mcp` exits 0 (67 files, 739 tests); the
+mcp and core typechecks pass; validator 0/0.
+
+**Unverified / open.** 4.4–4.8 and the phase close are not implemented.
+
+**Next.** 4.4: write `packages/core/test/tool-policy.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/mcp/src/notifications.ts`, `packages/mcp/src/client.ts`,
+`packages/mcp/src/tool-adapter.ts`, `packages/mcp/test/notifications.test.ts`.
+
 ## 2026-10-25T03:12:00+03:00 — Phase 4.2 landed: resources, prompts and completions
 
 **State.** 4.1 and 4.2 are landed; 4.3–4.8 and the phase close remain.

@@ -33,6 +33,37 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T04:38:00+03:00 — Phase 4.7 landed: E2B depth
+
+**State.** 4.1–4.7 are landed; 4.8 and the phase close remain.
+
+**Did.** `e2b-depth.test.ts` (8 tests, the 14th exec-remote file) was watched red on all eight
+cases, then the E2B backend gained four additions, each defaulted to today's behaviour:
+`metadata` reaches the vendor create call so an orphan is findable; `executionTimeoutMs`
+(default 60 000) is a step's deadline when it names none, so neither the prelude install nor a
+step borrows the sandbox lifetime again; `keepAliveMs` extends the lifetime before a step past
+the interval, and a seam without `setTimeout` is refused at start with `UnsupportedOptionError`
+after the created sandbox is killed; `contextId` may be declared on the backend or on a step
+(the step wins) and reaches every `runCode`, while the process and Docker backends refuse it
+typed because they own one namespace. `guestMetrics()` reports the seam's sample or
+`undefined` and stays out of `SandboxCapabilities`.
+
+**Verified.** `pnpm vitest run --project exec-remote` → 14 files / 105 tests, exit 0; the
+package typecheck is clean; `python scripts/validate_context.py` → 0 errors, 0 warnings; the
+item gate is recorded in the plan.
+
+**Unverified / open.** The vendor path (`loadE2BClient`) passes metadata, contextId,
+setTimeout and getMetrics through, but no test touches it: a double cannot prove the vendor
+accepts them. 4.8 is not started.
+
+**Next.** Rewrite `packages/exec-remote/test/docker.test.ts` on the exec transport and watch it
+fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:204` and `:280`,
+`packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/e2b-depth.test.ts`.
+
 ## 2026-10-25T04:24:00+03:00 — Phase 4.6 landed: declared transfers
 
 **State.** 4.1–4.6 are landed; 4.7–4.8 and the phase close remain.
@@ -128,31 +159,4 @@ passes; the 4.4 suite passes 13/13.
 **Artifacts.** `packages/core/src/tool/policy.ts`, `packages/core/src/errors.ts`,
 `packages/core/src/events.ts`, `packages/core/src/agent/multi-step-agent.ts`,
 `packages/core/test/tool-policy.test.ts`.
-
-## 2026-10-25T03:22:00+03:00 — Phase 4.3 landed: progress, cancellation and typed notifications
-
-**State.** 4.1–4.3 are landed; 4.4–4.8 and the phase close remain.
-
-**Did.** `notifications.test.ts` (5 tests, the 13th mcp file) was watched red on the missing
-listener and progress plumbing, then 4.3 landed: a typed `MCPNotification` union with a mapper
-in `src/notifications.ts`; `MCPClientOptions.onNotification` and `client.onNotification` with an
-unsubscribe, where a throwing listener is logged and skipped; `request` grew a fifth
-`MCPRequestOptions` argument (`signal`, `onProgress`, `progressToken`) while the positional
-signal stays; progress routes only to the call that owns its token and still reaches every
-listener; an abort sends `notifications/cancelled` with the request id before rejecting; the
-adapter issues one token per call and adds `_meta.progressToken` only when
-`ToolContext.onProgress` exists. Core's `ToolContext` gained that optional member — type-only,
-so core's pins and counts are unchanged. mcp is 13 files / 134 tests, pins still 32.
-
-**Verified.** `pnpm vitest run --project core --project mcp` exits 0 (67 files, 739 tests); the
-mcp and core typechecks pass; validator 0/0.
-
-**Unverified / open.** 4.4–4.8 and the phase close are not implemented.
-
-**Next.** 4.4: write `packages/core/test/tool-policy.test.ts` and watch it fail.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/mcp/src/notifications.ts`, `packages/mcp/src/client.ts`,
-`packages/mcp/src/tool-adapter.ts`, `packages/mcp/test/notifications.test.ts`.
 <!-- rotate:end -->

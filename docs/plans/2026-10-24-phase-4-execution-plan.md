@@ -277,6 +277,27 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.7 — E2B depth (2026-10-24)
+
+Landed as `packages/exec-remote/test/e2b-depth.test.ts` (eight cases, the 14th exec-remote
+file, watched red on the missing metadata, the lifetime-as-deadline bug, the absent keep-alive
+and the unfanned `contextId`).
+
+The E2B backend gained four defaulted-to-today additions. `metadata` crosses the client seam
+and reaches the vendor create call, so an orphaned guest is findable. `executionTimeoutMs`
+(default 60 000) is the deadline of a step that names none — neither the prelude install nor a
+step ever borrows the sandbox lifetime again. `keepAliveMs` extends the lifetime before a step
+whose last extension is older than the interval, and a seam without `setTimeout` is refused at
+start with `UnsupportedOptionError` after the created sandbox is killed. `contextId` may be
+declared on the backend or on a step (the step wins) and reaches every `runCode`. A backend
+with one namespace refuses `contextId` typed: the process and Docker `run` methods throw
+`UnsupportedOptionError` rather than selecting nothing. `guestMetrics()` returns the seam's
+sample or `undefined`, and stays out of `SandboxCapabilities` because no runtime decision
+reads it.
+
+Type-only additions except the refusal shared with 4.6; exec-remote root pins stay at 10, and
+exec-remote is 14 files / 105 tests.
+
 ### 4.6 — Declared transfers (2026-10-24)
 
 Landed as `packages/exec-remote/test/transfer.test.ts` (three cases, the 13th exec-remote file,

@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { EgressUnsupportedError, SandboxError } from "../errors.js";
+import { EgressUnsupportedError, SandboxError, UnsupportedOptionError } from "../errors.js";
 import { buildStepLoopSource, parseFrameLine } from "../shim-source.js";
 import type { EgressPolicy } from "../sandbox.js";
 import type {
@@ -192,6 +192,13 @@ export class ProcessSandbox implements RemoteSandbox {
 
   async run(options: SandboxRunOptions): Promise<SandboxRunResult> {
     if (this.disposed) throw new SandboxError("This process sandbox has been disposed.");
+    if (options.contextId !== undefined) {
+      throw new UnsupportedOptionError(
+        "process",
+        "contextId",
+        "it runs one guest with a single namespace, so there is no second context to select.",
+      );
+    }
     if (this.startError !== undefined) {
       throw new SandboxError("The interpreter could not be started.", { cause: this.startError });
     }
