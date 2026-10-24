@@ -13,6 +13,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-42 | Phase 1: the durability spine | done | lead | `packages/core/src/session/**`, `packages/core/src/agent/**`, `packages/core/src/tool/tool.ts`, `packages/cli/**` | 1.1, then 1.2-1.4 in order; 1.5-1.8 follow the record | `docs/reports/2026-10-24-phase-1-report.md` |
 | T-43 | Phase 2: delegation that survives its parent | done | lead | `packages/core/src/agent/**`, `packages/core/src/session/**`, `examples/supervisor/**` | 2.1, 2.3, 2.6, 2.7 first, then 2.2, 2.4, 2.5, 2.8 | `docs/reports/2026-10-24-phase-2-report.md`; 2.1–2.8 landed; `pnpm gate` exit 0; core 51 files, 591 tests |
 | T-44 | Phase 3: memory and streams | done | lead | `packages/core/src/memory/**`, `packages/core/src/agent/**`, `packages/core/src/session/**`, `packages/react/src/**` | 3.1 then 3.2; closed by `docs/reports/2026-10-24-phase-3-report.md` | `docs/plans/2026-10-24-phase-3-execution-plan.md` |
+| T-45 | Phase 4: protocol and tool breadth | done | lead | `packages/mcp/**`, `packages/core/**`, `packages/exec-remote/**` | 4.1–4.8 each with its pre-registered test; closed by `docs/reports/2026-10-24-phase-4-report.md`; `pnpm gate` exit 0 | `docs/plans/2026-10-24-phase-4-execution-plan.md` |
 
 ## Closed 2026-10-16
 

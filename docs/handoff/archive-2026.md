@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T04:10:00+03:00 — Phase 4.5 landed: generator and hosted tools
+
+**State.** 4.1–4.5 are landed; 4.6–4.8 and the phase close remain.
+
+**Did.** `tool-generator.test.ts` (9 tests, the 56th core file) was watched red on the missing
+drain, the missing `action.progress` and the absent `ToolHostedError`, then 4.5 landed:
+`ToolDefinition.execute` may return an async generator, and `tool()` drains it inside the same
+`withToolTimeout` call — each yield goes to `ToolContext.onProgress` (validated by the new
+`progressSchema`; an invalid yield is logged and dropped) and the return value is the result, so
+a generator that never settles still times out. `ToolCallEvent` gained `progress`, mapped to
+`action.progress`; the QuickJS and Pyodide bridges emit it, `ToolCallingAgent` replays collected
+reports between `action.requested` and `action.result`, and `buildTrace` keeps
+`progressCount` plus `lastProgress`. A tool may declare `kind: "hosted"` with
+`hosted: { provider, spec }`: it is advertised with that payload in `ToolSpec`, excluded from the
+executor registry, refused by the structured lookup with `ToolHostedError` (`AGENT_TOOL_HOSTED`,
+naming the provider), and passed through by `withApproval`. `Tool` keeps a required `execute`
+whose hosted form refuses, so no consumer narrows. core pins 109 → 110, 56 files / 631 tests.
+
+**Verified.** `pnpm vitest run --project core` exits 0 (56 files, 631 tests); the core typecheck
+passes; the 4.5 suite passes 9/9.
+
+**Unverified / open.** 4.6–4.8 and the phase close are not implemented. Two honest deviations are
+recorded in the plan's 4.5 entry (declaration-time hosted validation; the refusing hosted
+`execute`).
+
+**Next.** 4.6: write `packages/exec-remote/test/transfer.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/tool/tool.ts`, `packages/core/src/errors.ts`,
+`packages/core/src/events.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
+`packages/core/test/tool-generator.test.ts`.
+
 ## 2026-10-25T03:48:00+03:00 — Phase 4.4 landed: per-step tool policy as data
 
 **State.** 4.1–4.4 are landed; 4.5–4.8 and the phase close remain.

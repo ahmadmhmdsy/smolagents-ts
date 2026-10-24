@@ -33,6 +33,36 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T05:20:00+03:00 — Phase 4 closed: protocol and tool breadth done
+
+**State.** Phases 0–4 are closed; Phase 5 is not opened and waits on the owner. Nothing pushed.
+
+**Did.** Wrote the parent plan's exit criterion as its two pre-registered files.
+`packages/mcp/test/phase-4-exit.test.ts` (14th mcp file): an agent over adapted MCP tools with
+`secret` hidden — absent from prompt and request specs, named in `tool.policy` — plus the adapted
+`slow` tool called with a progress sink, which gets the notification while an abort ends the call.
+`packages/exec-remote/test/phase-4-exit.test.ts` (13th exec-remote file): a `ProcessSandbox`
+guest under a declared transfer calls `host_tool(seed + 1)`, the body runs once and answers 42;
+a tool outside the transfer is not installed, so the step fails with `NameError`. Closed the
+phase: report, plan complete, parent `T-45` row done, task row archived, scoped counts refreshed
+(mcp 14/136, exec-remote 13/95).
+
+**Verified.** Both exit files 4 passed; whole repo 163 files / 1268 tests (core 56/631, mcp 14/136,
+tools 7/32, exec-remote 13/95, CLI 11/77, react 12/56); pins core 110, mcp 32, react 13,
+exec-remote root 10; validator 0/0; gate exit 0 at `c9dfa90`.
+
+**Unverified / open.** No live daemon or sandbox was touched; dockerode's exec path is proven only
+through the seam's double. The mcp exit test's second case initially failed because the harness
+closed the client first — a test bug, recorded in the report.
+
+**Next.** Open Phase 5 (observation and cost) with its plan and `T-46`, or hand back to the owner.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/reports/2026-10-24-phase-4-report.md`,
+`packages/mcp/test/phase-4-exit.test.ts`,
+`packages/exec-remote/test/phase-4-exit.test.ts`.
+
 ## 2026-10-25T04:58:00+03:00 — Phase 4.8 landed: the Docker exec transport
 
 **State.** 4.1–4.8 are landed; the phase close remains (two exit tests, report, parent-plan
@@ -126,37 +156,4 @@ started. The declared transfer has no facade-level test yet.
 **Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:280`,
 `packages/exec-remote/src/sandbox.ts`, `packages/exec-remote/src/shim-source.ts`,
 `packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/transfer.test.ts`.
-
-## 2026-10-25T04:10:00+03:00 — Phase 4.5 landed: generator and hosted tools
-
-**State.** 4.1–4.5 are landed; 4.6–4.8 and the phase close remain.
-
-**Did.** `tool-generator.test.ts` (9 tests, the 56th core file) was watched red on the missing
-drain, the missing `action.progress` and the absent `ToolHostedError`, then 4.5 landed:
-`ToolDefinition.execute` may return an async generator, and `tool()` drains it inside the same
-`withToolTimeout` call — each yield goes to `ToolContext.onProgress` (validated by the new
-`progressSchema`; an invalid yield is logged and dropped) and the return value is the result, so
-a generator that never settles still times out. `ToolCallEvent` gained `progress`, mapped to
-`action.progress`; the QuickJS and Pyodide bridges emit it, `ToolCallingAgent` replays collected
-reports between `action.requested` and `action.result`, and `buildTrace` keeps
-`progressCount` plus `lastProgress`. A tool may declare `kind: "hosted"` with
-`hosted: { provider, spec }`: it is advertised with that payload in `ToolSpec`, excluded from the
-executor registry, refused by the structured lookup with `ToolHostedError` (`AGENT_TOOL_HOSTED`,
-naming the provider), and passed through by `withApproval`. `Tool` keeps a required `execute`
-whose hosted form refuses, so no consumer narrows. core pins 109 → 110, 56 files / 631 tests.
-
-**Verified.** `pnpm vitest run --project core` exits 0 (56 files, 631 tests); the core typecheck
-passes; the 4.5 suite passes 9/9.
-
-**Unverified / open.** 4.6–4.8 and the phase close are not implemented. Two honest deviations are
-recorded in the plan's 4.5 entry (declaration-time hosted validation; the refusing hosted
-`execute`).
-
-**Next.** 4.6: write `packages/exec-remote/test/transfer.test.ts` and watch it fail.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/src/tool/tool.ts`, `packages/core/src/errors.ts`,
-`packages/core/src/events.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
-`packages/core/test/tool-generator.test.ts`.
 <!-- rotate:end -->

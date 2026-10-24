@@ -1,6 +1,6 @@
 # Phase 4 — protocol and tool breadth: execution plan
 
-**Date:** 2026-10-24 · **Status:** in progress · **Owner:** lead · **Parent:**
+**Date:** 2026-10-24 · **Status:** complete · **Owner:** lead · **Parent:**
 [apply the competitor findings](2026-10-22-apply-the-competitor-findings-plan.md), rows 4.1–4.8.
 
 **Contract**
@@ -276,6 +276,18 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+- **2026-10-24 — Phase 4 closed.** The parent plan's criterion runs as
+  `packages/mcp/test/phase-4-exit.test.ts` (14th mcp file) and
+  `packages/exec-remote/test/phase-4-exit.test.ts` (13th exec-remote file): an agent over MCP
+  tools with a hidden `secret` never advertises it in the prompt or the request, the step's
+  `tool.policy` names it, and an adapted slow call reports progress and ends on abort; a guest
+  under a declared transfer calls `host_tool` by name and answers 42, while a tool outside the
+  transfer is not installed. The report is `docs/reports/2026-10-24-phase-4-report.md`; `T-45`
+  closes. Compared with the tables above: the Docker backend gained `startTimeoutMs` (a guest that
+  never announces readiness would hang `start`), and the `ready` frame is dropped by the stdio
+  backend so a step's frames are unchanged. Core 56 files/631 tests, mcp 14/136, tools 7/32,
+  exec-remote 13/95; pins core 110, mcp 32; `pnpm gate` exit 0 at `c9dfa90`.
 
 ### 4.8 — The Docker exec transport (2026-10-24)
 

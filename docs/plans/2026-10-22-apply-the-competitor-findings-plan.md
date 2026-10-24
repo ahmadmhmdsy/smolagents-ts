@@ -216,7 +216,7 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 | reserved `T-42` | Phase 1 | not yet opened |
 | `T-43` | Phase 2 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-2-report.md) |
 | `T-44` | Phase 3 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-3-report.md) |
-| `T-45` | Phase 4 | open 2026-10-24 — [plan](docs/plans/2026-10-24-phase-4-execution-plan.md) |
+| `T-45` | Phase 4 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-4-report.md) |
 | reserved `T-46` | Phase 5 | not yet opened |
 | reserved `T-47` | Phase 6 | not yet opened |
 
