@@ -8,6 +8,7 @@ import type { AgentEvent } from "../events.js";
 import type { ActionStep } from "../memory/steps.js";
 import type { ChatCompletion } from "../model.js";
 import { buildToolCallingAgentSystemPrompt } from "../prompts/system-prompt.js";
+import { extractCodeBlock } from "../utils/parse-code-blocks.js";
 import type { Tool, ToolContext } from "../tool/tool.js";
 import type { ToolCall } from "../types.js";
 import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
@@ -32,9 +33,9 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     return false;
   }
 
-  /** The schemas travel on the request: this agent's model decides what to call. */
+  /** The schemas travel on the request, but only to a model that can call a tool. */
   protected override get advertisesTools(): boolean {
-    return true;
+    return this.model.capabilities.toolCalls;
   }
 
   /** A tool-calling provider is given tool_calls and tool results, not Observations. */
@@ -44,17 +45,32 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
   protected override buildSystemPrompt(): string {
     const customInstructions = this.customInstructionsValue;
-    return buildToolCallingAgentSystemPrompt({
-      toolDescriptions: this.renderToolDescriptions(),
-      managedAgentDescriptions: this.renderManagedAgents(),
+    const toolCalls = this.model.capabilities.toolCalls;
+    const base = buildToolCallingAgentSystemPrompt({
+      toolDescriptions: toolCalls ? this.renderToolDescriptions() : "",
+      managedAgentDescriptions: toolCalls ? this.renderManagedAgents() : "",
       ...(customInstructions === undefined ? {} : { customInstructions }),
     });
+    if (toolCalls) return base;
+    // A model that cannot call tools cannot be handed the answer as a final_answer call. The
+    // schema is bound in the prompt instead, and the loop repairs a wrong-shaped reply turn by
+    // turn: that path is what makes structured output universal (decision 0020).
+    return (
+      base +
+      "\n\nTEXT ANSWERS\nThis model cannot call tools, so do not emit a tool call. Reply with the final answer as JSON text" +
+      (this.answerJsonSchema() === undefined ? "." : ", satisfying the schema below.") +
+      this.answerSchemaText()
+    );
   }
 
   protected override interpret(completion: ChatCompletion): InterpretedAction {
     const raw = completion.content;
-    if (completion.toolCalls.length === 0) return { kind: "empty", raw };
-    return { kind: "toolcalls", raw, calls: completion.toolCalls };
+    if (completion.toolCalls.length > 0) return { kind: "toolcalls", raw, calls: completion.toolCalls };
+    // A tool-less model answers in its text, and a fenced or bare JSON object is the answer.
+    if (!this.model.capabilities.toolCalls && raw.trim() !== "") {
+      return { kind: "final", raw, output: parseTextAnswer(raw) };
+    }
+    return { kind: "empty", raw };
   }
 
   protected override async *executeAction(
@@ -192,6 +208,16 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
           .info,
       };
     }
+  }
+}
+
+/** Read a text reply as the answer: fenced or bare JSON when it parses, the text itself otherwise. */
+function parseTextAnswer(raw: string): unknown {
+  const text = (extractCodeBlock(raw) ?? raw).trim();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
   }
 }
 

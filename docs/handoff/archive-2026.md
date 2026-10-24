@@ -4,6 +4,33 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T11:35:00+03:00 — 0.3 landed: a schema failure gets two repairs, then ends the run
+
+**State.** Phase 0 has five items in (0.1, 0.2, 0.3, 0.4, 0.5). Wave 2 continues with
+0.6, 0.7, 0.8, 0.9, 0.10.
+
+**Did.** A schema mismatch is answered with a correction observation at most twice per
+run; a third failure throws `AgentGuardrailError` naming the budget, so a
+wrong-schema loop can no longer spend `maxSteps` silently. `RunContext.finishReason`
+now carries why the reply ended, and a reply truncated by `length` is never repaired
+(the missing part is not a correctable mistake) — it fails immediately. The attempt
+count rides on the refused `final_answer` calls, not a new event kind.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 381 tests (3 new: two repairs then a
+valid answer, budget exhaustion, the length guard with one model call).
+
+**Unverified / open.** The length guard is unit-tested through a scripted tool call
+finish; the text-answer path that can actually be truncated by length is 0.10's and will
+re-test it there. Nothing pushed.
+
+**Next.** 0.6 (guardrail redaction rule), then 0.7's tool deadline.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/src/agent/tool-calling-agent.ts`,
+`packages/core/test/guardrail.test.ts`.
+
 ## 2026-10-24T11:05:00+03:00 — 0.4 landed: egress is a policy the backends honour or refuse
 
 **State.** Phase 0 Wave 1 is complete: 0.1, 0.2, 0.5 and 0.4 are in, each with its

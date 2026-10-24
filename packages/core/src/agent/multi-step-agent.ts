@@ -573,10 +573,28 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.tokenUsage = completion.usage;
       step.toolCalls = [...completion.toolCalls];
 
-      // No shipped flavour reads a reply as a final answer — both end through final_answer — but
-      // MultiStepAgent is public and abstract, and a custom interpret() may settle the answer from
-      // the text alone. The step is recorded so the answering reply stays in memory.
+      // A subclass may settle the answer from the text alone — a tool-calling agent on a model
+      // that cannot call tools does exactly that. A wrong-shaped text answer gets the same repair
+      // turn as a wrong-shaped final_answer call, so the schema is enforced on both paths.
       if (action.kind === "final") {
+        const invalid = this.invalidAnswer(action.output);
+        if (invalid !== undefined) {
+          const correction = this.answerFailure(invalid, context.finishReason, stepIndex);
+          step.observations = correction;
+          this.memory.addStep(step);
+          yield this.emit({
+            type: "observation.completed",
+            stepIndex,
+            text: correction,
+            isFinalAnswer: false,
+          });
+          const saveFailure = await this.saveCheckpoint(context);
+          if (saveFailure !== undefined) {
+            yield this.emit({ type: "run.failed", error: saveFailure.info });
+            return;
+          }
+          continue;
+        }
         step.isFinalAnswer = true;
         this.memory.addStep(step);
         yield* this.complete(action.output, context);

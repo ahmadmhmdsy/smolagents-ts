@@ -54,6 +54,48 @@ describe("agent guardrails", () => {
     });
   });
 
+  it("binds the schema to a model that cannot call tools and repairs a text answer", async () => {
+    const model = new MockModel({
+      responses: [{ content: "The answer is 41." }, { content: '{"city": "Baghdad"}' }],
+      capabilities: { toolCalls: false },
+    });
+    const agent = new ToolCallingAgent({
+      model,
+      tools: [],
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    const result = await agent.run("name the city");
+
+    expect(result.output).toEqual({ city: "Baghdad" });
+    expect(model.callCount).toBe(2);
+    // No forced tool: a model that cannot call one is not sent a tool schema.
+    expect(model.requestOptions[0]?.tools).toBeUndefined();
+    // The bound schema travels in the prompt instead.
+    expect(agent.systemPrompt).toContain("FINAL ANSWER SCHEMA");
+    expect(JSON.stringify(model.calls[0])).toContain("FINAL ANSWER SCHEMA");
+    const refused = result.steps.find((step) => step.kind === "action");
+    expect(refused?.kind === "action" ? refused.observations : "").toContain("failed the output schema");
+  });
+
+  it("ends a tool-less model's run at the repair bound", async () => {
+    const model = new MockModel({
+      responses: [{ content: "one" }, { content: "two" }, { content: "three" }],
+      capabilities: { toolCalls: false },
+    });
+    const agent = new ToolCallingAgent({
+      model,
+      tools: [],
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    await expect(agent.run("name the city")).rejects.toMatchObject({
+      name: "AgentGuardrailError",
+      message: expect.stringContaining("after 2 repair attempts"),
+    });
+    expect(model.callCount).toBe(3);
+  });
+
   it("returns a schema mismatch as an observation and accepts a corrected answer", async () => {
     const agent = new ToolCallingAgent({
       model: new MockModel([

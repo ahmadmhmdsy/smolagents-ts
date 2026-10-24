@@ -6,7 +6,7 @@
 - **Read when:** starting or resuming Phase 0.
 - **Update when:** an item lands, a wave closes, or a criterion proves wrong.
 
-- **Status:** active
+- **Status:** done — all ten items landed on 2026-10-24
 - **Owner:** owner
 - **Created:** 2026-10-24T09:55:00+03:00
 - **Opened by:** owner, "open Phase 0" (2026-10-24)
@@ -183,3 +183,14 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   `limitOutputTokens` or `limitTotalTokens`; the session status is `limit_reached` and
   the React label and the CLI line name the budget rather than a failure. Planning turns
   count as turns. A budget crossed by a resumed run is reported before any model call.
+- **2026-10-24 — 0.10 as built.** The tool-calling agent now advertises tools only to a
+  model whose capability bag claims `toolCalls` (decision 0020's rule applied to the
+  agent): a model without it is never sent a tool schema, receives the bound schema in its
+  prompt instead, and answers as text. `interpret` reads a fenced or bare JSON reply as
+  the answer, and a wrong-shaped text answer now spends the same bounded repair turn as a
+  wrong-shaped `final_answer` call, so the schema is enforced on both paths. The
+  acceptance test fails twice, then succeeds inside the attempt bound, with
+  `requestOptions.tools` undefined on the tool-less request. `packages/models` needed no
+  change: `CustomModel` (and `MockModel`'s new capability override) can already report
+  `toolCalls: false`, and decision 0020 deliberately rejects a model-side schema channel
+  for now.

@@ -1,5 +1,5 @@
 import { AgentGenerationError } from "../errors.js";
-import { type ChatCompletion, type ChatCompletionChunk, type FinishReason, type GenerateOptions, type Model, modelCapabilities } from "../model.js";
+import { type ChatCompletion, type ChatCompletionChunk, type FinishReason, type GenerateOptions, type Model, type ModelCapabilities, modelCapabilities } from "../model.js";
 import type { ToolCallRequest } from "../types.js";
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
 import type { ChatMessage } from "../types.js";
@@ -18,6 +18,8 @@ export interface MockModelOptions {
   id?: string;
   /** Split streamed content into chunks of this many characters. 0 means one chunk. */
   chunkSize?: number;
+  /** Overrides the advertised capabilities, so a test can script a model that cannot call tools. */
+  capabilities?: Partial<ModelCapabilities>;
 }
 
 /**
@@ -48,6 +50,9 @@ export class MockModel implements Model {
       this.turns = input.responses.map(normalizeTurn);
       this.id = input.id ?? "mock";
       this.chunkSize = input.chunkSize ?? 0;
+      if (input.capabilities !== undefined) {
+        this.capabilities = modelCapabilities({ ...this.capabilities, ...input.capabilities });
+      }
     }
   }
 
