@@ -6,10 +6,10 @@
 - **Read when:** deciding what to build next, or starting a phase.
 - **Update when:** a phase lands, an open question is answered, or the research behind an item is superseded.
 
-- **Status:** draft
+- **Status:** active — Phase 0 open
 - **Owner:** owner
 - **Created:** 2026-10-22T14:20:00+03:00
-- **Authorized by:** not yet approved. The dive's adoptable items and the delegation ruling are approved (2026-10-24, `0025`); the program itself still needs the owner's go-ahead.
+- **Authorized by:** owner, 2026-10-24 ("open Phase 0"); the dive's adoptable items and the delegation ruling are approved (`0025`), and Phase 0 executes under [`2026-10-24-phase-0-execution-plan.md`](docs/plans/2026-10-24-phase-0-execution-plan.md).
 
 ## Goal
 
@@ -42,6 +42,8 @@ Each phase below is a candidate for its own execution plan in this folder, with 
 ## Phases
 
 ### Phase 0 — Truth pass
+
+**Execution plan.** [`2026-10-24-phase-0-execution-plan.md`](docs/plans/2026-10-24-phase-0-execution-plan.md) carries the item-by-item acceptance tests, write scopes and rollbacks.
 
 **Deliverable.** Ten small items that make the shipped surface honest: approval bound to the call it approves; the output schema bound to the final answer rather than to a model flag; one bounded repair attempt; egress enforced where a backend can and refused where it cannot; a schema version on stored state; a written rule for what a guardrail trip persists; a deadline on every tool; a conformance suite for stores; a request-owned budget with a typed stop reason; and structured output proven on a model that cannot call tools.
 
@@ -205,12 +207,12 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 
 ## Tasks
 
-`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The delegation ruling and the dive intake are approved; the program itself still waits for the owner's go-ahead**, which is what opens `T-41` and starts Wave 1.
+`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The program is open**: the owner approved it on 2026-10-24, `T-41` is in progress, and Wave 1 is 0.1 then 0.2 and 0.5, with 0.4 beside them on `exec-remote`.
 
 | Task ID | Phase | Status |
 |---|---|---|
-| `T-40` | program | pending — owner picks the phase |
-| reserved `T-41` | Phase 0 | not yet opened |
+| `T-40` | program | in progress — Phase 0 open |
+| `T-41` | Phase 0 | in progress — Wave 1 |
 | reserved `T-42` | Phase 1 | not yet opened |
 | reserved `T-43` | Phase 2 | not yet opened |
 | reserved `T-44` | Phase 3 | not yet opened |
