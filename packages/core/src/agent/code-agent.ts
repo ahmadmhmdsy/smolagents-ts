@@ -3,11 +3,14 @@ import { MultiStepAgent, type AgentOptions, type RunContext } from "./multi-step
 import type { AgentEvent } from "../events.js";
 import type { CodeExecutor, ToolCallEvent } from "../executor.js";
 import type { ActionStep } from "../memory/steps.js";
-import type { AgentErrorInfo } from "../errors.js";
+import { type AgentErrorInfo, EffectOutcomeUnknownError } from "../errors.js";
 import type { ChatCompletion } from "../model.js";
 import { buildCodeAgentSystemPrompt } from "../prompts/system-prompt.js";
 import { CODE_FENCE } from "../prompts/templates.js";
 import type { ToolCall } from "../types.js";
+import { ToolRegistry } from "../tool/registry.js";
+import type { Tool, ToolContext } from "../tool/tool.js";
+import { digestOf } from "../utils/digest.js";
 import { createAsyncQueue } from "../utils/async-queue.js";
 import { extractCodeBlock, hasFinalAnswerCall } from "../utils/parse-code-blocks.js";
 
@@ -86,7 +89,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
     const execution = this.executor
       .execute(action.code, {
-        tools: this.tools,
+        tools: this.journaledTools(context),
         finalAnswer: {
           name: FINAL_ANSWER_TOOL_NAME,
           submit: (value: unknown) => {
@@ -152,6 +155,80 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       value,
       error: settled.result.error,
     };
+  }
+
+  /**
+   * The tools the executor runs, each wrapped so its effect is journaled around the call. The
+   * wrapper sits outside the tool's own deadline and gate, exactly where the effect starts.
+   */
+  private journaledTools(context: RunContext): ToolRegistry {
+    const stepId = context.openStep?.stepId;
+    if (stepId === undefined || !this.journals(context)) return this.tools;
+    return new ToolRegistry(
+      this.tools.list().map((definition) => this.journaledTool(definition, context, stepId)),
+    );
+  }
+
+  private journaledTool(definition: Tool, context: RunContext, stepId: string): Tool {
+    return {
+      ...definition,
+      execute: (input, toolContext) =>
+        this.journaledCall(definition, context, stepId, input, toolContext),
+    } as Tool;
+  }
+
+  private async journaledCall(
+    definition: Tool,
+    context: RunContext,
+    stepId: string,
+    input: unknown,
+    toolContext: ToolContext,
+  ): Promise<unknown> {
+    const callId = toolContext.callId;
+    const recorded = this.journalLookup(context, stepId, callId);
+    if (recorded !== undefined && recorded.state !== "intent" && recorded.result !== undefined) {
+      return recorded.result;
+    }
+    let retried = false;
+    if (recorded?.state === "intent") {
+      if (definition.idempotent !== true) {
+        throw new EffectOutcomeUnknownError(
+          "Tool " +
+            definition.name +
+            " was announced for call " +
+            callId +
+            " but its record has no result; it is not declared idempotent, so the run will not guess.",
+          { stepIndex: context.stepIndex },
+          definition.name,
+          callId,
+        );
+      }
+      retried = true;
+    } else {
+      const intentFailure = await this.journalIntent(
+        context,
+        stepId,
+        callId,
+        definition.name,
+        digestOf(input),
+      );
+      if (intentFailure !== undefined) throw intentFailure;
+    }
+    try {
+      const result = await definition.execute(input, toolContext);
+      const doneFailure = await this.journalResult(
+        context,
+        stepId,
+        callId,
+        result,
+        retried ? "unknown" : "done",
+      );
+      if (doneFailure !== undefined) throw doneFailure;
+      return result;
+    } catch (error) {
+      this.discardIntent(context, stepId, callId);
+      throw error;
+    }
   }
 
   protected override async releaseResources(): Promise<void> {

@@ -18,7 +18,8 @@ export type AgentErrorCode =
   | "AGENT_RUN_ALREADY_SETTLED"
   | "AGENT_RUN_APPROVAL_MISMATCH"
   | "AGENT_RUN_CLAIMED"
-  | "AGENT_RUN_STALE_WRITER";
+  | "AGENT_RUN_STALE_WRITER"
+  | "AGENT_EFFECT_UNKNOWN";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -234,6 +235,27 @@ export class RunApprovalMismatchError extends AgentError {
   }
 }
 
+/**
+ * Raised when an effect stopped in doubt: the record says it was announced but holds no result.
+ * The run refuses to guess; only a tool declared idempotent may be retried, once.
+ */
+export class EffectOutcomeUnknownError extends AgentError {
+  readonly toolName: string;
+  readonly callId: string;
+
+  constructor(
+    message: string,
+    options: AgentErrorOptions = {},
+    toolName = "",
+    callId = "",
+  ) {
+    super(message, { ...options, code: "AGENT_EFFECT_UNKNOWN" });
+    this.name = "EffectOutcomeUnknownError";
+    this.toolName = toolName;
+    this.callId = callId;
+  }
+}
+
 /** Raised when a live claim loses the generation race; another writer owns the run. */
 export class RunClaimedError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -288,4 +310,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_RUN_APPROVAL_MISMATCH: RunApprovalMismatchError,
   AGENT_RUN_CLAIMED: RunClaimedError,
   AGENT_RUN_STALE_WRITER: StaleWriterError,
+  AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
 };

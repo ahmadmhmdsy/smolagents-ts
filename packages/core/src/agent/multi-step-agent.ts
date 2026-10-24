@@ -34,6 +34,7 @@ import {
   type ToolSpec,
 } from "../model.js";
 import { Monitor } from "../monitoring/monitor.js";
+import { digestOf } from "../utils/digest.js";
 import { populateTemplate } from "../prompts/populate-template.js";
 import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
 import { ToolRegistry } from "../tool/registry.js";
@@ -57,6 +58,7 @@ import {
   translateRecord,
   type ApprovalSettlement,
   type CompletedStep,
+  type JournalEntry,
   type OpenStep,
   type PendingApproval,
   type RunRecord,
@@ -184,6 +186,12 @@ export interface RunContext {
   completed: CompletedStep[];
   /** The step in flight, committed while it runs so a repair can name it. */
   openStep: OpenStep | undefined;
+  /** The effects journaled so far, in announcement order; each write commits the record. */
+  journal: JournalEntry[];
+  /** A step attempt a repair or a resume re-enters, whose journal replay belongs to it. */
+  replayStepId: string | undefined;
+  /** Serialises commits, so two effects in one code block cannot interleave a record. */
+  commitTail: Promise<void>;
 }
 
 export type AgentEventListener = (event: AgentEvent) => void;
@@ -556,6 +564,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
       owner: options.owner ?? crypto.randomUUID(),
       completed: [],
       openStep: undefined,
+      journal: [],
+      replayStepId: undefined,
+      commitTail: Promise.resolve(),
     };
 
     this.activeContext = context;
@@ -611,6 +622,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         context.generation = claimed.generation;
         context.settlements = claimed.settlements ?? [];
         context.completed = [...(claimed.completed ?? [])];
+        context.journal = [...(claimed.journal ?? [])];
         context.committedSteps = claimed.memory.steps;
         this.memory.restore(claimed.memory.steps);
         if (resume !== undefined && claimed.status === "waiting") {
@@ -716,6 +728,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         }
       }
 
+      this.beginAttempt(context, stepIndex);
       yield this.emit({ type: "step.started", stepIndex });
 
       let completion: ChatCompletion;
@@ -754,7 +767,6 @@ export abstract class MultiStepAgent<TOut = unknown> {
           const correction = this.answerFailure(invalid, context.finishReason, stepIndex);
           step.observations = correction;
           this.memory.addStep(step);
-          this.openStep(context, step, stepIndex);
           yield this.emit({
             type: "observation.completed",
             stepIndex,
@@ -780,7 +792,6 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
 
       this.memory.addStep(step);
-      this.openStep(context, step, stepIndex);
 
       if (action.kind === "empty") {
         const parsingError = new AgentParsingError(
@@ -919,9 +930,19 @@ export abstract class MultiStepAgent<TOut = unknown> {
    */
   private async commitRun(context: RunContext, status: RunStatus): Promise<AgentError | undefined> {
     if (this.store === undefined || !context.durable) return undefined;
+    // One record write at a time: a code block may announce several effects concurrently, and
+    // each announcement commits, so the writes are ordered rather than raced.
+    const previous = context.commitTail;
+    let release!: () => void;
+    context.commitTail = new Promise((resolve) => {
+      release = resolve;
+    });
+    await previous;
     const terminal = status === "completed" || status === "failed";
     try {
-      const steps = this.memory.toJSON();
+      // The step in flight is not durable: its record is replayed from the journal, and the
+      // restored memory holds only the boundary that preceded it (what parkRun relies on).
+      const steps = context.openStep === undefined ? this.memory.toJSON() : context.committedSteps;
       const record: RunRecord = {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
@@ -931,6 +952,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         ...(terminal ? {} : { owner: context.owner }),
         ...(terminal || context.openStep === undefined ? {} : { step: context.openStep }),
         ...(context.completed.length === 0 ? {} : { completed: context.completed }),
+        ...(context.journal.length === 0 ? {} : { journal: context.journal }),
         memory: { steps },
         ...(context.pending === undefined ? {} : { pending: context.pending }),
         ...(context.settlements.length === 0 ? {} : { settlements: context.settlements }),
@@ -944,13 +966,85 @@ export abstract class MultiStepAgent<TOut = unknown> {
       // A stale refusal is the writer's answer, not a store outage: surface it as itself.
       if (error instanceof StaleWriterError) return error;
       return storeError("commit", error, context.stepIndex);
+    } finally {
+      release();
     }
   }
 
-  /** Record the step that starts now, so a crash can name it. */
-  private openStep(context: RunContext, step: ActionStep, stepIndex: number): void {
-    context.openStep = { index: stepIndex, stepId: step.id, startedAt: new Date().toISOString() };
+  /**
+   * Open one attempt at a step. A repaired or resumed step re-enters its recorded attempt so its
+   * journaled effects replay; every other attempt gets a fresh id.
+   */
+  private beginAttempt(context: RunContext, stepIndex: number): string {
+    const stepId = context.replayStepId ?? crypto.randomUUID();
+    context.replayStepId = undefined;
+    context.openStep = { index: stepIndex, stepId, startedAt: new Date().toISOString() };
     context.stepIndex = stepIndex;
+    return stepId;
+  }
+
+  /** Whether this run writes a record, so journaling is meaningful for it. */
+  protected journals(context: RunContext): boolean {
+    return this.store !== undefined && context.durable;
+  }
+
+  /** The journal entry for one effect of one attempt, if the record holds it. */
+  protected journalLookup(
+    context: RunContext,
+    stepId: string,
+    callId: string,
+  ): JournalEntry | undefined {
+    return context.journal.find((entry) => entry.stepId === stepId && entry.callId === callId);
+  }
+
+  /** The journaled model request of one step attempt, if it was announced or finished. */
+  protected journaledCompletion(context: RunContext, stepId: string): JournalEntry | undefined {
+    return context.journal.find((entry) => entry.stepId === stepId && entry.toolName === "");
+  }
+
+  /** Announce an effect before it starts, and commit that intent so a crash cannot hide it. */
+  protected async journalIntent(
+    context: RunContext,
+    stepId: string,
+    callId: string,
+    toolName: string,
+    argsDigest: string,
+  ): Promise<AgentError | undefined> {
+    context.journal = [
+      ...context.journal,
+      { stepId, callId, toolName, argsDigest, state: "intent", at: new Date().toISOString() },
+    ];
+    return this.commitRun(context, "running");
+  }
+
+  /** Complete an announced effect with its result; `unknown` records a retried in-doubt effect. */
+  protected async journalResult(
+    context: RunContext,
+    stepId: string,
+    callId: string,
+    result: unknown,
+    state: "done" | "unknown" = "done",
+    usage?: TokenUsage,
+  ): Promise<AgentError | undefined> {
+    context.journal = context.journal.map((entry) =>
+      entry.stepId === stepId && entry.callId === callId
+        ? {
+            ...entry,
+            state,
+            result,
+            ...(usage === undefined ? {} : { usage }),
+            at: new Date().toISOString(),
+          }
+        : entry,
+    );
+    return this.commitRun(context, "running");
+  }
+
+  /** Drop the intent of an effect that never started (a parked gate), before the pause commits. */
+  protected discardIntent(context: RunContext, stepId: string, callId: string): void {
+    context.journal = context.journal.filter(
+      (entry) => !(entry.stepId === stepId && entry.callId === callId && entry.state === "intent"),
+    );
   }
 
   /** Mark the step in flight finished, so the next commit carries its closer. */
@@ -979,10 +1073,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.parkingDecision = undefined;
     if (decision === undefined) return;
     this.memory.restore([...context.committedSteps]);
+    const stepId = context.openStep?.stepId;
     // The parked step was dropped from memory, so nothing is in flight while the run waits.
     context.openStep = undefined;
     context.pending = {
       kind: "approval",
+      ...(stepId === undefined ? {} : { stepId }),
       requestId: decision.requestId,
       toolName: decision.name,
       argsDigest: decision.digest,
@@ -1085,6 +1181,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context.pending = undefined;
     context.stepIndex = pending.stepIndex;
     context.openStep = undefined;
+    // The parked attempt's journaled model request is replayed, not paid for twice.
+    if (pending.stepId !== undefined) context.replayStepId = pending.stepId;
     return undefined;
   }
 
@@ -1105,6 +1203,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
         },
       ];
       context.stepIndex = open.index;
+      // Re-entering the crashed attempt: its journaled effects are replayed, not re-run.
+      context.replayStepId = open.stepId;
       return;
     }
     const last = context.completed[context.completed.length - 1];
@@ -1240,6 +1340,23 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context: RunContext,
     kind: "action" | "planning",
   ): AsyncGenerator<AgentEvent, ChatCompletion> {
+    const stepId = context.openStep?.stepId;
+    if (stepId !== undefined) {
+      const recorded = this.journaledCompletion(context, stepId);
+      if (recorded?.state === "done" && recorded.result !== undefined) {
+        // The model request is a read: replaying its recorded reply costs nothing and runs no effect.
+        return recorded.result as ChatCompletion;
+      }
+      const intentFailure = await this.journalIntent(
+        context,
+        stepId,
+        "model",
+        "",
+        digestOf(messages),
+      );
+      if (intentFailure !== undefined) throw intentFailure;
+    }
+    let completion: ChatCompletion;
     if (this.prefersStreaming && this.model.capabilities.streaming) {
       const startedAt = Date.now();
       const accumulator = new ToolCallAccumulator();
@@ -1271,28 +1388,39 @@ export abstract class MultiStepAgent<TOut = unknown> {
       context.limitReached = spendBudget(context.budget, streamUsage ?? EMPTY_TOKEN_USAGE);
       // Exactly one usage.updated per model turn, whether or not the stream reported usage.
       yield this.emit({ type: "usage.updated", usage: context.usage });
-      return {
+      completion = {
         content: text,
         toolCalls: accumulator.finish(),
         usage: streamUsage ?? EMPTY_TOKEN_USAGE,
         finishReason,
       };
+    } else {
+      const startedAt = Date.now();
+      completion = await this.model.generate(messages, this.modelOptions(context));
+      if (completion.content !== "") {
+        yield this.emit(
+          kind === "planning"
+            ? { type: "planning.delta", stepIndex, text: completion.content }
+            : { type: "message.delta", text: completion.content },
+        );
+      }
+      if (kind === "action") yield* this.emitCodeDelta(completion.content, true, "", stepIndex);
+      this.monitor.record(this.model.id, completion.usage, Date.now() - startedAt);
+      context.usage = addTokenUsage(context.usage, completion.usage);
+      context.limitReached = spendBudget(context.budget, completion.usage);
+      yield this.emit({ type: "usage.updated", usage: context.usage });
     }
-
-    const startedAt = Date.now();
-    const completion = await this.model.generate(messages, this.modelOptions(context));
-    if (completion.content !== "") {
-      yield this.emit(
-        kind === "planning"
-          ? { type: "planning.delta", stepIndex, text: completion.content }
-          : { type: "message.delta", text: completion.content },
+    if (stepId !== undefined) {
+      const doneFailure = await this.journalResult(
+        context,
+        stepId,
+        "model",
+        completion,
+        "done",
+        completion.usage,
       );
+      if (doneFailure !== undefined) throw doneFailure;
     }
-    if (kind === "action") yield* this.emitCodeDelta(completion.content, true, "", stepIndex);
-    this.monitor.record(this.model.id, completion.usage, Date.now() - startedAt);
-    context.usage = addTokenUsage(context.usage, completion.usage);
-    context.limitReached = spendBudget(context.budget, completion.usage);
-    yield this.emit({ type: "usage.updated", usage: context.usage });
     return completion;
   }
 
@@ -1323,12 +1451,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
       try {
         reason = await this.guardrails.output(output, { task: context.task, signal: context.signal });
       } catch (error) {
-        this.refuseAnswer();
+        this.refuseAnswer(context);
         yield* this.failRun(context, guardrailError("output", error, context.stepIndex));
         return;
       }
       if (reason !== undefined) {
-        this.refuseAnswer();
+        this.refuseAnswer(context);
         yield* this.failRun(context, new AgentGuardrailError(reason, { stepIndex: context.stepIndex }));
         return;
       }
@@ -1337,7 +1465,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (this.outputSchema !== undefined) {
       const parsed = this.outputSchema.safeParse(output);
       if (!parsed.success) {
-        this.refuseAnswer();
+        this.refuseAnswer(context);
         const guardrail = new AgentGuardrailError(
           "The final answer failed the output schema: " + parsed.error.message,
           { stepIndex: context.stepIndex },
@@ -1364,7 +1492,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
    * and observation are redacted before the terminal commit, so neither the failed record nor a
    * later reader holds the blocked text.
    */
-  private refuseAnswer(): void {
+  private refuseAnswer(context: RunContext): void {
     const steps = this.memory.steps;
     for (let index = steps.length - 1; index >= 0; index -= 1) {
       const step = steps[index];
@@ -1379,6 +1507,25 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.observations = "Final answer: [redacted]";
       break;
     }
+    const stepId = context.openStep?.stepId;
+    if (stepId === undefined) return;
+    context.journal = context.journal.map((entry) =>
+      entry.stepId !== stepId
+        ? entry
+        : {
+            ...entry,
+            result:
+              entry.toolName === ""
+                ? { content: "[redacted]", toolCalls: [], finishReason: "stop" }
+                : {
+                    ok: false,
+                    error: {
+                      code: "AGENT_GUARDRAIL",
+                      message: "The result was withheld by the output guardrail.",
+                    },
+                  },
+          },
+    );
   }
 
   private buildResult(output: unknown, context: RunContext, state: RunState): RunResult<TOut> {

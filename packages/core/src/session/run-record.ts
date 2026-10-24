@@ -23,6 +23,8 @@ export interface PendingApproval {
   readonly kind: "approval";
   /** The request id a resume names. It is the call id the ask was recorded with. */
   readonly requestId: string;
+  /** The step attempt that asked, so a resume replays its journaled model request. */
+  readonly stepId?: string;
   readonly toolName: string;
   /** The digest of the validated arguments; a resumed call is bound to this, not to a call id. */
   readonly argsDigest: string;
@@ -60,6 +62,27 @@ export interface CompletedStep {
   readonly finishedAt: string;
 }
 
+/** How far one journaled effect got: announced, finished, or retried after an in-doubt stop. */
+export type JournalState = "intent" | "done" | "unknown";
+
+/**
+ * One external effect the run performed, written before it starts and completed after it returns.
+ * A `done` entry returns its recorded result on replay; an `intent` without a result is the
+ * explicit in-doubt state, retried only when the tool declares itself idempotent (then `unknown`).
+ * The model request is journaled the same way, with an empty `toolName`.
+ */
+export interface JournalEntry {
+  /** The step attempt that owns the effect. */
+  readonly stepId: string;
+  readonly callId: string;
+  readonly toolName: string;
+  readonly argsDigest: string;
+  readonly state: JournalState;
+  readonly result?: unknown;
+  readonly usage?: TokenUsage;
+  readonly at: string;
+}
+
 /**
  * A run as its store keeps it: one identity, one status, one fence number, and the memory the loop
  * replays. Later durability items extend this type with the fields they introduce.
@@ -76,6 +99,8 @@ export interface RunRecord {
   readonly step?: OpenStep;
   /** Every finished step, appended to and never truncated. */
   readonly completed?: readonly CompletedStep[];
+  /** One entry per external effect, in the order the effects were announced. */
+  readonly journal?: readonly JournalEntry[];
   readonly memory: { readonly steps: readonly StepJSON[] };
   /** Present while the run is parked. It is what a resume settles and what a UI renders. */
   readonly pending?: PendingApproval;

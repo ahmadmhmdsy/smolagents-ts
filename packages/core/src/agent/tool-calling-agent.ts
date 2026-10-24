@@ -3,6 +3,7 @@ import {
   AgentCancelledError,
   AgentError,
   AgentToolCallError,
+  EffectOutcomeUnknownError,
   ToolTimeoutError,
 } from "../errors.js";
 import type { AgentEvent } from "../events.js";
@@ -14,6 +15,7 @@ import type { Tool, ToolContext } from "../tool/tool.js";
 import type { ToolCall } from "../types.js";
 import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
 import { ToolApprovalPendingError } from "./approval.js";
+import { digestOf } from "../utils/digest.js";
 import { MultiStepAgent, type AgentOptions, type RunContext } from "./multi-step-agent.js";
 
 // Re-exported so callers can import it beside the agent that uses it. The binding itself is
@@ -206,24 +208,75 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       stepIndex,
       logger: this.logger,
     };
+    const stepId = context.openStep?.stepId;
+    let retried = false;
+    if (stepId !== undefined) {
+      const recorded = this.journalLookup(context, stepId, callId);
+      if (recorded !== undefined && recorded.state !== "intent" && recorded.result !== undefined) {
+        // The effect finished before the crash: return its recorded result, run nothing.
+        return recorded.result as { ok: true; output: unknown } | { ok: false; error: AgentErrorInfo };
+      }
+      if (recorded?.state === "intent") {
+        if (definition.idempotent !== true) {
+          throw new EffectOutcomeUnknownError(
+            "Tool " +
+              definition.name +
+              " was announced for call " +
+              callId +
+              " but its record has no result; it is not declared idempotent, so the run will not guess.",
+            { stepIndex },
+            definition.name,
+            callId,
+          );
+        }
+        retried = true;
+      } else {
+        const intentFailure = await this.journalIntent(
+          context,
+          stepId,
+          callId,
+          definition.name,
+          digestOf(args),
+        );
+        if (intentFailure !== undefined) throw intentFailure;
+      }
+    }
+    let result: { ok: true; output: unknown } | { ok: false; error: AgentErrorInfo };
     try {
-      return { ok: true, output: await definition.execute(args, toolContext) };
+      result = { ok: true, output: await definition.execute(args, toolContext) };
     } catch (error) {
       // Cancellation is the run's outcome, not this call's failure; it must not be flattened into
       // a tool-call error. A timed-out tool keeps its own typed code so the reader sees the limit.
       // A park and any other typed error are the loop's to report, so they pass through as-is.
+      if (stepId !== undefined) this.discardIntent(context, stepId, callId);
       if (error instanceof AgentCancelledError) throw error;
       if (error instanceof ToolApprovalPendingError) throw error;
       // A timed-out tool is this call's failure, not the run's; check it before the general
       // typed-error pass-through, because its class is an AgentError too.
-      if (error instanceof ToolTimeoutError) return { ok: false, error: error.info };
-      if (error instanceof AgentError) throw error;
-      return {
-        ok: false,
-        error: new AgentToolCallError(error instanceof Error ? error.message : String(error), { stepIndex })
-          .info,
-      };
+      if (error instanceof ToolTimeoutError) {
+        result = { ok: false, error: error.info };
+      } else if (error instanceof AgentError) {
+        throw error;
+      } else {
+        result = {
+          ok: false,
+          error: new AgentToolCallError(error instanceof Error ? error.message : String(error), {
+            stepIndex,
+          }).info,
+        };
+      }
     }
+    if (stepId !== undefined) {
+      const doneFailure = await this.journalResult(
+        context,
+        stepId,
+        callId,
+        result,
+        retried ? "unknown" : "done",
+      );
+      if (doneFailure !== undefined) throw doneFailure;
+    }
+    return result;
   }
 }
 

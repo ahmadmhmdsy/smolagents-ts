@@ -76,6 +76,7 @@ const RUNTIME_EXPORTS = [
   "RunApprovalMismatchError",
   "RunClaimedError",
   "StaleWriterError",
+  "EffectOutcomeUnknownError",
   // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
   "RUN_LIMITS_CEILING",
   "resolveBudget",

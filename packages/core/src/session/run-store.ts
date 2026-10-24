@@ -10,6 +10,8 @@ export {
   translateSnapshot,
   type ApprovalSettlement,
   type CompletedStep,
+  type JournalEntry,
+  type JournalState,
   type OpenStep,
   type PendingApproval,
   type RunRecord,

@@ -142,7 +142,7 @@ function addTool() {
 }
 
 describe("run store", () => {
-  it("commits once per action step and once at the terminal state", async () => {
+  it("journals each effect and commits each step boundary before the terminal state", async () => {
     const store = new RecordingStore();
     const agent = new ToolCallingAgent({
       model: new MockModel([
@@ -162,8 +162,15 @@ describe("run store", () => {
 
     expect(result.output).toBe(4);
     expect(result.runId).toBe("run-1");
-    expect(store.commits.map((entry) => entry.status)).toEqual(["running", "running", "completed"]);
-    expect(store.commits.map((entry) => entry.actions)).toEqual([1, 2, 3]);
+    const statuses = store.commits.map((entry) => entry.status);
+    expect(statuses.at(-1)).toBe("completed");
+    expect(statuses.slice(0, -1).every((status) => status === "running")).toBe(true);
+    // 1.4 journals the model request and each tool effect, so an action step writes more than its
+    // own boundary; what must stay true is that the record only grows at those boundaries.
+    const actions = store.commits.map((entry) => entry.actions);
+    expect(actions).toEqual([...actions].sort((left, right) => left - right));
+    expect(actions.at(-1)).toBe(3);
+    expect(store.commits.length).toBeGreaterThanOrEqual(3);
     const stored = translateRecord(store.load("run-1")!);
     expect(stored.status).toBe("completed");
     expect(stored.runId).toBe("run-1");
@@ -178,7 +185,10 @@ describe("run store", () => {
     await expect(agent.run("work", { runId: "run-failed" })).rejects.toBeInstanceOf(Error);
 
     const statuses = store.commits.map((entry) => entry.status);
-    expect(statuses).toEqual(["failed"]);
+    // The announcement the model request never completed is committed before it is attempted,
+    // so the record shows the run starting and then failing rather than only the failure.
+    expect(statuses.slice(0, -1).every((status) => status === "running")).toBe(true);
+    expect(statuses.at(-1)).toBe("failed");
     const stored = translateRecord(store.load("run-failed")!);
     expect(stored.status).toBe("failed");
     expect(stored.memory.steps.some((step) => step.kind === "action")).toBe(false);

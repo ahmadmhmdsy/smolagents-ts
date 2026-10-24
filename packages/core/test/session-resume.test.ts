@@ -217,11 +217,17 @@ describe("resuming a parked run", () => {
     });
     await first.run(TASK, { runId: RUN });
 
-    const second = new ToolCallingAgent({
-      model: new MockModel([gatedTurn({ value: 999 }, "call-9")]),
-      tools: [secret],
-      store,
+    // The model request is journaled and replayed, so the resumed step asks again for exactly what
+    // it asked before; a mismatch can only come from a record whose settlement was bound to other
+    // arguments. Rebind it to stand in for that record.
+    const waiting = store.load(RUN);
+    if (waiting === undefined || waiting.pending === undefined) throw new Error("no waiting record");
+    store.commit(RUN, {
+      ...waiting,
+      pending: { ...waiting.pending, argsDigest: digestOf({ value: 999 }) },
     });
+
+    const second = new ToolCallingAgent({ model: new MockModel([]), tools: [secret], store });
     await expect(
       second.run(TASK, { runId: RUN, resume: { requestId: "call-1", outcome: "allowed-once" } }),
     ).rejects.toBeInstanceOf(RunApprovalMismatchError);

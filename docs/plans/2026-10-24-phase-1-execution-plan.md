@@ -291,6 +291,34 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.4 as built.** `RunRecord` gains optional `journal`
+  `[{stepId, callId, toolName, argsDigest, state: intent | done | unknown, result?, usage?, at}]`;
+  a model request is an entry with `toolName ""` and `callId "model"`. The loop writes the
+  intent and commits it *before* the effect, then writes the result and commits again; a replay
+  returns the recorded result and runs nothing. An `intent` with no result means the effect may
+  have run: a non-idempotent tool raises `EffectOutcomeUnknownError` (`AGENT_EFFECT_UNKNOWN`,
+  carrying `toolName` and `callId`) and the run fails without retrying; a tool whose
+  `ToolDefinition.idempotent` is true is retried once and its entry becomes `unknown`. Model
+  requests are journaled and replayed too, so a resumed step does not pay for the same generation
+  twice. The four failure modes from the brief (crash between steps, crash after effect, idempotent
+  retry, model not repeated) are the acceptance tests.
+- **Identity and ordering.** `stepId` is the attempt id: a fresh UUID per attempt, reused when a
+  repair or a parked resume re-enters the recorded attempt, so a step's entries bind to it.
+  Commits are serialised through one tail promise, because a code block may announce several
+  effects concurrently. The step in flight is not durable: every non-terminal commit carries
+  `memory` from the last boundary (plus `step`), which is what lets `parkRun` restore memory
+  without the unfinished step.
+- **CodeAgent.** The executor receives a wrapped `ToolRegistry` whose tools journal around the
+  call, so generated code replays finished effects like structured calls. A replay that hits an
+  unknown outcome surfaces inside the code as a tool failure rather than a loop failure — a
+  limitation recorded here, not solved in 1.4.
+- **Redaction.** A tripped answer guardrail now also rewrites the answering step's journal entries
+  to `[redacted]`, so a blocked answer never reaches the record through the journal path.
+- **Superseded count.** 1.1's commit counts are superseded: each step now writes intent and result
+  commits beside its boundary, so the store test asserts monotonic actions and one terminal
+  commit instead of exact totals. The public surface gains `EffectOutcomeUnknownError`;
+  `JournalEntry` and `JournalState` are exported from `run-store`. Core grew from 496 to 503 tests.
+
 - **2026-10-24 — 1.3 as built.** `generation` is the fence and `owner` names its holder;
   `RunRecord` gains optional `owner`, `step {index, stepId, startedAt}` and
   `completed [{stepId, index, state, result?, usage?, finishedAt}]`. The seam gains

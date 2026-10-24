@@ -34,6 +34,12 @@ export interface ToolDefinition<TIn extends z.ZodType, TOut = unknown> {
    * `ToolTimeoutError`, and an aborted run is reported as cancellation instead.
    */
   timeoutMs?: number;
+  /**
+   * Whether calling the tool twice with the same arguments is safe. A journaled effect that
+   * stopped in doubt is retried only when this is `true`; otherwise the run reports
+   * `EffectOutcomeUnknownError` rather than guess. Defaults to `false`.
+   */
+  idempotent?: boolean;
   execute: (input: z.infer<TIn>, ctx: ToolContext) => Promise<TOut> | TOut;
 }
 

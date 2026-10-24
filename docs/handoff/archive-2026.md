@@ -4,6 +4,40 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T15:20:00+03:00 — Phase 1 opened: the durability spine
+
+**State.** Phase 0 is closed and pushed nowhere: ten correction commits, `pnpm gate`
+exit 0, core 39 files and 460 tests. The owner said "continue to next phase", so Phase 1
+is now open with its execution plan and `T-42` in `in_progress`. Nothing in Phase 1 has
+landed yet. All the gated rows are unchanged: `T-14` waits on registry credentials,
+`T-39` on the OmniRoute phase choice, `T-16`, `T-18` and `T-21` on owner decisions.
+
+**Did.** Wrote [`docs/plans/2026-10-24-phase-1-execution-plan.md`](docs/plans/2026-10-24-phase-1-execution-plan.md):
+eight strictly ordered items, each with a pre-registered acceptance test, a rollback and
+a file scope, grounded in the durability brief and decision `0023`. Opened `T-42` with
+the wave split: wave A is the record, the pending request, ownership and the journal
+(1.1–1.4, one loop writer); wave B is the file store, the CLI flags, the conversation and
+the fork (1.5–1.8).
+
+**Verified.** Each criterion was checked against the shipped seam before being written:
+the store still saves a `RunSnapshot` under `RunOptions.checkpoint`, `RunState` has two
+values, and the Phase 0.8 contract suite is the one every store item extends. This entry
+is docs only.
+
+**Unverified / open.** No Phase 1 code exists, so no acceptance test has run. Four readings
+are mine to prove or amend in `## Changes`: the
+record's version 2 with a dual reader for v1/v0; `pending` as a fifth approval verdict;
+the digest-and-step binding of a settled approval on replay; and a core file store over an
+injected filesystem seam with the Node binding in the CLI.
+
+**Next.** Write the 1.1 acceptance test red, then the record type and the one commit
+boundary.
+
+**Blockers.** None in this phase.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`,
+`docs/04-tasks.md:56`, `docs/research/competitors/_synthesis/15-durability-design-brief.md`.
+
 ## 2026-10-24T14:20:00+03:00 — Phase 0 closed: all ten items landed
 
 **State.** Phase 0 is done and `T-41` is `done`: ten correction items landed, each with
