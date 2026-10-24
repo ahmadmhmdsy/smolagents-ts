@@ -1,5 +1,5 @@
 import type { ActionOutcome } from "./agent/action.js";
-import type { AgentEvent } from "./events.js";
+import type { AgentEventPayload } from "./events.js";
 import type { Logger } from "./logger.js";
 import type { AgentMemory } from "./memory/memory.js";
 import type { AnyAgentStep } from "./memory/steps.js";
@@ -25,10 +25,10 @@ export interface MiddlewareContext {
  */
 export type AgentMiddleware = (
   ctx: MiddlewareContext,
-  next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-) => AsyncGenerator<AgentEvent, ActionOutcome>;
+  next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+) => AsyncGenerator<AgentEventPayload, ActionOutcome>;
 
-export type TerminalAction = () => AsyncGenerator<AgentEvent, ActionOutcome>;
+export type TerminalAction = () => AsyncGenerator<AgentEventPayload, ActionOutcome>;
 
 /**
  * Koa-style composition over async generators. Calling next() twice within one
@@ -36,10 +36,10 @@ export type TerminalAction = () => AsyncGenerator<AgentEvent, ActionOutcome>;
  */
 export function composeMiddleware(
   middleware: readonly AgentMiddleware[],
-): (ctx: MiddlewareContext, terminal: TerminalAction) => AsyncGenerator<AgentEvent, ActionOutcome> {
+): (ctx: MiddlewareContext, terminal: TerminalAction) => AsyncGenerator<AgentEventPayload, ActionOutcome> {
   return (ctx, terminal) => {
     let lastIndex = -1;
-    const dispatch = (index: number): AsyncGenerator<AgentEvent, ActionOutcome> => {
+    const dispatch = (index: number): AsyncGenerator<AgentEventPayload, ActionOutcome> => {
       if (index <= lastIndex) {
         throw new Error("next() called twice inside a single middleware");
       }

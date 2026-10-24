@@ -1,4 +1,5 @@
 import type { SettledApprovalOutcome } from "../agent/approval.js";
+import type { AgentEvent } from "../events.js";
 import { RunRecordVersionError, RunSnapshotVersionError } from "../errors.js";
 import type { StepJSON } from "../memory/steps.js";
 import type { RunMessage } from "./messages.js";
@@ -87,6 +88,12 @@ export interface JournalEntry {
   readonly at: string;
 }
 
+/** One emitted event as the record keeps it: the seq it was assigned, and the event itself. */
+export interface RunEventEntry {
+  readonly seq: number;
+  readonly event: AgentEvent;
+}
+
 /**
  * A run as its store keeps it: one identity, one status, one fence number, and the memory the loop
  * replays. Later durability items extend this type with the fields they introduce.
@@ -126,6 +133,8 @@ export interface RunRecord {
   readonly pending?: PendingApproval;
   /** Every settlement appended so far, so a second resolution can report the first. */
   readonly settlements?: readonly ApprovalSettlement[];
+  /** The tail of the event stream, newest last; a reader resumes after the last seq it saw. */
+  readonly events?: readonly RunEventEntry[];
   readonly createdAt?: string;
   readonly updatedAt?: string;
 }

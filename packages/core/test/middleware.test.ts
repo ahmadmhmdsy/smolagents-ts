@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ActionOutcome } from "../src/agent/action.js";
-import type { AgentEvent } from "../src/events.js";
+import type { AgentEventPayload } from "../src/events.js";
 import { type MiddlewareContext, composeMiddleware } from "../src/middleware.js";
 import { AgentMemory } from "../src/memory/memory.js";
 import { ActionStep } from "../src/memory/steps.js";
@@ -18,14 +18,14 @@ function context(): MiddlewareContext {
   };
 }
 
-async function* terminal(): AsyncGenerator<AgentEvent, ActionOutcome> {
+async function* terminal(): AsyncGenerator<AgentEventPayload, ActionOutcome> {
   yield { type: "step.started", stepIndex: 0 };
   yield { type: "logs.appended", stepIndex: 0, text: "hello" };
   return { observations: "hello", isFinalAnswer: false };
 }
 
-async function drain(gen: AsyncGenerator<AgentEvent, ActionOutcome>) {
-  const events: AgentEvent[] = [];
+async function drain(gen: AsyncGenerator<AgentEventPayload, ActionOutcome>) {
+  const events: AgentEventPayload[] = [];
   let next = await gen.next();
   while (!next.done) {
     events.push(next.value);
@@ -46,8 +46,8 @@ describe("composeMiddleware", () => {
     const order: string[] = [];
     const tag = (name: string) => async function* (
       _ctx: MiddlewareContext,
-      next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-    ): AsyncGenerator<AgentEvent, ActionOutcome> {
+      next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+    ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       order.push("before " + name);
       const outcome = yield* next();
       order.push("after " + name);
@@ -62,8 +62,8 @@ describe("composeMiddleware", () => {
     const seen: string[] = [];
     const tap = async function* (
       _ctx: MiddlewareContext,
-      next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-    ): AsyncGenerator<AgentEvent, ActionOutcome> {
+      next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+    ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       for await (const event of next()) {
         seen.push(event.type);
         yield event;
@@ -78,7 +78,7 @@ describe("composeMiddleware", () => {
 
   it("lets a middleware short-circuit without calling next", async () => {
     // eslint-disable-next-line require-yield -- this middleware deliberately yields no events
-    const veto = async function* (): AsyncGenerator<AgentEvent, ActionOutcome> {
+    const veto = async function* (): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       return { observations: "blocked by policy", isFinalAnswer: false };
     };
     const composed = composeMiddleware([veto])(context(), terminal);
@@ -90,8 +90,8 @@ describe("composeMiddleware", () => {
   it("lets a middleware rewrite the outcome", async () => {
     const rewrite = async function* (
       _ctx: MiddlewareContext,
-      next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-    ): AsyncGenerator<AgentEvent, ActionOutcome> {
+      next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+    ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       const outcome = yield* next();
       return { ...outcome, observations: outcome.observations.toUpperCase() };
     };
@@ -103,8 +103,8 @@ describe("composeMiddleware", () => {
   it("throws when a middleware calls next twice", async () => {
     const greedy = async function* (
       _ctx: MiddlewareContext,
-      next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-    ): AsyncGenerator<AgentEvent, ActionOutcome> {
+      next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+    ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       await drain(next());
       return yield* next();
     };
@@ -115,15 +115,15 @@ describe("composeMiddleware", () => {
   it("shares one state map across the chain", async () => {
     const writer = async function* (
       ctx: MiddlewareContext,
-      next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-    ): AsyncGenerator<AgentEvent, ActionOutcome> {
+      next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+    ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       ctx.state.set("cost", 42);
       return yield* next();
     };
     const reader = async function* (
       ctx: MiddlewareContext,
-      next: () => AsyncGenerator<AgentEvent, ActionOutcome>,
-    ): AsyncGenerator<AgentEvent, ActionOutcome> {
+      next: () => AsyncGenerator<AgentEventPayload, ActionOutcome>,
+    ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       expect(ctx.state.get("cost")).toBe(42);
       return yield* next();
     };
@@ -132,7 +132,7 @@ describe("composeMiddleware", () => {
   });
 
   it("propagates an error thrown by the terminal", async () => {
-    const boom = async function* (): AsyncGenerator<AgentEvent, ActionOutcome> {
+    const boom = async function* (): AsyncGenerator<AgentEventPayload, ActionOutcome> {
       throw new Error("executor exploded");
       yield { type: "run.cancelled" };
     };

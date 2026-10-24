@@ -7,6 +7,7 @@ export { useAgentSession } from "./session.js";
 export { ToolCall, type ToolCallProps } from "./tool-call.js";
 export { useAgentEvent } from "./use-agent-event.js";
 export { useAgentRun, type AgentRunHandle } from "./use-agent-run.js";
+export { useRunEvents, type RunEventsState } from "./use-run-events.js";
 export { VERSION } from "./version.js";
 export { RunInspector, type RunInspectorProps } from "./run-inspector.js";
 export { ChatSurface, type ChatSurfaceProps } from "./chat-surface.js";

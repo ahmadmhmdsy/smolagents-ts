@@ -99,6 +99,8 @@ const RUNTIME_EXPORTS = [
   "runManagedAgent",
   // memory: the condensation step a read-time projection hides
   "CondensationStep",
+  // the event log: a reconnecting reader resumes after the last seq it saw
+  "readEvents",
   // claim board: rows with a revision token, blockers, tombstones and advisory scopes
   "createTask",
   "claimTask",

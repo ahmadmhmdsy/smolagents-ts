@@ -46,10 +46,15 @@ export type AgentEventPayload =
   | { type: "run.resumed"; runId: string; requestId: string; outcome: ApprovalOutcome };
 
 /**
- * Every event a run emits, carrying the path of the agents that produced it. The root run's
- * path is empty; a managed child appends its own name to its parent's path.
+ * Every event a run emits, carrying the path of the agents that produced it and its position in
+ * the run's stream. The root run's path is empty; a managed child appends its own name to its
+ * parent's path. `seq` is assigned once, by the loop's emit helper, and never rewritten: a client
+ * that kept the last seq it saw can ask for everything after it.
  */
-export type AgentEvent = AgentEventPayload & { readonly agentPath?: readonly string[] };
+export type AgentEvent = AgentEventPayload & {
+  readonly agentPath?: readonly string[];
+  readonly seq: number;
+};
 
 export type AgentEventType = AgentEventPayload["type"];
 

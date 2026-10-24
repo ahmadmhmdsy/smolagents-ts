@@ -27,7 +27,7 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 52 test files and 598 tests pass, exit code 0. Measured on
+Expected result: 53 test files and 603 tests pass, exit code 0. Measured on
 2026-10-21 as 37 files and 363 tests. Phase 0's approval, schema, snapshot, budget and
 deadline suites moved the count to 386; the store contract added the thirty-eighth file and its
 sixty cases (446); the budget suite added the thirty-ninth and seven cases (458); the run record
@@ -41,8 +41,9 @@ suite the forty-seventh and eleven cases (553, six of them the contract's new wa
 Phase 2.2's transfer suite the forty-eighth and five cases (562, four of them new pins);
 Phase 2.4's background-child suite the forty-ninth and five cases (571, four of them new pins);
 Phase 2.8's claim-board suite the fiftieth and five cases (585, nine of them new pins);
-Phase 2's close added the fifty-first, the six-case exit criterion (591); and Phase 3.1's
-condensation suite the fifty-second and six cases (598, the step class a new pin). The
+Phase 2's close added the fifty-first, the six-case exit criterion (591); Phase 3.1's
+condensation suite the fifty-second and six cases (598, the step class a new pin); and
+Phase 3.2's event-log suite the fifty-third and four cases (603, `readEvents` a new pin). The
 S5–S11 packages and the core-loop-fixes suite added files twenty-nine through thirty-seven and
 their cases.
 

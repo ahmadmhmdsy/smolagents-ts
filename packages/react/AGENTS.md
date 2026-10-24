@@ -19,7 +19,7 @@ package publishes beside the facade like the other internal ones;
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/react/src/index.ts` | the twelve runtime names pinned by `packages/react/test/public-surface.test.ts` |
+| public barrel | `packages/react/src/index.ts` | the thirteen runtime names pinned by `packages/react/test/public-surface.test.ts` |
 | hooks | `packages/react/src/session.ts`, `use-agent-run.ts`, `use-agent-event.ts` | one hook per file |
 | run primitives | `packages/react/src/agent-run.tsx`, `agent-step.tsx` | each renders a class name the caller styles |
 | run patterns | `packages/react/src/run-inspector.tsx`, `chat-surface.tsx` | compose the primitives into a whole view; carry no class name |
@@ -30,11 +30,12 @@ package publishes beside the facade like the other internal ones;
 
     pnpm vitest run --project react
 
-Expected result: 11 test files and 51 tests pass, exit code 0. Measured on
+Expected result: 12 test files and 56 tests pass, exit code 0. Measured on
 2026-10-18 as "Test Files 11 passed (11)" and "Tests 51 passed (51)". The
 adoption revision reported one file and one test; the surface test is what
-remains of that smoke test, the rest is the layer, and the server-render test
-added the eleventh file and its two cases. The three `AgentRun` lifecycle cases
+remains of that smoke test, the rest is the layer, the server-render test
+added the eleventh file and its two cases, and `useRunEvents` added the twelfth
+and four cases, plus the surface test's case for the new name (56). The three `AgentRun` lifecycle cases
 (a task changed mid-run, unmount, StrictMode) were added on 2026-10-18.
 
 ## Boundaries

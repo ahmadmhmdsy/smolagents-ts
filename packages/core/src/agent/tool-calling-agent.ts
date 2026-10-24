@@ -6,7 +6,7 @@ import {
   EffectOutcomeUnknownError,
   ToolTimeoutError,
 } from "../errors.js";
-import type { AgentEvent } from "../events.js";
+import type { AgentEventPayload } from "../events.js";
 import type { ActionStep } from "../memory/steps.js";
 import type { ChatCompletion } from "../model.js";
 import { buildToolCallingAgentSystemPrompt } from "../prompts/system-prompt.js";
@@ -81,7 +81,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     action: InterpretedAction,
     step: ActionStep,
     context: RunContext,
-  ): AsyncGenerator<AgentEvent, ActionOutcome> {
+  ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
     const stepIndex = context.stepIndex;
     const requests = action.calls ?? [];
     const calls: ToolCall[] = [];
@@ -159,7 +159,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
       yield { type: "action.requested", callId, name: request.name, args: parsed.data };
       const startedAt = Date.now();
-      const approvals: AgentEvent[] = [];
+      const approvals: AgentEventPayload[] = [];
       this.captureApprovals((decision) => approvals.push(this.approvalEvent(decision)));
       let result: Awaited<ReturnType<ToolCallingAgent["invoke"]>>;
       try {

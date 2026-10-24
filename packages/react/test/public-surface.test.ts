@@ -14,6 +14,7 @@ const RUNTIME_EXPORTS = [
   "useAgentRun",
   "useAgentRunSnapshot",
   "useAgentSession",
+  "useRunEvents",
   // L3 primitives
   "AgentRun",
   "AgentStep",

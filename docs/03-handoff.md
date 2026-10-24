@@ -33,6 +33,35 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T01:40:00+03:00 — 3.2: the event log and the cursor
+
+**State.** Phase 3 is open; 3.1 and 3.2 are landed, and the exit criterion is next. `T-44` stays
+in progress. Nothing pushed.
+
+**Did.** Every event now carries a `seq` assigned once by the loop's `emit`, starting at 1, and
+the action pipeline yields payloads so `drainAction` is the only emitter. A run that resumes a
+durable record reads it before `run.started`, so numbering continues the recorded tail; the
+record gains an additive `events` field capped by `AgentOptions.maxRecordedEvents` (default
+256). Terminal events are numbered before their terminal commit, so the stored tail ends with the
+event a reconnecting reader needs, while a guardrail-refused answer drops its uncommitted events.
+`readEvents(store, runId, fromSeq = 0)` returns the events after the cursor, the record's last
+seq, and `truncated` when the cursor is older than the retained base. The react
+`useRunEvents(store, runId, { fromSeq })` reads at the cursor, follows `store.watch`, and appends
+only later events.
+
+**Verified.** `event-log.test.ts` (53rd core file, four cases) green: seqs strictly increasing
+from 1, a durable tail read from a second store, truncation at `maxRecordedEvents: 3`, and a
+continuation with `reset: false` resuming from the first cursor. `use-run-events.test.ts` (12th
+react file, four cases) green: the recorded tail and cursor, a reconnect delivering only later
+events, a live run appended once each, and a truncated cursor. Core 53 files/603 tests, react
+12/56; pins core 115, react 13; typecheck clean across the workspace (the CLI renderer's
+hand-built events now fill `seq`).
+
+**Unverified / open.** The cap counts entries, not bytes, so a chatty run keeps a shorter time
+window than a quiet one. The react hook re-reads the retained tail on each commit rather than a
+diff, so a chatty store costs one read per commit. `RunStore.watch` is advisory, so a store
+that never notifies still leaves the initial read correct.
+
 ## 2026-10-25T01:15:00+03:00 — 3.1: condensation as a step and an event
 
 **State.** Phase 3 is open; 3.1 is landed, 3.2 (the event-log cursor) is next. `T-44` stays
@@ -123,36 +152,4 @@ plan (context and compaction) is the next cut if the owner continues.
 
 **Artifacts.** `packages/core/test/phase-2-exit.test.ts`;
 `docs/reports/2026-10-24-phase-2-report.md`.
-
-## 2026-10-24T23:55:00+03:00 — 2.8: a claim board, not a data blackboard
-
-**State.** Phase 2's items 2.1–2.8 are all landed. What remains is the close: the exit criterion
-as `phase-2-exit.test.ts`, the phase report, the parent-plan check and the T-43 row. Nothing
-pushed.
-
-**Did.** `session/claim-board.ts` keeps rows on the parent record under `board`. A row is
-`{ id, title, owner?, status, blockers, writeScopes, revision, updatedAt }` and has no payload
-field; write scopes are recorded as advisory and never enforced. Every mutation — create, claim,
-update, complete, tombstone — loads the record, checks the row's revision against the caller's
-expectation and commits at the parent's next fence. A stale revision is
-`TaskStaleRevisionError`; a claim whose blockers are not all `done` is `TaskBlockedError`; a
-tombstone stays in the list with status `deleted` and refuses every mutation with
-`TaskDeletedError`. `listBoard` reads and writes nothing.
-
-**Verified.** `claim-board.test.ts` (50th core file, 5 cases) green: the five mutations bump the
-revision in order (0→4), a stale revision is refused with the row untouched, a blocked claim
-waits for its blocker and then succeeds, a deleted row keeps its tombstone and refuses claim,
-update and delete, and the row carries exactly the documented keys with scopes recorded. Core
-50 files/585 tests (nine new pins); CLI 11/77. `pnpm gate` exit 0; validator 0/0; rotate clean.
-
-**Unverified / open.** The board's CAS is per record generation: two processes mutating different
-rows still race on the parent's fence, so a lost commit is a refusal rather than a merge.
-
-**Next.** The Phase 2 close: `phase-2-exit.test.ts`, the phase report, the parent-plan check, the
-T-43 row, a final gate and one commit.
-
-**Blockers.** None; the owner-blocked rows were unchanged.
-
-**Artifacts.** `packages/core/src/session/claim-board.ts`;
-`packages/core/test/claim-board.test.ts`.
 <!-- rotate:end -->

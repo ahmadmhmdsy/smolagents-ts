@@ -118,7 +118,7 @@ subscribes through `store.watch`, and appends only the events after it, returnin
 - 3.1: `CondensationStep` is a runtime export — an exported `AnyAgentStep` union cannot name a
   private class, so the step class is pinned: core 113 → 114. (The plan first said 3.1 added no
   runtime export; the compiler proved otherwise, and the `## Changes` entry records it.)
-- 3.2: `readEvents` is a new core runtime export — core pins 113 → 114.
+- 3.2: `readEvents` is a new core runtime export — core pins 114 → 115.
 - 3.2: `useRunEvents` is a new react runtime export — react pins 12 → 13.
 - The exit test adds no export.
 
@@ -140,6 +140,19 @@ the phase task; handoff entry; final gate and commit.
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+- **2026-10-24 — 3.2 as built.** Every emitted event carries a `seq` assigned once by the loop's
+  `emit`, starting at 1; a durable run reads its record before `run.started` so the first new
+  event follows the recorded tail, and the claim still compare-and-sets the generation. The record
+  gains an additive `events` tail (default cap 256 via `AgentOptions.maxRecordedEvents`), and
+  terminal events are numbered before their terminal commit so the tail ends with the event a
+  reconnecting reader needs; a guardrail-refused answer drops its uncommitted events, as it
+  already redacted the step and journal. `readEvents(store, runId, fromSeq)` returns the events
+  after the cursor, the record's last seq, and `truncated` when the cursor is older than the
+  retained base (cursor 0 means "nothing seen"; seqs start at 1 so base 1 is complete). The react
+  `useRunEvents` reads at the cursor, follows `store.watch`, and appends only later events. The
+  action pipeline yields payloads and `drainAction` is the single emitter, so no event is numbered
+  twice. Core 53 files/603 tests; react 12/56; pins core 115, react 13; `pnpm gate` exit 0.
 
 - **2026-10-24 — 3.1 as built.** `CondensationStep` (kind `condensation`) carries a summary, the
   forgotten step ids and the trigger; `AgentMemory` projects at read time — the forgotten ids are

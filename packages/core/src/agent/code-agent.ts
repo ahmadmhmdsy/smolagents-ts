@@ -1,6 +1,6 @@
 import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
 import { MultiStepAgent, type AgentOptions, type RunContext } from "./multi-step-agent.js";
-import type { AgentEvent } from "../events.js";
+import type { AgentEventPayload } from "../events.js";
 import type { CodeExecutor, ToolCallEvent } from "../executor.js";
 import type { ActionStep } from "../memory/steps.js";
 import { type AgentErrorInfo, EffectOutcomeUnknownError } from "../errors.js";
@@ -77,10 +77,10 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     action: InterpretedAction,
     step: ActionStep,
     context: RunContext,
-  ): AsyncGenerator<AgentEvent, ActionOutcome> {
+  ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
     if (action.code === undefined) return { observations: "", isFinalAnswer: false };
 
-    const queue = createAsyncQueue<AgentEvent>();
+    const queue = createAsyncQueue<AgentEventPayload>();
     this.captureApprovals((decision) => queue.push(this.approvalEvent(decision)));
     const toolCalls: ToolCall[] = [];
     let submitted: unknown;
@@ -248,7 +248,7 @@ function describeExecution(logs: string, error: AgentErrorInfo | undefined): str
   return logs === "" ? failure : logs + "\n" + failure;
 }
 
-function toAgentEvent(event: ToolCallEvent): AgentEvent {
+function toAgentEvent(event: ToolCallEvent): AgentEventPayload {
   switch (event.type) {
     case "requested":
       return { type: "action.requested", callId: event.callId, name: event.name, args: event.args };

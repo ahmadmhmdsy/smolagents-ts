@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { AgentEvent, AgentEventType } from "../src/events.js";
+import type { AgentEventPayload, AgentEventType } from "../src/events.js";
 import { assertNever, isAdvisory, isTerminal } from "../src/events.js";
 
-const SAMPLES: Record<AgentEventType, AgentEvent> = {
+const SAMPLES: Record<AgentEventType, AgentEventPayload> = {
   "run.started": { type: "run.started", runId: "r", task: "t", modelId: "m" },
   "planning.started": { type: "planning.started", stepIndex: 0 },
   "planning.delta": { type: "planning.delta", stepIndex: 0, text: "x" },

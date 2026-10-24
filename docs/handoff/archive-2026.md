@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T23:55:00+03:00 — 2.8: a claim board, not a data blackboard
+
+**State.** Phase 2's items 2.1–2.8 are all landed. What remains is the close: the exit criterion
+as `phase-2-exit.test.ts`, the phase report, the parent-plan check and the T-43 row. Nothing
+pushed.
+
+**Did.** `session/claim-board.ts` keeps rows on the parent record under `board`. A row is
+`{ id, title, owner?, status, blockers, writeScopes, revision, updatedAt }` and has no payload
+field; write scopes are recorded as advisory and never enforced. Every mutation — create, claim,
+update, complete, tombstone — loads the record, checks the row's revision against the caller's
+expectation and commits at the parent's next fence. A stale revision is
+`TaskStaleRevisionError`; a claim whose blockers are not all `done` is `TaskBlockedError`; a
+tombstone stays in the list with status `deleted` and refuses every mutation with
+`TaskDeletedError`. `listBoard` reads and writes nothing.
+
+**Verified.** `claim-board.test.ts` (50th core file, 5 cases) green: the five mutations bump the
+revision in order (0→4), a stale revision is refused with the row untouched, a blocked claim
+waits for its blocker and then succeeds, a deleted row keeps its tombstone and refuses claim,
+update and delete, and the row carries exactly the documented keys with scopes recorded. Core
+50 files/585 tests (nine new pins); CLI 11/77. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The board's CAS is per record generation: two processes mutating different
+rows still race on the parent's fence, so a lost commit is a refusal rather than a merge.
+
+**Next.** The Phase 2 close: `phase-2-exit.test.ts`, the phase report, the parent-plan check, the
+T-43 row, a final gate and one commit.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `packages/core/src/session/claim-board.ts`;
+`packages/core/test/claim-board.test.ts`.
+
 ## 2026-10-24T23:30:00+03:00 — 2.5: the supervisor shape
 
 **State.** Phase 2 is open; 2.1–2.7 are landed except 2.8 (claim board). Next is 2.8, then the

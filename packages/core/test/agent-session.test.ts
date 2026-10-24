@@ -123,13 +123,13 @@ describe("AgentSession", () => {
     const session = new AgentSession(buildAgent([]));
     const apply = session as unknown as { apply(event: AgentEvent): void; getSnapshot(): { steps: { thought: string }[] } };
 
-    apply.apply({ type: "run.started", runId: "r", task: "t", modelId: "m" });
-    apply.apply({ type: "step.started", stepIndex: 0 });
-    apply.apply({ type: "message.delta", text: "half" });
-    apply.apply({ type: "message.delta", text: "-baked" });
+    apply.apply({ seq: 0, type: "run.started", runId: "r", task: "t", modelId: "m" });
+    apply.apply({ seq: 0, type: "step.started", stepIndex: 0 });
+    apply.apply({ seq: 0, type: "message.delta", text: "half" });
+    apply.apply({ seq: 0, type: "message.delta", text: "-baked" });
     expect(apply.getSnapshot().steps[0]?.thought).toBe("half-baked");
 
-    apply.apply({ type: "message.completed", text: "fully baked" });
+    apply.apply({ seq: 0, type: "message.completed", text: "fully baked" });
     expect(apply.getSnapshot().steps[0]?.thought).toBe("fully baked");
   });
 
@@ -137,14 +137,14 @@ describe("AgentSession", () => {
     const session = new AgentSession(buildAgent([]));
     const apply = session as unknown as { apply(event: AgentEvent): void; getSnapshot(): { steps: { toolCalls: unknown[] }[] } };
 
-    apply.apply({ type: "run.started", runId: "r", task: "t", modelId: "m" });
-    apply.apply({ type: "step.started", stepIndex: 0 });
-    apply.apply({ type: "action.requested", callId: "c1", name: "get_weather", args: { city: "Paris" } });
+    apply.apply({ seq: 0, type: "run.started", runId: "r", task: "t", modelId: "m" });
+    apply.apply({ seq: 0, type: "step.started", stepIndex: 0 });
+    apply.apply({ seq: 0, type: "action.requested", callId: "c1", name: "get_weather", args: { city: "Paris" } });
     expect(apply.getSnapshot().steps[0]?.toolCalls).toEqual([
       { id: "c1", name: "get_weather", args: { city: "Paris" }, status: "pending" },
     ]);
 
-    apply.apply({ type: "action.result", callId: "c1", name: "get_weather", output: "sunny", durationMs: 3 });
+    apply.apply({ seq: 0, type: "action.result", callId: "c1", name: "get_weather", output: "sunny", durationMs: 3 });
     expect(apply.getSnapshot().steps[0]?.toolCalls).toEqual([
       { id: "c1", name: "get_weather", args: { city: "Paris" }, status: "ok", output: "sunny", durationMs: 3 },
     ]);
@@ -154,10 +154,11 @@ describe("AgentSession", () => {
     const session = new AgentSession(buildAgent([]));
     const apply = session as unknown as { apply(event: AgentEvent): void; getSnapshot(): { steps: { toolCalls: { status: string; error?: string }[] }[] } };
 
-    apply.apply({ type: "run.started", runId: "r", task: "t", modelId: "m" });
-    apply.apply({ type: "step.started", stepIndex: 0 });
-    apply.apply({ type: "action.requested", callId: "c1", name: "boom", args: {} });
+    apply.apply({ seq: 0, type: "run.started", runId: "r", task: "t", modelId: "m" });
+    apply.apply({ seq: 0, type: "step.started", stepIndex: 0 });
+    apply.apply({ seq: 0, type: "action.requested", callId: "c1", name: "boom", args: {} });
     apply.apply({
+      seq: 0,
       type: "action.failed",
       callId: "c1",
       name: "boom",

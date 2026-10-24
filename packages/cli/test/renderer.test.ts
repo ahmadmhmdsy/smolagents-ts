@@ -1,4 +1,4 @@
-import type { AgentEvent, RunResult } from "@smolagents-ts/core";
+import type { AgentEvent, AgentEventPayload, RunResult } from "@smolagents-ts/core";
 import { describe, expect, it } from "vitest";
 import { display, renderEvent, supportsColor } from "../src/renderer.js";
 
@@ -19,8 +19,8 @@ function runResult(output: unknown): RunResult {
   };
 }
 
-function event<T extends AgentEvent["type"]>(value: Extract<AgentEvent, { type: T }>): AgentEvent {
-  return value;
+function event(value: AgentEventPayload): AgentEvent {
+  return { ...value, seq: 0 } as AgentEvent;
 }
 
 describe("renderEvent", () => {

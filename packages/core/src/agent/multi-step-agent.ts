@@ -13,7 +13,13 @@ import {
   RunRequestMismatchError,
   StaleWriterError,
 } from "../errors.js";
-import { isTerminal, type AgentEvent, type AgentEventOf, type AgentEventType } from "../events.js";
+import {
+  isTerminal,
+  type AgentEvent,
+  type AgentEventOf,
+  type AgentEventPayload,
+  type AgentEventType,
+} from "../events.js";
 import { type Logger, noopLogger } from "../logger.js";
 import { AgentMemory } from "../memory/memory.js";
 import {
@@ -64,6 +70,7 @@ import {
   type JournalEntry,
   type OpenStep,
   type PendingApproval,
+  type RunEventEntry,
   type RunRecord,
   type RunStatus,
 } from "../session/run-record.js";
@@ -117,6 +124,8 @@ export interface AgentOptions {
    * each boundary and reads it back to resume, so a run survives its process.
    */
   store?: RunStore;
+  /** How many emitted events the record retains for a reconnecting reader. Defaults to 256. */
+  maxRecordedEvents?: number;
   /** Gates every tool call: asked before a tool runs, and a denial fails that one call. */
   approve?: ApprovalHandler;
   /**
@@ -263,6 +272,12 @@ export interface RunContext {
   replayStepId: string | undefined;
   /** Serialises commits, so two effects in one code block cannot interleave a record. */
   commitTail: Promise<void>;
+  /** The seq the next emitted event gets; seeded past the record's tail when one is loaded. */
+  nextSeq: number;
+  /** Events emitted since the last commit, appended to the recorded tail when it lands. */
+  events: RunEventEntry[];
+  /** The tail the last commit wrote, kept so a commit appends rather than rebuilds it. */
+  recordedEvents: RunEventEntry[];
 }
 
 export type AgentEventListener = (event: AgentEvent) => void;
@@ -309,6 +324,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   /** The run in flight, so a throw that escapes the loop can still commit its failure. */
   private activeContext: RunContext | undefined;
   private readonly store: RunStore | undefined;
+  private readonly maxRecordedEvents: number;
   /** Repairs spent by the run in flight; the budget itself is the module constant. */
   private answerRepairs = 0;
   private readonly approve: ApprovalHandler | undefined;
@@ -329,6 +345,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.approve = options.approve;
     this.approvalPolicy = options.approvalPolicy ?? "ask";
     this.store = options.store;
+    this.maxRecordedEvents = options.maxRecordedEvents ?? 256;
     this.guardrails = options.guardrails;
     this.outputSchema = options.outputSchema;
     this.condensation = options.condensation;
@@ -447,7 +464,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /** The event a decision becomes. One per ask, so the stream and the handler count agree. */
-  protected approvalEvent(decision: ApprovalDecision): AgentEvent {
+  protected approvalEvent(decision: ApprovalDecision): AgentEventOf<"approval.decided"> {
     const event: AgentEventOf<"approval.decided"> = {
       type: "approval.decided",
       requestId: decision.requestId,
@@ -514,7 +531,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
       const type = listenerOrType;
       listener = (event) => {
-        if (event.type === type) handler(event as AgentEventOf<T>);
+        if (event.type === type) handler(event as unknown as AgentEventOf<T>);
       };
     }
     this.listeners.add(listener);
@@ -565,7 +582,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     action: InterpretedAction,
     step: ActionStep,
     context: RunContext,
-  ): AsyncGenerator<AgentEvent, ActionOutcome>;
+  ): AsyncGenerator<AgentEventPayload, ActionOutcome>;
 
   /** Drain the stream and return the result, throwing if the run did not succeed. */
   async run(task: string, options: RunOptions = {}): Promise<RunResult<TOut>> {
@@ -622,12 +639,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
       if (ended) throw error;
       // A throw that escaped the loop still leaves a record: commit the failure before reporting.
       const context = this.activeContext;
-      if (context !== undefined) await this.commitRun(context, "failed");
-      yield this.emit(
+      const terminal = this.emit(
         options.signal?.aborted === true
           ? { type: "run.cancelled" }
           : { type: "run.failed", error: AgentError.from(error).info },
       );
+      if (context !== undefined) await this.commitRun(context, "failed");
+      yield terminal;
     } finally {
       this.activeContext = undefined;
       await this.releaseResources();
@@ -682,6 +700,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
       journal: [],
       replayStepId: undefined,
       commitTail: Promise.resolve(),
+      nextSeq: 1,
+      events: [],
+      recordedEvents: [],
     };
 
     this.activeContext = context;
@@ -689,7 +710,38 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.answerRepairs = 0;
     if (options.resume !== undefined) this.ensureApprovalGate();
     this.monitor = new Monitor(context.startedAt);
+
+    // A durable run's first event must be numbered past the tail its record already holds, so the
+    // record is read before run.started. The claim below still compare-and-sets the generation, so
+    // a writer that lands between this read and the claim is refused rather than overwritten.
+    const store = this.store;
+    const storedRunId = options.runId;
+    const lookup =
+      fork === undefined &&
+      store !== undefined &&
+      storedRunId !== undefined &&
+      !((options.reset ?? true) && options.resume === undefined);
+    let loaded: RunRecord | undefined;
+    let loadFailure: AgentError | undefined;
+    if (lookup && store !== undefined && storedRunId !== undefined) {
+      try {
+        const stored = await store.load(storedRunId);
+        loaded = stored === undefined ? undefined : translateRecord(stored, storedRunId);
+      } catch (error) {
+        // A newer format is a typed refusal; anything else is the store failing to load.
+        loadFailure = error instanceof RunRecordVersionError ? error : storeError("load", error);
+      }
+      if (loaded !== undefined) {
+        context.recordedEvents = [...(loaded.events ?? [])];
+        context.nextSeq = (loaded.events?.at(-1)?.seq ?? 0) + 1;
+      }
+    }
+
     yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
+    if (loadFailure !== undefined) {
+      yield this.emit({ type: "run.failed", error: loadFailure.info });
+      return;
+    }
 
     if (fork !== undefined) {
       const failure = await this.loadFork(context, fork);
@@ -699,18 +751,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
     } else if ((options.reset ?? true) && options.resume === undefined) {
       this.memory.reset();
-    } else if (this.store !== undefined && options.runId !== undefined) {
-      let loaded: RunRecord | undefined;
-      try {
-        const stored = await this.store.load(options.runId);
-        loaded = stored === undefined ? undefined : translateRecord(stored, options.runId);
-      } catch (error) {
-        // A newer format is a typed refusal; anything else is the store failing to load.
-        const failure =
-          error instanceof RunRecordVersionError ? error : storeError("load", error);
-        yield this.emit({ type: "run.failed", error: failure.info });
-        return;
-      }
+    } else if (lookup && store !== undefined && storedRunId !== undefined) {
       const resume = options.resume;
       // Validate before claiming: a refused resume must leave the record exactly as it found it.
       if (resume !== undefined) {
@@ -734,7 +775,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         // One owner at a time: the claim fences every commit that follows.
         let claimed: RunRecord;
         try {
-          claimed = await this.store.claim(options.runId, loaded.generation, context.owner);
+          claimed = await store.claim(storedRunId, loaded.generation, context.owner);
         } catch (error) {
           yield this.emit({ type: "run.failed", error: AgentError.from(error).info });
           return;
@@ -1020,7 +1061,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     step: ActionStep,
     stepIndex: number,
     action: InterpretedAction,
-  ): AsyncGenerator<AgentEvent, ActionOutcome> {
+  ): AsyncGenerator<AgentEventPayload, ActionOutcome> {
     const middlewareContext: MiddlewareContext = {
       runId: context.runId,
       task: context.task,
@@ -1038,7 +1079,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /** Re-emit everything a composed generator produces so listeners and yielders agree. */
   private async *drainAction(
-    composed: AsyncGenerator<AgentEvent, ActionOutcome>,
+    composed: AsyncGenerator<AgentEventPayload, ActionOutcome>,
   ): AsyncGenerator<AgentEvent, ActionOutcome> {
     let next = await composed.next();
     while (!next.done) {
@@ -1046,6 +1087,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       next = await composed.next();
     }
     return next.value;
+
   }
 
   private async *runPlanningStep(
@@ -1130,6 +1172,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
       // restored memory holds only the boundary that preceded it (what parkRun relies on).
       const steps = context.openStep === undefined ? this.memory.toJSON() : context.committedSteps;
       const messages = await this.mergeMessages(context);
+      // The recorded tail is append-only between commits and bounded in all: a reconnecting reader
+      // asks after its last seq, and a cursor older than the base learns it was truncated.
+      const recordedEvents = [...context.recordedEvents, ...context.events];
+      const events = recordedEvents.slice(
+        Math.max(0, recordedEvents.length - this.maxRecordedEvents),
+      );
       const record: RunRecord = {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
@@ -1152,11 +1200,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
           ? {}
           : { children: context.children }),
         ...(context.settlements.length === 0 ? {} : { settlements: context.settlements }),
+        ...(events.length === 0 ? {} : { events }),
         createdAt: context.createdAt,
         updatedAt: new Date().toISOString(),
       };
       await this.store.commit(context.runId, record, context.generation);
       context.committedSteps = steps;
+      context.recordedEvents = events;
+      context.events = [];
       return undefined;
     } catch (error) {
       // A stale refusal is the writer's answer, not a store outage: surface it as itself.
@@ -1343,12 +1394,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
       stepIndex: decision.stepIndex,
       createdAt: new Date().toISOString(),
     };
+    const terminal = this.emit({
+      type: "run.waiting",
+      result: this.buildResult(undefined, context, "waiting"),
+    });
     const commitFailure = await this.commitRun(context, "waiting");
     if (commitFailure !== undefined) {
       yield* this.failRun(context, commitFailure);
       return;
     }
-    yield this.emit({ type: "run.waiting", result: this.buildResult(undefined, context, "waiting") });
+    yield terminal;
   }
 
   /**
@@ -1469,31 +1524,38 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context.stepIndex = last === undefined ? 0 : last.index + 1;
   }
 
-  /** Commit the terminal failure, then report it. A failed commit does not hide the cause. */
+  /**
+   * Number the terminal failure before its commit, then report it after the write. The commit
+   * records the event; a failed commit does not hide the cause from the consumer.
+   */
   private async *failRun(context: RunContext, error: AgentError): AsyncGenerator<AgentEvent, void> {
+    const terminal = this.emit({ type: "run.failed", error: error.info });
     const commitFailure = await this.commitRun(context, "failed");
     if (commitFailure !== undefined) {
       this.logger.warn("The run record could not be committed as failed", commitFailure);
     }
-    yield this.emit({ type: "run.failed", error: error.info });
+    yield terminal;
   }
 
-  /** Commit the terminal failure, then report the run as cancelled. */
+  /** Number the cancellation before the terminal commit, then report it. */
   private async *cancelRun(context: RunContext): AsyncGenerator<AgentEvent, void> {
+    const terminal = this.emit({ type: "run.cancelled" });
     await this.commitRun(context, "failed");
-    yield this.emit({ type: "run.cancelled" });
+    yield terminal;
   }
 
-  /** Commit the terminal failure, then report the budget stop. */
+  /** Number the budget stop before the terminal commit, then report it. */
   private async *limitRun(context: RunContext, reason: LimitStopReason): AsyncGenerator<AgentEvent, void> {
+    const terminal = this.emit({ type: "run.limitReached", reason });
     await this.commitRun(context, "failed");
-    yield this.emit({ type: "run.limitReached", reason });
+    yield terminal;
   }
 
-  /** Commit the terminal failure, then report the step cap. */
+  /** Number the step cap before the terminal commit, then report it. */
   private async *maxStepsRun(context: RunContext): AsyncGenerator<AgentEvent, void> {
+    const terminal = this.emit({ type: "run.maxStepsReached", steps: this.maxSteps });
     await this.commitRun(context, "failed");
-    yield this.emit({ type: "run.maxStepsReached", steps: this.maxSteps });
+    yield terminal;
   }
 
   /** The request options for one model turn, assembled in one place. */
@@ -1722,12 +1784,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
   ): AsyncGenerator<AgentEvent, void> {
     context.transfer = transfer;
     this.markStepFinished(context);
+    const terminal = this.emit({
+      type: "run.transferred",
+      result: this.buildResult(undefined, context, "success"),
+    });
     const commitFailure = await this.commitRun(context, "completed");
     if (commitFailure !== undefined) {
       yield* this.failRun(context, commitFailure);
       return;
     }
-    yield this.emit({ type: "run.transferred", result: this.buildResult(undefined, context, "success") });
+    yield terminal;
   }
 
   /**
@@ -1766,14 +1832,20 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
     this.memory.addStep(new FinalAnswerStep(value));
     this.markStepFinished(context);
-    // The terminal commit is the record's last write. A caller that finds no completed record must
-    // not believe the run finished, so a store failure here fails the run rather than the answer.
+    // The terminal event is numbered before the commit, so the record's tail ends with it and a
+    // reconnecting reader gets the completion; the consumer still sees it only after the write. A
+    // caller that finds no completed record must not believe the run finished, so a store failure
+    // here fails the run rather than the answer.
+    const terminal = this.emit({
+      type: "run.completed",
+      result: this.buildResult(value, context, "success"),
+    });
     const commitFailure = await this.commitRun(context, "completed");
     if (commitFailure !== undefined) {
       yield* this.failRun(context, commitFailure);
       return;
     }
-    yield this.emit({ type: "run.completed", result: this.buildResult(value, context, "success") });
+    yield terminal;
   }
 
   /**
@@ -1796,6 +1868,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.observations = "Final answer: [redacted]";
       break;
     }
+    // The event tail is recorded too, so the events the refused step emitted are dropped rather
+    // than rewritten: they were delivered live, but the record must not keep the blocked text.
+    context.events = [];
     const stepId = context.openStep?.stepId;
     if (stepId === undefined) return;
     context.journal = context.journal.map((entry) =>
@@ -1882,13 +1957,20 @@ export abstract class MultiStepAgent<TOut = unknown> {
     });
   }
 
-  private emit(event: AgentEvent): AgentEvent {
+  protected emit(event: AgentEventPayload & { readonly agentPath?: readonly string[] }): AgentEvent {
     // Enrich at emission, the one place every event passes: the path names the agents that
-    // produced it, so a nested child's events are attributable without a second event shape.
+    // produced it, and the seq is its position in this run's stream, so a nested child's events
+    // are attributable without a second event shape.
+    const context = this.activeContext;
     const enriched: AgentEvent = {
       ...event,
-      agentPath: this.activeContext?.agentPath ?? [],
-    } as AgentEvent;
+      agentPath: context?.agentPath ?? [],
+      seq: context?.nextSeq ?? 1,
+    };
+    if (context !== undefined) {
+      context.nextSeq += 1;
+      context.events.push({ seq: enriched.seq, event: enriched });
+    }
     for (const listener of this.listeners) {
       try {
         listener(enriched);

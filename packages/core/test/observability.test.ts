@@ -80,8 +80,9 @@ describe("buildTrace", () => {
   it("marks the run span as an error when the stream ends failed", () => {
     const trace = buildTrace(
       [
-        { type: "run.started", runId: "r1", task: "t", modelId: "m" },
+        { type: "run.started", runId: "r1", task: "t", modelId: "m", seq: 0 },
         {
+          seq: 1,
           type: "run.failed",
           error: { name: "AgentGenerationError", code: "AGENT_GENERATION", message: "boom" },
         },
