@@ -853,6 +853,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       try {
         reason = await this.guardrails.output(output, { task: context.task, signal: context.signal });
       } catch (error) {
+        await this.refuseAnswer(context);
         yield this.emit({
           type: "run.failed",
           error: guardrailError("output", error, context.stepIndex).info,
@@ -860,6 +861,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         return;
       }
       if (reason !== undefined) {
+        await this.refuseAnswer(context);
         yield this.emit({
           type: "run.failed",
           error: new AgentGuardrailError(reason, { stepIndex: context.stepIndex }).info,
@@ -871,6 +873,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (this.outputSchema !== undefined) {
       const parsed = this.outputSchema.safeParse(output);
       if (!parsed.success) {
+        await this.refuseAnswer(context);
         yield this.emit({
           type: "run.failed",
           error: new AgentGuardrailError("The final answer failed the output schema: " + parsed.error.message, {
@@ -883,6 +886,29 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
     this.memory.addStep(new FinalAnswerStep(value));
     yield this.emit({ type: "run.completed", result: this.buildResult(value, context, "success") });
+  }
+
+  /**
+   * A tripped guardrail must not persist the value it refused. The answering step's recorded call
+   * and observation are redacted, and the checkpoint is rewritten before the run reports failure,
+   * so a store or a later reader never holds the blocked text.
+   */
+  private async refuseAnswer(context: RunContext): Promise<void> {
+    const steps = this.memory.steps;
+    for (let index = steps.length - 1; index >= 0; index -= 1) {
+      const step = steps[index];
+      if (step === undefined || step.kind !== "action") continue;
+      if (step.isFinalAnswer !== true) break;
+      for (const call of step.toolCalls ?? []) {
+        if (call.name !== FINAL_ANSWER_TOOL_NAME) continue;
+        call.arguments = { redacted: true };
+        call.result = "[redacted]";
+        call.error = "The answer was withheld by the output guardrail.";
+      }
+      step.observations = "Final answer: [redacted]";
+      break;
+    }
+    await this.saveCheckpoint(context);
   }
 
   private buildResult(output: unknown, context: RunContext, state: RunState): RunResult<TOut> {

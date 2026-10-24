@@ -33,6 +33,35 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T12:05:00+03:00 — 0.6 landed: a tripped guardrail leaves no blocked text behind
+
+**State.** Six Phase 0 items in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6). Next is 0.7's tool
+deadline, then 0.8's conformance suite, 0.9's budget record and 0.10's tool-less
+structured output.
+
+**Did.** Wrote and enforced the rule in `MultiStepAgent.complete()`: when the output
+tripwire (or the schema safety net) refuses an answer, the answering step's
+`final_answer` call loses its arguments and result, its observation becomes
+`Final answer: [redacted]`, and the checkpoint is re-saved before `run.failed` — so a
+store never keeps the refused value. `buildTrace` scrubs a guarded run's trace the same
+way and marks the run span `redacted: true`.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 382 tests (1 new: a blocked answer is
+absent from the checkpoint and the trace, which says redacted).
+
+**Unverified / open.** A caller that persists the raw `AgentEvent` stream itself will
+still see the transient `action.result` value; the rule covers the artifacts this
+package writes. Nothing pushed.
+
+**Next.** 0.7: a finite per-tool deadline, a typed `ToolTimeoutError`, cancellation
+kept separate.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/src/monitoring/trace.ts`,
+`packages/core/test/guardrail.test.ts`.
+
 ## 2026-10-24T11:35:00+03:00 — 0.3 landed: a schema failure gets two repairs, then ends the run
 
 **State.** Phase 0 has five items in (0.1, 0.2, 0.3, 0.4, 0.5). Wave 2 continues with
@@ -140,37 +169,4 @@ translates, a newer version refuses typed, and the resume tests must stay green.
 **Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
 `packages/core/test/guardrail.test.ts:54`,
 `docs/plans/2026-10-24-phase-0-execution-plan.md:117`.
-
-## 2026-10-24T10:20:00+03:00 — 0.1 landed: an approval names its call and its arguments
-
-**State.** Phase 0 Wave 1 is under way and 0.1 is done. An approval carries
-`requestId` (the tool call id) and a stable `digest` of the validated arguments; the
-answer is the closed set `allowed-once | rejected | cancelled | unavailable`, a
-boolean stays shorthand, a verdict for another call or another input is refused, a
-throwing handler fails closed as `unavailable`, and `approvalPolicy: "never"`
-refuses before the handler runs. Every ask emits one `approval.decided` event, and
-`AgentSession` keeps the same records in its snapshot as `approvals`. 0.5 and 0.4
-are untouched; 0.2 is next.
-
-**Did.** New `packages/core/src/utils/digest.ts`; rewrote
-`packages/core/src/agent/approval.ts`; gated tools in `multi-step-agent.ts` with a
-per-step sink; both flavours emit decisions; `agent-session.ts` projects them; the
-CLI renders the event; the event fixture and the approval suite (eight cases)
-updated; the execution plan's Changes section records the one-event decision.
-
-**Verified.** `pnpm gate` exit 0; core 37 files, 367 tests; typecheck clean across
-the workspace.
-
-**Unverified / open.** Nothing pushed. The production build ran inside the gate;
-no package was published.
-
-**Next.** 0.2: bind `outputSchema` to `final_answer` in both flavours, return a
-mismatch as an observation, and delete `ModelCapabilities.structuredOutput` — its
-acceptance test comes first.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/src/agent/approval.ts:1`,
-`packages/core/src/agent/multi-step-agent.ts:139`,
-`docs/plans/2026-10-24-phase-0-execution-plan.md:170`.
 <!-- rotate:end -->

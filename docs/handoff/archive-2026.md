@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T10:20:00+03:00 — 0.1 landed: an approval names its call and its arguments
+
+**State.** Phase 0 Wave 1 is under way and 0.1 is done. An approval carries
+`requestId` (the tool call id) and a stable `digest` of the validated arguments; the
+answer is the closed set `allowed-once | rejected | cancelled | unavailable`, a
+boolean stays shorthand, a verdict for another call or another input is refused, a
+throwing handler fails closed as `unavailable`, and `approvalPolicy: "never"`
+refuses before the handler runs. Every ask emits one `approval.decided` event, and
+`AgentSession` keeps the same records in its snapshot as `approvals`. 0.5 and 0.4
+are untouched; 0.2 is next.
+
+**Did.** New `packages/core/src/utils/digest.ts`; rewrote
+`packages/core/src/agent/approval.ts`; gated tools in `multi-step-agent.ts` with a
+per-step sink; both flavours emit decisions; `agent-session.ts` projects them; the
+CLI renders the event; the event fixture and the approval suite (eight cases)
+updated; the execution plan's Changes section records the one-event decision.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 367 tests; typecheck clean across
+the workspace.
+
+**Unverified / open.** Nothing pushed. The production build ran inside the gate;
+no package was published.
+
+**Next.** 0.2: bind `outputSchema` to `final_answer` in both flavours, return a
+mismatch as an observation, and delete `ModelCapabilities.structuredOutput` — its
+acceptance test comes first.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/agent/approval.ts:1`,
+`packages/core/src/agent/multi-step-agent.ts:139`,
+`docs/plans/2026-10-24-phase-0-execution-plan.md:170`.
+
 ## 2026-10-24T10:05:00+03:00 — Phase 0 opened; T-41 in progress
 
 **State.** The program is approved and Phase 0 is open. Wave 1 is 0.1 (approval

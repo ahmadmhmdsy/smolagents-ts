@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ToolCallingAgent, FINAL_ANSWER_TOOL_NAME } from "../src/agent/tool-calling-agent.js";
+import type { AgentEvent } from "../src/events.js";
+import { buildTrace } from "../src/monitoring/trace.js";
+import { MemoryRunStore } from "../src/session/run-store.js";
 import { MockModel } from "../src/testing/mock-model.js";
 import type { ToolCallRequest } from "../src/types.js";
 
@@ -122,6 +125,31 @@ describe("agent guardrails", () => {
       message: expect.stringMatching(/truncated/),
     });
     expect(model.callCount).toBe(1);
+  });
+
+  it("keeps a blocked answer out of the checkpoint and says redacted in the trace", async () => {
+    const store = new MemoryRunStore();
+    const agent = new ToolCallingAgent({
+      model: new MockModel([
+        { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer("top-secret")] },
+      ]),
+      tools: [],
+      store,
+      guardrails: { output: () => "blocked by policy" },
+    });
+
+    const events: AgentEvent[] = [];
+    for await (const event of agent.stream("tell the secret", { checkpoint: "blocked-run" })) {
+      events.push(event);
+    }
+
+    expect(events.at(-1)?.type).toBe("run.failed");
+    const saved = JSON.stringify(store.load("blocked-run"));
+    expect(saved).not.toContain("top-secret");
+    expect(saved).toContain("redacted");
+    const trace = buildTrace(events);
+    expect(JSON.stringify(trace)).not.toContain("top-secret");
+    expect(trace.attributes.redacted).toBe(true);
   });
 
   it("advertises the bound schema as the final_answer parameter schema", async () => {

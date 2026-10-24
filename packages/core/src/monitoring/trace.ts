@@ -1,3 +1,4 @@
+import { FINAL_ANSWER_TOOL_NAME } from "../agent/action.js";
 import type { AgentEvent } from "../events.js";
 
 /** One OTel-shaped span: a named, timed unit of work with attributes and child spans. */
@@ -12,6 +13,23 @@ export interface TraceSpan {
 
 function span(name: string, startTimeMs: number, attributes: Record<string, unknown> = {}): TraceSpan {
   return { name, startTimeMs, endTimeMs: startTimeMs, status: "ok", attributes, children: [] };
+}
+
+/**
+ * Remove a guarded run's refused answer from every span: the final-answer tool span loses the
+ * arguments and output it recorded, and the answering step's observation says it was redacted.
+ */
+function redactGuardedSpans(span: TraceSpan): void {
+  if (span.name === "tool." + FINAL_ANSWER_TOOL_NAME) {
+    delete span.attributes["args"];
+    delete span.attributes["output"];
+    span.attributes.redacted = true;
+  }
+  if (span.attributes.isFinalAnswer === true) {
+    span.attributes.observation = "[redacted]";
+    span.attributes.redacted = true;
+  }
+  for (const child of span.children) redactGuardedSpans(child);
 }
 
 /**
@@ -100,6 +118,11 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
       case "run.failed":
         root.status = "error";
         root.attributes.error = event.error;
+        // A tripped guardrail must not leave the refused value in the trace either.
+        if (event.error.code === "AGENT_GUARDRAIL") {
+          root.attributes.redacted = true;
+          redactGuardedSpans(root);
+        }
         break;
       case "run.maxStepsReached":
         root.status = "error";

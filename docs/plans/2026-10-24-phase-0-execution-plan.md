@@ -145,3 +145,9 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   acceptance's "two attempts recorded" reads the two failed calls), not a second event
   kind. `RunContext.finishReason` carries the reply's finish reason, and a reply cut off
   by `length` is never repaired: the missing part is not a mistake a turn can correct.
+- **2026-10-24 — 0.6 as built.** A tripped output guardrail (or the schema safety net in
+  `complete()`) now redacts before it reports: the answering step's `final_answer` call and
+  observation are replaced, and the checkpoint is rewritten, so a store never holds the
+  refused value. `buildTrace` scrubs a guarded run too — the final-answer tool span loses
+  its args and output, the answering step's observation becomes `[redacted]`, and the run
+  span carries `redacted: true`.
