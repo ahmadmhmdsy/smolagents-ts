@@ -11,6 +11,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-30 | emit `code.delta` or stop declaring it | done | this session | `packages/core/src/agent/` | the event is emitted: the loop yields `code.delta` for the code visible so far, and two tests pin the emitted text and the no-event case for a tool-calling agent | `packages/core/src/agent/multi-step-agent.ts:684`; `packages/core/test/core-loop-fixes.test.ts:338-371` |
 | T-41 | Phase 0: the correction pass | done | lead | `packages/core/**`, `packages/exec-remote/**`, `packages/models/**` | - | `docs/plans/2026-10-24-phase-0-execution-plan.md`; 0.1–0.10 landed; `pnpm gate` exit 0; core 39 files, 460 tests |
 | T-42 | Phase 1: the durability spine | done | lead | `packages/core/src/session/**`, `packages/core/src/agent/**`, `packages/core/src/tool/tool.ts`, `packages/cli/**` | 1.1, then 1.2-1.4 in order; 1.5-1.8 follow the record | `docs/reports/2026-10-24-phase-1-report.md` |
+| T-43 | Phase 2: delegation that survives its parent | done | lead | `packages/core/src/agent/**`, `packages/core/src/session/**`, `examples/supervisor/**` | 2.1, 2.3, 2.6, 2.7 first, then 2.2, 2.4, 2.5, 2.8 | `docs/reports/2026-10-24-phase-2-report.md`; 2.1–2.8 landed; `pnpm gate` exit 0; core 51 files, 591 tests |
 
 ## Closed 2026-10-16
 

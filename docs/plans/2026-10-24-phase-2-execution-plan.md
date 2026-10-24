@@ -1,6 +1,6 @@
 # Phase 2 — delegation that survives its parent: execution plan
 
-**Date:** 2026-10-24 · **Status:** in_progress · **Owner:** lead · **Parent:**
+**Date:** 2026-10-24 · **Status:** complete · **Owner:** lead · **Parent:**
 [apply the competitor findings](2026-10-22-apply-the-competitor-findings-plan.md), rows 2.1–2.8.
 
 **Contract**
@@ -196,6 +196,17 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+- **2026-10-24 — Phase 2 closed.** The exit criterion runs as six cases in
+  `packages/core/test/phase-2-exit.test.ts` (51st core file): a background child's typed result
+  re-attaches after the parent ended, a running child sees a send at its next step and a parked
+  child resumes for one, a wait on an ended or unknown run reports `noProgress` without claiming,
+  a transfer survives a reload through a second `FileRunStore`, a grandchild's events all carry
+  `["researcher","writer"]`, and a claim at a consumed revision is refused. Core 51 files/591
+  tests; CLI 11/77; public surface 113 pins; `pnpm gate` exit 0; validator 0/0; rotate clean. The
+  completion record is `docs/reports/2026-10-24-phase-2-report.md`; `T-43` is done and `T-40`
+  names Phase 2 closed. Nothing pushed.
+
 
 - **2026-10-24 — 2.8 as built.** `session/claim-board.ts` keeps rows on the parent record under
   `board`, each `{ id, title, owner?, status, blockers, writeScopes, revision, updatedAt }`. There

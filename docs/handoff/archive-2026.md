@@ -4,6 +4,39 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T22:50:00+03:00 — 2.2: a handover the record can name
+
+**State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.6 and 2.7 are landed. Next is 2.4 (bounded background
+child), then 2.5 (supervisor example) and 2.8 (claim board). Nothing pushed.
+
+**Did.** `agent/transfer.ts` declares a `TransferTarget { name, description, agent }` and builds
+its `transfer_to_<name>` tool. The tool's name is derived from the declaration, so a target that
+was not declared has no call the model can make; an invalid name, a blank description, a
+duplicate name or a transfer to the agent itself throws `ToolDefinitionError` at construction.
+Calling the tool returns a `TransferSignal { target, reason? }` instead of an answer. The loop
+recognises the signal only among the transfer tools it built, commits the step boundary with
+`transfer` on the record, and ends the run with the new terminal `run.transferred` event,
+`RunResult.state === "success"` and `RunResult.transfer`. The target's run is the caller's to
+start (2.5).
+
+**Verified.** `transfer.test.ts` (48th core file, 5 cases) green: one named tool per
+declaration, a call ending the run with the target on result and record and one terminal
+`run.transferred` with no `run.completed`, invalid declarations throwing `ToolDefinitionError`,
+an undeclared target staying an ordinary tool error, and a run without a transfer carrying no
+`transfer` key. Core 48 files/562 tests (four new pins); CLI 11/77 with the renderer printing the
+target. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The target's run is not started by the transfer; a caller that forgets to
+start it leaves a completed record naming a run that never happened. 2.5 must show the supervisor
+starting it.
+
+**Next.** 2.4: a bounded background child with its own row on the parent record.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `packages/core/src/agent/transfer.ts`; `packages/core/test/transfer.test.ts`;
+`packages/core/src/events.ts`; `packages/core/src/agent/run-result.ts`.
+
 ## 2026-10-24T22:35:00+03:00 — 2.7: a wait is an edge, not a poll
 
 **State.** Phase 2 is open; the first slice (2.1, 2.3, 2.6, 2.7) is landed. Next is the second

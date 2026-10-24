@@ -33,6 +33,37 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T00:20:00+03:00 — Phase 2 closed
+
+**State.** Phase 2 (delegation that survives its parent) is complete: 2.1–2.8 landed, the exit
+criterion proven, the report written, `T-43` done. Nothing pushed; `main` is ahead of
+`origin/main`.
+
+**Did.** `phase-2-exit.test.ts` (51st core file, 6 cases) runs the parent plan's criterion: a
+background child's typed result re-attaches through `resumeBackgroundChild` after the parent
+ended; a running child sees a send at its next step and a parked child resumes for one; a wait on
+an ended or unknown run reports `noProgress` and claims nothing; a transfer survives a reload
+through a second `FileRunStore`; every grandchild event carries `["researcher","writer"]`; a
+claim at a consumed revision is `TaskStaleRevisionError`. `docs/reports/2026-10-24-phase-2-report.md`
+records the evidence, the eight commits, the parent-plan check and the open items. The execution
+plan is marked complete with a close entry; `T-43` moved to the archive with evidence; the
+parent plan's row and `T-40`'s gate text say Phase 2 is closed.
+
+**Verified.** Core 51 files/591 tests; CLI 11/77; public surface 113 pins; the supervisor
+example's project green and typechecked. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The release still waits on `T-14` credentials. The supervisor's model is
+scripted. The board's CAS races on the parent's fence across processes, so a lost commit is a
+typed refusal, not a merge. A background child's agent must share the parent's store.
+
+**Next.** No phase row is open; the next one starts when the owner opens it. Phase 3 in the parent
+plan (context and compaction) is the next cut if the owner continues.
+
+**Blockers.** None; the six owner-blocked rows are unchanged.
+
+**Artifacts.** `packages/core/test/phase-2-exit.test.ts`;
+`docs/reports/2026-10-24-phase-2-report.md`.
+
 ## 2026-10-24T23:55:00+03:00 — 2.8: a claim board, not a data blackboard
 
 **State.** Phase 2's items 2.1–2.8 are all landed. What remains is the close: the exit criterion
@@ -124,37 +155,4 @@ write to `StaleWriterError` — 2.5 keeps the supervisor idle while it starts ch
 
 **Artifacts.** `packages/core/src/agent/background-child.ts`;
 `packages/core/test/background-child.test.ts`.
-
-## 2026-10-24T22:50:00+03:00 — 2.2: a handover the record can name
-
-**State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.6 and 2.7 are landed. Next is 2.4 (bounded background
-child), then 2.5 (supervisor example) and 2.8 (claim board). Nothing pushed.
-
-**Did.** `agent/transfer.ts` declares a `TransferTarget { name, description, agent }` and builds
-its `transfer_to_<name>` tool. The tool's name is derived from the declaration, so a target that
-was not declared has no call the model can make; an invalid name, a blank description, a
-duplicate name or a transfer to the agent itself throws `ToolDefinitionError` at construction.
-Calling the tool returns a `TransferSignal { target, reason? }` instead of an answer. The loop
-recognises the signal only among the transfer tools it built, commits the step boundary with
-`transfer` on the record, and ends the run with the new terminal `run.transferred` event,
-`RunResult.state === "success"` and `RunResult.transfer`. The target's run is the caller's to
-start (2.5).
-
-**Verified.** `transfer.test.ts` (48th core file, 5 cases) green: one named tool per
-declaration, a call ending the run with the target on result and record and one terminal
-`run.transferred` with no `run.completed`, invalid declarations throwing `ToolDefinitionError`,
-an undeclared target staying an ordinary tool error, and a run without a transfer carrying no
-`transfer` key. Core 48 files/562 tests (four new pins); CLI 11/77 with the renderer printing the
-target. `pnpm gate` exit 0; validator 0/0; rotate clean.
-
-**Unverified / open.** The target's run is not started by the transfer; a caller that forgets to
-start it leaves a completed record naming a run that never happened. 2.5 must show the supervisor
-starting it.
-
-**Next.** 2.4: a bounded background child with its own row on the parent record.
-
-**Blockers.** None; the owner-blocked rows were unchanged.
-
-**Artifacts.** `packages/core/src/agent/transfer.ts`; `packages/core/test/transfer.test.ts`;
-`packages/core/src/events.ts`; `packages/core/src/agent/run-result.ts`.
 <!-- rotate:end -->
