@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T09:20:00+03:00 — deepseek-harness filed as a post-synthesis dive; its team model answers the delegation question
+
+**State.** The harness we run inside is dive twenty-two: five files under `docs/research/competitors/deepseek-harness/` plus a register addendum row, read at `687f282e86` (MIT, 0.2.1-rc.2; the owner's rc.3 is newer and changes client menus only). No package source changed; the plan is unapproved and nothing from this dive is applied to it.
+
+**Did.** Read the team subsystem page, both team READMEs, the design note and its rejected alternatives, the subagent seam, approval, jobs, goal and plan, and 117 team commits across seven waves. Filed: a flat roster of named continuable children, peer messages as inbox writes at a step boundary, a task board of claims rather than data, wait edges with a typed `noProgress`, and closed approval outcomes with a per-session `never` policy. Also recorded what not to copy: the durable mailbox that became dead decoder code, nine tools before a usage shape, separate profile layers, a shared checkout with advisory write scopes.
+
+**Verified.** Validator 0/0 after this rotation; harness paths are prefixed `clone:/` so they never resolve into this tree; contracts in all five files. Not verified: the adjacent-feature sweep was still running at filing time.
+
+**Unverified / open.** `MA-05` is now answerable from evidence — no blackboard for data, messages as record entries, a claim board only when background children exist — but the owner has not decided. The program is unapproved, so no phase row is open.
+
+**Next.** Brainstorm the five adoptable ideas and get the `MA-05` wording and a Phase 2 amendment approved or rejected.
+
+**Blockers.** `T-40` on approval; `T-14` on credentials and `0024`.
+
+**Artifacts.** `docs/research/competitors/deepseek-harness/`; `docs/research/competitors/README.md` addendum.
+
 ## 2026-10-24T08:05:00+03:00 — five of the six design questions are decided; delegation is the last one open
 
 **State.** Decisions `0022` (refuse list), `0023` (one identity per run) and `0024` (publication ordering) are accepted, and the plan records the two-wave Phase 0 cut. No package source changed. `MA-05` waits on an explanation of the delegation model; `MD-10` is deferred by the owner.

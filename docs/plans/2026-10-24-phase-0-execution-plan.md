@@ -127,3 +127,9 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   `FINAL ANSWER SCHEMA` paragraph appended to its prompt; a mismatch on either path returns
   as an observation and the loop continues, which is why the acceptance test is a two-turn
   transcript. The schema is still re-checked in `complete()` as the last line of defence.
+- **2026-10-24 — 0.5 as built.** `RunSnapshot` is `{formatVersion, steps}`; a bare step
+  array still loads as the version-0 form and translates on read, and a declared version
+  newer than the runtime's fails the run with `RunSnapshotVersionError`
+  (`AGENT_SNAPSHOT_VERSION`) instead of being half-read. Translation lives beside the
+  type in `packages/core/src/session/run-store.ts`, and `RunStore.load` is typed to
+  accept either stored shape, so an existing store compiles unchanged.

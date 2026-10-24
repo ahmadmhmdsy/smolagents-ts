@@ -60,6 +60,9 @@ const RUNTIME_EXPORTS = [
   "stepToJSON",
   "stepFromJSON",
   "MemoryRunStore",
+  "translateSnapshot",
+  "RUN_SNAPSHOT_VERSION",
+  "RunSnapshotVersionError",
   // runtime
   "MultiStepAgent",
   "CodeAgent",

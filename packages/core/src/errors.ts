@@ -7,7 +7,8 @@ export type AgentErrorCode =
   | "AGENT_TOOL_CALL"
   | "AGENT_TIMEOUT"
   | "AGENT_CANCELLED"
-  | "AGENT_GUARDRAIL";
+  | "AGENT_GUARDRAIL"
+  | "AGENT_SNAPSHOT_VERSION";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -125,6 +126,26 @@ export class AgentGuardrailError extends AgentError {
   }
 }
 
+/** Raised when a store holds a run snapshot written in a format this runtime cannot read. */
+export class RunSnapshotVersionError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_SNAPSHOT_VERSION" });
+    this.name = "RunSnapshotVersionError";
+  }
+
+  /** The refusal for a snapshot whose format version is newer than this runtime's. */
+  static forVersion(found: unknown, expected: number): RunSnapshotVersionError {
+    const shown = typeof found === "number" ? String(found) : "unknown";
+    return new RunSnapshotVersionError(
+      "The run snapshot declares format version " +
+        shown +
+        ", and this runtime reads version " +
+        String(expected) +
+        " only.",
+    );
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -137,4 +158,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_TIMEOUT: AgentTimeoutError,
   AGENT_CANCELLED: AgentCancelledError,
   AGENT_GUARDRAIL: AgentGuardrailError,
+  AGENT_SNAPSHOT_VERSION: RunSnapshotVersionError,
 };

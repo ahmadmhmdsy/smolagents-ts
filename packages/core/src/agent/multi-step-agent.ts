@@ -4,6 +4,7 @@ import {
   AgentGuardrailError,
   AgentMaxStepsError,
   AgentParsingError,
+  RunSnapshotVersionError,
 } from "../errors.js";
 import { isTerminal, type AgentEvent, type AgentEventOf, type AgentEventType } from "../events.js";
 import { type Logger, noopLogger } from "../logger.js";
@@ -41,7 +42,12 @@ import {
   type ApprovalPolicy,
 } from "./approval.js";
 import type { Guardrails } from "./guardrail.js";
-import type { RunStore } from "../session/run-store.js";
+import {
+  RUN_SNAPSHOT_VERSION,
+  translateSnapshot,
+  type RunSnapshot,
+  type RunStore,
+} from "../session/run-store.js";
 import { z } from "zod";
 
 export interface AgentOptions {
@@ -418,14 +424,18 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (options.reset ?? true) {
       this.memory.reset();
     } else if (this.store !== undefined && options.checkpoint !== undefined) {
-      let saved: Awaited<ReturnType<RunStore["load"]>>;
+      let saved: ReturnType<typeof translateSnapshot> | undefined;
       try {
-        saved = await this.store.load(options.checkpoint);
+        const stored = await this.store.load(options.checkpoint);
+        saved = stored === undefined ? undefined : translateSnapshot(stored);
       } catch (error) {
-        yield this.emit({ type: "run.failed", error: storeError("load", error).info });
+        // A newer format is a typed refusal; anything else is the store failing to load.
+        const failure =
+          error instanceof RunSnapshotVersionError ? error : storeError("load", error);
+        yield this.emit({ type: "run.failed", error: failure.info });
         return;
       }
-      if (saved !== undefined) this.memory.restore(saved);
+      if (saved !== undefined) this.memory.restore(saved.steps);
     }
     this.memory.addStep(new TaskStep(task));
     // A continued memory already holds a system prompt, and the transcript renders the current
@@ -639,7 +649,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private async saveCheckpoint(context: RunContext): Promise<AgentError | undefined> {
     if (this.store === undefined || context.checkpoint === undefined) return undefined;
     try {
-      await this.store.save(context.checkpoint, this.memory.toJSON());
+      const snapshot: RunSnapshot = {
+        formatVersion: RUN_SNAPSHOT_VERSION,
+        steps: this.memory.toJSON(),
+      };
+      await this.store.save(context.checkpoint, snapshot);
       return undefined;
     } catch (error) {
       return storeError("save", error, context.stepIndex);

@@ -33,6 +33,31 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T10:45:00+03:00 — 0.5 landed: a checkpoint says which format it is
+
+**State.** Phase 0 Wave 1 has 0.1, 0.2 and 0.5 in. 0.4 (remote egress) is the last Wave 1
+item and runs beside the others on `packages/exec-remote/**`, so it can start now.
+
+**Did.** `RunSnapshot` is now `{formatVersion, steps}`; `translateSnapshot` reads a
+bare step array as version 0 and normalises it, and a declared version newer than
+`RUN_SNAPSHOT_VERSION` fails the run with `RunSnapshotVersionError`
+(`AGENT_SNAPSHOT_VERSION`) rather than being half-read. `RunStore.load` accepts either
+shape, so an existing store compiles unchanged; `MemoryRunStore` stores the envelope.
+Translation is public: a store outside this tree needs it to migrate a checkpoint.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 378 tests (8 new snapshot tests,
+including a legacy-store resume and the newer-version refusal).
+
+**Unverified / open.** Nothing pushed.
+
+**Next.** 0.4: `egress` on the remote executor seam, deny-all mapped to the vendor for
+E2B and refused typed for Docker and process before a guest starts.
+
+**Blockers.** None (Docker/process refusal is the planned outcome, not a blocker).
+
+**Artifacts.** `packages/core/src/session/run-store.ts:1`,
+`packages/core/src/errors.ts:128`, `packages/core/test/run-store.test.ts:51`.
+
 ## 2026-10-24T10:35:00+03:00 — 0.2 landed: the answer schema binds to `final_answer`
 
 **State.** Phase 0 Wave 1 has two items in: 0.1 (approval naming) and 0.2 (schema
@@ -151,20 +176,4 @@ start Wave 1 (0.1, 0.2, 0.5, with 0.4 beside them on `exec-remote`).
 
 **Artifacts.** `docs/09-decisions/0025-no-blackboard.md:1`,
 `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md:95`.
-
-## 2026-10-24T09:20:00+03:00 — deepseek-harness filed as a post-synthesis dive; its team model answers the delegation question
-
-**State.** The harness we run inside is dive twenty-two: five files under `docs/research/competitors/deepseek-harness/` plus a register addendum row, read at `687f282e86` (MIT, 0.2.1-rc.2; the owner's rc.3 is newer and changes client menus only). No package source changed; the plan is unapproved and nothing from this dive is applied to it.
-
-**Did.** Read the team subsystem page, both team READMEs, the design note and its rejected alternatives, the subagent seam, approval, jobs, goal and plan, and 117 team commits across seven waves. Filed: a flat roster of named continuable children, peer messages as inbox writes at a step boundary, a task board of claims rather than data, wait edges with a typed `noProgress`, and closed approval outcomes with a per-session `never` policy. Also recorded what not to copy: the durable mailbox that became dead decoder code, nine tools before a usage shape, separate profile layers, a shared checkout with advisory write scopes.
-
-**Verified.** Validator 0/0 after this rotation; harness paths are prefixed `clone:/` so they never resolve into this tree; contracts in all five files. Not verified: the adjacent-feature sweep was still running at filing time.
-
-**Unverified / open.** `MA-05` is now answerable from evidence — no blackboard for data, messages as record entries, a claim board only when background children exist — but the owner has not decided. The program is unapproved, so no phase row is open.
-
-**Next.** Brainstorm the five adoptable ideas and get the `MA-05` wording and a Phase 2 amendment approved or rejected.
-
-**Blockers.** `T-40` on approval; `T-14` on credentials and `0024`.
-
-**Artifacts.** `docs/research/competitors/deepseek-harness/`; `docs/research/competitors/README.md` addendum.
 <!-- rotate:end -->
