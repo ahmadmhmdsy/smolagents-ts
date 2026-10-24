@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { tool, type Logger, type Tool, type ToolContext } from "@smolagents-ts/core";
 import { MCPToolCollisionError, MCPToolError } from "./errors.js";
+import type { MCPProgress, MCPRequestOptions } from "./notifications.js";
 
 /** One entry of a tools/list page, as the protocol defines it. */
 export interface MCPToolListEntry {
@@ -26,6 +27,7 @@ export interface AdaptToolsOptions {
     method: string,
     params: Record<string, unknown> | undefined,
     signal?: AbortSignal,
+    options?: MCPRequestOptions,
   ) => Promise<Record<string, unknown>>;
 }
 
@@ -149,13 +151,25 @@ async function callTool(
     input !== null && typeof input === "object" && !Array.isArray(input)
       ? (input as Record<string, unknown>)
       : {};
+  // One token per call, so a progress update can only ever land on the call that
+  // asked for it. A caller with no sink sends no token and gets no _meta.
+  const progressToken =
+    ctx.onProgress === undefined ? undefined : "mcp-" + server + "-" + ctx.callId;
+  const requestOptions: MCPRequestOptions | undefined =
+    progressToken === undefined
+      ? undefined
+      : {
+          progressToken,
+          onProgress: (progress: MCPProgress) => ctx.onProgress?.(progress),
+        };
+  const params = {
+    name: entry.name,
+    arguments: args,
+    ...(progressToken === undefined ? {} : { _meta: { progressToken } }),
+  };
   let result: Record<string, unknown>;
   try {
-    result = await options.request(
-      "tools/call",
-      { name: entry.name, arguments: args },
-      ctx.signal,
-    );
+    result = await options.request("tools/call", params, ctx.signal, requestOptions);
   } catch (error) {
     if (error instanceof MCPToolError) throw error;
     // A server that rejects the call outright (an unknown tool, a protocol error) is

@@ -45,6 +45,13 @@ import {
   type MCPResource,
   type MCPResourceContents,
 } from "./catalog.js";
+import {
+  toNotification,
+  type MCPNotification,
+  type MCPNotificationListener,
+  type MCPProgress,
+  type MCPRequestOptions,
+} from "./notifications.js";
 import { VERSION } from "./version.js";
 
 /** The client's own protocol identity, sent in clientInfo. */
@@ -67,6 +74,7 @@ export interface MCPToolSource {
     method: string,
     params: Record<string, unknown> | undefined,
     signal?: AbortSignal,
+    options?: MCPRequestOptions,
   ): Promise<Record<string, unknown>>;
   readonly server: string;
 }
@@ -103,6 +111,10 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout> | undefined;
   method: string;
   connection: ServerConnection;
+  /** The token this request owns, when it asked for progress. */
+  progressToken: string | number | undefined;
+  /** The sink this request's progress updates go to. */
+  onProgress: ((progress: MCPProgress) => void) | undefined;
 }
 
 /**
@@ -134,6 +146,7 @@ export class MCPClient {
   private readonly structuredOutput: boolean;
   private readonly connections: ServerConnection[] = [];
   private readonly pending = new Map<string | number, PendingRequest>();
+  private readonly notificationListeners = new Set<MCPNotificationListener>();
   private nextId = 1;
   private closed = false;
   private connected = false;
@@ -147,6 +160,9 @@ export class MCPClient {
     this.maxListPages = options.maxListPages ?? DEFAULT_MAX_LIST_PAGES;
     this.transportFactory = options.transportFactory ?? defaultTransportFactory;
     this.structuredOutput = options.structuredOutput ?? false;
+    if (options.onNotification !== undefined) {
+      this.notificationListeners.add(options.onNotification);
+    }
     if (options.structuredOutput === undefined) {
       // Upstream warns that the default flips to true at 1.25; the notice is routed
       // through the injected logger rather than the console, which the library never writes to.
@@ -169,8 +185,8 @@ export class MCPClient {
         capabilities: undefined,
         recovering: false,
         failure: undefined,
-        request: (method, params, signal) =>
-          this.requestFor(this.connections[index], method, params, signal),
+        request: (method, params, signal, options) =>
+          this.requestFor(this.connections[index], method, params, signal, options),
       });
     }
   }
@@ -288,18 +304,34 @@ export class MCPClient {
   }
 
   /**
+   * Registers a listener for every typed notification and returns its unsubscribe.
+   *
+   * A listener that throws is logged and skipped: a caller's bug in a notification
+   * handler must not take the request map down with it.
+   */
+  onNotification(listener: MCPNotificationListener): () => void {
+    this.notificationListeners.add(listener);
+    return () => {
+      this.notificationListeners.delete(listener);
+    };
+  }
+
+  /**
    * Sends one request over one server's transport and awaits its response.
    *
    * `signal` lets a caller's abort stop waiting immediately rather than at the
-   * timeout; the request itself still reaches the server. Omitting `source` uses the
-   * first connection.
+   * timeout, and sends `notifications/cancelled` when the transport is still live; the
+   * request itself still reaches the server. Omitting `source` uses the first
+   * connection. `options` carries the same signal, a progress token and its sink.
    */
   async request(
     method: string,
     params: Record<string, unknown> | undefined,
     signal?: AbortSignal,
     source?: ServerConnection,
+    options: MCPRequestOptions = {},
   ): Promise<Record<string, unknown>> {
+    const effectiveSignal = options.signal ?? signal;
     if (this.closed) {
       throw new MCPConnectionError(
         "The MCP client is closed: " + method + " cannot be sent after disconnect().",
@@ -315,7 +347,7 @@ export class MCPClient {
       throw connection.failure;
     }
     for (let attempt = 0; ; attempt += 1) {
-      if (signal?.aborted === true) throw abortError(method);
+      if (effectiveSignal?.aborted === true) throw abortError(method);
       const id = this.nextId;
       this.nextId += 1;
       const message: MCPMessage = {
@@ -329,7 +361,7 @@ export class MCPClient {
         // the abort listener comes off as soon as the request settles, however it settles.
         let onAbort: (() => void) | undefined;
         const detach = (): void => {
-          if (onAbort !== undefined) signal?.removeEventListener("abort", onAbort);
+          if (onAbort !== undefined) effectiveSignal?.removeEventListener("abort", onAbort);
           onAbort = undefined;
         };
         const entry: PendingRequest = {
@@ -344,22 +376,25 @@ export class MCPClient {
           timer: undefined,
           method,
           connection,
+          progressToken: options.progressToken,
+          onProgress: options.onProgress,
         };
         this.pending.set(id, entry);
-        if (signal?.aborted === true) {
+        if (effectiveSignal?.aborted === true) {
           this.pending.delete(id);
           reject(abortError(method));
           return;
         }
-        if (signal !== undefined) {
+        if (effectiveSignal !== undefined) {
           onAbort = () => {
             const waiting = this.pending.get(id);
             if (waiting === undefined) return;
             this.pending.delete(id);
             if (waiting.timer !== undefined) clearTimeout(waiting.timer);
+            this.cancelRequest(connection, id, method);
             waiting.reject(abortError(method));
           };
-          signal.addEventListener("abort", onAbort, { once: true });
+          effectiveSignal.addEventListener("abort", onAbort, { once: true });
         }
         entry.timer = setTimeout(() => {
           this.pending.delete(id);
@@ -404,9 +439,59 @@ export class MCPClient {
     method: string,
     params: Record<string, unknown> | undefined,
     signal?: AbortSignal,
+    options?: MCPRequestOptions,
   ): Promise<Record<string, unknown>> {
     this.guardCapability(connection ?? this.connections[0], method);
-    return this.request(method, params, signal, connection);
+    return this.request(method, params, signal, connection, options);
+  }
+
+  /** Hands one typed notification to every listener, logging a listener's own failure. */
+  private deliverNotification(notification: MCPNotification): void {
+    for (const listener of this.notificationListeners) {
+      try {
+        listener(notification);
+      } catch (error) {
+        this.logger.warn("mcp: a notification listener threw", error);
+      }
+    }
+  }
+
+  /** Routes one progress update to the pending request that owns its token. */
+  private routeProgress(notification: MCPNotification & { type: "progress" }): void {
+    for (const [, waiting] of this.pending) {
+      if (waiting.progressToken !== notification.progressToken) continue;
+      waiting.onProgress?.({
+        progress: notification.progress,
+        ...(notification.total === undefined ? {} : { total: notification.total }),
+      });
+      return;
+    }
+    this.logger.debug(
+      "mcp: progress for a token nobody is waiting for",
+      notification.progressToken,
+    );
+  }
+
+  /**
+   * Tells the server the client has stopped waiting. Fire-and-forget: the caller is
+   * already leaving, and a failure here cannot change that.
+   */
+  private cancelRequest(
+    connection: ServerConnection,
+    id: string | number,
+    method: string,
+  ): void {
+    if (this.closed || connection.failure !== undefined) return;
+    const message: MCPMessage = {
+      jsonrpc: "2.0",
+      method: "notifications/cancelled",
+      params: { requestId: id, reason: "the caller aborted " + method },
+    };
+    void Promise.resolve()
+      .then(() => connection.transport.send(message))
+      .catch((error: unknown) => {
+        this.logger.warn("mcp: sending notifications/cancelled failed", error);
+      });
   }
 
   /**
@@ -507,6 +592,11 @@ export class MCPClient {
       if (isRequest(message) && source !== undefined) {
         this.answerServerRequest(message, source);
         return;
+      }
+      const notification = toNotification(message);
+      if (notification !== undefined) {
+        this.deliverNotification(notification);
+        if (notification.type === "progress") this.routeProgress(notification);
       }
       if (message.method === "notifications/tools/list_changed" && !("id" in message)) {
         for (const connection of this.connections) connection.stale = true;
@@ -707,7 +797,8 @@ export class MCPClient {
       const adapted: MCPTool[] = adaptTools(entries, connection.server, {
         logger: this.logger,
         structuredOutput: this.structuredOutput,
-        request: (method, params, signal) => this.requestFor(connection, method, params, signal),
+        request: (method, params, signal, options) =>
+          this.requestFor(connection, method, params, signal, options),
       });
       connection.tools = adapted;
       connection.stale = false;

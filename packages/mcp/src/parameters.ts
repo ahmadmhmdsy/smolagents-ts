@@ -1,6 +1,7 @@
 import type { MCPTransport } from "./transport.js";
 import type { Logger } from "@smolagents-ts/core";
 import { MCPParameterError } from "./errors.js";
+import type { MCPNotificationListener } from "./notifications.js";
 
 /** Protocol revisions this client offers and accepts. Published by the MCP specification. */
 export const LATEST_PROTOCOL_VERSION = "2025-11-25";
@@ -61,6 +62,8 @@ export interface MCPClientOptions {
    * response's structuredContent is returned instead of the joined text.
    */
   readonly structuredOutput?: boolean;
+  /** Receives every typed notification; client.onNotification registers more later. */
+  readonly onNotification?: MCPNotificationListener;
   /**
    * Builds the transport for one server. The default builds this package's Streamable
    * HTTP transport for a URL parameter and refuses a stdio parameter, because the root

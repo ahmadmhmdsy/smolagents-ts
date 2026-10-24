@@ -277,6 +277,25 @@ close `T-45`; add the handoff entry; run the final gate; commit. Nothing is push
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+### 4.3 — Progress, cancellation and typed notifications (2026-10-24)
+
+Landed as `packages/mcp/test/notifications.test.ts` (5 tests, watched red on the missing
+listener and progress plumbing). The typed union and its mapper live in a new internal
+`src/notifications.ts`; `MCPClientOptions.onNotification` and `client.onNotification` both
+register a listener and return its unsubscribe, and a listener that throws is logged and
+skipped.
+
+`request` grew a fifth argument, `MCPRequestOptions` (`signal`, `onProgress`,
+`progressToken`); the positional `signal` stays and the options signal wins when both are
+given. A pending entry remembers its token, so a `notifications/progress` reaches exactly the
+call that asked for it, and the same message still reaches every client-wide listener as the
+typed `progress` notification. An abort sends `notifications/cancelled` with the request id
+and the method, fire-and-forget, before it rejects. The adapter issues one token per call
+(`mcp-<server>-<callId>`), adds `_meta.progressToken` to `tools/call` only when the caller
+supplied `ToolContext.onProgress`, and forwards each update to it. Core's `ToolContext` gained
+that optional member here — a type-only addition, so core's pins and counts are unchanged.
+mcp is 13 files / 134 tests, pins still 32.
+
 ### 4.2 — Resources, prompts and completions (2026-10-24)
 
 Landed as `packages/mcp/test/resources.test.ts` (7 tests, watched red on the missing methods),

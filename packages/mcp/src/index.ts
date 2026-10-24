@@ -48,6 +48,12 @@ export {
   MCPTransportError,
 } from "./errors.js";
 export type {
+  MCPNotification,
+  MCPNotificationListener,
+  MCPProgress,
+  MCPRequestOptions,
+} from "./notifications.js";
+export type {
   MCPCompletionRequest,
   MCPCompletionResult,
   MCPListOptions,

@@ -33,6 +33,33 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T03:22:00+03:00 — Phase 4.3 landed: progress, cancellation and typed notifications
+
+**State.** 4.1–4.3 are landed; 4.4–4.8 and the phase close remain.
+
+**Did.** `notifications.test.ts` (5 tests, the 13th mcp file) was watched red on the missing
+listener and progress plumbing, then 4.3 landed: a typed `MCPNotification` union with a mapper
+in `src/notifications.ts`; `MCPClientOptions.onNotification` and `client.onNotification` with an
+unsubscribe, where a throwing listener is logged and skipped; `request` grew a fifth
+`MCPRequestOptions` argument (`signal`, `onProgress`, `progressToken`) while the positional
+signal stays; progress routes only to the call that owns its token and still reaches every
+listener; an abort sends `notifications/cancelled` with the request id before rejecting; the
+adapter issues one token per call and adds `_meta.progressToken` only when
+`ToolContext.onProgress` exists. Core's `ToolContext` gained that optional member — type-only,
+so core's pins and counts are unchanged. mcp is 13 files / 134 tests, pins still 32.
+
+**Verified.** `pnpm vitest run --project core --project mcp` exits 0 (67 files, 739 tests); the
+mcp and core typechecks pass; validator 0/0.
+
+**Unverified / open.** 4.4–4.8 and the phase close are not implemented.
+
+**Next.** 4.4: write `packages/core/test/tool-policy.test.ts` and watch it fail.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/mcp/src/notifications.ts`, `packages/mcp/src/client.ts`,
+`packages/mcp/src/tool-adapter.ts`, `packages/mcp/test/notifications.test.ts`.
+
 ## 2026-10-25T03:12:00+03:00 — Phase 4.2 landed: resources, prompts and completions
 
 **State.** 4.1 and 4.2 are landed; 4.3–4.8 and the phase close remain.
@@ -123,33 +150,4 @@ gate` exit 0; validator 0/0; rotate clean. Commits: 3.1 `4631f0c`, 3.2 `cc7e947`
 cap counts entries, not bytes; `useRunEvents` re-reads the retained tail per commit; a store that
 never calls `watch` listeners leaves a live client stale until it remounts. Publishing still waits
 on `T-14` credentials.
-
-## 2026-10-25T01:40:00+03:00 — 3.2: the event log and the cursor
-
-**State.** Phase 3 is open; 3.1 and 3.2 are landed, and the exit criterion is next. `T-44` stays
-in progress. Nothing pushed.
-
-**Did.** Every event now carries a `seq` assigned once by the loop's `emit`, starting at 1, and
-the action pipeline yields payloads so `drainAction` is the only emitter. A run that resumes a
-durable record reads it before `run.started`, so numbering continues the recorded tail; the
-record gains an additive `events` field capped by `AgentOptions.maxRecordedEvents` (default
-256). Terminal events are numbered before their terminal commit, so the stored tail ends with the
-event a reconnecting reader needs, while a guardrail-refused answer drops its uncommitted events.
-`readEvents(store, runId, fromSeq = 0)` returns the events after the cursor, the record's last
-seq, and `truncated` when the cursor is older than the retained base. The react
-`useRunEvents(store, runId, { fromSeq })` reads at the cursor, follows `store.watch`, and appends
-only later events.
-
-**Verified.** `event-log.test.ts` (53rd core file, four cases) green: seqs strictly increasing
-from 1, a durable tail read from a second store, truncation at `maxRecordedEvents: 3`, and a
-continuation with `reset: false` resuming from the first cursor. `use-run-events.test.ts` (12th
-react file, four cases) green: the recorded tail and cursor, a reconnect delivering only later
-events, a live run appended once each, and a truncated cursor. Core 53 files/603 tests, react
-12/56; pins core 115, react 13; typecheck clean across the workspace (the CLI renderer's
-hand-built events now fill `seq`).
-
-**Unverified / open.** The cap counts entries, not bytes, so a chatty run keeps a shorter time
-window than a quiet one. The react hook re-reads the retained tail on each commit rather than a
-diff, so a chatty store costs one read per commit. `RunStore.watch` is advisory, so a store
-that never notifies still leaves the initial read correct.
 <!-- rotate:end -->

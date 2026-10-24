@@ -18,6 +18,11 @@ export interface ToolContext {
   readonly logger: Logger;
   /** The agents that reached this tool call, root first; empty for a root run. */
   readonly agentPath?: readonly string[];
+  /**
+   * Receives progress a tool reports while it runs. A tool that returns a generator
+   * reports through it; the sink is how the run turns those reports into events.
+   */
+  readonly onProgress?: (progress: unknown) => void;
 }
 
 export interface ToolDefinition<TIn extends z.ZodType, TOut = unknown> {

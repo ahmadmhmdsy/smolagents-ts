@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Logger } from "@smolagents-ts/core";
 import { MCPClient } from "../src/client.js";
+import type { MCPNotificationListener } from "../src/notifications.js";
 import type { MCPMessage } from "../src/json-rpc.js";
 import type { MCPTransport } from "../src/transport.js";
 import type { Fixture } from "./fixture-transport.js";
@@ -19,6 +20,7 @@ export async function clientWithTransport(
     logger?: Logger;
     structuredOutput?: boolean;
     maxListPages?: number;
+    onNotification?: MCPNotificationListener;
   } = {},
 ): Promise<MCPClient> {
   return MCPClient.create([{ url: "http://fixture.invalid/mcp" }], {

@@ -4,6 +4,35 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T01:40:00+03:00 — 3.2: the event log and the cursor
+
+**State.** Phase 3 is open; 3.1 and 3.2 are landed, and the exit criterion is next. `T-44` stays
+in progress. Nothing pushed.
+
+**Did.** Every event now carries a `seq` assigned once by the loop's `emit`, starting at 1, and
+the action pipeline yields payloads so `drainAction` is the only emitter. A run that resumes a
+durable record reads it before `run.started`, so numbering continues the recorded tail; the
+record gains an additive `events` field capped by `AgentOptions.maxRecordedEvents` (default
+256). Terminal events are numbered before their terminal commit, so the stored tail ends with the
+event a reconnecting reader needs, while a guardrail-refused answer drops its uncommitted events.
+`readEvents(store, runId, fromSeq = 0)` returns the events after the cursor, the record's last
+seq, and `truncated` when the cursor is older than the retained base. The react
+`useRunEvents(store, runId, { fromSeq })` reads at the cursor, follows `store.watch`, and appends
+only later events.
+
+**Verified.** `event-log.test.ts` (53rd core file, four cases) green: seqs strictly increasing
+from 1, a durable tail read from a second store, truncation at `maxRecordedEvents: 3`, and a
+continuation with `reset: false` resuming from the first cursor. `use-run-events.test.ts` (12th
+react file, four cases) green: the recorded tail and cursor, a reconnect delivering only later
+events, a live run appended once each, and a truncated cursor. Core 53 files/603 tests, react
+12/56; pins core 115, react 13; typecheck clean across the workspace (the CLI renderer's
+hand-built events now fill `seq`).
+
+**Unverified / open.** The cap counts entries, not bytes, so a chatty run keeps a shorter time
+window than a quiet one. The react hook re-reads the retained tail on each commit rather than a
+diff, so a chatty store costs one read per commit. `RunStore.watch` is advisory, so a store
+that never notifies still leaves the initial read correct.
+
 ## 2026-10-25T01:15:00+03:00 — 3.1: condensation as a step and an event
 
 **State.** Phase 3 is open; 3.1 is landed, 3.2 (the event-log cursor) is next. `T-44` stays
