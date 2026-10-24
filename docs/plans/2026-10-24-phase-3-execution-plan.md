@@ -1,6 +1,6 @@
 # Phase 3 — memory and streams: execution plan
 
-**Date:** 2026-10-24 · **Status:** in_progress · **Owner:** lead · **Parent:**
+**Date:** 2026-10-24 · **Status:** complete · **Owner:** lead · **Parent:**
 [apply the competitor findings](2026-10-22-apply-the-competitor-findings-plan.md), rows 3.1–3.2.
 
 **Contract**
@@ -140,6 +140,16 @@ the phase task; handoff entry; final gate and commit.
 ## Changes
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
+
+- **2026-10-24 — Phase 3 closed.** `phase-3-exit.test.ts` (54th core file, two cases) runs the
+  parent plan's criterion: a `FileRunStore` session with three notes condenses, the trace carries a
+  `memory.condensed` span whose forgotten ids equal the event's, and the record keeps the step and
+  the event; a reader's kept cursor, followed through a second store over the same files after a
+  continuation, returns exactly the later events with a new cursor and no truncation. The report is
+  `docs/reports/2026-10-24-phase-3-report.md`; `T-44` closes. One deviation: the pre-registered
+  react test path ends in `.ts` but the file is `use-run-events.test.tsx`, matching the react
+  project's other hook tests. Core 54 files/605 tests, CLI 11/77, react 12/56; pins core 115, react
+  13; `pnpm gate` exit 0.
 
 - **2026-10-24 — 3.2 as built.** Every emitted event carries a `seq` assigned once by the loop's
   `emit`, starting at 1; a durable run reads its record before `run.started` so the first new

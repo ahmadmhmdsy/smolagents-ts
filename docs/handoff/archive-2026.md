@@ -4,6 +4,37 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T00:20:00+03:00 — Phase 2 closed
+
+**State.** Phase 2 (delegation that survives its parent) is complete: 2.1–2.8 landed, the exit
+criterion proven, the report written, `T-43` done. Nothing pushed; `main` is ahead of
+`origin/main`.
+
+**Did.** `phase-2-exit.test.ts` (51st core file, 6 cases) runs the parent plan's criterion: a
+background child's typed result re-attaches through `resumeBackgroundChild` after the parent
+ended; a running child sees a send at its next step and a parked child resumes for one; a wait on
+an ended or unknown run reports `noProgress` and claims nothing; a transfer survives a reload
+through a second `FileRunStore`; every grandchild event carries `["researcher","writer"]`; a
+claim at a consumed revision is `TaskStaleRevisionError`. `docs/reports/2026-10-24-phase-2-report.md`
+records the evidence, the eight commits, the parent-plan check and the open items. The execution
+plan is marked complete with a close entry; `T-43` moved to the archive with evidence; the
+parent plan's row and `T-40`'s gate text say Phase 2 is closed.
+
+**Verified.** Core 51 files/591 tests; CLI 11/77; public surface 113 pins; the supervisor
+example's project green and typechecked. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The release still waits on `T-14` credentials. The supervisor's model is
+scripted. The board's CAS races on the parent's fence across processes, so a lost commit is a
+typed refusal, not a merge. A background child's agent must share the parent's store.
+
+**Next.** No phase row is open; the next one starts when the owner opens it. Phase 3 in the parent
+plan (context and compaction) is the next cut if the owner continues.
+
+**Blockers.** None; the six owner-blocked rows are unchanged.
+
+**Artifacts.** `packages/core/test/phase-2-exit.test.ts`;
+`docs/reports/2026-10-24-phase-2-report.md`.
+
 ## 2026-10-24T23:55:00+03:00 — 2.8: a claim board, not a data blackboard
 
 **State.** Phase 2's items 2.1–2.8 are all landed. What remains is the close: the exit criterion
