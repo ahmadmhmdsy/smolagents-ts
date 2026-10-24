@@ -128,6 +128,10 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
         root.status = "error";
         root.attributes.maxSteps = event.steps;
         break;
+      case "run.limitReached":
+        root.status = "error";
+        root.attributes.limitReached = event.reason;
+        break;
       case "run.cancelled":
         root.status = "error";
         break;

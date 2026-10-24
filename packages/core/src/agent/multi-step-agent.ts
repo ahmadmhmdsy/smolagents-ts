@@ -48,6 +48,15 @@ import {
   type RunSnapshot,
   type RunStore,
 } from "../session/run-store.js";
+import {
+  budgetSeedFromSteps,
+  resolveBudget,
+  spendBudget,
+  type LimitStopReason,
+  type RunBudget,
+  type RunBudgetHandle,
+  type RunLimits,
+} from "../session/budget.js";
 import { z } from "zod";
 
 export interface AgentOptions {
@@ -90,6 +99,12 @@ export interface AgentOptions {
   guardrails?: Guardrails;
   /** When set, the final answer is validated against this schema before the run completes. */
   outputSchema?: z.ZodType;
+  /**
+   * What a run may spend: model turns, completion tokens and total tokens. Each requested limit
+   * is clamped by the deployment ceiling (`RUN_LIMITS_CEILING`); a run that crosses one ends with
+   * a typed `run.limitReached` reason. Omitted fields take the ceiling.
+   */
+  limits?: RunLimits;
 }
 
 export interface RunOptions {
@@ -101,6 +116,12 @@ export interface RunOptions {
   reset?: boolean;
   /** The store key naming this run's checkpoint. A store saves and resumes only named runs. */
   checkpoint?: string;
+  /**
+   * A caller-held budget to continue: its counters are carried into this run instead of a fresh
+   * budget being made, so a second run keeps counting against the same limits. A resumed run
+   * without a handle seeds its counters from the steps its checkpoint already holds.
+   */
+  budget?: RunBudgetHandle;
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
@@ -112,6 +133,10 @@ export interface RunContext {
   readonly state: Map<string, unknown>;
   readonly checkpoint: string | undefined;
   usage: TokenUsage;
+  /** The run's budget record: clamped limits plus what it has spent so far. */
+  readonly budget: RunBudget;
+  /** Set by the model turn that exhausted the budget; the loop ends the run on it. */
+  limitReached: LimitStopReason | undefined;
   stepIndex: number;
   /** Why the latest model reply ended, so a schema failure can tell a truncation from a bad shape. */
   finishReason: FinishReason | undefined;
@@ -142,6 +167,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   readonly planningInterval: number;
   readonly executionTimeoutMs: number;
   readonly managedAgents: readonly ManagedAgent[];
+  readonly limits: RunLimits;
   protected readonly logger: Logger;
   protected readonly memory = new AgentMemory();
   protected monitor: Monitor;
@@ -164,6 +190,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   constructor(options: AgentOptions) {
     this.model = options.model;
+    this.limits = options.limits ?? {};
     this.approve = options.approve;
     this.approvalPolicy = options.approvalPolicy ?? "ask";
     this.store = options.store;
@@ -421,6 +448,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       startedAt: Date.now(),
       state: new Map<string, unknown>(),
       usage: EMPTY_TOKEN_USAGE,
+      budget: options.budget?.budget ?? resolveBudget(this.limits),
+      limitReached: undefined,
       stepIndex: 0,
       checkpoint: options.checkpoint,
       finishReason: undefined,
@@ -445,6 +474,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
         return;
       }
       if (saved !== undefined) this.memory.restore(saved.steps);
+      // A resumed run continues the budget its checkpoint already spent. Without a store there is
+      // nothing to seed from, and without a handle the caller asked for a fresh run.
+      if (saved !== undefined && options.budget === undefined) {
+        const seed = budgetSeedFromSteps(this.memory.steps);
+        context.budget.turns = seed.turns ?? 0;
+        context.budget.outputTokens = seed.outputTokens ?? 0;
+        context.budget.totalTokens = seed.totalTokens ?? 0;
+      }
     }
     this.memory.addStep(new TaskStep(task));
     // A continued memory already holds a system prompt, and the transcript renders the current
@@ -472,6 +509,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
       return;
     }
 
+    // A resumed run may already have spent its budget; it must say so instead of spending one
+    // more turn and crossing the limit a second time.
+    const preExhausted = exhaustedBudget(context.budget);
+    if (preExhausted !== undefined) {
+      yield this.emit({ type: "run.limitReached", reason: preExhausted });
+      return;
+    }
+
     for (let stepIndex = 0; stepIndex < this.maxSteps; stepIndex += 1) {
       context.stepIndex = stepIndex;
 
@@ -488,6 +533,10 @@ export abstract class MultiStepAgent<TOut = unknown> {
         }
         if ("failed" in planning) {
           yield this.emit({ type: "run.failed", error: planning.failed.info });
+          return;
+        }
+        if (context.limitReached !== undefined) {
+          yield this.emit({ type: "run.limitReached", reason: context.limitReached });
           return;
         }
       }
@@ -514,6 +563,10 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
       context.finishReason = completion.finishReason;
       yield this.emit({ type: "message.completed", text: completion.content });
+      if (context.limitReached !== undefined) {
+        yield this.emit({ type: "run.limitReached", reason: context.limitReached });
+        return;
+      }
 
       const action = this.interpret(completion);
       const step = new ActionStep(action.raw);
@@ -800,6 +853,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         this.monitor.record(this.model.id, streamUsage, Date.now() - startedAt);
         context.usage = addTokenUsage(context.usage, streamUsage);
       }
+      context.limitReached = spendBudget(context.budget, streamUsage ?? EMPTY_TOKEN_USAGE);
       // Exactly one usage.updated per model turn, whether or not the stream reported usage.
       yield this.emit({ type: "usage.updated", usage: context.usage });
       return {
@@ -822,6 +876,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (kind === "action") yield* this.emitCodeDelta(completion.content, true, "", stepIndex);
     this.monitor.record(this.model.id, completion.usage, Date.now() - startedAt);
     context.usage = addTokenUsage(context.usage, completion.usage);
+    context.limitReached = spendBudget(context.budget, completion.usage);
     yield this.emit({ type: "usage.updated", usage: context.usage });
     return completion;
   }
@@ -921,6 +976,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       end: Date.now(),
       tokenUsage: context.usage,
       state,
+      budget: context.budget,
     });
   }
 
@@ -940,6 +996,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
 function guardrailError(which: "input" | "output", error: unknown, stepIndex?: number): AgentGuardrailError {
   const message = "The " + which + " guardrail threw: " + (error instanceof Error ? error.message : String(error));
   return new AgentGuardrailError(message, stepIndex === undefined ? { cause: error } : { cause: error, stepIndex });
+}
+
+/** The limit a budget has already crossed, if any. Used before a resumed run spends a turn. */
+function exhaustedBudget(budget: RunBudget): LimitStopReason | undefined {
+  if (budget.turns >= budget.maxTurns) return "limitTurns";
+  if (budget.outputTokens >= budget.maxOutputTokens) return "limitOutputTokens";
+  if (budget.totalTokens >= budget.maxTotalTokens) return "limitTotalTokens";
+  return undefined;
 }
 
 function storeError(operation: "load" | "save", error: unknown, stepIndex?: number): AgentError {

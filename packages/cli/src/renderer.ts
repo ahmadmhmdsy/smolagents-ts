@@ -145,6 +145,8 @@ export function renderEvent(event: AgentEvent, options: RenderOptions): string |
       return line(paint("Run failed", "red", options) + ": " + event.error.message);
     case "run.maxStepsReached":
       return line(paint("Run stopped after " + String(event.steps) + " steps", "red", options));
+    case "run.limitReached":
+      return line(paint("Run stopped on its budget: " + event.reason, "red", options));
     case "run.cancelled":
       return line(paint("Run cancelled", "red", options));
     default:

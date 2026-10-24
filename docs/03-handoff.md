@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T13:45:00+03:00 — 0.9 landed: a budget record, a typed limit, a handle
+
+**State.** Nine Phase 0 items in (0.1–0.9). Last one is 0.10: structured output on a
+model that cannot call tools.
+
+**Did.** Added `session/budget.ts`: requested limits (turns, output tokens, total
+tokens) clamped by the deployment ceiling, a `RunBudget` record on the run context and in
+`RunResult.budget`, and a caller-held `RunBudgetHandle` that continues the counters into
+the next run. A resumed checkpoint without a handle seeds its counters from its own steps,
+so the budget does not reset. Crossing a limit ends the run with a new terminal event,
+`run.limitReached`, carrying the typed reason; the session status became `limit_reached`
+and the React label and CLI line were updated for it (both gates caught the missing React
+entry).
+
+**Verified.** `pnpm gate` exit 0; core 39 files, 458 tests (seven new: clamping, the
+three typed reasons, the seed, the run-level limit, the shared handle and the
+non-resetting resume).
+
+**Unverified / open.** The ceiling is a module constant, not configuration; 0.9 has no
+deployment-level wiring. A handle is in-memory only, so a process restart still needs the
+checkpoint path to continue a budget.
+
+**Next.** 0.10: bound a schema for a model with `toolCalls: false` and repair without a
+forced tool.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/session/budget.ts`,
+`packages/core/src/agent/multi-step-agent.ts`, `packages/core/src/events.ts`,
+`packages/core/test/budget.test.ts`, `packages/react/src/agent-run.tsx`,
+`packages/cli/src/renderer.ts`.
+
 ## 2026-10-24T13:10:00+03:00 — 0.8 landed: the store contract, with counterexamples
 
 **State.** Eight Phase 0 items in (0.1–0.8). Next is 0.9's budget record, then 0.10's
@@ -144,57 +176,4 @@ re-test it there. Nothing pushed.
 **Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
 `packages/core/src/agent/tool-calling-agent.ts`,
 `packages/core/test/guardrail.test.ts`.
-
-## 2026-10-24T11:05:00+03:00 — 0.4 landed: egress is a policy the backends honour or refuse
-
-**State.** Phase 0 Wave 1 is complete: 0.1, 0.2, 0.5 and 0.4 are in, each with its
-pre-registered acceptance test and a green gate. Wave 2 (0.3, 0.6, 0.7, 0.8, 0.9, 0.10)
-starts next.
-
-**Did.** Added `EgressPolicy` (`unmanaged | deny-all`) beside `network` on the
-exec-remote seam, where `network` stays a description of reach. E2B enforces deny-all by
-passing the vendor's own outbound rule at create (the client seam carries the decision)
-and reports `network: "none"`; Docker and process throw the new
-`EgressUnsupportedError` before an image is built or an interpreter spawned, so the
-option is never accepted and ignored. The root entry exports the refusal and the type.
-
-**Verified.** `pnpm gate` exit 0; exec-remote 12 files, 92 tests (3 new: seam create
-option, docker refusal without a build, process refusal without a spawn).
-
-**Unverified / open.** The vendor mapping itself is behind the eager client seam, so no
-test reaches the E2B SDK's own `network` field; a live denial is unproven (the suite has
-never touched a live sandbox). Nothing pushed.
-
-**Next.** Wave 2, in plan order: 0.3 (approval policy hook), then 0.6/0.7/0.8/0.9/0.10.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/exec-remote/src/sandbox.ts`,
-`packages/exec-remote/src/backends/e2b.ts`,
-`packages/exec-remote/src/errors.ts`.
-
-## 2026-10-24T10:45:00+03:00 — 0.5 landed: a checkpoint says which format it is
-
-**State.** Phase 0 Wave 1 has 0.1, 0.2 and 0.5 in. 0.4 (remote egress) is the last Wave 1
-item and runs beside the others on `packages/exec-remote/**`, so it can start now.
-
-**Did.** `RunSnapshot` is now `{formatVersion, steps}`; `translateSnapshot` reads a
-bare step array as version 0 and normalises it, and a declared version newer than
-`RUN_SNAPSHOT_VERSION` fails the run with `RunSnapshotVersionError`
-(`AGENT_SNAPSHOT_VERSION`) rather than being half-read. `RunStore.load` accepts either
-shape, so an existing store compiles unchanged; `MemoryRunStore` stores the envelope.
-Translation is public: a store outside this tree needs it to migrate a checkpoint.
-
-**Verified.** `pnpm gate` exit 0; core 37 files, 378 tests (8 new snapshot tests,
-including a legacy-store resume and the newer-version refusal).
-
-**Unverified / open.** Nothing pushed.
-
-**Next.** 0.4: `egress` on the remote executor seam, deny-all mapped to the vendor for
-E2B and refused typed for Docker and process before a guest starts.
-
-**Blockers.** None (Docker/process refusal is the planned outcome, not a blocker).
-
-**Artifacts.** `packages/core/src/session/run-store.ts:1`,
-`packages/core/src/errors.ts:128`, `packages/core/test/run-store.test.ts:51`.
 <!-- rotate:end -->

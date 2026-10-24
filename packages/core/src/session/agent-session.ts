@@ -6,7 +6,14 @@ import type { MultiStepAgent } from "../agent/multi-step-agent.js";
 import type { RunResult } from "../agent/run-result.js";
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
 
-export type SessionStatus = "idle" | "running" | "success" | "failed" | "cancelled" | "max_steps";
+export type SessionStatus =
+  | "idle"
+  | "running"
+  | "success"
+  | "failed"
+  | "cancelled"
+  | "max_steps"
+  | "limit_reached";
 
 export type ToolCallStatus = "pending" | "ok" | "error";
 
@@ -401,6 +408,11 @@ export class AgentSession<TOut = unknown> {
 
       case "run.maxStepsReached":
         this.draft.status = "max_steps";
+        this.draft.endedAt = Date.now();
+        return;
+
+      case "run.limitReached":
+        this.draft.status = "limit_reached";
         this.draft.endedAt = Date.now();
         return;
 

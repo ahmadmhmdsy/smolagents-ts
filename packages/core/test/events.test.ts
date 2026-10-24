@@ -37,13 +37,14 @@ const SAMPLES: Record<AgentEventType, AgentEvent> = {
   },
   "run.failed": { type: "run.failed", error: { name: "AgentError", message: "m", code: "AGENT_ERROR" } },
   "run.maxStepsReached": { type: "run.maxStepsReached", steps: 10 },
+  "run.limitReached": { type: "run.limitReached", reason: "limitTotalTokens" },
   "run.cancelled": { type: "run.cancelled" },
 };
 
 describe("the event contract is complete", () => {
   it("covers every declared AgentEventType", () => {
     const declared = Object.keys(SAMPLES).sort();
-    expect(declared).toHaveLength(21);
+    expect(declared).toHaveLength(22);
   });
 
   it("classifies exactly the delta events as advisory", () => {
@@ -51,9 +52,15 @@ describe("the event contract is complete", () => {
     expect(advisory).toEqual(["code.delta", "message.delta", "planning.delta"]);
   });
 
-  it("classifies exactly the four terminal events", () => {
+  it("classifies exactly the five terminal events", () => {
     const terminal = (Object.keys(SAMPLES) as AgentEventType[]).filter(isTerminal).sort();
-    expect(terminal).toEqual(["run.cancelled", "run.completed", "run.failed", "run.maxStepsReached"]);
+    expect(terminal).toEqual([
+      "run.cancelled",
+      "run.completed",
+      "run.failed",
+      "run.limitReached",
+      "run.maxStepsReached",
+    ]);
   });
 
   it("treats every completed event as authoritative", () => {

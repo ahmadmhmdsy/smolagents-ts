@@ -63,6 +63,12 @@ const RUNTIME_EXPORTS = [
   "translateSnapshot",
   "RUN_SNAPSHOT_VERSION",
   "RunSnapshotVersionError",
+  // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
+  "RUN_LIMITS_CEILING",
+  "resolveBudget",
+  "createBudgetHandle",
+  "spendBudget",
+  "budgetSeedFromSteps",
   // runtime
   "MultiStepAgent",
   "CodeAgent",

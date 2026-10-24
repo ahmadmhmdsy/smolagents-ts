@@ -148,6 +148,7 @@ export async function runSmolagent(options: RunSmolagentOptions): Promise<number
       if (
         event.type === "run.failed" ||
         event.type === "run.maxStepsReached" ||
+        event.type === "run.limitReached" ||
         event.type === "run.cancelled"
       ) {
         stopped = true;

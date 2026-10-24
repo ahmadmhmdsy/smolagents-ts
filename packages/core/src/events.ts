@@ -2,6 +2,7 @@ import type { RunResult } from "./agent/run-result.js";
 import type { AgentErrorInfo } from "./errors.js";
 import type { TokenUsage, ToolCall } from "./types.js";
 import type { ApprovalOutcome } from "./agent/approval.js";
+import type { LimitStopReason } from "./session/budget.js";
 
 /**
  * Every observable thing that happens during a run.
@@ -32,6 +33,7 @@ export type AgentEvent =
   | { type: "run.completed"; result: RunResult }
   | { type: "run.failed"; error: AgentErrorInfo }
   | { type: "run.maxStepsReached"; steps: number }
+  | { type: "run.limitReached"; reason: LimitStopReason }
   | { type: "run.cancelled" };
 
 export type AgentEventType = AgentEvent["type"];
@@ -50,6 +52,7 @@ export function isTerminal(type: AgentEventType): boolean {
     type === "run.completed" ||
     type === "run.failed" ||
     type === "run.maxStepsReached" ||
+    type === "run.limitReached" ||
     type === "run.cancelled"
   );
 }
@@ -82,6 +85,7 @@ export function describeEvent(event: AgentEvent): string {
     case "run.completed": return "run completed";
     case "run.failed": return "run failed";
     case "run.maxStepsReached": return "max steps reached";
+    case "run.limitReached": return "budget limit reached";
     case "run.cancelled": return "run cancelled";
     default: return assertNever(event);
   }

@@ -170,3 +170,16 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   file per key under a fresh temporary directory). The contract caught a real defect:
   `MemoryRunStore` handed out its internal array, so a caller could mutate a stored
   checkpoint; it now copies on save and on load.
+- **2026-10-24 — 0.9 as built.** `session/budget.ts` owns the record: `RunLimits` asks
+  for at most a number of model turns, completion tokens and total tokens;
+  `RUN_LIMITS_CEILING` (100 turns, 200k output tokens, 1M total tokens) clamps every
+  request, and a non-positive or non-finite request is a `RangeError`. A run's
+  `RunBudget` record holds the clamped limits and the spent counters, lives on the run
+  context, and travels into `RunResult.budget`. `RunBudgetHandle` is the caller-held
+  continuation: passing it through `RunOptions.budget` carries the counters into the next
+  run; a resumed checkpoint without a handle seeds its counters from the steps it already
+  holds, so a resume does not reset the budget. Crossing a limit emits one new terminal
+  event, `run.limitReached`, whose payload is the typed reason `limitTurns`,
+  `limitOutputTokens` or `limitTotalTokens`; the session status is `limit_reached` and
+  the React label and the CLI line name the budget rather than a failure. Planning turns
+  count as turns. A budget crossed by a resumed run is reported before any model call.
