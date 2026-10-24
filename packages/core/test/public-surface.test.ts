@@ -67,6 +67,13 @@ const RUNTIME_EXPORTS = [
   "translateRecord",
   "RUN_RECORD_VERSION",
   "RunRecordVersionError",
+  "ToolApprovalPendingError",
+  "RunNotFoundError",
+  "RunNotWaitingError",
+  "RunRequestMismatchError",
+  "RunRequestExpiredError",
+  "RunAlreadySettledError",
+  "RunApprovalMismatchError",
   // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
   "RUN_LIMITS_CEILING",
   "resolveBudget",

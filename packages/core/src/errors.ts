@@ -10,7 +10,13 @@ export type AgentErrorCode =
   | "AGENT_GUARDRAIL"
   | "AGENT_SNAPSHOT_VERSION"
   | "AGENT_RUN_RECORD_VERSION"
-  | "AGENT_TOOL_TIMEOUT";
+  | "AGENT_TOOL_TIMEOUT"
+  | "AGENT_RUN_NOT_FOUND"
+  | "AGENT_RUN_NOT_WAITING"
+  | "AGENT_RUN_REQUEST_MISMATCH"
+  | "AGENT_RUN_REQUEST_EXPIRED"
+  | "AGENT_RUN_ALREADY_SETTLED"
+  | "AGENT_RUN_APPROVAL_MISMATCH";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -168,6 +174,64 @@ export class RunRecordVersionError extends AgentError {
   }
 }
 
+/** Raised when a resume names a run the store does not hold. No run is created implicitly. */
+export class RunNotFoundError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_NOT_FOUND" });
+    this.name = "RunNotFoundError";
+  }
+}
+
+/** Raised when a run names a record that is not parked on a request, so there is nothing to resume. */
+export class RunNotWaitingError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_NOT_WAITING" });
+    this.name = "RunNotWaitingError";
+  }
+}
+
+/** Raised when a resume names a request id that is not the record's pending request. */
+export class RunRequestMismatchError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_REQUEST_MISMATCH" });
+    this.name = "RunRequestMismatchError";
+  }
+}
+
+/** Raised when a record's pending request is past its expiry; the pause can no longer be settled. */
+export class RunRequestExpiredError extends AgentError {
+  readonly expiresAt: string;
+
+  constructor(message: string, options: AgentErrorOptions = {}, expiresAt = "") {
+    super(message, { ...options, code: "AGENT_RUN_REQUEST_EXPIRED" });
+    this.name = "RunRequestExpiredError";
+    this.expiresAt = expiresAt;
+  }
+}
+
+/** Raised when a request is settled a second time. It carries what the first settlement was. */
+export class RunAlreadySettledError extends AgentError {
+  readonly settledOutcome: string;
+
+  constructor(message: string, options: AgentErrorOptions = {}, settledOutcome = "") {
+    super(message, { ...options, code: "AGENT_RUN_ALREADY_SETTLED" });
+    this.name = "RunAlreadySettledError";
+    this.settledOutcome = settledOutcome;
+  }
+}
+
+/**
+ * Raised when a resumed step asks for a call that does not match the settlement it was resumed
+ * for. A resumed step generates fresh call ids, so the binding is the argument digest and the
+ * step index, not the call id; a call with other arguments is refused, never quietly approved.
+ */
+export class RunApprovalMismatchError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_APPROVAL_MISMATCH" });
+    this.name = "RunApprovalMismatchError";
+  }
+}
+
 /** Raised when a tool does not settle inside its deadline. */
 export class ToolTimeoutError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -198,4 +262,10 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_SNAPSHOT_VERSION: RunSnapshotVersionError,
   AGENT_RUN_RECORD_VERSION: RunRecordVersionError,
   AGENT_TOOL_TIMEOUT: ToolTimeoutError,
+  AGENT_RUN_NOT_FOUND: RunNotFoundError,
+  AGENT_RUN_NOT_WAITING: RunNotWaitingError,
+  AGENT_RUN_REQUEST_MISMATCH: RunRequestMismatchError,
+  AGENT_RUN_REQUEST_EXPIRED: RunRequestExpiredError,
+  AGENT_RUN_ALREADY_SETTLED: RunAlreadySettledError,
+  AGENT_RUN_APPROVAL_MISMATCH: RunApprovalMismatchError,
 };

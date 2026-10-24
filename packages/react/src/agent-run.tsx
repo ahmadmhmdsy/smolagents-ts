@@ -12,6 +12,7 @@ const STATUS_TEXT: Record<SessionStatus, string> = {
   cancelled: "Cancelled",
   max_steps: "Stopped at the step limit",
   limit_reached: "Stopped at the budget limit",
+  waiting: "Waiting for a decision",
 };
 
 export interface AgentRunProps {

@@ -4,6 +4,66 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T13:45:00+03:00 — 0.9 landed: a budget record, a typed limit, a handle
+
+**State.** Nine Phase 0 items in (0.1–0.9). Last one is 0.10: structured output on a
+model that cannot call tools.
+
+**Did.** Added `session/budget.ts`: requested limits (turns, output tokens, total
+tokens) clamped by the deployment ceiling, a `RunBudget` record on the run context and in
+`RunResult.budget`, and a caller-held `RunBudgetHandle` that continues the counters into
+the next run. A resumed checkpoint without a handle seeds its counters from its own steps,
+so the budget does not reset. Crossing a limit ends the run with a new terminal event,
+`run.limitReached`, carrying the typed reason; the session status became `limit_reached`
+and the React label and CLI line were updated for it (both gates caught the missing React
+entry).
+
+**Verified.** `pnpm gate` exit 0; core 39 files, 458 tests (seven new: clamping, the
+three typed reasons, the seed, the run-level limit, the shared handle and the
+non-resetting resume).
+
+**Unverified / open.** The ceiling is a module constant, not configuration; 0.9 has no
+deployment-level wiring. A handle is in-memory only, so a process restart still needs the
+checkpoint path to continue a budget.
+
+**Next.** 0.10: bound a schema for a model with `toolCalls: false` and repair without a
+forced tool.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/session/budget.ts`,
+`packages/core/src/agent/multi-step-agent.ts`, `packages/core/src/events.ts`,
+`packages/core/test/budget.test.ts`, `packages/react/src/agent-run.tsx`,
+`packages/cli/src/renderer.ts`.
+
+## 2026-10-24T13:10:00+03:00 — 0.8 landed: the store contract, with counterexamples
+
+**State.** Eight Phase 0 items in (0.1–0.8). Next is 0.9's budget record, then 0.10's
+tool-less structured output.
+
+**Did.** Wrote `test/contract/run-store.contract.ts`: ten store modes, each check paired
+with a deliberately broken counterexample the suite must reject. Certified three
+implementations — `MemoryRunStore`, an asynchronous wrapper and a temporary-file store
+double that stands in for the durable file store Phase 1.5 has not built. The contract
+found a real leak: `MemoryRunStore` handed out its internal steps array, so a caller that
+mutated a loaded checkpoint changed the stored one. It now copies on both sides of the
+boundary.
+
+**Verified.** `pnpm gate` exit 0; core 38 files, 446 tests (the contract file alone
+registers sixty).
+
+**Unverified / open.** The file store certified here is a test double, not the 1.5
+artifact; when 1.5 lands, its store joins this file and the double goes.
+
+**Next.** 0.9: turn/output/total-token limits on the record, a typed terminal reason and
+a handle that continues the budget.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/test/contract/run-store.contract.ts`,
+`packages/core/test/contract/run-store.conformance.test.ts`,
+`packages/core/src/session/run-store.ts`.
+
 ## 2026-10-24T12:40:00+03:00 — 0.7 landed: every tool has a finite deadline
 
 **State.** Seven Phase 0 items in (0.1–0.7). Next is 0.8's conformance suite, then 0.9's

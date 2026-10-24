@@ -1,8 +1,9 @@
 import type { AnyAgentStep } from "../memory/steps.js";
+import type { PendingApproval } from "../session/run-record.js";
 import type { ChatMessage, Timing, TokenUsage } from "../types.js";
 import type { RunBudget } from "../session/budget.js";
 
-export type RunState = "success" | "max_steps_reached";
+export type RunState = "success" | "max_steps_reached" | "waiting";
 
 export interface RunResult<TOut = unknown> {
   readonly output: TOut;
@@ -14,6 +15,8 @@ export interface RunResult<TOut = unknown> {
   readonly runId: string;
   /** What the run was allowed to spend and what it spent. Absent only on a result built by hand. */
   readonly budget?: Readonly<RunBudget>;
+  /** The request the run parked on, when `state` is `waiting`. */
+  readonly pending?: PendingApproval;
 }
 
 export interface MakeRunResultInput<TOut> {
@@ -26,6 +29,7 @@ export interface MakeRunResultInput<TOut> {
   tokenUsage: TokenUsage;
   state?: RunState;
   budget?: Readonly<RunBudget>;
+  pending?: PendingApproval;
 }
 
 export function makeRunResult<TOut>(input: MakeRunResultInput<TOut>): RunResult<TOut> {
@@ -38,5 +42,6 @@ export function makeRunResult<TOut>(input: MakeRunResultInput<TOut>): RunResult<
     state: input.state ?? "success",
     runId: input.runId,
     ...(input.budget === undefined ? {} : { budget: { ...input.budget } }),
+    ...(input.pending === undefined ? {} : { pending: input.pending }),
   };
 }

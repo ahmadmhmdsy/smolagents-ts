@@ -1,11 +1,16 @@
+import { AgentError } from "../errors.js";
 import type { Tool } from "../tool/tool.js";
 import { digestOf } from "../utils/digest.js";
 
 /**
  * The closed set of verdicts an approval can produce. Only `allowed-once` grants this one call:
  * there is no sticky grant, because a session-wide `always` is the hole this vocabulary closes.
+ * `pending` is not a decision: the gate parks the run and a later resume settles it.
  */
-export type ApprovalOutcome = "allowed-once" | "rejected" | "cancelled" | "unavailable";
+export type ApprovalOutcome = "allowed-once" | "rejected" | "cancelled" | "unavailable" | "pending";
+
+/** An outcome a resume may settle a pending request with. A resume cannot park again. */
+export type SettledApprovalOutcome = Exclude<ApprovalOutcome, "pending">;
 
 /** Per-session policy. `never` refuses before the handler is consulted — CI and headless runs want it. */
 export type ApprovalPolicy = "ask" | "never";
@@ -54,6 +59,20 @@ export interface ApprovalGateOptions {
   readonly onDecision?: (decision: ApprovalDecision) => void;
 }
 
+/**
+ * Thrown when the gate parks a run on a request it will not decide. It carries the ask, so the
+ * loop can commit it as the record's `pending` object.
+ */
+export class ToolApprovalPendingError extends Error {
+  readonly request: ApprovalRequest;
+
+  constructor(request: ApprovalRequest) {
+    super("Tool call to '" + request.name + "' is waiting for a decision");
+    this.name = "ToolApprovalPendingError";
+    this.request = request;
+  }
+}
+
 /** Thrown when an approval does not grant a tool call, so a caller can tell a refusal from a crash. */
 export class ToolApprovalError extends Error {
   readonly outcome: ApprovalOutcome;
@@ -97,6 +116,7 @@ function resolveVerdict(
     case "rejected":
     case "cancelled":
     case "unavailable":
+    case "pending":
       return { outcome: verdict.outcome };
     default:
       return { outcome: "unavailable", reason: "unknown approval outcome: " + String(verdict.outcome) };
@@ -139,6 +159,9 @@ export function withApproval(
         try {
           resolved = resolveVerdict(request, await approve(request));
         } catch (error) {
+          // A typed refusal (a resume settlement that does not match this call) must stay typed;
+          // flattening it into "unavailable" would hide the reason from the caller.
+          if (error instanceof AgentError) throw error;
           resolved = {
             outcome: "unavailable",
             reason: error instanceof Error ? error.message : String(error),
@@ -154,6 +177,9 @@ export function withApproval(
       }
 
       options.onDecision?.(decision);
+
+      // A park is not a refusal: the loop turns it into a waiting record instead of a failure.
+      if (decision.outcome === "pending") throw new ToolApprovalPendingError(request);
 
       if (decision.outcome !== "allowed-once") {
         const reason = decision.reason === undefined ? "" : ": " + decision.reason;

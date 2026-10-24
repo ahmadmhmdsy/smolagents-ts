@@ -4,7 +4,13 @@ import {
   AgentGuardrailError,
   AgentMaxStepsError,
   AgentParsingError,
+  RunAlreadySettledError,
+  RunApprovalMismatchError,
+  RunNotFoundError,
+  RunNotWaitingError,
   RunRecordVersionError,
+  RunRequestExpiredError,
+  RunRequestMismatchError,
 } from "../errors.js";
 import { isTerminal, type AgentEvent, type AgentEventOf, type AgentEventType } from "../events.js";
 import { type Logger, noopLogger } from "../logger.js";
@@ -40,11 +46,16 @@ import {
   type ApprovalDecision,
   type ApprovalHandler,
   type ApprovalPolicy,
+  type ApprovalRequest,
+  type ApprovalVerdict,
+  type SettledApprovalOutcome,
 } from "./approval.js";
 import type { Guardrails } from "./guardrail.js";
 import {
   RUN_RECORD_VERSION,
   translateRecord,
+  type ApprovalSettlement,
+  type PendingApproval,
   type RunRecord,
   type RunStatus,
 } from "../session/run-record.js";
@@ -126,6 +137,11 @@ export interface RunOptions {
    * without a handle seeds its counters from the steps its record already holds.
    */
   budget?: RunBudgetHandle;
+  /**
+   * Settle the pending request of a parked run and continue it. Requires `runId`; the loop loads
+   * the record, settles the request exactly once, and re-enters the unfinished step.
+   */
+  resume?: { readonly requestId: string; readonly outcome: SettledApprovalOutcome };
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
@@ -148,6 +164,14 @@ export interface RunContext {
   stepIndex: number;
   /** Why the latest model reply ended, so a schema failure can tell a truncation from a bad shape. */
   finishReason: FinishReason | undefined;
+  /** The request this run is parked on, while it waits for a resume. */
+  pending: PendingApproval | undefined;
+  /** The settlement this run was resumed for; the gate honours it for this step and digest only. */
+  resumedSettlement: ApprovalSettlement | undefined;
+  /** Every settlement the record holds, so a commit never drops one. */
+  settlements: readonly ApprovalSettlement[];
+  /** The memory as the last successful commit wrote it, so a park replays from that boundary. */
+  committedSteps: RunRecord["memory"]["steps"];
 }
 
 export type AgentEventListener = (event: AgentEvent) => void;
@@ -170,7 +194,8 @@ const PLANNING_INSTRUCTION =
  */
 export abstract class MultiStepAgent<TOut = unknown> {
   readonly model: Model;
-  readonly tools: ToolRegistry;
+  /** The registry, rewritten once when the approval gate is installed. */
+  tools: ToolRegistry;
   readonly maxSteps: number;
   readonly planningInterval: number;
   readonly executionTimeoutMs: number;
@@ -195,6 +220,10 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly approvalPolicy: ApprovalPolicy;
   /** Set by a subclass for the duration of one step, so decisions land in that step's stream. */
   private approvalSink: ((decision: ApprovalDecision) => void) | undefined;
+  /** The pending decision the loop parks on, set when a gate answers `pending`. */
+  private parkingDecision: ApprovalDecision | undefined;
+  /** Whether the approval gate already wraps this agent's tools. */
+  private toolsGated = false;
   private readonly guardrails: Guardrails | undefined;
   private readonly outputSchema: z.ZodType | undefined;
 
@@ -215,11 +244,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       this.tools = new ToolRegistry(options.tools ?? []);
     }
     if (this.approve !== undefined || this.approvalPolicy === "never") {
-      const approve = this.approve;
-      const gate = (request: Parameters<ApprovalHandler>[0]) =>
-        approve === undefined ? Promise.resolve(false) : approve(request);
-      const options = { policy: this.approvalPolicy, onDecision: (d: ApprovalDecision) => this.recordApproval(d) };
-      this.tools = new ToolRegistry(this.tools.list().map((entry) => withApproval(entry, gate, options)));
+      this.ensureApprovalGate();
     }
     this.maxSteps = options.maxSteps ?? 20;
     this.planningInterval = options.planningInterval ?? 0;
@@ -253,8 +278,48 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.approvalSink = sink;
   }
 
+  /**
+   * Put the gate in front of every tool. Built eagerly when a handler or the `never` policy is
+   * configured; a resumed run also needs it even without either, because its settlement must be
+   * honoured — and a call it does not match must be refused rather than run ungated.
+   */
+  private ensureApprovalGate(): void {
+    if (this.toolsGated) return;
+    this.toolsGated = true;
+    const gate = (request: ApprovalRequest) => this.gateAnswer(request);
+    const options = { policy: this.approvalPolicy, onDecision: (d: ApprovalDecision) => this.recordApproval(d) };
+    this.tools = new ToolRegistry(this.tools.list().map((entry) => withApproval(entry, gate, options)));
+  }
+
   private recordApproval(decision: ApprovalDecision): void {
+    if (decision.outcome === "pending") this.parkingDecision = decision;
     this.approvalSink?.(decision);
+  }
+
+  /**
+   * The one gate every ask goes through. A run resumed for this step answers from its settlement
+   * when the argument digest matches; a different call in the same step is a typed refusal; every
+   * other ask is the caller's handler.
+   */
+  private gateAnswer(request: ApprovalRequest): ApprovalVerdict | boolean | Promise<ApprovalVerdict | boolean> {
+    const settlement = this.activeContext?.resumedSettlement;
+    if (settlement !== undefined && settlement.stepIndex === request.stepIndex) {
+      if (settlement.argsDigest === request.digest) {
+        return { requestId: request.requestId, digest: request.digest, outcome: settlement.outcome };
+      }
+      throw new RunApprovalMismatchError(
+        "The resumed step asked for '" +
+          request.name +
+          "' with arguments whose digest is " +
+          request.digest +
+          ", not the settled " +
+          settlement.argsDigest +
+          ". The run runs no effect on a call it was not resumed for.",
+        { stepIndex: request.stepIndex },
+      );
+    }
+    if (this.approve === undefined || this.approvalPolicy === "never") return false;
+    return this.approve(request);
   }
 
   /** The event a decision becomes. One per ask, so the stream and the handler count agree. */
@@ -393,6 +458,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
         case "run.cancelled":
           failure = new AgentCancelledError("The run was cancelled");
           break;
+        case "run.waiting":
+          completed = event.result as RunResult<TOut>;
+          break;
         case "run.maxStepsReached":
           failure = new AgentMaxStepsError(
             "Reached the maximum number of steps (" + String(event.steps) + ")",
@@ -469,14 +537,20 @@ export abstract class MultiStepAgent<TOut = unknown> {
       generation: 0,
       createdAt: new Date().toISOString(),
       finishReason: undefined,
+      pending: undefined,
+      resumedSettlement: undefined,
+      settlements: [],
+      committedSteps: [],
     };
 
     this.activeContext = context;
+    this.parkingDecision = undefined;
     this.answerRepairs = 0;
+    if (options.resume !== undefined) this.ensureApprovalGate();
     this.monitor = new Monitor(context.startedAt);
     yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
 
-    if (options.reset ?? true) {
+    if ((options.reset ?? true) && options.resume === undefined) {
       this.memory.reset();
     } else if (this.store !== undefined && options.runId !== undefined) {
       let loaded: RunRecord | undefined;
@@ -493,6 +567,39 @@ export abstract class MultiStepAgent<TOut = unknown> {
       if (loaded !== undefined) {
         this.memory.restore(loaded.memory.steps);
         context.generation = loaded.generation;
+        context.settlements = loaded.settlements ?? [];
+        context.committedSteps = loaded.memory.steps;
+      }
+      if (options.resume !== undefined) {
+        const refusal = this.prepareResume(context, options.resume, loaded);
+        if (refusal !== undefined) {
+          yield this.emit({ type: "run.failed", error: refusal.info });
+          return;
+        }
+        // Consume the pause before re-entering the step: a crash past this point leaves a
+        // running record, never a request that could be settled twice.
+        const commitFailure = await this.commitRun(context, "running");
+        if (commitFailure !== undefined) {
+          yield* this.failRun(context, commitFailure);
+          return;
+        }
+        const settlement = context.resumedSettlement as ApprovalSettlement;
+        yield this.emit({
+          type: "run.resumed",
+          runId,
+          requestId: settlement.requestId,
+          outcome: settlement.outcome,
+        });
+      } else if (loaded !== undefined && loaded.status === "waiting" && loaded.pending !== undefined) {
+        yield this.emit({
+          type: "run.failed",
+          error: new RunNotWaitingError(
+            "The run is waiting on request " +
+              loaded.pending.requestId +
+              "; resume it instead of running it again.",
+          ).info,
+        });
+        return;
       }
       // A resumed run continues the budget its record already spent. Without a store there is
       // nothing to seed from, and without a handle the caller asked for a fresh run.
@@ -502,13 +609,23 @@ export abstract class MultiStepAgent<TOut = unknown> {
         context.budget.outputTokens = seed.outputTokens ?? 0;
         context.budget.totalTokens = seed.totalTokens ?? 0;
       }
+    } else if (options.resume !== undefined) {
+      yield this.emit({
+        type: "run.failed",
+        error: new RunNotFoundError(
+          "A resume needs a store and the runId of the parked run, so there is nothing to load.",
+        ).info,
+      });
+      return;
     }
-    this.memory.addStep(new TaskStep(task));
+    if (options.resume === undefined) this.memory.addStep(new TaskStep(task));
     // A continued memory already holds a system prompt, and the transcript renders the current
     // prompt in its place, so a second copy would only pile up in every record.
     if (this.memory.systemPrompt === undefined) {
       this.memory.addStep(new SystemPromptStep(this.systemPrompt));
     }
+    // What a park replays from: everything recorded before the step it parks in.
+    context.committedSteps = this.memory.toJSON();
 
     if (this.guardrails?.input !== undefined) {
       let reason: string | undefined;
@@ -650,10 +767,24 @@ export abstract class MultiStepAgent<TOut = unknown> {
       try {
         outcome = yield* this.drainAction(this.composeAction(context, step, stepIndex, action));
       } catch (error) {
+        // A gate that answered `pending` parks the run; the error it threw is that park, not a
+        // failed call. A resumed call that does not match its settlement keeps its typed error.
+        if (this.parkingDecision !== undefined) {
+          yield* this.parkRun(context);
+          return;
+        }
+        if (error instanceof RunApprovalMismatchError) {
+          yield this.emit({ type: "run.failed", error: error.info });
+          return;
+        }
         const executionError = AgentError.from(error, "AGENT_EXECUTION", stepIndex);
         step.error = executionError.info;
         if (signal.aborted) yield* this.cancelRun(context);
         else yield* this.failRun(context, executionError);
+        return;
+      }
+      if (this.parkingDecision !== undefined) {
+        yield* this.parkRun(context);
         return;
       }
 
@@ -749,20 +880,112 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private async commitRun(context: RunContext, status: RunStatus): Promise<AgentError | undefined> {
     if (this.store === undefined || !context.durable) return undefined;
     try {
+      const steps = this.memory.toJSON();
       const record: RunRecord = {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
         status,
         generation: context.generation,
-        memory: { steps: this.memory.toJSON() },
+        memory: { steps },
+        ...(context.pending === undefined ? {} : { pending: context.pending }),
+        ...(context.settlements.length === 0 ? {} : { settlements: context.settlements }),
         createdAt: context.createdAt,
         updatedAt: new Date().toISOString(),
       };
       await this.store.commit(context.runId, record);
+      context.committedSteps = steps;
       return undefined;
     } catch (error) {
       return storeError("commit", error, context.stepIndex);
     }
+  }
+
+  /**
+   * Park the run on the decision the gate refused to make. The incomplete step is dropped — the
+   * model produces it again on resume — and the record is committed `waiting` with the request.
+   */
+  private async *parkRun(context: RunContext): AsyncGenerator<AgentEvent, void> {
+    const decision = this.parkingDecision;
+    this.parkingDecision = undefined;
+    if (decision === undefined) return;
+    this.memory.restore([...context.committedSteps]);
+    context.pending = {
+      kind: "approval",
+      requestId: decision.requestId,
+      toolName: decision.name,
+      argsDigest: decision.digest,
+      stepIndex: decision.stepIndex,
+      createdAt: new Date().toISOString(),
+    };
+    const commitFailure = await this.commitRun(context, "waiting");
+    if (commitFailure !== undefined) {
+      yield* this.failRun(context, commitFailure);
+      return;
+    }
+    yield this.emit({ type: "run.waiting", result: this.buildResult(undefined, context, "waiting") });
+  }
+
+  /** Validate and consume a resume against the loaded record, or return the typed refusal. */
+  private prepareResume(
+    context: RunContext,
+    resume: { readonly requestId: string; readonly outcome: SettledApprovalOutcome },
+    loaded: RunRecord | undefined,
+  ): AgentError | undefined {
+    if (loaded === undefined) {
+      return new RunNotFoundError(
+        "The store holds no record for run " +
+          context.runId +
+          ", so request " +
+          resume.requestId +
+          " cannot be resumed.",
+      );
+    }
+    const settled = (loaded.settlements ?? []).find((entry) => entry.requestId === resume.requestId);
+    if (settled !== undefined) {
+      return new RunAlreadySettledError(
+        "Request " +
+          resume.requestId +
+          " was already settled as " +
+          settled.outcome +
+          "; resuming it again runs nothing.",
+        {},
+        settled.outcome,
+      );
+    }
+    const pending = loaded.pending;
+    if (loaded.status !== "waiting" || pending === undefined) {
+      return new RunNotWaitingError(
+        "The run record is " + loaded.status + ", not waiting on a request to resume.",
+      );
+    }
+    if (pending.requestId !== resume.requestId) {
+      return new RunRequestMismatchError(
+        "The run is waiting on request " +
+          pending.requestId +
+          ", not " +
+          resume.requestId +
+          "; nothing was settled.",
+      );
+    }
+    if (pending.expiresAt !== undefined && Date.now() > Date.parse(pending.expiresAt)) {
+      return new RunRequestExpiredError(
+        "Request " + pending.requestId + " expired at " + pending.expiresAt + "; it cannot be settled.",
+        {},
+        pending.expiresAt,
+      );
+    }
+    const settlement: ApprovalSettlement = {
+      requestId: pending.requestId,
+      argsDigest: pending.argsDigest,
+      stepIndex: pending.stepIndex,
+      outcome: resume.outcome,
+      at: new Date().toISOString(),
+    };
+    context.settlements = [...context.settlements, settlement];
+    context.resumedSettlement = settlement;
+    context.pending = undefined;
+    context.stepIndex = pending.stepIndex;
+    return undefined;
   }
 
   /** Commit the terminal failure, then report it. A failed commit does not hide the cause. */
@@ -1045,6 +1268,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       tokenUsage: context.usage,
       state,
       budget: context.budget,
+      ...(context.pending === undefined ? {} : { pending: context.pending }),
     });
   }
 

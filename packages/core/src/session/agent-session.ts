@@ -13,7 +13,8 @@ export type SessionStatus =
   | "failed"
   | "cancelled"
   | "max_steps"
-  | "limit_reached";
+  | "limit_reached"
+  | "waiting";
 
 export type ToolCallStatus = "pending" | "ok" | "error";
 
@@ -237,9 +238,9 @@ export class AgentSession<TOut = unknown> {
       });
       this.draft.output = result.output;
       this.draft.runId = result.runId;
-      this.draft.status = "success";
+      this.draft.status = result.state === "waiting" ? "waiting" : "success";
       this.draft.endedAt = Date.now();
-      this.publish("run.completed");
+      this.publish(result.state === "waiting" ? "run.waiting" : "run.completed");
       return result;
     } catch (error) {
       const info = AgentError.from(error).info;
@@ -418,6 +419,11 @@ export class AgentSession<TOut = unknown> {
 
       case "run.cancelled":
         this.draft.status = "cancelled";
+        this.draft.endedAt = Date.now();
+        return;
+
+      case "run.waiting":
+        this.draft.status = "waiting";
         this.draft.endedAt = Date.now();
         return;
 

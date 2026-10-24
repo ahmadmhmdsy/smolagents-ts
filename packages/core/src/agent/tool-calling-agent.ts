@@ -1,6 +1,7 @@
 import {
   type AgentErrorInfo,
   AgentCancelledError,
+  AgentError,
   AgentToolCallError,
   ToolTimeoutError,
 } from "../errors.js";
@@ -12,6 +13,7 @@ import { extractCodeBlock } from "../utils/parse-code-blocks.js";
 import type { Tool, ToolContext } from "../tool/tool.js";
 import type { ToolCall } from "../types.js";
 import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
+import { ToolApprovalPendingError } from "./approval.js";
 import { MultiStepAgent, type AgentOptions, type RunContext } from "./multi-step-agent.js";
 
 // Re-exported so callers can import it beside the agent that uses it. The binding itself is
@@ -157,7 +159,16 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       const startedAt = Date.now();
       const approvals: AgentEvent[] = [];
       this.captureApprovals((decision) => approvals.push(this.approvalEvent(decision)));
-      const result = await this.invoke(definition, parsed.data, callId, stepIndex, context);
+      let result: Awaited<ReturnType<ToolCallingAgent["invoke"]>>;
+      try {
+        result = await this.invoke(definition, parsed.data, callId, stepIndex, context);
+      } catch (error) {
+        // A park or a typed refusal must reach the loop; the decision it made still goes out
+        // first, so the stream shows the ask, never a call that silently vanished.
+        this.captureApprovals(undefined);
+        for (const event of approvals) yield event;
+        throw error;
+      }
       this.captureApprovals(undefined);
       for (const event of approvals) yield event;
       const durationMs = Date.now() - startedAt;
@@ -200,8 +211,13 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     } catch (error) {
       // Cancellation is the run's outcome, not this call's failure; it must not be flattened into
       // a tool-call error. A timed-out tool keeps its own typed code so the reader sees the limit.
+      // A park and any other typed error are the loop's to report, so they pass through as-is.
       if (error instanceof AgentCancelledError) throw error;
+      if (error instanceof ToolApprovalPendingError) throw error;
+      // A timed-out tool is this call's failure, not the run's; check it before the general
+      // typed-error pass-through, because its class is an AgentError too.
       if (error instanceof ToolTimeoutError) return { ok: false, error: error.info };
+      if (error instanceof AgentError) throw error;
       return {
         ok: false,
         error: new AgentToolCallError(error instanceof Error ? error.message : String(error), { stepIndex })

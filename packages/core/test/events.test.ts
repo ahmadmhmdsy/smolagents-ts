@@ -39,12 +39,26 @@ const SAMPLES: Record<AgentEventType, AgentEvent> = {
   "run.maxStepsReached": { type: "run.maxStepsReached", steps: 10 },
   "run.limitReached": { type: "run.limitReached", reason: "limitTotalTokens" },
   "run.cancelled": { type: "run.cancelled" },
+  "run.waiting": {
+    type: "run.waiting",
+    result: {
+      output: undefined, steps: [], messages: [],
+      tokenUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      timing: { start: 0, end: 1, durationMs: 1 },
+      state: "waiting", runId: "r",
+      pending: {
+        kind: "approval", requestId: "c", argsDigest: "v1:0", toolName: "n",
+        stepIndex: 0, createdAt: "2026-10-24T00:00:00.000Z",
+      },
+    },
+  },
+  "run.resumed": { type: "run.resumed", runId: "r", requestId: "c", outcome: "allowed-once" },
 };
 
 describe("the event contract is complete", () => {
   it("covers every declared AgentEventType", () => {
     const declared = Object.keys(SAMPLES).sort();
-    expect(declared).toHaveLength(22);
+    expect(declared).toHaveLength(24);
   });
 
   it("classifies exactly the delta events as advisory", () => {
@@ -52,7 +66,7 @@ describe("the event contract is complete", () => {
     expect(advisory).toEqual(["code.delta", "message.delta", "planning.delta"]);
   });
 
-  it("classifies exactly the five terminal events", () => {
+  it("classifies exactly the six terminal events", () => {
     const terminal = (Object.keys(SAMPLES) as AgentEventType[]).filter(isTerminal).sort();
     expect(terminal).toEqual([
       "run.cancelled",
@@ -60,6 +74,7 @@ describe("the event contract is complete", () => {
       "run.failed",
       "run.limitReached",
       "run.maxStepsReached",
+      "run.waiting",
     ]);
   });
 

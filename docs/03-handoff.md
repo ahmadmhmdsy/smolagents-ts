@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T16:55:00+03:00 — 1.2 landed: a run can park on a request
+
+**State.** Phase 1 items 1.1 and 1.2 are in the tree. A gated call may answer `pending`: the
+run commits `waiting` with a `pending` request and ends with `run.waiting`. A later agent
+resumes it with `RunOptions.resume {requestId, outcome}`, settles once, and re-enters the
+unfinished step. Nothing is pushed.
+
+**Did.** Added the fifth verdict and `ToolApprovalPendingError`; record fields `pending` and
+`settlements`; `RunState "waiting"`; `run.waiting` and `run.resumed`; resume validation with
+typed refusals (`RunNotFoundError`, `RunNotWaitingError`, `RunRequestMismatchError`,
+`RunRequestExpiredError`, `RunAlreadySettledError`, `RunApprovalMismatchError`); the session's
+`waiting` status and the React label; and a gate installed on resume even without a handler.
+
+**Verified.** `pnpm gate` exit 0. Core 40 files and 479 tests, including six new resume cases:
+park with digest, settle once, second resume reports settled, wrong id, digest mismatch, expiry.
+
+**Unverified-open.** Two processes resuming one request still race: the claim and generation
+fence are 1.3. A resumed step re-asks the model; the settlement binds by digest-and-step, so a
+model that changes its arguments gets a typed refusal rather than a retry.
+
+**Next.** 1.3: ownership CAS with a claim, `generation` bumped per claim, `RunClaimed`, repair
+forward — starting with its red acceptance test.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `agent/approval.ts`,
+`agent/multi-step-agent.ts`, `session/run-record.ts`, `test/session-resume.test.ts`.
+
 ## 2026-10-24T16:05:00+03:00 — 1.1 landed: a run has a record
 
 **State.** Phase 1 is open and item 1.1 is in the tree. A run is now a `RunRecord` under a
@@ -122,64 +150,4 @@ publication hold stands until the corrections ship.
 `packages/core/src/agent/tool-calling-agent.ts`,
 `packages/core/src/agent/multi-step-agent.ts`,
 `packages/core/test/guardrail.test.ts`.
-
-## 2026-10-24T13:45:00+03:00 — 0.9 landed: a budget record, a typed limit, a handle
-
-**State.** Nine Phase 0 items in (0.1–0.9). Last one is 0.10: structured output on a
-model that cannot call tools.
-
-**Did.** Added `session/budget.ts`: requested limits (turns, output tokens, total
-tokens) clamped by the deployment ceiling, a `RunBudget` record on the run context and in
-`RunResult.budget`, and a caller-held `RunBudgetHandle` that continues the counters into
-the next run. A resumed checkpoint without a handle seeds its counters from its own steps,
-so the budget does not reset. Crossing a limit ends the run with a new terminal event,
-`run.limitReached`, carrying the typed reason; the session status became `limit_reached`
-and the React label and CLI line were updated for it (both gates caught the missing React
-entry).
-
-**Verified.** `pnpm gate` exit 0; core 39 files, 458 tests (seven new: clamping, the
-three typed reasons, the seed, the run-level limit, the shared handle and the
-non-resetting resume).
-
-**Unverified / open.** The ceiling is a module constant, not configuration; 0.9 has no
-deployment-level wiring. A handle is in-memory only, so a process restart still needs the
-checkpoint path to continue a budget.
-
-**Next.** 0.10: bound a schema for a model with `toolCalls: false` and repair without a
-forced tool.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/src/session/budget.ts`,
-`packages/core/src/agent/multi-step-agent.ts`, `packages/core/src/events.ts`,
-`packages/core/test/budget.test.ts`, `packages/react/src/agent-run.tsx`,
-`packages/cli/src/renderer.ts`.
-
-## 2026-10-24T13:10:00+03:00 — 0.8 landed: the store contract, with counterexamples
-
-**State.** Eight Phase 0 items in (0.1–0.8). Next is 0.9's budget record, then 0.10's
-tool-less structured output.
-
-**Did.** Wrote `test/contract/run-store.contract.ts`: ten store modes, each check paired
-with a deliberately broken counterexample the suite must reject. Certified three
-implementations — `MemoryRunStore`, an asynchronous wrapper and a temporary-file store
-double that stands in for the durable file store Phase 1.5 has not built. The contract
-found a real leak: `MemoryRunStore` handed out its internal steps array, so a caller that
-mutated a loaded checkpoint changed the stored one. It now copies on both sides of the
-boundary.
-
-**Verified.** `pnpm gate` exit 0; core 38 files, 446 tests (the contract file alone
-registers sixty).
-
-**Unverified / open.** The file store certified here is a test double, not the 1.5
-artifact; when 1.5 lands, its store joins this file and the double goes.
-
-**Next.** 0.9: turn/output/total-token limits on the record, a typed terminal reason and
-a handle that continues the budget.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/test/contract/run-store.contract.ts`,
-`packages/core/test/contract/run-store.conformance.test.ts`,
-`packages/core/src/session/run-store.ts`.
 <!-- rotate:end -->

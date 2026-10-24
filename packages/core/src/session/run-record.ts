@@ -1,3 +1,4 @@
+import type { SettledApprovalOutcome } from "../agent/approval.js";
 import { RunRecordVersionError, RunSnapshotVersionError } from "../errors.js";
 import type { StepJSON } from "../memory/steps.js";
 
@@ -14,6 +15,31 @@ export const RUN_SNAPSHOT_VERSION = 1;
 export type RunStatus = "running" | "waiting" | "completed" | "failed" | "interrupted";
 
 /**
+ * A request a parked run is waiting on. One shape with a `kind` now, so input and external pauses
+ * are added as values rather than as second mechanisms (design brief D4).
+ */
+export interface PendingApproval {
+  readonly kind: "approval";
+  /** The request id a resume names. It is the call id the ask was recorded with. */
+  readonly requestId: string;
+  readonly toolName: string;
+  /** The digest of the validated arguments; a resumed call is bound to this, not to a call id. */
+  readonly argsDigest: string;
+  readonly stepIndex: number;
+  readonly createdAt: string;
+  readonly expiresAt?: string;
+}
+
+/** One resolution of a pending request. The list is appended to and never truncated. */
+export interface ApprovalSettlement {
+  readonly requestId: string;
+  readonly argsDigest: string;
+  readonly stepIndex: number;
+  readonly outcome: SettledApprovalOutcome;
+  readonly at: string;
+}
+
+/**
  * A run as its store keeps it: one identity, one status, one fence number, and the memory the loop
  * replays. Later durability items extend this type with the fields they introduce.
  */
@@ -24,6 +50,10 @@ export interface RunRecord {
   /** The ownership fence. It changes only when a store claims the run (Phase 1.3). */
   readonly generation: number;
   readonly memory: { readonly steps: readonly StepJSON[] };
+  /** Present while the run is parked. It is what a resume settles and what a UI renders. */
+  readonly pending?: PendingApproval;
+  /** Every settlement appended so far, so a second resolution can report the first. */
+  readonly settlements?: readonly ApprovalSettlement[];
   readonly createdAt?: string;
   readonly updatedAt?: string;
 }

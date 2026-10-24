@@ -291,6 +291,28 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.2 as built.** The approval verdict set gains `pending`: the gate records the
+  decision, throws `ToolApprovalPendingError`, the loop drops the unfinished step, and commits
+  the record `waiting` with `pending {kind, requestId, toolName, argsDigest, stepIndex, createdAt,
+  expiresAt?}`. The run ends with a `run.waiting` event whose `RunResult` has `state "waiting"`
+  and the request; `run()` returns it rather than throwing, so a caller reads the pause from the
+  result. `RunState` therefore gains a third value, which the design brief did not name.
+- **Resume.** `RunOptions.resume {requestId, outcome}` requires `runId`; the loop loads the record,
+  refuses typed on a missing run, an unknown request id, a status that is not waiting, an expired
+  `expiresAt`, or a request already in `settlements` (which reports that settlement), appends one
+  settlement, commits the pause consumed as `running`, emits `run.resumed`, and re-enters the
+  unfinished step at its original index. The gate binds the settlement to digest-and-step, since
+  a resumed step generates fresh call ids; a call with other arguments throws
+  `RunApprovalMismatchError` and runs no effect.
+- **Gate always present on resume.** Tools are gated at construction only when a handler or the
+  `never` policy needs it, so a resumed run without a handler would have run ungated; resume now
+  installs the gate before the loop. This is why `MultiStepAgent.tools` is no longer `readonly`.
+- **Settlements accumulate.** The list is appended to and never truncated; the pending object is
+  removed by the commit that consumes the pause. Two processes resuming the same request still
+  race until 1.3 adds the claim and generation fence.
+- **Session and UI.** `SessionStatus` gains `waiting`, the session applies `run.waiting`, and the
+  React status table names it.
+
 - **2026-10-24 — 1.1 as built.** A run is a `RunRecord` under a `runId`: schema version, status
   (`running | waiting | completed | failed | interrupted`), generation, the memory steps, and
   timestamps. `RUN_RECORD_VERSION` is 2 while `RUN_SNAPSHOT_VERSION` 1 is the legacy envelope;
