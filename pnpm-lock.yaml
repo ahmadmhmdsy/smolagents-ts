@@ -209,6 +209,15 @@ importers:
         specifier: ^4.0.0
         version: 4.6.6
 
+  examples/supervisor:
+    dependencies:
+      smolagents-ts:
+        specifier: workspace:*
+        version: link:../../packages/smolagents-ts
+      zod:
+        specifier: ^4.0.0
+        version: 4.6.6
+
   examples/tool-calling:
     dependencies:
       smolagents-ts:

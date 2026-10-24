@@ -13,6 +13,7 @@ are real in every one of them.
 | [events](events) | watching a run: every `AgentEvent` through `describeEvent`, and the `AgentSession` snapshot beside it | `node index.mjs` |
 | [live-provider](live-provider) | a real provider: one plain completion, one streamed, then a `CodeAgent` in QuickJS | `node index.mjs` |
 | [vite-app](vite-app) | the React layer in a browser tab, rendering a run as typed steps | `pnpm --filter example-vite-app run dev` |
+| [supervisor](supervisor) | a supervisor that routes on typed child reports, one of them a schema failure | `node --experimental-strip-types src/index.ts` |
 
 Each script exports a `main()` and calls it only when run directly, so its test
 drives the same code the script does:

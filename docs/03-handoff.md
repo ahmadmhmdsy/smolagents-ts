@@ -33,6 +33,34 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T23:30:00+03:00 — 2.5: the supervisor shape
+
+**State.** Phase 2 is open; 2.1–2.7 are landed except 2.8 (claim board). Next is 2.8, then the
+phase close. Nothing pushed.
+
+**Did.** `examples/supervisor/` declares two managed agents with output schemas. The researcher's
+answer validates; the auditor's omits the `confidence` field its schema requires. The schema sits
+on the `ManagedAgent` entry, not on the child agent, so the mismatch lands in the report's
+`schema` channel (`ChildSchemaError`, `issues: ["confidence: invalid_type"]`) instead of the
+child's own guardrail. The sample calls both through `runManagedAgent` — the path the
+model-facing tool uses — and routes on the reports: the researcher's value and the auditor's
+failure produce the `hold` route and an answer stating both outcomes. It ships
+`package.json`, `tsconfig.json` with a `typecheck` script, its own `vitest.config.ts` project,
+a README and a test, and the examples index gained its row.
+
+**Verified.** `pnpm vitest run --project example-supervisor` green; `pnpm --filter
+example-supervisor run typecheck` clean; `pnpm --filter example-supervisor run start` prints
+`route: hold` and both reports. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The sample's model is scripted; it shows the report channel, not a live
+model deciding where to route. 2.8 is the last item before the close.
+
+**Next.** 2.8: the claim board with revision compare-and-set, blockers and tombstones.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `examples/supervisor/src/index.ts`; `examples/supervisor/test/example.test.ts`.
+
 ## 2026-10-24T23:10:00+03:00 — 2.4: a child the parent can find again
 
 **State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.4, 2.6 and 2.7 are landed. Next is 2.5 (supervisor
@@ -130,35 +158,4 @@ and a typed `TransferSignal`.
 
 **Artifacts.** `packages/core/src/session/wait.ts`; `packages/core/src/session/run-store.ts`;
 `packages/core/src/session/file-run-store.ts`; `packages/cli/src/store.ts`.
-
-## 2026-10-24T22:20:00+03:00 — 2.6: a send is an ordinary record entry, delivery a boundary
-
-**State.** Phase 2 is open; 2.1, 2.3 and 2.6 are landed. Next is 2.7 (`waitForRun` and the
-store's `watch` mode), then the second slice. Nothing pushed.
-
-**Did.** `RunRecord.messages` keeps `RunMessage` entries and `sendRunMessage(store, runId, {from,
-text})` appends one: it loads the record, refuses an unknown or ended run typed, commits at the
-generation it read without taking a claim, and returns an `accepted` receipt — acceptance, not
-processing. The loop joins messages another writer appended before every commit, so an effect's
-commit cannot drop a send. At each step boundary it delivers the undelivered entries as an
-ordinary `MessageStep`, stamps `deliveredAt` and `deliveredStep` in that same commit, and renders
-the step as a user turn prefixed with its sender. A parked run accepts a send and delivers it on
-the resumed step; a delivered entry is not delivered again.
-
-**Verified.** `run-messages.test.ts` (46th core file, 10 cases) green, covering the receipt, a
-running target's next step seeing the text (including the transcript), a parked run's resumed
-step, no redelivery of a stamped entry, typed refusals, and the file-store round trip. Core 46
-files/542 tests; `pnpm typecheck` clean; `pnpm gate` exit 0; validator 0/0; rotate clean.
-
-**Unverified / open.** 2.7 and the second slice are not started. A send racing the loop's own
-commit inside the same generation is resolved by the commit that lands last; the merge keeps the
-common interleavings, not a distributed guarantee.
-
-**Next.** 2.7: `RunStore.watch` as the fourteenth contract mode and `waitForRun`, which reads,
-waits and never claims.
-
-**Blockers.** None; the owner's blocked rows are unchanged.
-
-**Artifacts.** `packages/core/src/session/messages.ts`; `packages/core/src/memory/steps.ts`;
-`packages/core/test/run-messages.test.ts`.
 <!-- rotate:end -->

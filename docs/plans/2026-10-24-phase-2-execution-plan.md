@@ -197,6 +197,16 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.5 as built.** `examples/supervisor/` declares two managed agents with
+  output schemas. The researcher's answer validates; the auditor's omits the `confidence` field
+  its schema requires, and because the schema sits on the entry rather than on the child agent,
+  the mismatch lands in the report's `schema` channel instead of the child's own guardrail. The
+  sample calls both through `runManagedAgent` and routes on the reports: the researcher's value
+  and the auditor's `ChildSchemaError` produce the `hold` route and an answer that states both
+  outcomes. It adds `package.json`, `tsconfig.json` (typechecked by the workspace), its own
+  `vitest.config.ts` project, a README and a test; the examples index gained its row.
+
+
 - **2026-10-24 — 2.4 as built.** `agent/background-child.ts` starts a child that outlives the
   call. The parent record gains a `children` row (`provisioning`, then `active`, then
   `completed`/`failed` with the typed `ChildReport`), written as its own commit at the parent's
