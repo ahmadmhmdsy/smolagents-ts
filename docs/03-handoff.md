@@ -33,6 +33,33 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T11:35:00+03:00 — 0.3 landed: a schema failure gets two repairs, then ends the run
+
+**State.** Phase 0 has five items in (0.1, 0.2, 0.3, 0.4, 0.5). Wave 2 continues with
+0.6, 0.7, 0.8, 0.9, 0.10.
+
+**Did.** A schema mismatch is answered with a correction observation at most twice per
+run; a third failure throws `AgentGuardrailError` naming the budget, so a
+wrong-schema loop can no longer spend `maxSteps` silently. `RunContext.finishReason`
+now carries why the reply ended, and a reply truncated by `length` is never repaired
+(the missing part is not a correctable mistake) — it fails immediately. The attempt
+count rides on the refused `final_answer` calls, not a new event kind.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 381 tests (3 new: two repairs then a
+valid answer, budget exhaustion, the length guard with one model call).
+
+**Unverified / open.** The length guard is unit-tested through a scripted tool call
+finish; the text-answer path that can actually be truncated by length is 0.10's and will
+re-test it there. Nothing pushed.
+
+**Next.** 0.6 (guardrail redaction rule), then 0.7's tool deadline.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/agent/multi-step-agent.ts`,
+`packages/core/src/agent/tool-calling-agent.ts`,
+`packages/core/test/guardrail.test.ts`.
+
 ## 2026-10-24T11:05:00+03:00 — 0.4 landed: egress is a policy the backends honour or refuse
 
 **State.** Phase 0 Wave 1 is complete: 0.1, 0.2, 0.5 and 0.4 are in, each with its
@@ -146,30 +173,4 @@ acceptance test comes first.
 **Artifacts.** `packages/core/src/agent/approval.ts:1`,
 `packages/core/src/agent/multi-step-agent.ts:139`,
 `docs/plans/2026-10-24-phase-0-execution-plan.md:170`.
-
-## 2026-10-24T10:05:00+03:00 — Phase 0 opened; T-41 in progress
-
-**State.** The program is approved and Phase 0 is open. Wave 1 is 0.1 (approval
-naming), then 0.2 (schema on `final_answer`) and 0.5 (stored-record version), with
-0.4 (egress axis) running beside them on `packages/exec-remote/**`. Decisions
-0020–0025 are accepted; nothing in the tree is source-changed yet.
-
-**Did.** Wrote `docs/plans/2026-10-24-phase-0-execution-plan.md` (waves, per-item
-acceptance tests, write scopes, rollbacks); activated the parent plan and pointed
-Phase 0 at it; opened `T-41` and moved `T-40` to in progress; trimmed ten task
-rows to fit the 4096-byte inline cap.
-
-**Verified.** `validate_context.py`: 0 errors, 0 warnings; `rotate.py --check`
-clean; tasks region 3847 bytes.
-
-**Unverified / open.** No source edits yet, so `pnpm gate` is unchanged from
-`0c03940`. 0.1 is the first code item.
-
-**Next.** Implement 0.1: `requestId` + digest + closed outcome set + `never`
-policy + one approval event per ask, red test first.
-
-**Blockers.** None. `T-14` still waits on registry credentials.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-0-execution-plan.md:1`,
-`docs/04-tasks.md:56`.
 <!-- rotate:end -->

@@ -138,8 +138,10 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     if (claimed) {
       const invalid = this.invalidAnswer(value);
       if (invalid !== undefined) {
+        // Spends the run's repair budget; past it, answerFailure throws and ends the run.
+        const correction = this.answerFailure(invalid, context.finishReason, context.stepIndex);
         return {
-          observations: describeExecution(settled.result.logs, settled.result.error) + "\nError: " + invalid,
+          observations: describeExecution(settled.result.logs, settled.result.error) + "\n" + correction,
           isFinalAnswer: false,
         };
       }

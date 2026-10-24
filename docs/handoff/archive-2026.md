@@ -4,6 +4,32 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T10:05:00+03:00 — Phase 0 opened; T-41 in progress
+
+**State.** The program is approved and Phase 0 is open. Wave 1 is 0.1 (approval
+naming), then 0.2 (schema on `final_answer`) and 0.5 (stored-record version), with
+0.4 (egress axis) running beside them on `packages/exec-remote/**`. Decisions
+0020–0025 are accepted; nothing in the tree is source-changed yet.
+
+**Did.** Wrote `docs/plans/2026-10-24-phase-0-execution-plan.md` (waves, per-item
+acceptance tests, write scopes, rollbacks); activated the parent plan and pointed
+Phase 0 at it; opened `T-41` and moved `T-40` to in progress; trimmed ten task
+rows to fit the 4096-byte inline cap.
+
+**Verified.** `validate_context.py`: 0 errors, 0 warnings; `rotate.py --check`
+clean; tasks region 3847 bytes.
+
+**Unverified / open.** No source edits yet, so `pnpm gate` is unchanged from
+`0c03940`. 0.1 is the first code item.
+
+**Next.** Implement 0.1: `requestId` + digest + closed outcome set + `never`
+policy + one approval event per ask, red test first.
+
+**Blockers.** None. `T-14` still waits on registry credentials.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-0-execution-plan.md:1`,
+`docs/04-tasks.md:56`.
+
 ## 2026-10-24T09:45:00+03:00 — the delegation ruling lands: no blackboard; the approved intake is folded into the plan
 
 **State.** Decisions 0020–0025 are accepted. `0025` answers `MA-05`: no shared

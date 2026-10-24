@@ -138,3 +138,10 @@ Each item is one commit and touches one seam; a wave is not a release. The only 
   passes `deny-all` to the vendor at create and reports `network: "none"`, while the
   Docker and process backends throw `EgressUnsupportedError` before an image is built or
   an interpreter is spawned. The seam test drives the E2B client double's create call.
+- **2026-10-24 — 0.3 as built.** The repair budget is a module constant of two attempts,
+  spent by either flavour when a schema failure is answered with a correction observation;
+  past it the run fails as `AGENT_GUARDRAIL`, so a wrong schema can no longer consume
+  `maxSteps`. An attempt is recorded as the refused `final_answer` call itself (the
+  acceptance's "two attempts recorded" reads the two failed calls), not a second event
+  kind. `RunContext.finishReason` carries the reply's finish reason, and a reply cut off
+  by `length` is never repaired: the missing part is not a mistake a turn can correct.

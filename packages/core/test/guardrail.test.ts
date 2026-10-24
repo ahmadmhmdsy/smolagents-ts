@@ -67,6 +67,63 @@ describe("agent guardrails", () => {
     expect(first?.kind === "action" ? first.observations : "").toContain("city");
   });
 
+  it("spends two repair attempts, then accepts a valid answer", async () => {
+    const agent = new ToolCallingAgent({
+      model: new MockModel([
+        { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ town: "x" }, "c1")] },
+        { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ town: "y" }, "c2")] },
+        { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ city: "Baghdad" }, "c3")] },
+      ]),
+      tools: [],
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    const result = await agent.run("name the city");
+
+    expect(result.output).toEqual({ city: "Baghdad" });
+    const refused = result.steps.filter(
+      (step) =>
+        step.kind === "action" &&
+        (step.toolCalls ?? []).some((call) => call.name === FINAL_ANSWER_TOOL_NAME && call.error !== undefined),
+    );
+    expect(refused).toHaveLength(2);
+  });
+
+  it("fails the run once the repair budget is spent", async () => {
+    const answers = ["x", "y", "z"].map((town, index) => ({
+      content: "",
+      finishReason: "tool_calls" as const,
+      toolCalls: [finalAnswer({ town }, "c" + String(index))],
+    }));
+    const agent = new ToolCallingAgent({
+      model: new MockModel(answers),
+      tools: [],
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    await expect(agent.run("name the city")).rejects.toMatchObject({
+      code: "AGENT_GUARDRAIL",
+      message: expect.stringContaining("repair attempts"),
+    });
+  });
+
+  it("does not repair an answer truncated by the length limit", async () => {
+    const model = new MockModel([
+      { content: "", finishReason: "length", toolCalls: [finalAnswer({ town: "x" })] },
+    ]);
+    const agent = new ToolCallingAgent({
+      model,
+      tools: [],
+      outputSchema: z.object({ city: z.string() }),
+    });
+
+    await expect(agent.run("name the city")).rejects.toMatchObject({
+      code: "AGENT_GUARDRAIL",
+      message: expect.stringMatching(/truncated/),
+    });
+    expect(model.callCount).toBe(1);
+  });
+
   it("advertises the bound schema as the final_answer parameter schema", async () => {
     const model = new MockModel([
       { content: "", finishReason: "tool_calls", toolCalls: [finalAnswer({ city: "Baghdad" })] },

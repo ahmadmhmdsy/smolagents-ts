@@ -113,12 +113,17 @@ export interface RunContext {
   readonly checkpoint: string | undefined;
   usage: TokenUsage;
   stepIndex: number;
+  /** Why the latest model reply ended, so a schema failure can tell a truncation from a bad shape. */
+  finishReason: FinishReason | undefined;
 }
 
 export type AgentEventListener = (event: AgentEvent) => void;
 
 /** A listener for one event type, handed the narrowed event. */
 export type AgentEventHandler<T extends AgentEventType> = (event: AgentEventOf<T>) => void;
+
+/** How many schema-failure repairs one run may spend before the mismatch ends it. */
+const MAX_ANSWER_REPAIRS = 2;
 
 const PLANNING_INSTRUCTION =
   "Before you continue, write a short numbered plan for the remaining work. Reply with the plan only.";
@@ -148,6 +153,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly explicitSystemPrompt: string | undefined;
   private readonly listeners = new Set<AgentEventListener>();
   private readonly store: RunStore | undefined;
+  /** Repairs spent by the run in flight; the budget itself is the module constant. */
+  private answerRepairs = 0;
   private readonly approve: ApprovalHandler | undefined;
   private readonly approvalPolicy: ApprovalPolicy;
   /** Set by a subclass for the duration of one step, so decisions land in that step's stream. */
@@ -416,8 +423,10 @@ export abstract class MultiStepAgent<TOut = unknown> {
       usage: EMPTY_TOKEN_USAGE,
       stepIndex: 0,
       checkpoint: options.checkpoint,
+      finishReason: undefined,
     };
 
+    this.answerRepairs = 0;
     this.monitor = new Monitor(context.startedAt);
     yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
 
@@ -503,6 +512,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         return;
       }
 
+      context.finishReason = completion.finishReason;
       yield this.emit({ type: "message.completed", text: completion.content });
 
       const action = this.interpret(completion);
@@ -720,6 +730,36 @@ export abstract class MultiStepAgent<TOut = unknown> {
       (issue.path.length === 0 ? "(root)" : issue.path.join(".")) + ": " + issue.message,
     );
     return "The final answer failed the output schema — " + issues.join("; ");
+  }
+
+  /**
+   * How one run answers a schema failure: as a correction observation, up to the repair budget,
+   * then as a guardrail failure. A reply cut off by its length limit is never repaired, because
+   * the missing part is not a mistake the model can correct in the next turn.
+   */
+  protected answerFailure(
+    reason: string,
+    finishReason: FinishReason | undefined,
+    stepIndex: number,
+  ): string {
+    if (finishReason === "length") {
+      throw new AgentGuardrailError(
+        "The final answer failed the output schema and the reply was truncated by its length limit, so no repair was attempted: " +
+          reason,
+        { stepIndex },
+      );
+    }
+    if (this.answerRepairs >= MAX_ANSWER_REPAIRS) {
+      throw new AgentGuardrailError(
+        "The final answer failed the output schema after " +
+          String(MAX_ANSWER_REPAIRS) +
+          " repair attempts: " +
+          reason,
+        { stepIndex },
+      );
+    }
+    this.answerRepairs += 1;
+    return "Error: " + reason;
   }
 
   /**
