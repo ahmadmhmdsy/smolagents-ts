@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T04:24:00+03:00 — Phase 4.6 landed: declared transfers
+
+**State.** 4.1–4.6 are landed; 4.7–4.8 and the phase close remain.
+
+**Did.** `transfer.test.ts` (3 tests, the 13th exec-remote file) was watched red on variables
+that never reached the guest, a transfer that did not narrow the installed set, and an
+unrefused bad variable name; one case each was added to `shim.test.ts` and `e2b.test.ts`, and
+one pin case for the new error. `SandboxTransfer { tools, variables }` is declared on
+`RemoteExecutorOptions.transfer` and carried to the backend as `SandboxStartOptions.transfer`.
+With one, the prelude installs exactly the declared tool specs and binds each variable through
+the existing value wire (`globals()["seed"] = _decode(41)`) before step 0; without one, every
+registry tool is installed and no variable is bound. E2B refuses a declared `transfer.tools`
+with the new `UnsupportedOptionError` (backend, option, remedy) before it loads the client or
+creates a sandbox. Two honest deviations: the executor reports the bad-name refusal as a failed
+step named `SerializationError` because a `CodeExecutor` returns failures rather than throwing,
+and the accepted name set is Python's ASCII subset.
+
+**Verified.** `pnpm vitest run --project exec-remote` → 13 files / 97 tests, exit 0; the
+package typecheck is clean; `python scripts/validate_context.py` → 0 errors, 0 warnings; the
+item gate is recorded in the plan.
+
+**Unverified / open.** No live daemon or hosted sandbox was touched; 4.7 and 4.8 are not
+started. The declared transfer has no facade-level test yet.
+
+**Next.** Write `packages/exec-remote/test/e2b-options.test.ts` and watch it fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:280`,
+`packages/exec-remote/src/sandbox.ts`, `packages/exec-remote/src/shim-source.ts`,
+`packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/transfer.test.ts`.
+
 ## 2026-10-25T04:10:00+03:00 — Phase 4.5 landed: generator and hosted tools
 
 **State.** 4.1–4.5 are landed; 4.6–4.8 and the phase close remain.

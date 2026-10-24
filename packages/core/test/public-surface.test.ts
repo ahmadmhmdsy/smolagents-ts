@@ -58,6 +58,10 @@ const RUNTIME_EXPORTS = [
   "Monitor",
   // observability: fold an event stream into an OTel-shaped trace, and score a run against a fixture
   "buildTrace",
+  "TraceBuilder",
+  // the opt-in export seam: a finished tree as an OTLP payload, and an HTTP exporter that sends it
+  "toOtlpExport",
+  "createOtlpHttpExporter",
   "scoreRun",
   // checkpointing: a run's steps as plain objects, and the store seam that holds them
   "stepToJSON",

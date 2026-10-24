@@ -27,7 +27,7 @@ common web API subset — and imports no Node builtin, no DOM and no React.
 
     pnpm vitest run --project core
 
-Expected result: 56 test files and 631 tests pass, exit code 0. Measured on
+Expected result: 57 test files and 639 tests pass, exit code 0. Measured on
 2026-10-21 as 37 files and 363 tests. Phase 0's approval, schema, snapshot, budget and
 deadline suites moved the count to 386; the store contract added the thirty-eighth file and its
 sixty cases (446); the budget suite added the thirty-ninth and seven cases (458); the run record
@@ -47,7 +47,7 @@ Phase 3.2's event-log suite the fifty-third and four cases (603, `readEvents` a 
 Phase 3's close added the fifty-fourth, the two-case exit criterion (605); and Phase 4.4's
 tool-policy suite the fifty-fifth and fifteen cases (620, `ToolPolicyDeniedError` a new pin); and
 Phase 4.5's generator-and-hosted suite the fifty-sixth and nine cases (631, `ToolHostedError` a
-new pin). The S5–S11 packages and the core-loop-fixes suite added files twenty-nine through
+new pin); Phase 5.1's exporter suite the fifty-seventh and five cases (639, three new pins). The S5–S11 packages and the core-loop-fixes suite added files twenty-nine through
 thirty-seven and their cases.
 
 Use `pnpm typecheck` as well when a type changed and no test covers it.

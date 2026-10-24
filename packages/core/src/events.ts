@@ -13,7 +13,14 @@ import type { LimitStopReason } from "./session/budget.js";
  * mutate its authoritative snapshot.
  */
 export type AgentEventPayload =
-  | { type: "run.started"; runId: string; task: string; modelId: string }
+  | {
+      type: "run.started";
+      runId: string;
+      task: string;
+      modelId: string;
+      /** The adapter family that answers this run, when the model names one. */
+      provider?: string;
+    }
   | { type: "planning.started"; stepIndex: number }
   | { type: "planning.delta"; stepIndex: number; text: string }
   | { type: "planning.completed"; stepIndex: number; text: string }

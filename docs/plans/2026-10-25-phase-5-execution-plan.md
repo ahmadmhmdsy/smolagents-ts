@@ -175,9 +175,9 @@ and commits before 5.2 begins.
 | after | core pins | core test files | core tests | models tests |
 |---|---|---|---|---|
 | Phase 4 close | 110 | 56 | 631 | 71 |
-| 5.1 | 113 (+3) | 57 (+1) | 636 (+5) | 71 |
-| 5.2 | 118 (+5) | 58 (+1) | 642 (+6) | 74 (+3) |
-| exit + close | 118 | 59 (+1) | 645 (+3) | 74 |
+| 5.1 | 113 (+3) | 57 (+1) | 639 (+8, the three pins are three tests) | 71 |
+| 5.2 | 118 (+5) | 58 (+1) | 650 (+11, six cases and five pins) | 74 (+3) |
+| exit + close | 118 | 59 (+1) | 653 (+3) | 74 |
 
 No type-only export changes a pin. The exit test adds no name.
 
@@ -229,5 +229,12 @@ Each item runs the same loop, and the order is part of the criterion:
 
 ## Changes
 
+- **2026-10-25 — 5.1 landed.** `TraceBuilder` is the live fold (`buildTrace` replays through
+  it), the root span records the provider and every closed span its duration, and
+  `monitoring/otel.ts` maps a tree to OTLP/HTTP JSON and posts it through an injected fetch when
+  `AgentOptions.exporter` is installed. Payload attributes are dropped unless
+  `includePayloads` is set. `packages/core/test/otel-exporter.test.ts` (57th core file, five
+  cases) was watched red first; core is 57 files and 639 tests, pins 110 → 113. The pin loop
+  counts a test per name, which the accounting table above now shows.
 - **2026-10-25 — 5.0 opening.** Plan written and registered: the two items, their seven
   invariants, the three pre-registered test files and the exit criterion. `T-46` opened.

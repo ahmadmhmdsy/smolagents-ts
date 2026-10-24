@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T06:10:00+03:00 — Phase 5.1 landed: the opt-in OTel exporter
+
+**State.** Phase 5 is open as `T-46` and 5.1 is done; 5.2 is next. Phases 0–4 stay closed and nothing has been pushed.
+
+**Did.** Opened the phase with `docs/plans/2026-10-25-phase-5-execution-plan.md`, pre-registering the tests for 5.1, 5.2 and the exit criterion, and committed it with the `T-46` row. Landed 5.1: `TraceBuilder` is the live fold over the event stream and `buildTrace` replays through it; the root span records the provider and every closed span its duration; `monitoring/otel.ts` maps a tree to an OTLP/HTTP JSON payload and posts it through an injected fetch only when `AgentOptions.exporter` is installed. A failing exporter logs a warning and never ends the run, and payload keys are dropped unless `includePayloads` is set.
+
+**Verified.** `packages/core/test/otel-exporter.test.ts` was watched red first (the module did not exist). Core suite: 57 files, 639 tests; pins 110 → 113 (`TraceBuilder`, `toOtlpExport`, `createOtlpHttpExporter`); typecheck clean. The gate is the last thing before the 5.1 commit.
+
+**Unverified / open.** No export has reached a real collector; the payload is checked against its own mapping only. 5.2 has not started.
+
+**Next.** Land 5.2: the usage split, the dated price table, the decimal cost and the between-step cost cap.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md`; `packages/core/src/monitoring/otel.ts`; `packages/core/src/monitoring/trace.ts`.
+
 ## 2026-10-25T05:20:00+03:00 — Phase 4 closed: protocol and tool breadth done
 
 **State.** Phases 0–4 are closed; Phase 5 is not opened and waits on the owner. Nothing pushed.
@@ -124,36 +140,4 @@ fail red.
 
 **Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:204` and `:280`,
 `packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/e2b-depth.test.ts`.
-
-## 2026-10-25T04:24:00+03:00 — Phase 4.6 landed: declared transfers
-
-**State.** 4.1–4.6 are landed; 4.7–4.8 and the phase close remain.
-
-**Did.** `transfer.test.ts` (3 tests, the 13th exec-remote file) was watched red on variables
-that never reached the guest, a transfer that did not narrow the installed set, and an
-unrefused bad variable name; one case each was added to `shim.test.ts` and `e2b.test.ts`, and
-one pin case for the new error. `SandboxTransfer { tools, variables }` is declared on
-`RemoteExecutorOptions.transfer` and carried to the backend as `SandboxStartOptions.transfer`.
-With one, the prelude installs exactly the declared tool specs and binds each variable through
-the existing value wire (`globals()["seed"] = _decode(41)`) before step 0; without one, every
-registry tool is installed and no variable is bound. E2B refuses a declared `transfer.tools`
-with the new `UnsupportedOptionError` (backend, option, remedy) before it loads the client or
-creates a sandbox. Two honest deviations: the executor reports the bad-name refusal as a failed
-step named `SerializationError` because a `CodeExecutor` returns failures rather than throwing,
-and the accepted name set is Python's ASCII subset.
-
-**Verified.** `pnpm vitest run --project exec-remote` → 13 files / 97 tests, exit 0; the
-package typecheck is clean; `python scripts/validate_context.py` → 0 errors, 0 warnings; the
-item gate is recorded in the plan.
-
-**Unverified / open.** No live daemon or hosted sandbox was touched; 4.7 and 4.8 are not
-started. The declared transfer has no facade-level test yet.
-
-**Next.** Write `packages/exec-remote/test/e2b-options.test.ts` and watch it fail red.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:280`,
-`packages/exec-remote/src/sandbox.ts`, `packages/exec-remote/src/shim-source.ts`,
-`packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/transfer.test.ts`.
 <!-- rotate:end -->

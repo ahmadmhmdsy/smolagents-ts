@@ -42,6 +42,8 @@ import {
   type ToolSpec,
 } from "../model.js";
 import { Monitor } from "../monitoring/monitor.js";
+import type { SpanExporter } from "../monitoring/otel.js";
+import { TraceBuilder } from "../monitoring/trace.js";
 import { digestOf } from "../utils/digest.js";
 import { populateTemplate } from "../prompts/populate-template.js";
 import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
@@ -171,6 +173,12 @@ export interface AgentOptions {
    * exactly as before.
    */
   toolPolicy?: ToolPolicy | ToolPolicyProvider;
+  /**
+   * Where a finished trace goes. Omitted, no trace is built and nothing is exported; installed,
+   * the run hands one OTel-shaped tree to it after its terminal event, and an export that throws
+   * is logged instead of failing the run.
+   */
+  exporter?: SpanExporter;
 }
 
 /** One step's resolved view of the tool set: what is advertised, what runs, and the policy. */
@@ -263,6 +271,11 @@ export interface RunContext {
   generation: number;
   readonly createdAt: string;
   usage: TokenUsage;
+  /**
+   * The live trace fold, allocated only for a run whose caller installed an exporter. Absent,
+   * the loop never builds a tree and nothing is exported.
+   */
+  trace: TraceBuilder | undefined;
   /** The run's budget record: clamped limits plus what it has spent so far. */
   readonly budget: RunBudget;
   /** Set by the model turn that exhausted the budget; the loop ends the run on it. */
@@ -376,6 +389,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly toolPolicy: ToolPolicy | ToolPolicyProvider | undefined;
   /** The step in flight's resolved tool view; undefined until the first step resolves one. */
   private stepView: StepToolView | undefined;
+  /** The exporter a caller installed; undefined means this agent never builds a trace. */
+  private readonly exporter: SpanExporter | undefined;
   /** Refusals spent by the run in flight; the budget itself is the module constant. */
   private policyRepairs = 0;
   /** Tool names that completed a call in this run, for a "require" check. */
@@ -396,6 +411,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.outputSchema = options.outputSchema;
     this.condensation = options.condensation;
     this.toolPolicy = options.toolPolicy;
+    this.exporter = options.exporter;
     const managedAgents = options.managedAgents ?? [];
     const transfers = options.transfers ?? [];
     // Managed agents and transfers are added to this agent's registry, so a caller's registry is
@@ -801,9 +817,24 @@ export abstract class MultiStepAgent<TOut = unknown> {
           : { type: "run.failed", error: AgentError.from(error).info },
       );
       if (context !== undefined) await this.commitRun(context, "failed");
+      ended = true;
       yield terminal;
     } finally {
+      const context = this.activeContext;
       this.activeContext = undefined;
+      if (ended && context?.trace !== undefined && this.exporter !== undefined) {
+        // Telemetry is a side channel: a failing exporter is a warning, never the run's ending.
+        try {
+          await this.exporter.export(context.trace.finish(), {
+            runId: context.runId,
+            modelId: this.model.id,
+            provider: this.model.provider,
+            task: context.task,
+          });
+        } catch (error) {
+          this.logger.warn("The trace exporter threw; the run's result stands", error);
+        }
+      }
       await this.releaseResources();
     }
   }
@@ -832,6 +863,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       startedAt: Date.now(),
       state: new Map<string, unknown>(),
       usage: EMPTY_TOKEN_USAGE,
+      trace: this.exporter === undefined ? undefined : new TraceBuilder(),
       budget: options.budget?.budget ?? resolveBudget(this.limits),
       limitReached: undefined,
       stepIndex: 0,
@@ -898,7 +930,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
     }
 
-    yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
+    yield this.emit({
+      type: "run.started",
+      runId,
+      task,
+      modelId: this.model.id,
+      provider: this.model.provider,
+    });
     if (loadFailure !== undefined) {
       yield this.emit({ type: "run.failed", error: loadFailure.info });
       return;
@@ -2223,6 +2261,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (context !== undefined) {
       context.nextSeq += 1;
       context.events.push({ seq: enriched.seq, event: enriched });
+      context.trace?.accept(enriched);
     }
     for (const listener of this.listeners) {
       try {

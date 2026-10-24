@@ -32,42 +32,61 @@ function redactGuardedSpans(span: TraceSpan): void {
   for (const child of span.children) redactGuardedSpans(child);
 }
 
+/** What one span needs from its clock: the time of the event that closes it. */
+export interface TraceBuilderOptions {
+  /** The clock the replay or the live run reads. Defaults to `Date.now`. */
+  readonly clock?: () => number;
+}
+
 /**
  * Fold an AgentEvent stream into one OTel-shaped trace: a `run` root with a child span per step,
- * per planning pass and per tool call. It is span-shaped (name, start/end, status, attributes,
- * children) without importing the SDK, so an adapter maps it to a real exporter later. Advisory
- * ".delta" events are skipped — a consumer converges on the matching ".completed" event. The clock
- * is injected so a replay is deterministic.
+ * per planning pass and per tool call. It is span-shaped without importing the SDK, so an adapter
+ * maps it to a real exporter later. Advisory ".delta" events are skipped: a consumer converges on
+ * the matching ".completed" event. The clock is injected so a replay is deterministic.
+ *
+ * The builder form lets a live run feed the fold one event at a time; `buildTrace` is the replay
+ * form over an array. A span records the model, the provider, the tool, the step and its own
+ * duration, because those are the attributes worth filtering on; task text and payloads stay in
+ * the trace only for a caller that asked the exporter to carry them.
  */
-export function buildTrace(events: readonly AgentEvent[], clock: () => number = Date.now): TraceSpan {
-  const root = span("run", clock());
-  let step: TraceSpan | undefined;
-  let planning: TraceSpan | undefined;
-  const tools = new Map<string, TraceSpan>();
-  let at = root.startTimeMs;
+export class TraceBuilder {
+  private readonly clock: () => number;
+  private readonly root: TraceSpan;
+  private step: TraceSpan | undefined;
+  private planning: TraceSpan | undefined;
+  private readonly tools = new Map<string, TraceSpan>();
+  private at: number;
 
-  for (const event of events) {
-    at = clock();
+  constructor(options: TraceBuilderOptions = {}) {
+    this.clock = options.clock ?? Date.now;
+    this.root = span("run", this.clock());
+    this.at = this.root.startTimeMs;
+  }
+
+  /** Fold one event. Applied once, in stream order. */
+  accept(event: AgentEvent): void {
+    this.at = this.clock();
     switch (event.type) {
       case "run.started":
-        root.attributes.runId = event.runId;
-        root.attributes.task = event.task;
-        root.attributes.modelId = event.modelId;
+        this.root.attributes.runId = event.runId;
+        this.root.attributes.task = event.task;
+        this.root.attributes.modelId = event.modelId;
+        if (event.provider !== undefined) this.root.attributes.provider = event.provider;
         break;
       case "planning.started":
-        if (step !== undefined) step.endTimeMs = at;
-        planning = span("planning." + event.stepIndex, at, { stepIndex: event.stepIndex });
-        root.children.push(planning);
+        this.closeStep();
+        this.planning = span("planning." + event.stepIndex, this.at, { stepIndex: event.stepIndex });
+        this.root.children.push(this.planning);
         break;
       case "planning.completed":
-        if (planning !== undefined) {
-          planning.attributes.text = event.text;
-          planning.endTimeMs = at;
+        if (this.planning !== undefined) {
+          this.planning.attributes.text = event.text;
+          this.closePlanning();
         }
         break;
       case "memory.condensed":
-        root.children.push(
-          span("memory.condensed", at, {
+        this.root.children.push(
+          span("memory.condensed", this.at, {
             forgotten: event.forgotten,
             trigger: event.trigger,
             summary: event.summary,
@@ -75,21 +94,21 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
         );
         break;
       case "step.started":
-        if (step !== undefined) step.endTimeMs = at;
-        step = span("step." + event.stepIndex, at, { stepIndex: event.stepIndex });
-        root.children.push(step);
+        this.closeStep();
+        this.step = span("step." + event.stepIndex, this.at, { stepIndex: event.stepIndex });
+        this.root.children.push(this.step);
         break;
       case "code.completed":
-        if (step !== undefined) step.attributes.code = event.code;
+        if (this.step !== undefined) this.step.attributes.code = event.code;
         break;
       case "logs.appended":
-        if (step !== undefined) step.attributes.logs = event.text;
+        if (this.step !== undefined) this.step.attributes.logs = event.text;
         break;
       case "toolcalls.requested":
-        if (step !== undefined) step.attributes.toolCalls = event.calls.length;
+        if (this.step !== undefined) this.step.attributes.toolCalls = event.calls.length;
         break;
       case "tool.policy":
-        (step ?? root).attributes.policy = {
+        (this.step ?? this.root).attributes.policy = {
           advertised: event.advertised,
           hidden: event.hidden.map((entry) => entry.name),
           forced: event.forced,
@@ -97,8 +116,8 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
         };
         break;
       case "tool.requirementUnmet":
-        root.children.push(
-          span("tool.requirementUnmet." + event.tool, at, {
+        this.root.children.push(
+          span("tool.requirementUnmet." + event.tool, this.at, {
             stepIndex: event.stepIndex,
             tool: event.tool,
             reason: event.reason,
@@ -106,21 +125,21 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
         );
         break;
       case "observation.completed":
-        if (step !== undefined) {
-          step.attributes.observation = event.text;
-          step.attributes.isFinalAnswer = event.isFinalAnswer;
+        if (this.step !== undefined) {
+          this.step.attributes.observation = event.text;
+          this.step.attributes.isFinalAnswer = event.isFinalAnswer;
         }
         break;
       case "action.requested": {
-        const tool = span("tool." + event.name, at, { name: event.name, args: event.args });
-        (step ?? root).children.push(tool);
-        tools.set(event.callId, tool);
+        const tool = span("tool." + event.name, this.at, { name: event.name, args: event.args });
+        (this.step ?? this.root).children.push(tool);
+        this.tools.set(event.callId, tool);
         break;
       }
       case "action.progress": {
         // A trace keeps the latest report and a count, not the whole stream: a long tool must not
         // grow the span without bound.
-        const tool = tools.get(event.callId);
+        const tool = this.tools.get(event.callId);
         if (tool !== undefined) {
           tool.attributes.lastProgress = event.progress;
           const seen = tool.attributes.progressCount;
@@ -129,48 +148,48 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
         break;
       }
       case "action.result": {
-        const tool = tools.get(event.callId);
+        const tool = this.tools.get(event.callId);
         if (tool !== undefined) {
-          tool.endTimeMs = at;
+          tool.endTimeMs = this.at;
           tool.attributes.output = event.output;
           tool.attributes.durationMs = event.durationMs;
         }
         break;
       }
       case "action.failed": {
-        const tool = tools.get(event.callId);
+        const tool = this.tools.get(event.callId);
         if (tool !== undefined) {
-          tool.endTimeMs = at;
+          tool.endTimeMs = this.at;
           tool.status = "error";
           tool.attributes.error = event.error;
         }
         break;
       }
       case "usage.updated":
-        root.attributes.usage = event.usage;
+        this.root.attributes.usage = event.usage;
         break;
       case "run.completed":
-        root.attributes.state = event.result.state;
+        this.root.attributes.state = event.result.state;
         break;
       case "run.failed":
-        root.status = "error";
-        root.attributes.error = event.error;
+        this.root.status = "error";
+        this.root.attributes.error = event.error;
         // A tripped guardrail must not leave the refused value in the trace either.
         if (event.error.code === "AGENT_GUARDRAIL") {
-          root.attributes.redacted = true;
-          redactGuardedSpans(root);
+          this.root.attributes.redacted = true;
+          redactGuardedSpans(this.root);
         }
         break;
       case "run.maxStepsReached":
-        root.status = "error";
-        root.attributes.maxSteps = event.steps;
+        this.root.status = "error";
+        this.root.attributes.maxSteps = event.steps;
         break;
       case "run.limitReached":
-        root.status = "error";
-        root.attributes.limitReached = event.reason;
+        this.root.status = "error";
+        this.root.attributes.limitReached = event.reason;
         break;
       case "run.cancelled":
-        root.status = "error";
+        this.root.status = "error";
         break;
       // Advisory deltas carry no authoritative state; a trace records the ".completed" event.
       case "message.delta":
@@ -181,8 +200,31 @@ export function buildTrace(events: readonly AgentEvent[], clock: () => number = 
     }
   }
 
-  if (step !== undefined) step.endTimeMs = at;
-  if (planning !== undefined) planning.endTimeMs = at;
-  root.endTimeMs = at;
-  return root;
+  /** Close the open spans and return the tree. Safe to call once, after the terminal event. */
+  finish(): TraceSpan {
+    this.closeStep();
+    this.closePlanning();
+    this.root.endTimeMs = this.at;
+    this.root.attributes.durationMs = this.root.endTimeMs - this.root.startTimeMs;
+    return this.root;
+  }
+
+  private closeStep(): void {
+    if (this.step === undefined) return;
+    this.step.endTimeMs = this.at;
+    this.step.attributes.durationMs = this.step.endTimeMs - this.step.startTimeMs;
+  }
+
+  private closePlanning(): void {
+    if (this.planning === undefined) return;
+    this.planning.endTimeMs = this.at;
+    this.planning.attributes.durationMs = this.planning.endTimeMs - this.planning.startTimeMs;
+  }
+}
+
+/** Replay an already-recorded stream through the builder. The clock makes the replay deterministic. */
+export function buildTrace(events: readonly AgentEvent[], clock: () => number = Date.now): TraceSpan {
+  const builder = new TraceBuilder({ clock });
+  for (const event of events) builder.accept(event);
+  return builder.finish();
 }
