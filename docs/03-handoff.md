@@ -33,6 +33,31 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T16:05:00+03:00 — 1.1 landed: a run has a record
+
+**State.** Phase 1 is open and item 1.1 is in the tree. A run is now a `RunRecord` under a
+`runId`: status, generation, memory steps, timestamps. `RunStore` is `commit`/`load`; the loop
+commits at one boundary per step and once as terminal. `RunOptions.checkpoint` is renamed
+`runId` and the durable id is the run's event identity. Nothing is pushed.
+
+**Did.** Added `session/run-record.ts` (version 2, forward translation of the version 1
+envelope and version 0 array, `RunRecordVersionError` for newer), rewrote `run-store.ts`, moved
+the loop from `saveCheckpoint` to `commitRun`, made `complete()` commit `completed` before the
+event, and made a throw that escapes the loop commit `failed`. Contract suite speaks records.
+
+**Verified.** `pnpm gate` exit 0. Core 39 files and 466 tests. Public surface pins the new
+names; `pnpm typecheck` across the workspace.
+
+**Unverified-open.** Two-process use is not testable until the file store lands in 1.5. A
+legacy translation leaves `runId` empty; the caller fills it from the store key.
+
+**Next.** 1.2: the `pending` request and `resume`, starting with the red acceptance test.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18`, `T-21` stay owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-1-execution-plan.md`, `session/run-record.ts`,
+`session/run-store.ts`, `test/run-store.test.ts`.
+
 ## 2026-10-24T15:20:00+03:00 — Phase 1 opened: the durability spine
 
 **State.** Phase 0 is closed and pushed nowhere: ten correction commits, `pnpm gate`
@@ -157,32 +182,4 @@ a handle that continues the budget.
 **Artifacts.** `packages/core/test/contract/run-store.contract.ts`,
 `packages/core/test/contract/run-store.conformance.test.ts`,
 `packages/core/src/session/run-store.ts`.
-
-## 2026-10-24T12:40:00+03:00 — 0.7 landed: every tool has a finite deadline
-
-**State.** Seven Phase 0 items in (0.1–0.7). Next is 0.8's conformance suite, then 0.9's
-budget record and 0.10's tool-less structured output.
-
-**Did.** `tool()` now guards every tool with a deadline: 120 s by default, overridable
-per definition, 0 to disable. The around-wrapper races the call against its timer,
-replaces a result only when that timer fired, swallows a loser's late rejection, and
-classifies an aborted run as cancellation rather than as a timeout. A deadline failure
-is `ToolTimeoutError` (code `AGENT_TOOL_TIMEOUT`, limit in the message); the
-tool-calling agent keeps that typed error instead of flattening it into a generic call
-failure, and rethrows cancellation.
-
-**Verified.** `pnpm gate` exit 0; core 37 files, 386 tests (four new: deadline failure,
-cancellation classification, and the agent-level action failure carrying the code).
-
-**Unverified / open.** A custom `Tool` implementation that does not go through `tool()`
-gets no deadline; the seam guards the factory, not the interface.
-
-**Next.** 0.8: the store conformance suite over ten failure modes.
-
-**Blockers.** None.
-
-**Artifacts.** `packages/core/src/tool/timeout.ts`,
-`packages/core/src/tool/tool.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
-`packages/core/src/errors.ts`, `packages/core/test/tool.test.ts`,
-`packages/core/test/tool-calling-agent.test.ts`.
 <!-- rotate:end -->

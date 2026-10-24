@@ -1,30 +1,32 @@
 /**
- * The conformance suite for the \`RunStore\` seam. A new store implementation is certified by
+ * The conformance suite for the `RunStore` seam. A new store implementation is certified by
  * running this file against it: one describe block per implementation, the same ten checks.
  *
  * The suite is written against the interface alone — no store internals — and each check ships
- * with a rejecting counterexample, so the file proves it can fail as well as pass.
+ * with a rejecting counterexample, so the file proves it can fail as well as pass. It speaks the
+ * record vocabulary: a store commits a `RunRecord` under a run id and loads it back.
  */
 import { describe, expect, it } from "vitest";
 import type { StepJSON } from "../../src/memory/steps.js";
 import {
-  RUN_SNAPSHOT_VERSION,
-  translateSnapshot,
-  type RunSnapshot,
-  type RunStore,
-} from "../../src/session/run-store.js";
+  RUN_RECORD_VERSION,
+  translateRecord,
+  type RunRecord,
+  type StoredRun,
+} from "../../src/session/run-record.js";
+import type { RunStore } from "../../src/session/run-store.js";
 
 const MODE = {
-  unknown: "loads an unknown checkpoint as undefined",
-  roundTrip: "round-trips a non-empty step list exactly",
-  empty: "round-trips an empty step list",
-  overwrite: "replaces a checkpoint on a second save",
-  isolation: "keeps checkpoints apart",
-  keys: "treats a checkpoint key as opaque text",
-  repeatable: "lets the same checkpoint be loaded twice",
+  unknown: "loads an unknown run as undefined",
+  roundTrip: "round-trips a non-empty record exactly",
+  empty: "round-trips a record with no steps",
+  overwrite: "replaces a run on a second commit",
+  isolation: "keeps runs apart",
+  keys: "treats a run id as opaque text",
+  repeatable: "lets the same run be loaded twice",
   copy: "returns data a caller cannot mutate behind its back",
-  visible: "makes a resolved save visible to the next load",
-  concurrent: "keeps concurrent saves to different keys apart",
+  visible: "makes a resolved commit visible to the next load",
+  concurrent: "keeps concurrent commits to different runs apart",
 } as const;
 
 type Mode = keyof typeof MODE;
@@ -43,21 +45,27 @@ function steps(...tasks: string[]): StepJSON[] {
   }));
 }
 
-const SNAPSHOT_A = steps("first", "second");
-const SNAPSHOT_B = steps("replacement");
+const STEPS_A = steps("first", "second");
+const STEPS_B = steps("replacement");
 
-function envelope(list: readonly StepJSON[]): RunSnapshot {
-  return { formatVersion: RUN_SNAPSHOT_VERSION, steps: list };
+function record(runId: string, list: readonly StepJSON[]): RunRecord {
+  return {
+    schemaVersion: RUN_RECORD_VERSION,
+    runId,
+    status: "running",
+    generation: 0,
+    memory: { steps: list },
+  };
 }
 
-async function write(store: RunStore, key: string, list: readonly StepJSON[]): Promise<void> {
-  await store.save(key, envelope(list));
+async function write(store: RunStore, runId: string, list: readonly StepJSON[]): Promise<void> {
+  await store.commit(runId, record(runId, list));
 }
 
 /** Read through the same translation the agent applies, so the check tests what callers see. */
-async function read(store: RunStore, key: string): Promise<RunSnapshot | undefined> {
-  const stored = await store.load(key);
-  return stored === undefined ? undefined : translateSnapshot(stored);
+async function read(store: RunStore, runId: string): Promise<RunRecord | undefined> {
+  const stored = await store.load(runId);
+  return stored === undefined ? undefined : translateRecord(stored);
 }
 
 function same(actual: readonly StepJSON[], expected: readonly StepJSON[], mode: Mode): void {
@@ -83,13 +91,14 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
   {
     mode: "roundTrip",
     check: async (store) => {
-      await write(store, "run-a", SNAPSHOT_A);
+      await write(store, "run-a", STEPS_A);
       const loaded = await read(store, "run-a");
-      if (loaded === undefined) refuse("roundTrip", "load returned undefined after save");
-      if (loaded.formatVersion !== RUN_SNAPSHOT_VERSION) {
-        refuse("roundTrip", "formatVersion " + String(loaded.formatVersion) + " was not translated");
+      if (loaded === undefined) refuse("roundTrip", "load returned undefined after commit");
+      if (loaded.schemaVersion !== RUN_RECORD_VERSION) {
+        refuse("roundTrip", "schemaVersion " + String(loaded.schemaVersion) + " was not translated");
       }
-      same(loaded.steps, SNAPSHOT_A, "roundTrip");
+      if (loaded.runId !== "run-a") refuse("roundTrip", "runId became " + JSON.stringify(loaded.runId));
+      same(loaded.memory.steps, STEPS_A, "roundTrip");
     },
   },
   {
@@ -97,32 +106,32 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
     check: async (store) => {
       await write(store, "run-empty", []);
       const loaded = await read(store, "run-empty");
-      if (loaded === undefined) refuse("empty", "an empty step list came back undefined");
-      same(loaded.steps, [], "empty");
+      if (loaded === undefined) refuse("empty", "a record with no steps came back undefined");
+      same(loaded.memory.steps, [], "empty");
     },
   },
   {
     mode: "overwrite",
     check: async (store) => {
-      await write(store, "run-b", SNAPSHOT_A);
-      await write(store, "run-b", SNAPSHOT_B);
+      await write(store, "run-b", STEPS_A);
+      await write(store, "run-b", STEPS_B);
       const loaded = await read(store, "run-b");
-      if (loaded === undefined) refuse("overwrite", "load returned undefined after the second save");
-      same(loaded.steps, SNAPSHOT_B, "overwrite");
+      if (loaded === undefined) refuse("overwrite", "load returned undefined after the second commit");
+      same(loaded.memory.steps, STEPS_B, "overwrite");
     },
   },
   {
     mode: "isolation",
     check: async (store) => {
-      await write(store, "run-c", SNAPSHOT_A);
-      await write(store, "run-d", SNAPSHOT_B);
+      await write(store, "run-c", STEPS_A);
+      await write(store, "run-d", STEPS_B);
       const first = await read(store, "run-c");
       const second = await read(store, "run-d");
       if (first === undefined || second === undefined) {
-        refuse("isolation", "a written checkpoint came back undefined");
+        refuse("isolation", "a written run came back undefined");
       }
-      same(first.steps, SNAPSHOT_A, "isolation");
-      same(second.steps, SNAPSHOT_B, "isolation");
+      same(first.memory.steps, STEPS_A, "isolation");
+      same(second.memory.steps, STEPS_B, "isolation");
     },
   },
   {
@@ -134,27 +143,27 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
       await write(store, "", empty);
       await write(store, " spaced ", spaced);
       await write(store, "ключ-🙂", unicode);
-      for (const [key, expected] of [
+      for (const [runId, expected] of [
         ["", empty],
         [" spaced ", spaced],
         ["ключ-🙂", unicode],
       ] as const) {
-        const loaded = await read(store, key);
-        if (loaded === undefined) refuse("keys", "checkpoint " + JSON.stringify(key) + " was not preserved");
-        same(loaded.steps, expected, "keys");
+        const loaded = await read(store, runId);
+        if (loaded === undefined) refuse("keys", "run id " + JSON.stringify(runId) + " was not preserved");
+        same(loaded.memory.steps, expected, "keys");
       }
     },
   },
   {
     mode: "repeatable",
     check: async (store) => {
-      await write(store, "run-e", SNAPSHOT_A);
+      await write(store, "run-e", STEPS_A);
       const first = await read(store, "run-e");
       const second = await read(store, "run-e");
       if (first === undefined || second === undefined) {
         refuse("repeatable", "the second load returned undefined");
       }
-      same(second.steps, SNAPSHOT_A, "repeatable");
+      same(second.memory.steps, STEPS_A, "repeatable");
     },
   },
   {
@@ -164,74 +173,78 @@ export const RUN_STORE_CHECKS: readonly RunStoreCheck[] = [
       const expected = JSON.parse(JSON.stringify(saved)) as StepJSON[];
       await write(store, "run-f", saved);
       const first = await read(store, "run-f");
-      if (first === undefined) refuse("copy", "load returned undefined after save");
-      (first.steps as StepJSON[]).push(...SNAPSHOT_B);
+      if (first === undefined) refuse("copy", "load returned undefined after commit");
+      (first.memory.steps as StepJSON[]).push(...STEPS_B);
       const second = await read(store, "run-f");
       if (second === undefined) refuse("copy", "the second load returned undefined");
-      same(second.steps, expected, "copy");
+      same(second.memory.steps, expected, "copy");
     },
   },
   {
     mode: "visible",
     check: async (store) => {
-      await write(store, "run-g", SNAPSHOT_A);
+      await write(store, "run-g", STEPS_A);
       const loaded = await read(store, "run-g");
-      if (loaded === undefined) refuse("visible", "a resolved save was not visible to the next load");
-      same(loaded.steps, SNAPSHOT_A, "visible");
+      if (loaded === undefined) refuse("visible", "a resolved commit was not visible to the next load");
+      same(loaded.memory.steps, STEPS_A, "visible");
     },
   },
   {
     mode: "concurrent",
     check: async (store) => {
-      await Promise.all([write(store, "run-h", SNAPSHOT_A), write(store, "run-i", SNAPSHOT_B)]);
+      await Promise.all([write(store, "run-h", STEPS_A), write(store, "run-i", STEPS_B)]);
       const first = await read(store, "run-h");
       const second = await read(store, "run-i");
       if (first === undefined || second === undefined) {
-        refuse("concurrent", "a concurrently written checkpoint came back undefined");
+        refuse("concurrent", "a concurrently written run came back undefined");
       }
-      same(first.steps, SNAPSHOT_A, "concurrent");
-      same(second.steps, SNAPSHOT_B, "concurrent");
+      same(first.memory.steps, STEPS_A, "concurrent");
+      same(second.memory.steps, STEPS_B, "concurrent");
     },
   },
 ];
 
-type Memory = Map<string, RunSnapshot>;
+type Memory = Map<string, StoredRun>;
 
 /** One deliberately broken store per mode: the suite must reject each of them. */
 const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
   unknown: () => ({
-    save: () => undefined,
-    load: () => envelope([]),
+    commit: () => undefined,
+    load: () => record("x", []),
   }),
   roundTrip: () => ({
-    save: () => undefined,
-    load: () => envelope([]),
+    commit: () => undefined,
+    load: () => record("x", []),
   }),
   empty: () => {
     const memory: Memory = new Map();
     return {
-      save: (key, snapshot) => {
-        if (snapshot.steps.length === 0) memory.delete(key);
-        else memory.set(key, snapshot);
+      commit: (runId, saved) => {
+        if (saved.memory.steps.length === 0) memory.delete(runId);
+        else memory.set(runId, saved);
       },
-      load: (key) => memory.get(key),
+      load: (runId) => memory.get(runId),
     };
   },
   overwrite: () => {
     const memory: Memory = new Map();
     return {
-      save: (key, snapshot) => {
-        const existing = memory.get(key);
-        memory.set(key, envelope([...(existing?.steps ?? []), ...snapshot.steps]));
+      commit: (runId, saved) => {
+        const existing = memory.get(runId);
+        const previousSteps =
+          existing !== undefined && !Array.isArray(existing) && "memory" in existing
+            ? existing.memory.steps
+            : [];
+        memory.set(runId, record(runId, [...previousSteps, ...saved.memory.steps]));
       },
-      load: (key) => memory.get(key),
+      load: (runId) => memory.get(runId),
     };
   },
   isolation: () => {
-    let only: RunSnapshot | undefined;
+    let only: RunRecord | undefined;
     return {
-      save: (_key, snapshot) => {
-        only = snapshot;
+      commit: (_runId, saved) => {
+        only = saved;
       },
       load: () => only,
     };
@@ -239,20 +252,20 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
   keys: () => {
     const memory: Memory = new Map();
     return {
-      save: (key, snapshot) => {
-        if (key === "") return;
-        memory.set(key, snapshot);
+      commit: (runId, saved) => {
+        if (runId === "") return;
+        memory.set(runId, saved);
       },
-      load: (key) => memory.get(key),
+      load: (runId) => memory.get(runId),
     };
   },
   repeatable: () => {
     const memory: Memory = new Map();
     return {
-      save: (key, snapshot) => void memory.set(key, snapshot),
-      load: (key) => {
-        const value = memory.get(key);
-        memory.delete(key);
+      commit: (runId, saved) => void memory.set(runId, saved),
+      load: (runId) => {
+        const value = memory.get(runId);
+        memory.delete(runId);
         return value;
       },
     };
@@ -260,25 +273,25 @@ const COUNTEREXAMPLES: Readonly<Record<Mode, () => RunStore>> = {
   copy: () => {
     const memory: Memory = new Map();
     return {
-      save: (key, snapshot) => void memory.set(key, snapshot),
-      load: (key) => memory.get(key),
+      commit: (runId, saved) => void memory.set(runId, saved),
+      load: (runId) => memory.get(runId),
     };
   },
   visible: () => {
     const memory: Memory = new Map();
     return {
-      save: (key, snapshot) => {
-        setTimeout(() => memory.set(key, snapshot), 0);
+      commit: (runId, saved) => {
+        setTimeout(() => memory.set(runId, saved), 0);
         return Promise.resolve();
       },
-      load: (key) => memory.get(key),
+      load: (runId) => memory.get(runId),
     };
   },
   concurrent: () => {
     const memory: Memory = new Map();
     return {
-      save: (_key, snapshot) => void memory.set("only", snapshot),
-      load: (_key) => memory.get("only"),
+      commit: (_runId, saved) => void memory.set("only", saved),
+      load: (_runId) => memory.get("only"),
     };
   },
 };

@@ -233,7 +233,7 @@ export class AgentSession<TOut = unknown> {
       const result = await this.agent.run(task, {
         signal: controller.signal,
         reset: options.reset ?? this.checkpoint === undefined,
-        ...(this.checkpoint === undefined ? {} : { checkpoint: this.checkpoint }),
+        ...(this.checkpoint === undefined ? {} : { runId: this.checkpoint }),
       });
       this.draft.output = result.output;
       this.draft.runId = result.runId;

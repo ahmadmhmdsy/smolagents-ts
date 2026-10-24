@@ -4,7 +4,7 @@ import {
   AgentGuardrailError,
   AgentMaxStepsError,
   AgentParsingError,
-  RunSnapshotVersionError,
+  RunRecordVersionError,
 } from "../errors.js";
 import { isTerminal, type AgentEvent, type AgentEventOf, type AgentEventType } from "../events.js";
 import { type Logger, noopLogger } from "../logger.js";
@@ -43,11 +43,12 @@ import {
 } from "./approval.js";
 import type { Guardrails } from "./guardrail.js";
 import {
-  RUN_SNAPSHOT_VERSION,
-  translateSnapshot,
-  type RunSnapshot,
-  type RunStore,
-} from "../session/run-store.js";
+  RUN_RECORD_VERSION,
+  translateRecord,
+  type RunRecord,
+  type RunStatus,
+} from "../session/run-record.js";
+import type { RunStore } from "../session/run-store.js";
 import {
   budgetSeedFromSteps,
   resolveBudget,
@@ -80,8 +81,8 @@ export interface AgentOptions {
    */
   managedAgents?: readonly ManagedAgent[];
   /**
-   * Where a run's checkpoint lives. With a `checkpoint` name on the run, the agent saves the
-   * memory after each step and reads it back to resume, so a run survives its process.
+   * Where a run's record lives. With a `runId` on the run, the agent commits the record after
+   * each boundary and reads it back to resume, so a run survives its process.
    */
   store?: RunStore;
   /** Gates every tool call: asked before a tool runs, and a denial fails that one call. */
@@ -111,15 +112,18 @@ export interface RunOptions {
   signal?: AbortSignal;
   /**
    * Start from a clean memory (the default), or continue a prior run's memory — upstream's `reset`
-   * flag. A false value keeps this agent's steps and, with a store, resumes from its checkpoint.
+   * flag. A false value keeps this agent's steps and, with a store, resumes from its record.
    */
   reset?: boolean;
-  /** The store key naming this run's checkpoint. A store saves and resumes only named runs. */
-  checkpoint?: string;
+  /**
+   * The run's durable identity. With a store, the loop commits its record under this id and a
+   * run with `reset: false` resumes it; without one the run is addressed by a generated id.
+   */
+  runId?: string;
   /**
    * A caller-held budget to continue: its counters are carried into this run instead of a fresh
    * budget being made, so a second run keeps counting against the same limits. A resumed run
-   * without a handle seeds its counters from the steps its checkpoint already holds.
+   * without a handle seeds its counters from the steps its record already holds.
    */
   budget?: RunBudgetHandle;
 }
@@ -131,7 +135,11 @@ export interface RunContext {
   readonly signal: AbortSignal;
   readonly startedAt: number;
   readonly state: Map<string, unknown>;
-  readonly checkpoint: string | undefined;
+  /** Whether this run has a store and an id to commit under. */
+  readonly durable: boolean;
+  /** The fence number the record carries; Phase 1.3 is the first item that changes it. */
+  generation: number;
+  readonly createdAt: string;
   usage: TokenUsage;
   /** The run's budget record: clamped limits plus what it has spent so far. */
   readonly budget: RunBudget;
@@ -178,6 +186,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly customInstructions: string | undefined;
   private readonly explicitSystemPrompt: string | undefined;
   private readonly listeners = new Set<AgentEventListener>();
+  /** The run in flight, so a throw that escapes the loop can still commit its failure. */
+  private activeContext: RunContext | undefined;
   private readonly store: RunStore | undefined;
   /** Repairs spent by the run in flight; the budget itself is the module constant. */
   private answerRepairs = 0;
@@ -415,12 +425,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
     } catch (error) {
       if (ended) throw error;
+      // A throw that escaped the loop still leaves a record: commit the failure before reporting.
+      const context = this.activeContext;
+      if (context !== undefined) await this.commitRun(context, "failed");
       yield this.emit(
         options.signal?.aborted === true
           ? { type: "run.cancelled" }
           : { type: "run.failed", error: AgentError.from(error).info },
       );
     } finally {
+      this.activeContext = undefined;
       await this.releaseResources();
     }
   }
@@ -439,7 +453,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     task: string,
     options: RunOptions = {},
   ): AsyncGenerator<AgentEvent, void> {
-    const runId = crypto.randomUUID();
+    const runId = options.runId ?? crypto.randomUUID();
     const signal = options.signal ?? new AbortController().signal;
     const context: RunContext = {
       runId,
@@ -451,32 +465,38 @@ export abstract class MultiStepAgent<TOut = unknown> {
       budget: options.budget?.budget ?? resolveBudget(this.limits),
       limitReached: undefined,
       stepIndex: 0,
-      checkpoint: options.checkpoint,
+      durable: this.store !== undefined && options.runId !== undefined,
+      generation: 0,
+      createdAt: new Date().toISOString(),
       finishReason: undefined,
     };
 
+    this.activeContext = context;
     this.answerRepairs = 0;
     this.monitor = new Monitor(context.startedAt);
     yield this.emit({ type: "run.started", runId, task, modelId: this.model.id });
 
     if (options.reset ?? true) {
       this.memory.reset();
-    } else if (this.store !== undefined && options.checkpoint !== undefined) {
-      let saved: ReturnType<typeof translateSnapshot> | undefined;
+    } else if (this.store !== undefined && options.runId !== undefined) {
+      let loaded: RunRecord | undefined;
       try {
-        const stored = await this.store.load(options.checkpoint);
-        saved = stored === undefined ? undefined : translateSnapshot(stored);
+        const stored = await this.store.load(options.runId);
+        loaded = stored === undefined ? undefined : translateRecord(stored, options.runId);
       } catch (error) {
         // A newer format is a typed refusal; anything else is the store failing to load.
         const failure =
-          error instanceof RunSnapshotVersionError ? error : storeError("load", error);
+          error instanceof RunRecordVersionError ? error : storeError("load", error);
         yield this.emit({ type: "run.failed", error: failure.info });
         return;
       }
-      if (saved !== undefined) this.memory.restore(saved.steps);
-      // A resumed run continues the budget its checkpoint already spent. Without a store there is
+      if (loaded !== undefined) {
+        this.memory.restore(loaded.memory.steps);
+        context.generation = loaded.generation;
+      }
+      // A resumed run continues the budget its record already spent. Without a store there is
       // nothing to seed from, and without a handle the caller asked for a fresh run.
-      if (saved !== undefined && options.budget === undefined) {
+      if (loaded !== undefined && options.budget === undefined) {
         const seed = budgetSeedFromSteps(this.memory.steps);
         context.budget.turns = seed.turns ?? 0;
         context.budget.outputTokens = seed.outputTokens ?? 0;
@@ -485,7 +505,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
     this.memory.addStep(new TaskStep(task));
     // A continued memory already holds a system prompt, and the transcript renders the current
-    // prompt in its place, so a second copy would only pile up in every checkpoint.
+    // prompt in its place, so a second copy would only pile up in every record.
     if (this.memory.systemPrompt === undefined) {
       this.memory.addStep(new SystemPromptStep(this.systemPrompt));
     }
@@ -495,17 +515,17 @@ export abstract class MultiStepAgent<TOut = unknown> {
       try {
         reason = await this.guardrails.input(task, { task, signal });
       } catch (error) {
-        yield this.emit({ type: "run.failed", error: guardrailError("input", error).info });
+        yield* this.failRun(context, guardrailError("input", error));
         return;
       }
       if (reason !== undefined) {
-        yield this.emit({ type: "run.failed", error: new AgentGuardrailError(reason).info });
+        yield* this.failRun(context, new AgentGuardrailError(reason));
         return;
       }
     }
 
     if (signal.aborted) {
-      yield this.emit({ type: "run.cancelled" });
+      yield* this.cancelRun(context);
       return;
     }
 
@@ -513,7 +533,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     // more turn and crossing the limit a second time.
     const preExhausted = exhaustedBudget(context.budget);
     if (preExhausted !== undefined) {
-      yield this.emit({ type: "run.limitReached", reason: preExhausted });
+      yield* this.limitRun(context, preExhausted);
       return;
     }
 
@@ -521,22 +541,22 @@ export abstract class MultiStepAgent<TOut = unknown> {
       context.stepIndex = stepIndex;
 
       if (signal.aborted) {
-        yield this.emit({ type: "run.cancelled" });
+        yield* this.cancelRun(context);
         return;
       }
 
       if (this.planningInterval > 0 && stepIndex > 0 && stepIndex % this.planningInterval === 0) {
         const planning = yield* this.runPlanningStep(stepIndex, context);
         if ("cancelled" in planning) {
-          yield this.emit({ type: "run.cancelled" });
+          yield* this.cancelRun(context);
           return;
         }
         if ("failed" in planning) {
-          yield this.emit({ type: "run.failed", error: planning.failed.info });
+          yield* this.failRun(context, planning.failed);
           return;
         }
         if (context.limitReached !== undefined) {
-          yield this.emit({ type: "run.limitReached", reason: context.limitReached });
+          yield* this.limitRun(context, context.limitReached);
           return;
         }
       }
@@ -553,18 +573,15 @@ export abstract class MultiStepAgent<TOut = unknown> {
         );
       } catch (error) {
         // An abort surfaces as the model call's rejection; it is still a cancellation.
-        yield this.emit(
-          signal.aborted
-            ? { type: "run.cancelled" }
-            : { type: "run.failed", error: AgentError.from(error, "AGENT_GENERATION", stepIndex).info },
-        );
+        if (signal.aborted) yield* this.cancelRun(context);
+        else yield* this.failRun(context, AgentError.from(error, "AGENT_GENERATION", stepIndex));
         return;
       }
 
       context.finishReason = completion.finishReason;
       yield this.emit({ type: "message.completed", text: completion.content });
       if (context.limitReached !== undefined) {
-        yield this.emit({ type: "run.limitReached", reason: context.limitReached });
+        yield* this.limitRun(context, context.limitReached);
         return;
       }
 
@@ -588,9 +605,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
             text: correction,
             isFinalAnswer: false,
           });
-          const saveFailure = await this.saveCheckpoint(context);
+          const saveFailure = await this.commitRun(context, "running");
           if (saveFailure !== undefined) {
-            yield this.emit({ type: "run.failed", error: saveFailure.info });
+            yield* this.failRun(context, saveFailure);
             return;
           }
           continue;
@@ -621,9 +638,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
           text: parsingError.message,
           isFinalAnswer: false,
         });
-        const saveFailure = await this.saveCheckpoint(context);
+        const saveFailure = await this.commitRun(context, "running");
         if (saveFailure !== undefined) {
-          yield this.emit({ type: "run.failed", error: saveFailure.info });
+          yield* this.failRun(context, saveFailure);
           return;
         }
         continue;
@@ -635,9 +652,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       } catch (error) {
         const executionError = AgentError.from(error, "AGENT_EXECUTION", stepIndex);
         step.error = executionError.info;
-        yield this.emit(
-          signal.aborted ? { type: "run.cancelled" } : { type: "run.failed", error: executionError.info },
-        );
+        if (signal.aborted) yield* this.cancelRun(context);
+        else yield* this.failRun(context, executionError);
         return;
       }
 
@@ -652,19 +668,21 @@ export abstract class MultiStepAgent<TOut = unknown> {
         isFinalAnswer: outcome.isFinalAnswer,
       });
 
-      const saveFailure = await this.saveCheckpoint(context);
-      if (saveFailure !== undefined) {
-        yield this.emit({ type: "run.failed", error: saveFailure.info });
-        return;
-      }
-
+      // An answering step is committed by complete() as the terminal status, so it is not
+      // committed twice: one boundary per step, one terminal write.
       if (outcome.isFinalAnswer) {
         yield* this.complete(outcome.value, context);
         return;
       }
+
+      const saveFailure = await this.commitRun(context, "running");
+      if (saveFailure !== undefined) {
+        yield* this.failRun(context, saveFailure);
+        return;
+      }
     }
 
-    yield this.emit({ type: "run.maxStepsReached", steps: this.maxSteps });
+    yield* this.maxStepsRun(context);
   }
 
   private composeAction(
@@ -718,27 +736,60 @@ export abstract class MultiStepAgent<TOut = unknown> {
     step.tokenUsage = completion.usage;
     this.memory.addStep(step);
     yield this.emit({ type: "planning.completed", stepIndex, text: completion.content });
-    const saveFailure = await this.saveCheckpoint(context);
+    const saveFailure = await this.commitRun(context, "running");
     if (saveFailure !== undefined) return { failed: saveFailure };
     return { ok: true };
   }
 
   /**
-   * Persist the memory as this run's checkpoint, when a store and a name were given. A store
-   * failure is returned rather than thrown, so the loop can end the run on it.
+   * Commit this run's record, when it has a store and an id. This is the one boundary the loop
+   * writes at: after a step, and at the terminal status. A store failure is returned rather than
+   * thrown, so the loop can end the run on it.
    */
-  private async saveCheckpoint(context: RunContext): Promise<AgentError | undefined> {
-    if (this.store === undefined || context.checkpoint === undefined) return undefined;
+  private async commitRun(context: RunContext, status: RunStatus): Promise<AgentError | undefined> {
+    if (this.store === undefined || !context.durable) return undefined;
     try {
-      const snapshot: RunSnapshot = {
-        formatVersion: RUN_SNAPSHOT_VERSION,
-        steps: this.memory.toJSON(),
+      const record: RunRecord = {
+        schemaVersion: RUN_RECORD_VERSION,
+        runId: context.runId,
+        status,
+        generation: context.generation,
+        memory: { steps: this.memory.toJSON() },
+        createdAt: context.createdAt,
+        updatedAt: new Date().toISOString(),
       };
-      await this.store.save(context.checkpoint, snapshot);
+      await this.store.commit(context.runId, record);
       return undefined;
     } catch (error) {
-      return storeError("save", error, context.stepIndex);
+      return storeError("commit", error, context.stepIndex);
     }
+  }
+
+  /** Commit the terminal failure, then report it. A failed commit does not hide the cause. */
+  private async *failRun(context: RunContext, error: AgentError): AsyncGenerator<AgentEvent, void> {
+    const commitFailure = await this.commitRun(context, "failed");
+    if (commitFailure !== undefined) {
+      this.logger.warn("The run record could not be committed as failed", commitFailure);
+    }
+    yield this.emit({ type: "run.failed", error: error.info });
+  }
+
+  /** Commit the terminal failure, then report the run as cancelled. */
+  private async *cancelRun(context: RunContext): AsyncGenerator<AgentEvent, void> {
+    await this.commitRun(context, "failed");
+    yield this.emit({ type: "run.cancelled" });
+  }
+
+  /** Commit the terminal failure, then report the budget stop. */
+  private async *limitRun(context: RunContext, reason: LimitStopReason): AsyncGenerator<AgentEvent, void> {
+    await this.commitRun(context, "failed");
+    yield this.emit({ type: "run.limitReached", reason });
+  }
+
+  /** Commit the terminal failure, then report the step cap. */
+  private async *maxStepsRun(context: RunContext): AsyncGenerator<AgentEvent, void> {
+    await this.commitRun(context, "failed");
+    yield this.emit({ type: "run.maxStepsReached", steps: this.maxSteps });
   }
 
   /** The request options for one model turn, assembled in one place. */
@@ -926,19 +977,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
       try {
         reason = await this.guardrails.output(output, { task: context.task, signal: context.signal });
       } catch (error) {
-        await this.refuseAnswer(context);
-        yield this.emit({
-          type: "run.failed",
-          error: guardrailError("output", error, context.stepIndex).info,
-        });
+        this.refuseAnswer();
+        yield* this.failRun(context, guardrailError("output", error, context.stepIndex));
         return;
       }
       if (reason !== undefined) {
-        await this.refuseAnswer(context);
-        yield this.emit({
-          type: "run.failed",
-          error: new AgentGuardrailError(reason, { stepIndex: context.stepIndex }).info,
-        });
+        this.refuseAnswer();
+        yield* this.failRun(context, new AgentGuardrailError(reason, { stepIndex: context.stepIndex }));
         return;
       }
     }
@@ -946,27 +991,33 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (this.outputSchema !== undefined) {
       const parsed = this.outputSchema.safeParse(output);
       if (!parsed.success) {
-        await this.refuseAnswer(context);
-        yield this.emit({
-          type: "run.failed",
-          error: new AgentGuardrailError("The final answer failed the output schema: " + parsed.error.message, {
-            stepIndex: context.stepIndex,
-          }).info,
-        });
+        this.refuseAnswer();
+        const guardrail = new AgentGuardrailError(
+          "The final answer failed the output schema: " + parsed.error.message,
+          { stepIndex: context.stepIndex },
+        );
+        yield* this.failRun(context, guardrail);
         return;
       }
       value = parsed.data;
     }
     this.memory.addStep(new FinalAnswerStep(value));
+    // The terminal commit is the record's last write. A caller that finds no completed record must
+    // not believe the run finished, so a store failure here fails the run rather than the answer.
+    const commitFailure = await this.commitRun(context, "completed");
+    if (commitFailure !== undefined) {
+      yield* this.failRun(context, commitFailure);
+      return;
+    }
     yield this.emit({ type: "run.completed", result: this.buildResult(value, context, "success") });
   }
 
   /**
    * A tripped guardrail must not persist the value it refused. The answering step's recorded call
-   * and observation are redacted, and the checkpoint is rewritten before the run reports failure,
-   * so a store or a later reader never holds the blocked text.
+   * and observation are redacted before the terminal commit, so neither the failed record nor a
+   * later reader holds the blocked text.
    */
-  private async refuseAnswer(context: RunContext): Promise<void> {
+  private refuseAnswer(): void {
     const steps = this.memory.steps;
     for (let index = steps.length - 1; index >= 0; index -= 1) {
       const step = steps[index];
@@ -981,7 +1032,6 @@ export abstract class MultiStepAgent<TOut = unknown> {
       step.observations = "Final answer: [redacted]";
       break;
     }
-    await this.saveCheckpoint(context);
   }
 
   private buildResult(output: unknown, context: RunContext, state: RunState): RunResult<TOut> {
@@ -1024,8 +1074,8 @@ function exhaustedBudget(budget: RunBudget): LimitStopReason | undefined {
   return undefined;
 }
 
-function storeError(operation: "load" | "save", error: unknown, stepIndex?: number): AgentError {
+function storeError(operation: "load" | "commit", error: unknown, stepIndex?: number): AgentError {
   const message =
-    "The run store failed to " + operation + " the checkpoint: " + (error instanceof Error ? error.message : String(error));
+    "The run store failed to " + operation + " the run record: " + (error instanceof Error ? error.message : String(error));
   return new AgentError(message, stepIndex === undefined ? { cause: error } : { cause: error, stepIndex });
 }

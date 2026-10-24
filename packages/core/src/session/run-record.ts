@@ -1,0 +1,80 @@
+import { RunRecordVersionError, RunSnapshotVersionError } from "../errors.js";
+import type { StepJSON } from "../memory/steps.js";
+
+/** The format version a run record is written in. One integer per format change. */
+export const RUN_RECORD_VERSION = 2;
+
+/** The version 1 envelope, kept readable while a store may still hold one. */
+export const RUN_SNAPSHOT_VERSION = 1;
+
+/**
+ * What a run is doing. `waiting` means it is parked on a pending request, `interrupted` means the
+ * process that owned it died mid-step. A human pause is `waiting`, never `interrupted` (0023).
+ */
+export type RunStatus = "running" | "waiting" | "completed" | "failed" | "interrupted";
+
+/**
+ * A run as its store keeps it: one identity, one status, one fence number, and the memory the loop
+ * replays. Later durability items extend this type with the fields they introduce.
+ */
+export interface RunRecord {
+  readonly schemaVersion: number;
+  readonly runId: string;
+  readonly status: RunStatus;
+  /** The ownership fence. It changes only when a store claims the run (Phase 1.3). */
+  readonly generation: number;
+  readonly memory: { readonly steps: readonly StepJSON[] };
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
+}
+
+/** The version 1 shape: a format version and the steps. Read-only compatibility. */
+export interface RunSnapshot {
+  readonly formatVersion: number;
+  readonly steps: readonly StepJSON[];
+}
+
+/** A value a store may hold: the current record, the version 1 envelope, or a bare step array. */
+export type StoredRun = RunRecord | RunSnapshot | readonly StepJSON[];
+
+/** The version 1 value alone, for the translator that still reads it. */
+export type StoredRunSnapshot = RunSnapshot | readonly StepJSON[];
+
+/**
+ * Read a stored value as the version 1 envelope. A bare array is the version 0 form; a note of a
+ * newer format is refused rather than half-read.
+ */
+export function translateSnapshot(stored: StoredRunSnapshot): RunSnapshot {
+  if (Array.isArray(stored)) return { formatVersion: RUN_SNAPSHOT_VERSION, steps: stored };
+  const envelope = stored as RunSnapshot;
+  if (envelope.formatVersion > RUN_SNAPSHOT_VERSION) {
+    throw RunSnapshotVersionError.forVersion(envelope.formatVersion, RUN_SNAPSHOT_VERSION);
+  }
+  return { formatVersion: RUN_SNAPSHOT_VERSION, steps: envelope.steps };
+}
+
+/**
+ * Read a stored value as a run record. A current record passes through; the version 1 envelope and
+ * the version 0 bare array translate forward as a run whose process died (`interrupted`, no
+ * owner, generation 0). A record from a newer runtime is refused with the number it carries.
+ */
+export function translateRecord(stored: StoredRun, runId = ""): RunRecord {
+  if (isRecord(stored)) {
+    if (stored.schemaVersion > RUN_RECORD_VERSION) {
+      throw RunRecordVersionError.forVersion(stored.schemaVersion, RUN_RECORD_VERSION);
+    }
+    return stored;
+  }
+  const legacy = translateSnapshot(stored as StoredRunSnapshot);
+  return {
+    schemaVersion: RUN_RECORD_VERSION,
+    runId,
+    status: "interrupted",
+    generation: 0,
+    memory: { steps: legacy.steps },
+  };
+}
+
+function isRecord(stored: StoredRun): stored is RunRecord {
+  return !Array.isArray(stored) && typeof (stored as Partial<RunRecord>).schemaVersion === "number";
+}

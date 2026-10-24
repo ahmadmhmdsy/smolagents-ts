@@ -63,6 +63,10 @@ const RUNTIME_EXPORTS = [
   "translateSnapshot",
   "RUN_SNAPSHOT_VERSION",
   "RunSnapshotVersionError",
+  // a run record: the identity, the fence and the terminal status the store keeps
+  "translateRecord",
+  "RUN_RECORD_VERSION",
+  "RunRecordVersionError",
   // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
   "RUN_LIMITS_CEILING",
   "resolveBudget",

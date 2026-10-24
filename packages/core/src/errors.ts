@@ -9,6 +9,7 @@ export type AgentErrorCode =
   | "AGENT_CANCELLED"
   | "AGENT_GUARDRAIL"
   | "AGENT_SNAPSHOT_VERSION"
+  | "AGENT_RUN_RECORD_VERSION"
   | "AGENT_TOOL_TIMEOUT";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
@@ -147,6 +148,26 @@ export class RunSnapshotVersionError extends AgentError {
   }
 }
 
+/** Raised when a store holds a run record written in a format this runtime cannot read. */
+export class RunRecordVersionError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_RECORD_VERSION" });
+    this.name = "RunRecordVersionError";
+  }
+
+  /** The refusal for a record whose schema version is newer than this runtime's. */
+  static forVersion(found: unknown, expected: number): RunRecordVersionError {
+    const shown = typeof found === "number" ? String(found) : "unknown";
+    return new RunRecordVersionError(
+      "The run record declares schema version " +
+        shown +
+        ", and this runtime reads version " +
+        String(expected) +
+        " only. A newer runtime wrote it; open it there rather than half-reading it here.",
+    );
+  }
+}
+
 /** Raised when a tool does not settle inside its deadline. */
 export class ToolTimeoutError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -175,5 +196,6 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_CANCELLED: AgentCancelledError,
   AGENT_GUARDRAIL: AgentGuardrailError,
   AGENT_SNAPSHOT_VERSION: RunSnapshotVersionError,
+  AGENT_RUN_RECORD_VERSION: RunRecordVersionError,
   AGENT_TOOL_TIMEOUT: ToolTimeoutError,
 };

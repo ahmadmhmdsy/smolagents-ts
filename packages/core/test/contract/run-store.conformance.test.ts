@@ -1,20 +1,18 @@
 /**
  * The stores the seam ships with, certified by the shared contract in
- * \`run-store.contract.ts\`. The file-backed store stands in for the durable store that Phase 1.5
- * has not built yet: it writes one JSON file per checkpoint under a fresh temporary directory and
- * reads it back, which is exactly the shape a real file store will have.
+ * \`run-store.contract.ts\`. The file-backed double stands in for the durable store Phase 1.5
+ * ships: it writes one JSON file per run under a fresh temporary directory and reads it back.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "vitest";
-import type { StepJSON } from "../../src/memory/steps.js";
 import {
   MemoryRunStore,
-  type RunSnapshot,
   type RunStore,
-  type StoredRunSnapshot,
+  type StoredRun,
 } from "../../src/session/run-store.js";
+import type { RunRecord } from "../../src/session/run-record.js";
 import { runStoreContract } from "./run-store.contract.js";
 
 const directories: string[] = [];
@@ -31,18 +29,18 @@ class TemporaryFileRunStore implements RunStore {
     directories.push(this.directory);
   }
 
-  private pathFor(checkpoint: string): string {
-    return join(this.directory, encodeURIComponent(checkpoint) + ".json");
+  private pathFor(runId: string): string {
+    return join(this.directory, encodeURIComponent(runId) + ".json");
   }
 
-  save(checkpoint: string, snapshot: RunSnapshot): void {
-    writeFileSync(this.pathFor(checkpoint), JSON.stringify(snapshot), "utf8");
+  commit(runId: string, record: RunRecord): void {
+    writeFileSync(this.pathFor(runId), JSON.stringify(record), "utf8");
   }
 
-  load(checkpoint: string): StoredRunSnapshot | undefined {
-    const path = this.pathFor(checkpoint);
+  load(runId: string): StoredRun | undefined {
+    const path = this.pathFor(runId);
     if (!existsSync(path)) return undefined;
-    return JSON.parse(readFileSync(path, "utf8")) as { formatVersion: number; steps: StepJSON[] };
+    return JSON.parse(readFileSync(path, "utf8")) as RunRecord;
   }
 }
 
@@ -51,11 +49,11 @@ runStoreContract("MemoryRunStore", () => new MemoryRunStore());
 runStoreContract("a store that answers asynchronously", async () => {
   const inner = new MemoryRunStore();
   return {
-    save: async (checkpoint, snapshot) => {
+    commit: async (runId, record) => {
       await Promise.resolve();
-      inner.save(checkpoint, snapshot);
+      inner.commit(runId, record);
     },
-    load: async (checkpoint) => await Promise.resolve(inner.load(checkpoint)),
+    load: async (runId) => await Promise.resolve(inner.load(runId)),
   };
 });
 

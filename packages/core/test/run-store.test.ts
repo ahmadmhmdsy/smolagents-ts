@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ToolCallingAgent, FINAL_ANSWER_TOOL_NAME } from "../src/agent/tool-calling-agent.js";
-import { AgentMaxStepsError } from "../src/errors.js";
+import { AgentMaxStepsError, RunRecordVersionError } from "../src/errors.js";
 import {
   ActionStep,
   FinalAnswerStep,
@@ -12,14 +12,17 @@ import {
   stepToJSON,
   type AnyAgentStep,
 } from "../src/memory/steps.js";
-import { MemoryRunStore } from "../src/session/run-store.js";
 import {
-  RUN_SNAPSHOT_VERSION,
-  translateSnapshot,
-  type RunSnapshot,
+  MemoryRunStore,
   type RunStore,
+  type StoredRun,
 } from "../src/session/run-store.js";
-import { RunSnapshotVersionError } from "../src/errors.js";
+import {
+  RUN_RECORD_VERSION,
+  translateRecord,
+  type RunRecord,
+  type RunStatus,
+} from "../src/session/run-record.js";
 import { MockModel } from "../src/testing/mock-model.js";
 import { tool } from "../src/tool/tool.js";
 import type { ToolCallRequest } from "../src/types.js";
@@ -44,7 +47,7 @@ describe("step serialization", () => {
     ];
 
     for (const before of steps) {
-      // A JSON encode/decode cycle is the store contract: the checkpoint is plain data.
+      // A JSON encode/decode cycle is the store contract: a record is plain data.
       const wire = JSON.parse(JSON.stringify(stepToJSON(before))) as ReturnType<typeof stepToJSON>;
       const after = stepFromJSON(wire);
       expect(after.kind).toBe(before.kind);
@@ -55,42 +58,127 @@ describe("step serialization", () => {
   });
 });
 
-describe("run snapshots", () => {
+describe("run records", () => {
   const steps = [stepToJSON(new TaskStep("do the thing"))];
 
-  it("translates a bare step array, the version-0 form, into the envelope", () => {
+  it("translates a bare step array, the version-0 form, into a record", () => {
     const wire = JSON.parse(JSON.stringify(steps)) as ReturnType<typeof stepToJSON>[];
-    expect(translateSnapshot(wire)).toEqual({ formatVersion: RUN_SNAPSHOT_VERSION, steps: wire });
+    const record = translateRecord(wire);
+    expect(record.schemaVersion).toBe(RUN_RECORD_VERSION);
+    expect(record.status).toBe("interrupted");
+    expect(record.generation).toBe(0);
+    expect(record.memory.steps).toEqual(wire);
   });
 
-  it("reads the current envelope unchanged", () => {
-    expect(translateSnapshot({ formatVersion: RUN_SNAPSHOT_VERSION, steps })).toEqual({
-      formatVersion: RUN_SNAPSHOT_VERSION,
-      steps,
-    });
+  it("translates the version-1 envelope into a record", () => {
+    const record = translateRecord({ formatVersion: 1, steps });
+    expect(record.schemaVersion).toBe(RUN_RECORD_VERSION);
+    expect(record.status).toBe("interrupted");
+    expect(record.memory.steps).toEqual(steps);
   });
 
-  it("refuses a snapshot written by a newer runtime, typed", () => {
-    expect(() => translateSnapshot({ formatVersion: RUN_SNAPSHOT_VERSION + 1, steps })).toThrow(
-      RunSnapshotVersionError,
-    );
-    expect(() => translateSnapshot({ formatVersion: RUN_SNAPSHOT_VERSION + 1, steps })).toThrow(
-      /format version/,
-    );
+  it("reads a current record unchanged", () => {
+    const current: RunRecord = {
+      schemaVersion: RUN_RECORD_VERSION,
+      runId: "run-1",
+      status: "waiting",
+      generation: 2,
+      memory: { steps },
+      createdAt: "2026-10-24T00:00:00.000Z",
+      updatedAt: "2026-10-24T00:00:01.000Z",
+    };
+    expect(translateRecord(current)).toEqual(current);
+  });
+
+  it("refuses a record written by a newer runtime, typed, and names the version", () => {
+    const newer: RunRecord = {
+      schemaVersion: RUN_RECORD_VERSION + 1,
+      runId: "run-1",
+      status: "running",
+      generation: 0,
+      memory: { steps },
+    };
+    expect(() => translateRecord(newer)).toThrow(RunRecordVersionError);
+    expect(() => translateRecord(newer)).toThrow(new RegExp(String(RUN_RECORD_VERSION + 1)));
   });
 });
 
+/** A store that keeps every record it was handed and counts the commits, for the boundary test. */
+class RecordingStore implements RunStore {
+  readonly commits: { runId: string; status: RunStatus; actions: number }[] = [];
+  private readonly inner = new MemoryRunStore();
+
+  commit(runId: string, record: RunRecord): void {
+    this.commits.push({
+      runId,
+      status: record.status,
+      actions: record.memory.steps.filter((step) => step.kind === "action").length,
+    });
+    this.inner.commit(runId, record);
+  }
+
+  load(runId: string): StoredRun | undefined {
+    return this.inner.load(runId);
+  }
+}
+
+function addTool() {
+  return tool({
+    name: "add",
+    description: "Add two numbers.",
+    inputSchema: z.object({ a: z.number(), b: z.number() }),
+    execute: ({ a, b }) => a + b,
+  });
+}
+
 describe("run store", () => {
-  it("resumes a stopped run from its checkpoint and finishes it", async () => {
-    const store = new MemoryRunStore();
-    const add = tool({
-      name: "add",
-      description: "Add two numbers.",
-      inputSchema: z.object({ a: z.number(), b: z.number() }),
-      execute: ({ a, b }) => a + b,
+  it("commits once per action step and once at the terminal state", async () => {
+    const store = new RecordingStore();
+    const agent = new ToolCallingAgent({
+      model: new MockModel([
+        { content: "", finishReason: "tool_calls", toolCalls: [call("add", { a: 1, b: 1 }, "c1")] },
+        { content: "", finishReason: "tool_calls", toolCalls: [call("add", { a: 2, b: 2 }, "c2")] },
+        {
+          content: "",
+          finishReason: "tool_calls",
+          toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: 4 }, "c3")],
+        },
+      ]),
+      tools: [addTool()],
+      store,
     });
 
-    // First run stops at the step budget with its one action step already checkpointed.
+    const result = await agent.run("add", { runId: "run-1" });
+
+    expect(result.output).toBe(4);
+    expect(result.runId).toBe("run-1");
+    expect(store.commits.map((entry) => entry.status)).toEqual(["running", "running", "completed"]);
+    expect(store.commits.map((entry) => entry.actions)).toEqual([1, 2, 3]);
+    const stored = translateRecord(store.load("run-1")!);
+    expect(stored.status).toBe("completed");
+    expect(stored.runId).toBe("run-1");
+    expect(stored.schemaVersion).toBe(RUN_RECORD_VERSION);
+    expect(stored.memory.steps).toEqual(result.steps.map(stepToJSON));
+  });
+
+  it("commits the failed status when the run throws", async () => {
+    const store = new RecordingStore();
+    const agent = new ToolCallingAgent({ model: new MockModel([]), tools: [], store });
+
+    await expect(agent.run("work", { runId: "run-failed" })).rejects.toBeInstanceOf(Error);
+
+    const statuses = store.commits.map((entry) => entry.status);
+    expect(statuses).toEqual(["failed"]);
+    const stored = translateRecord(store.load("run-failed")!);
+    expect(stored.status).toBe("failed");
+    expect(stored.memory.steps.some((step) => step.kind === "action")).toBe(false);
+  });
+
+  it("resumes a stopped run from its record and finishes it", async () => {
+    const store = new MemoryRunStore();
+    const add = addTool();
+
+    // First run stops at the step budget with its one action step already committed.
     const first = new ToolCallingAgent({
       model: new MockModel([
         { content: "", finishReason: "tool_calls", toolCalls: [call("add", { a: 1, b: 1 })] },
@@ -99,15 +187,16 @@ describe("run store", () => {
       maxSteps: 1,
       store,
     });
-    await expect(first.run("add 1 and 1", { checkpoint: "job-1" })).rejects.toBeInstanceOf(
+    await expect(first.run("add 1 and 1", { runId: "job-1" })).rejects.toBeInstanceOf(
       AgentMaxStepsError,
     );
     expect(store.has("job-1")).toBe(true);
-    const saved = store.load("job-1") as RunSnapshot;
-    expect(saved.formatVersion).toBe(RUN_SNAPSHOT_VERSION);
-    expect(saved.steps.length).toBeGreaterThan(0);
+    const saved = translateRecord(store.load("job-1")!);
+    expect(saved.schemaVersion).toBe(RUN_RECORD_VERSION);
+    expect(saved.status).toBe("failed");
+    expect(saved.memory.steps.length).toBeGreaterThan(0);
 
-    // A fresh agent resumes the same checkpoint; its memory carries the first run's steps forward.
+    // A fresh agent resumes the same record; its memory carries the first run's steps forward.
     const second = new ToolCallingAgent({
       model: new MockModel([
         {
@@ -120,9 +209,10 @@ describe("run store", () => {
       maxSteps: 1,
       store,
     });
-    const result = await second.run("add 1 and 1", { checkpoint: "job-1", reset: false });
+    const result = await second.run("add 1 and 1", { runId: "job-1", reset: false });
 
     expect(result.output).toBe(2);
+    expect(result.runId).toBe("job-1");
     const actions = result.steps.filter((step) => step.kind === "action");
     // The resumed step plus the one that answered.
     expect(actions).toHaveLength(2);
@@ -135,19 +225,17 @@ describe("run store", () => {
   });
 
   it("resumes from a store that still holds the version-0 bare array", async () => {
-    const add = tool({
-      name: "add",
-      description: "Add two numbers.",
-      inputSchema: z.object({ a: z.number(), b: z.number() }),
-      execute: ({ a, b }) => a + b,
-    });
+    const add = addTool();
     const stored: string[] = [];
     const legacyStore: RunStore = {
-      save: (_checkpoint, snapshot) => {
+      commit: (_runId, record) => {
         // Persist only the steps, the way a store written before the envelope did.
-        stored.push(JSON.stringify(snapshot.steps));
+        stored.push(JSON.stringify(record.memory.steps));
       },
-      load: () => (stored.length === 0 ? undefined : (JSON.parse(stored[0]!) as ReturnType<typeof stepToJSON>[])),
+      load: () =>
+        stored.length === 0
+          ? undefined
+          : (JSON.parse(stored[0]!) as ReturnType<typeof stepToJSON>[]),
     };
 
     const first = new ToolCallingAgent({
@@ -158,7 +246,7 @@ describe("run store", () => {
       maxSteps: 1,
       store: legacyStore,
     });
-    await expect(first.run("add 1 and 1", { checkpoint: "job-legacy" })).rejects.toBeInstanceOf(
+    await expect(first.run("add 1 and 1", { runId: "job-legacy" })).rejects.toBeInstanceOf(
       AgentMaxStepsError,
     );
 
@@ -174,19 +262,25 @@ describe("run store", () => {
       maxSteps: 1,
       store: legacyStore,
     });
-    const result = await second.run("add 1 and 1", { checkpoint: "job-legacy", reset: false });
+    const result = await second.run("add 1 and 1", { runId: "job-legacy", reset: false });
     expect(result.output).toBe(2);
   });
 
-  it("fails a resumed run when the stored snapshot declares a newer version", async () => {
+  it("fails a resumed run when the stored record declares a newer version", async () => {
     const newerStore: RunStore = {
-      save: () => undefined,
-      load: () => ({ formatVersion: RUN_SNAPSHOT_VERSION + 1, steps: [] }),
+      commit: () => undefined,
+      load: (runId): RunRecord => ({
+        schemaVersion: RUN_RECORD_VERSION + 1,
+        runId,
+        status: "running",
+        generation: 0,
+        memory: { steps: [] },
+      }),
     };
     const agent = new ToolCallingAgent({ model: new MockModel([]), tools: [], store: newerStore });
 
-    await expect(agent.run("resume", { checkpoint: "job-new", reset: false })).rejects.toBeInstanceOf(
-      RunSnapshotVersionError,
+    await expect(agent.run("resume", { runId: "job-new", reset: false })).rejects.toBeInstanceOf(
+      RunRecordVersionError,
     );
   });
 });

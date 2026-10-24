@@ -49,7 +49,7 @@ function agentWith(turns: readonly object[], limits: { maxTurns?: number; maxOut
   });
 }
 
-async function drain(agent: ToolCallingAgent, task: string, options: { reset?: boolean; checkpoint?: string; budget?: ReturnType<typeof createBudgetHandle> } = {}) {
+async function drain(agent: ToolCallingAgent, task: string, options: { reset?: boolean; runId?: string; budget?: ReturnType<typeof createBudgetHandle> } = {}) {
   const events: AgentEvent[] = [];
   for await (const event of agent.stream(task, options)) events.push(event);
   return events;
@@ -87,7 +87,7 @@ describe("the run budget", () => {
     expect(spendBudget(roomy, usage(2))).toBeUndefined();
   });
 
-  it("seeds a resumed budget from the steps the checkpoint already holds", () => {
+  it("seeds a resumed budget from the steps the record already holds", () => {
     const seed = budgetSeedFromSteps([
       { tokenUsage: usage(3) },
       { tokenUsage: usage(4) },
@@ -121,10 +121,10 @@ describe("the run budget", () => {
     expect(budget.budget.totalTokens).toBe(6);
   });
 
-  it("does not reset the counters when a run resumes a checkpoint", async () => {
+  it("does not reset the counters when a run resumes a record", async () => {
     const store = new MemoryRunStore();
     const first = agentWith([workTurn(2, "c1"), answerTurn(2, "c2")], { maxTotalTokens: 10 }, store);
-    const firstEvents = await drain(first, "work", { checkpoint: "run" });
+    const firstEvents = await drain(first, "work", { runId: "run" });
     expect(firstEvents.at(-1)?.type).toBe("run.completed");
 
     const model = new MockModel([workTurn(2, "c3"), answerTurn(2, "c4")]);
@@ -134,7 +134,7 @@ describe("the run budget", () => {
       limits: { maxTotalTokens: 3 },
       store,
     });
-    const events = await drain(resumed, "continue", { reset: false, checkpoint: "run" });
+    const events = await drain(resumed, "continue", { reset: false, runId: "run" });
 
     expect(events.at(-1)).toEqual({ type: "run.limitReached", reason: "limitTotalTokens" });
     expect(model.callCount).toBe(0);

@@ -4,6 +4,34 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T12:40:00+03:00 — 0.7 landed: every tool has a finite deadline
+
+**State.** Seven Phase 0 items in (0.1–0.7). Next is 0.8's conformance suite, then 0.9's
+budget record and 0.10's tool-less structured output.
+
+**Did.** `tool()` now guards every tool with a deadline: 120 s by default, overridable
+per definition, 0 to disable. The around-wrapper races the call against its timer,
+replaces a result only when that timer fired, swallows a loser's late rejection, and
+classifies an aborted run as cancellation rather than as a timeout. A deadline failure
+is `ToolTimeoutError` (code `AGENT_TOOL_TIMEOUT`, limit in the message); the
+tool-calling agent keeps that typed error instead of flattening it into a generic call
+failure, and rethrows cancellation.
+
+**Verified.** `pnpm gate` exit 0; core 37 files, 386 tests (four new: deadline failure,
+cancellation classification, and the agent-level action failure carrying the code).
+
+**Unverified / open.** A custom `Tool` implementation that does not go through `tool()`
+gets no deadline; the seam guards the factory, not the interface.
+
+**Next.** 0.8: the store conformance suite over ten failure modes.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/tool/timeout.ts`,
+`packages/core/src/tool/tool.ts`, `packages/core/src/agent/tool-calling-agent.ts`,
+`packages/core/src/errors.ts`, `packages/core/test/tool.test.ts`,
+`packages/core/test/tool-calling-agent.test.ts`.
+
 ## 2026-10-24T12:05:00+03:00 — 0.6 landed: a tripped guardrail leaves no blocked text behind
 
 **State.** Six Phase 0 items in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6). Next is 0.7's tool

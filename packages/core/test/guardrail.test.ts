@@ -169,7 +169,7 @@ describe("agent guardrails", () => {
     expect(model.callCount).toBe(1);
   });
 
-  it("keeps a blocked answer out of the checkpoint and says redacted in the trace", async () => {
+  it("keeps a blocked answer out of the record and says redacted in the trace", async () => {
     const store = new MemoryRunStore();
     const agent = new ToolCallingAgent({
       model: new MockModel([
@@ -181,7 +181,7 @@ describe("agent guardrails", () => {
     });
 
     const events: AgentEvent[] = [];
-    for await (const event of agent.stream("tell the secret", { checkpoint: "blocked-run" })) {
+    for await (const event of agent.stream("tell the secret", { runId: "blocked-run" })) {
       events.push(event);
     }
 

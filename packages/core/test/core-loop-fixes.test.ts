@@ -110,29 +110,29 @@ describe("terminal-event contract", () => {
     await expect(agent.run("task")).rejects.toBeInstanceOf(AgentGuardrailError);
   });
 
-  it("fails the run when the store cannot load the checkpoint", async () => {
+  it("fails the run when the store cannot load the record", async () => {
     const store: RunStore = {
-      save: () => undefined,
+      commit: () => undefined,
       load: () => Promise.reject(new Error("disk gone")),
     };
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn]), store });
 
-    const events = await collect(agent, "task", { reset: false, checkpoint: "c" });
+    const events = await collect(agent, "task", { reset: false, runId: "c" });
     expect(events.map((event) => event.type)).toEqual(["run.started", "run.failed"]);
     expect(events[1]).toMatchObject({ error: { code: "AGENT_ERROR" } });
     expect(events[1]?.type === "run.failed" && events[1].error.message).toContain("load");
   });
 
-  it("fails the run when the store cannot save the checkpoint", async () => {
+  it("fails the run when the store cannot commit the record", async () => {
     const store: RunStore = {
-      save: () => {
+      commit: () => {
         throw new Error("quota exceeded");
       },
       load: () => undefined,
     };
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn]), store });
 
-    const events = await collect(agent, "task", { checkpoint: "c" });
+    const events = await collect(agent, "task", { runId: "c" });
     expect(terminals(events)).toHaveLength(1);
     expect(events.at(-1)).toMatchObject({ type: "run.failed", error: { code: "AGENT_ERROR", stepIndex: 0 } });
     expect(events.at(-1)?.type === "run.failed" && events.at(-1)).toMatchObject({
@@ -140,12 +140,12 @@ describe("terminal-event contract", () => {
     });
   });
 
-  it("fails the run when a save after a planning step throws", async () => {
+  it("fails the run when a commit after a planning step throws", async () => {
     let saves = 0;
     const store: RunStore = {
-      save: () => {
+      commit: () => {
         saves += 1;
-        if (saves === 2) throw new Error("planning save failed");
+        if (saves === 2) throw new Error("planning commit failed");
       },
       load: () => undefined,
     };
@@ -155,7 +155,7 @@ describe("terminal-event contract", () => {
       planningInterval: 1,
     });
 
-    const events = await collect(agent, "task", { checkpoint: "c" });
+    const events = await collect(agent, "task", { runId: "c" });
     expect(terminals(events)).toHaveLength(1);
     expect(events.at(-1)).toMatchObject({ type: "run.failed", error: { code: "AGENT_ERROR" } });
   });
@@ -241,8 +241,8 @@ describe("continuing a run's memory", () => {
     const store = new MemoryRunStore();
     const agent = new ToolCallingAgent({ model: new MockModel([answerTurn, answerTurn, answerTurn]), store });
 
-    await agent.run("first", { checkpoint: "c" });
-    await agent.run("second", { reset: false, checkpoint: "c" });
+    await agent.run("first", { runId: "c" });
+    await agent.run("second", { reset: false, runId: "c" });
     await agent.run("third", { reset: false });
 
     expect(agent.steps.filter((step) => step.kind === "system_prompt")).toHaveLength(1);

@@ -291,3 +291,25 @@ of a waiting run clears the pending request instead of inheriting it.
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 1.1 as built.** A run is a `RunRecord` under a `runId`: schema version, status
+  (`running | waiting | completed | failed | interrupted`), generation, the memory steps, and
+  timestamps. `RUN_RECORD_VERSION` is 2 while `RUN_SNAPSHOT_VERSION` 1 is the legacy envelope;
+  the version 1 envelope and the version 0 bare array both translate forward as a record whose
+  process died (`interrupted`, generation 0), and a version above 2 throws
+  `RunRecordVersionError` naming both numbers. `RunStore` is now `commit(runId, record)` /
+  `load(runId)`; the store stores, the loop decides the boundary.
+- **One identity.** `RunOptions.checkpoint` is renamed `runId` and the durable id is also the
+  run's event identity, so `RunResult.runId` is the durable id when one was given (0023).
+  `AgentSessionOptions.checkpoint` keeps its session-vocabulary name and reaches the loop as
+  `runId`; renaming the session option belongs to 1.7's conversation identity, not here.
+- **Terminal statuses.** The loop commits `running` after each non-answering step and one
+  terminal write: `completed` on success and `failed` for a thrown run, a cancellation, a budget
+  stop and the step cap — the record's closed set has no "cancelled" and `interrupted` is
+  reserved for a dead process. The answering step is committed only by the terminal write, so no
+  step commits twice. A throw that escapes the loop (a subclass `interpret`) still commits
+  `failed`, from `stream()`'s catch.
+- **Contract suite.** The ten modes and their rejecting counterexamples are unchanged; only the
+  fixture and the helper functions now speak records. Core grew from 460 to 466 tests.
+- **Left open.** Two-process use is only testable once the file store lands in 1.5; until then the
+  record's `runId` empty on a legacy translation is filled from the store key by the caller.
+

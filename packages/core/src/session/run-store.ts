@@ -1,69 +1,55 @@
-import { RunSnapshotVersionError } from "../errors.js";
-import type { StepJSON } from "../memory/steps.js";
+import type { RunRecord, StoredRun } from "./run-record.js";
 
-/** The format version a snapshot is written in. One integer per format change. */
-export const RUN_SNAPSHOT_VERSION = 1;
-
-/** A run's durable state: the steps, in order, plus the format version they are written in. */
-export interface RunSnapshot {
-  readonly formatVersion: number;
-  readonly steps: readonly StepJSON[];
-}
-
-/**
- * What a store hands back. A snapshot written before the envelope existed is a bare step
- * array, so a store that still holds one returns it and the agent translates it.
- */
-export type StoredRunSnapshot = RunSnapshot | readonly StepJSON[];
+// The record types and translators live in run-record.ts; re-exported here so the store seam has
+// one import site.
+export {
+  translateRecord,
+  RUN_RECORD_VERSION,
+  RUN_SNAPSHOT_VERSION,
+  translateSnapshot,
+  type RunRecord,
+  type RunStatus,
+  type RunSnapshot,
+  type StoredRun,
+  type StoredRunSnapshot,
+} from "./run-record.js";
 
 /**
- * Read a stored value as a snapshot. A bare array is the version-0 form and translates to the
- * current envelope; a note of a newer version is refused rather than half-read.
- */
-export function translateSnapshot(stored: StoredRunSnapshot): RunSnapshot {
-  if (Array.isArray(stored)) return { formatVersion: RUN_SNAPSHOT_VERSION, steps: stored };
-  const envelope = stored as RunSnapshot;
-  if (envelope.formatVersion > RUN_SNAPSHOT_VERSION) {
-    throw RunSnapshotVersionError.forVersion(envelope.formatVersion, RUN_SNAPSHOT_VERSION);
-  }
-  return { formatVersion: RUN_SNAPSHOT_VERSION, steps: envelope.steps };
-}
-
-/**
- * Where a run's checkpoint lives. The agent writes the snapshot after each step and reads it back
- * to resume, and the caller supplies the store — so persistence stays outside the core, and a run
- * in a browser, a worker or a server all use the same seam.
+ * Where a run's record lives. The agent commits after each boundary and reads it back to resume,
+ * and the caller supplies the store — so persistence stays outside the core, and a run in a
+ * browser, a worker or a server all use the same seam. The store never decides a commit boundary;
+ * it stores what the loop hands it.
  */
 export interface RunStore {
-  save(checkpoint: string, snapshot: RunSnapshot): void | Promise<void>;
-  load(checkpoint: string): StoredRunSnapshot | undefined | Promise<StoredRunSnapshot | undefined>;
+  commit(runId: string, record: RunRecord): void | Promise<void>;
+  load(runId: string): StoredRun | undefined | Promise<StoredRun | undefined>;
 }
 
-/** The one implementation the seam ships with: a run's steps held in memory. */
+/** The one implementation the seam ships with: a run's records held in memory. */
 export class MemoryRunStore implements RunStore {
-  private readonly snapshots = new Map<string, RunSnapshot>();
+  private readonly records = new Map<string, RunRecord>();
 
   // The store is a boundary, so it copies on the way in and on the way out: a caller that
-  // mutates the list it saved, or the one it loaded, cannot reach the stored checkpoint. A
-  // StepJSON is JSON-safe by definition, so a JSON round-trip is a faithful deep copy.
-  save(checkpoint: string, snapshot: RunSnapshot): void {
-    this.snapshots.set(checkpoint, copy(snapshot));
+  // mutates the record it committed, or the one it loaded, cannot reach the stored run. A record
+  // is JSON-safe by definition, so a JSON round-trip is a faithful deep copy.
+  commit(runId: string, record: RunRecord): void {
+    this.records.set(runId, copy(record));
   }
 
-  load(checkpoint: string): RunSnapshot | undefined {
-    const stored = this.snapshots.get(checkpoint);
+  load(runId: string): RunRecord | undefined {
+    const stored = this.records.get(runId);
     return stored === undefined ? undefined : copy(stored);
   }
 
-  has(checkpoint: string): boolean {
-    return this.snapshots.has(checkpoint);
+  has(runId: string): boolean {
+    return this.records.has(runId);
   }
 
-  delete(checkpoint: string): boolean {
-    return this.snapshots.delete(checkpoint);
+  delete(runId: string): boolean {
+    return this.records.delete(runId);
   }
 }
 
-function copy(snapshot: RunSnapshot): RunSnapshot {
-  return JSON.parse(JSON.stringify(snapshot)) as RunSnapshot;
+function copy(record: RunRecord): RunRecord {
+  return JSON.parse(JSON.stringify(record)) as RunRecord;
 }

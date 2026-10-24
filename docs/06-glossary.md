@@ -20,6 +20,8 @@ every downstream artifact inherits the misuse. One table prevents it.
 | **AgentStep** | one recorded turn of the loop; every step is a memory entry and an event payload at once | a chat message | docs/design/2026-10-12-smolagents-ts-v1-design.md |
 | **AgentEvent** | one typed transition in a run, the stream a UI renders from | a log line | docs/design/2026-10-12-smolagents-ts-v1-design.md |
 | **AgentSession** | the observable store over a run; React subscribes to its snapshot | the agent object itself | docs/design/2026-10-12-smolagents-ts-v1-design.md |
+| **run record** | one durable document per run: an id, a status, a generation fence, the memory steps and, as later items add them, the pending request and the effects journal | a checkpoint of steps, which is only the memory half | docs/09-decisions/0023-one-identity-per-run.md |
+| **runId** | the one address of a run across its record, its store key, its events and the CLI | a checkpoint name, the old spelling of the same idea | docs/09-decisions/0023-one-identity-per-run.md |
 | **Tool** | a declared capability with a Zod schema, a description and a callable | a plain function the model may call | docs/design/2026-10-12-smolagents-ts-v1-design.md |
 | **final answer** | the sentinel return plus the out-of-band flag the loop reads as the end of a run | an exception, which is how upstream signals it | docs/design/2026-10-12-smolagents-ts-v1-design.md |
 | **gate** | the eleven-stage chain in `scripts.gate`, and the exit code that summarises it | a code review | docs/10-runbooks/gate.md |
