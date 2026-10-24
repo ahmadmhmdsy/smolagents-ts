@@ -2,6 +2,7 @@ import type { SettledApprovalOutcome } from "../agent/approval.js";
 import { RunRecordVersionError, RunSnapshotVersionError } from "../errors.js";
 import type { StepJSON } from "../memory/steps.js";
 import type { RunMessage } from "./messages.js";
+import type { TransferSignal } from "../agent/transfer.js";
 import type { TokenUsage } from "../types.js";
 
 /** The format version a run record is written in. One integer per format change. */
@@ -97,6 +98,8 @@ export interface RunRecord {
   readonly agentPath?: readonly string[];
   /** Messages sent to the run, including the ones it has already delivered. */
   readonly messages?: readonly RunMessage[];
+  /** The declared target a transferred run handed the conversation to. */
+  readonly transfer?: TransferSignal;
   /** The run this one was forked from, when it was; absent for an original run. */
   readonly parentRunId?: string;
   /** The parent's step the fork re-enters, so the branch point is recoverable. */

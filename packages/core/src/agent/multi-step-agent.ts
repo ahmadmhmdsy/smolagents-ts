@@ -39,11 +39,12 @@ import { digestOf } from "../utils/digest.js";
 import { populateTemplate } from "../prompts/populate-template.js";
 import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
 import { ToolRegistry } from "../tool/registry.js";
-import type { Tool } from "../tool/tool.js";
+import { ToolDefinitionError, type Tool } from "../tool/tool.js";
 import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE, addTokenUsage } from "../types.js";
 import { makeRunResult, type RunResult, type RunState } from "./run-result.js";
 import { FINAL_ANSWER_TOOL_NAME, type ActionOutcome, type InterpretedAction } from "./action.js";
 import { managedAgent, type ManagedAgent } from "./managed-agent.js";
+import { isTransferSignal, transferTool, type TransferSignal, type TransferTarget } from "./transfer.js";
 import {
   withApproval,
   type ApprovalDecision,
@@ -98,6 +99,12 @@ export interface AgentOptions {
    * rendered in the prompt as a "team member" rather than as an ordinary tool.
    */
   managedAgents?: readonly ManagedAgent[];
+  /**
+   * Team members the model may hand the conversation to instead of answering. Each becomes a
+   * `transfer_to_<name>` tool; calling one ends this run with `run.transferred` and a
+   * `TransferSignal`, and the target's own run is the caller's to start.
+   */
+  transfers?: readonly TransferTarget[];
   /**
    * Where a run's record lives. With a `runId` on the run, the agent commits the record after
    * each boundary and reads it back to resume, so a run survives its process.
@@ -206,6 +213,8 @@ export interface RunContext {
   messages: RunMessage[];
   /** The agents this run produced events as, root first; empty at the root. */
   readonly agentPath: readonly string[];
+  /** The declared target this run handed the conversation to, once it has. */
+  transfer: TransferSignal | undefined;
   /** The parent run and step of a fork, written on every commit of the branch. */
   parentRunId: string | undefined;
   parentStep: number | undefined;
@@ -247,6 +256,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
   readonly planningInterval: number;
   readonly executionTimeoutMs: number;
   readonly managedAgents: readonly ManagedAgent[];
+  /** The declared transfer targets, kept so a test or a caller can read the declaration back. */
+  readonly transfers: readonly TransferTarget[];
   readonly limits: RunLimits;
   protected readonly logger: Logger;
   protected readonly memory = new AgentMemory();
@@ -254,6 +265,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /** The names of the managed agents folded into `tools`, so the prompt can render them apart. */
   private readonly managedAgentNames = new Set<string>();
+  /** The transfer tool names this agent declared, so only a declared handover is recognised. */
+  private readonly transferNames = new Set<string>();
   private readonly middleware: readonly AgentMiddleware[];
   private readonly customInstructions: string | undefined;
   private readonly explicitSystemPrompt: string | undefined;
@@ -283,10 +296,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.guardrails = options.guardrails;
     this.outputSchema = options.outputSchema;
     const managedAgents = options.managedAgents ?? [];
-    // Managed agents are added to this agent's registry, so a caller's registry is copied first:
-    // mutating it would make a second agent built from the same registry fail on a duplicate name.
+    const transfers = options.transfers ?? [];
+    // Managed agents and transfers are added to this agent's registry, so a caller's registry is
+    // copied first: mutating it would make a second agent built from it fail on a duplicate name.
     if (options.tools instanceof ToolRegistry) {
-      this.tools = managedAgents.length > 0 ? new ToolRegistry(options.tools.list()) : options.tools;
+      this.tools =
+        managedAgents.length > 0 || transfers.length > 0
+          ? new ToolRegistry(options.tools.list())
+          : options.tools;
     } else {
       this.tools = new ToolRegistry(options.tools ?? []);
     }
@@ -313,6 +330,29 @@ export abstract class MultiStepAgent<TOut = unknown> {
             });
       this.tools.add(gated);
       this.managedAgentNames.add(wrapped.name);
+    }
+    this.transfers = transfers;
+    for (const entry of this.transfers) {
+      if (entry.agent === this) {
+        throw new ToolDefinitionError(
+          "Transfer target " + JSON.stringify(entry.name) + " is this agent; a run cannot transfer to itself.",
+        );
+      }
+      const wrapped = transferTool(entry);
+      if (this.transferNames.has(wrapped.name)) {
+        throw new ToolDefinitionError(
+          "Two transfer targets are named " + JSON.stringify(entry.name) + ".",
+        );
+      }
+      const gated =
+        this.approve === undefined && this.approvalPolicy !== "never"
+          ? wrapped
+          : withApproval(wrapped, this.approve ?? (() => Promise.resolve(false)), {
+              policy: this.approvalPolicy,
+              onDecision: (d: ApprovalDecision) => this.recordApproval(d),
+            });
+      this.tools.add(gated);
+      this.transferNames.add(wrapped.name);
     }
   }
 
@@ -508,6 +548,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
         case "run.waiting":
           completed = event.result as RunResult<TOut>;
           break;
+        case "run.transferred":
+          completed = event.result as RunResult<TOut>;
+          break;
         case "run.maxStepsReached":
           failure = new AgentMaxStepsError(
             "Reached the maximum number of steps (" + String(event.steps) + ")",
@@ -593,6 +636,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       conversationId: options.conversationId,
       messages: [],
       agentPath: options.agentPath ?? [],
+      transfer: undefined,
       parentRunId: undefined,
       parentStep: undefined,
       completed: [],
@@ -906,6 +950,14 @@ export abstract class MultiStepAgent<TOut = unknown> {
         isFinalAnswer: outcome.isFinalAnswer,
       });
 
+      // A declared transfer ends the run instead of answering: the target's run is the caller's
+      // to start, and the record names it so a later reader knows where the conversation went.
+      const transfer = this.transferOf(step);
+      if (transfer !== undefined) {
+        yield* this.transferRun(transfer, context);
+        return;
+      }
+
       // An answering step is committed by complete() as the terminal status, so it is not
       // committed twice: one boundary per step, one terminal write.
       if (outcome.isFinalAnswer) {
@@ -1055,6 +1107,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         ...(context.journal.length === 0 ? {} : { journal: context.journal }),
         memory: { steps },
         ...(context.pending === undefined ? {} : { pending: context.pending }),
+        ...(context.transfer === undefined ? {} : { transfer: context.transfer }),
         ...(context.settlements.length === 0 ? {} : { settlements: context.settlements }),
         createdAt: context.createdAt,
         updatedAt: new Date().toISOString(),
@@ -1604,6 +1657,37 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /**
+   * The transfer signal a completed action carries, if any: only a tool this agent declared as a
+   * transfer counts, so a user tool returning a similar object cannot end a run by accident.
+   */
+  private transferOf(step: ActionStep): TransferSignal | undefined {
+    if (this.transferNames.size === 0) return undefined;
+    for (const call of step.toolCalls ?? []) {
+      if (!this.transferNames.has(call.name)) continue;
+      if (isTransferSignal(call.result)) return call.result;
+    }
+    return undefined;
+  }
+
+  /**
+   * End the run as a transfer: the answering boundary is committed with the signal on the record,
+   * and `run.transferred` is the terminal event. The target's own run is not started here.
+   */
+  private async *transferRun(
+    transfer: TransferSignal,
+    context: RunContext,
+  ): AsyncGenerator<AgentEvent, void> {
+    context.transfer = transfer;
+    this.markStepFinished(context);
+    const commitFailure = await this.commitRun(context, "completed");
+    if (commitFailure !== undefined) {
+      yield* this.failRun(context, commitFailure);
+      return;
+    }
+    yield this.emit({ type: "run.transferred", result: this.buildResult(undefined, context, "success") });
+  }
+
+  /**
    * Guard the final answer, record it, and emit the terminal `run.completed` event. A tripped
    * output tripwire or an output-schema mismatch fails the run instead.
    */
@@ -1702,6 +1786,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       state,
       budget: context.budget,
       ...(context.pending === undefined ? {} : { pending: context.pending }),
+      ...(context.transfer === undefined ? {} : { transfer: context.transfer }),
     });
   }
 

@@ -427,6 +427,11 @@ export class AgentSession<TOut = unknown> {
         this.draft.endedAt = Date.now();
         return;
 
+      case "run.transferred":
+        this.draft.status = "success";
+        this.draft.endedAt = Date.now();
+        return;
+
       case "approval.decided": {
         const decided: ApprovalView = {
           requestId: event.requestId,

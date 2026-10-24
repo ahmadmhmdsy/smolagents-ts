@@ -33,6 +33,39 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-24T22:50:00+03:00 — 2.2: a handover the record can name
+
+**State.** Phase 2 is open; 2.1, 2.2, 2.3, 2.6 and 2.7 are landed. Next is 2.4 (bounded background
+child), then 2.5 (supervisor example) and 2.8 (claim board). Nothing pushed.
+
+**Did.** `agent/transfer.ts` declares a `TransferTarget { name, description, agent }` and builds
+its `transfer_to_<name>` tool. The tool's name is derived from the declaration, so a target that
+was not declared has no call the model can make; an invalid name, a blank description, a
+duplicate name or a transfer to the agent itself throws `ToolDefinitionError` at construction.
+Calling the tool returns a `TransferSignal { target, reason? }` instead of an answer. The loop
+recognises the signal only among the transfer tools it built, commits the step boundary with
+`transfer` on the record, and ends the run with the new terminal `run.transferred` event,
+`RunResult.state === "success"` and `RunResult.transfer`. The target's run is the caller's to
+start (2.5).
+
+**Verified.** `transfer.test.ts` (48th core file, 5 cases) green: one named tool per
+declaration, a call ending the run with the target on result and record and one terminal
+`run.transferred` with no `run.completed`, invalid declarations throwing `ToolDefinitionError`,
+an undeclared target staying an ordinary tool error, and a run without a transfer carrying no
+`transfer` key. Core 48 files/562 tests (four new pins); CLI 11/77 with the renderer printing the
+target. `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** The target's run is not started by the transfer; a caller that forgets to
+start it leaves a completed record naming a run that never happened. 2.5 must show the supervisor
+starting it.
+
+**Next.** 2.4: a bounded background child with its own row on the parent record.
+
+**Blockers.** None; the owner-blocked rows were unchanged.
+
+**Artifacts.** `packages/core/src/agent/transfer.ts`; `packages/core/test/transfer.test.ts`;
+`packages/core/src/events.ts`; `packages/core/src/agent/run-result.ts`.
+
 ## 2026-10-24T22:35:00+03:00 — 2.7: a wait is an edge, not a poll
 
 **State.** Phase 2 is open; the first slice (2.1, 2.3, 2.6, 2.7) is landed. Next is the second
@@ -126,31 +159,4 @@ returns a receipt; a running target sees it at its next step boundary, a parked 
 
 **Artifacts.** `packages/core/src/events.ts`; `packages/core/src/agent/multi-step-agent.ts`;
 `packages/core/src/session/run-record.ts`; `packages/core/test/agent-path.test.ts`.
-
-## 2026-10-24T21:45:00+03:00 — Phase 2 opened; 2.1 gives a child a typed report
-
-**State.** Phase 2 (delegation that survives its parent) is open under
-`docs/plans/2026-10-24-phase-2-execution-plan.md` and `T-43`. Item 2.1 is landed; 2.3, 2.6,
-2.7, then 2.2, 2.4, 2.5 and 2.8 follow. Nothing pushed.
-
-**Did.** The plan registers every item's acceptance test before code and records the design
-each item lands. 2.1 added `child-report.ts`: `ChildReport<T>` carries a schema-validated
-`value` or a `failure` channel, a `stopReason` (`success`/`failure`/`max_steps`/`waiting`),
-and a diagnostic bounded to 300 characters with the task text and key-shaped tokens removed.
-`ManagedAgent.outputSchema` is the declaration; `runManagedAgent` is the typed path; the
-model-facing `managedAgent` tool keeps the Phase 1 report template.
-
-**Verified.** The suite was red first (module missing), then 7 cases green; core 44 files/527
-tests; `pnpm gate` exit 0; validator 0/0; rotate clean.
-
-**Unverified / open.** 2.3, 2.6, 2.7 and the second slice (2.2, 2.4, 2.5, 2.8) are not
-started. A schema failure reports issue paths and codes only, by design.
-
-**Next.** 2.3: every event carries the agent path, enriched at emission, and the record keeps
-the path its run ran under.
-
-**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18` and `T-21` remain owner-blocked.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-2-execution-plan.md`;
-`packages/core/src/agent/child-report.ts`; `packages/core/test/child-report.test.ts`.
 <!-- rotate:end -->

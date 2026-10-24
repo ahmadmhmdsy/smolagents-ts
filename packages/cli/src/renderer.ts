@@ -167,6 +167,10 @@ export function renderEvent(event: AgentEvent, options: RenderOptions): string |
               event.outcome,
           )
         : undefined;
+    case "run.transferred": {
+      const target = event.result.transfer?.target ?? "another agent";
+      return line(paint("Transferred to " + target, "yellow", options) + " (run " + event.result.runId + ")");
+    }
     case "run.completed":
       return line(paint("Final answer:", "green", options) + " " + display(event.result.output));
     case "run.failed":

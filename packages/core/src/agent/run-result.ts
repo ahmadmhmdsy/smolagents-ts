@@ -2,6 +2,7 @@ import type { AnyAgentStep } from "../memory/steps.js";
 import type { PendingApproval } from "../session/run-record.js";
 import type { ChatMessage, Timing, TokenUsage } from "../types.js";
 import type { RunBudget } from "../session/budget.js";
+import type { TransferSignal } from "./transfer.js";
 
 export type RunState = "success" | "max_steps_reached" | "waiting";
 
@@ -17,6 +18,8 @@ export interface RunResult<TOut = unknown> {
   readonly budget?: Readonly<RunBudget>;
   /** The request the run parked on, when `state` is `waiting`. */
   readonly pending?: PendingApproval;
+  /** The declared target the run handed the conversation to, when it ended in a transfer. */
+  readonly transfer?: TransferSignal;
 }
 
 export interface MakeRunResultInput<TOut> {
@@ -30,6 +33,7 @@ export interface MakeRunResultInput<TOut> {
   state?: RunState;
   budget?: Readonly<RunBudget>;
   pending?: PendingApproval;
+  transfer?: TransferSignal;
 }
 
 export function makeRunResult<TOut>(input: MakeRunResultInput<TOut>): RunResult<TOut> {
@@ -43,5 +47,6 @@ export function makeRunResult<TOut>(input: MakeRunResultInput<TOut>): RunResult<
     runId: input.runId,
     ...(input.budget === undefined ? {} : { budget: { ...input.budget } }),
     ...(input.pending === undefined ? {} : { pending: input.pending }),
+    ...(input.transfer === undefined ? {} : { transfer: { ...input.transfer } }),
   };
 }

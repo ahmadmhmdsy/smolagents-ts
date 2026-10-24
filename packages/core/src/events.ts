@@ -36,6 +36,7 @@ export type AgentEventPayload =
   | { type: "run.limitReached"; reason: LimitStopReason }
   | { type: "run.cancelled" }
   | { type: "run.waiting"; result: RunResult }
+  | { type: "run.transferred"; result: RunResult }
   | { type: "run.resumed"; runId: string; requestId: string; outcome: ApprovalOutcome };
 
 /**
@@ -64,6 +65,7 @@ export function isTerminal(type: AgentEventType): boolean {
     type === "run.maxStepsReached" ||
     type === "run.limitReached" ||
     type === "run.cancelled" ||
+    type === "run.transferred" ||
     // A parked run ends this stream too: no further event arrives until a resume starts a new one.
     type === "run.waiting"
   );
@@ -100,6 +102,7 @@ export function describeEvent(event: AgentEvent): string {
     case "run.limitReached": return "budget limit reached";
     case "run.cancelled": return "run cancelled";
     case "run.waiting": return "run waiting for a decision";
+    case "run.transferred": return "run transferred";
     case "run.resumed": return "run resumed";
     default: return assertNever(event);
   }

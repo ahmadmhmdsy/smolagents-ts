@@ -97,6 +97,11 @@ const RUNTIME_EXPORTS = [
   "MANAGED_AGENT_INPUT_SCHEMA",
   // delegation report: a child's answer as a validated value or a typed failure
   "runManagedAgent",
+  // transfer: a handover the model declares, and the signal the loop recognises
+  "transferTool",
+  "transferToolName",
+  "isTransferSignal",
+  "TRANSFER_INPUT_SCHEMA",
   // approval seam: gate a tool call before it runs
   "withApproval",
   "ToolApprovalError",

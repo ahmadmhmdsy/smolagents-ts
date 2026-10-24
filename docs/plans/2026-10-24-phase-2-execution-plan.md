@@ -197,6 +197,16 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.2 as built.** `agent/transfer.ts` declares a `TransferTarget` and builds its
+  `transfer_to_<name>` tool; the name comes from the declaration, so a target that was not
+  declared has no call the model can make, and an invalid name, a blank description, a duplicate
+  or a self-transfer throws `ToolDefinitionError` at construction. The tool returns a
+  `TransferSignal` instead of an answer; the loop recognises it only among the tools it declared,
+  commits the boundary with `transfer` on the record, and ends the run with the new terminal
+  `run.transferred` event, `RunResult.state === "success"` and `RunResult.transfer`. The target's
+  own run is the caller's to start. Core 48 files/562 tests, CLI 11/77, `pnpm gate` exit 0.
+
+
 - **2026-10-24 — 2.7 as built.** `RunStore.watch(runId, listener)` is the contract's fourteenth
   mode: a commit or claim that lands after registration calls the listener with the record,
   the returned function unsubscribes, and watching never writes. `MemoryRunStore` notifies

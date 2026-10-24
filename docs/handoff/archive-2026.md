@@ -4,6 +4,33 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T21:45:00+03:00 — Phase 2 opened; 2.1 gives a child a typed report
+
+**State.** Phase 2 (delegation that survives its parent) is open under
+`docs/plans/2026-10-24-phase-2-execution-plan.md` and `T-43`. Item 2.1 is landed; 2.3, 2.6,
+2.7, then 2.2, 2.4, 2.5 and 2.8 follow. Nothing pushed.
+
+**Did.** The plan registers every item's acceptance test before code and records the design
+each item lands. 2.1 added `child-report.ts`: `ChildReport<T>` carries a schema-validated
+`value` or a `failure` channel, a `stopReason` (`success`/`failure`/`max_steps`/`waiting`),
+and a diagnostic bounded to 300 characters with the task text and key-shaped tokens removed.
+`ManagedAgent.outputSchema` is the declaration; `runManagedAgent` is the typed path; the
+model-facing `managedAgent` tool keeps the Phase 1 report template.
+
+**Verified.** The suite was red first (module missing), then 7 cases green; core 44 files/527
+tests; `pnpm gate` exit 0; validator 0/0; rotate clean.
+
+**Unverified / open.** 2.3, 2.6, 2.7 and the second slice (2.2, 2.4, 2.5, 2.8) are not
+started. A schema failure reports issue paths and codes only, by design.
+
+**Next.** 2.3: every event carries the agent path, enriched at emission, and the record keeps
+the path its run ran under.
+
+**Blockers.** None. `T-14`, `T-39`, `T-16`, `T-18` and `T-21` remain owner-blocked.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-2-execution-plan.md`;
+`packages/core/src/agent/child-report.ts`; `packages/core/test/child-report.test.ts`.
+
 ## 2026-10-24T21:20:00+03:00 — Phase 1 closed: the durability spine holds across processes
 
 **State.** Phase 1 (items 1.1–1.8) is complete and closed; `T-42` is done. Everything is
