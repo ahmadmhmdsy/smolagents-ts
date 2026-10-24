@@ -17,15 +17,33 @@ export interface TokenUsage {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
+  /**
+   * The part of `inputTokens` the provider billed as a cache read. A provider that reports no
+   * cache split leaves it absent, which is not the same fact as a reported zero.
+   */
+  readonly cachedInputTokens?: number;
+  /** The part of `inputTokens` the provider billed as a cache write; absent when unreported. */
+  readonly cacheWriteInputTokens?: number;
 }
 
 export const EMPTY_TOKEN_USAGE: TokenUsage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
 
+/** Sum two usages. A split half stays absent until one side reports it, then sums what is known. */
 export function addTokenUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
+  const cached =
+    a.cachedInputTokens === undefined && b.cachedInputTokens === undefined
+      ? undefined
+      : (a.cachedInputTokens ?? 0) + (b.cachedInputTokens ?? 0);
+  const cacheWrite =
+    a.cacheWriteInputTokens === undefined && b.cacheWriteInputTokens === undefined
+      ? undefined
+      : (a.cacheWriteInputTokens ?? 0) + (b.cacheWriteInputTokens ?? 0);
   return {
     inputTokens: a.inputTokens + b.inputTokens,
     outputTokens: a.outputTokens + b.outputTokens,
     totalTokens: a.totalTokens + b.totalTokens,
+    ...(cached === undefined ? {} : { cachedInputTokens: cached }),
+    ...(cacheWrite === undefined ? {} : { cacheWriteInputTokens: cacheWrite }),
   };
 }
 

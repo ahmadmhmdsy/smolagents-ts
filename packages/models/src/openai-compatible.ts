@@ -63,6 +63,8 @@ interface WireUsage {
   prompt_tokens?: number;
   completion_tokens?: number;
   total_tokens?: number;
+  /** The prompt-caching split OpenAI reports, when the provider reports one at all. */
+  prompt_tokens_details?: { cached_tokens?: number };
 }
 
 interface WireResponse {
@@ -130,10 +132,12 @@ function fromWireUsage(usage: WireUsage | null | undefined): TokenUsage {
   if (usage === undefined || usage === null) return EMPTY_TOKEN_USAGE;
   const inputTokens = usage.prompt_tokens ?? 0;
   const outputTokens = usage.completion_tokens ?? 0;
+  const cachedInputTokens = usage.prompt_tokens_details?.cached_tokens;
   return {
     inputTokens,
     outputTokens,
     totalTokens: usage.total_tokens ?? inputTokens + outputTokens,
+    ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
   };
 }
 

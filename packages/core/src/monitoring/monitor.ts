@@ -5,6 +5,10 @@ export interface MonitorStat {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Prompt tokens the provider billed as a cache read; absent until one reports a split. */
+  cachedInputTokens?: number;
+  /** Prompt tokens the provider billed as a cache write; absent until one reports a split. */
+  cacheWriteInputTokens?: number;
   totalDurationMs: number;
 }
 
@@ -23,11 +27,20 @@ export class Monitor {
 
   record(key: string, usage: TokenUsage, durationMs: number): void {
     const previous = this.stats.get(key);
+    const cachedInputTokens = (previous?.cachedInputTokens ?? 0) + (usage.cachedInputTokens ?? 0);
+    const cacheWriteInputTokens =
+      (previous?.cacheWriteInputTokens ?? 0) + (usage.cacheWriteInputTokens ?? 0);
     this.stats.set(key, {
       callCount: (previous?.callCount ?? 0) + 1,
       inputTokens: (previous?.inputTokens ?? 0) + usage.inputTokens,
       outputTokens: (previous?.outputTokens ?? 0) + usage.outputTokens,
       totalTokens: (previous?.totalTokens ?? 0) + usage.totalTokens,
+      ...(usage.cachedInputTokens === undefined && previous?.cachedInputTokens === undefined
+        ? {}
+        : { cachedInputTokens }),
+      ...(usage.cacheWriteInputTokens === undefined && previous?.cacheWriteInputTokens === undefined
+        ? {}
+        : { cacheWriteInputTokens }),
       totalDurationMs: (previous?.totalDurationMs ?? 0) + durationMs,
     });
   }
@@ -44,6 +57,10 @@ export class Monitor {
         inputTokens: stat.inputTokens,
         outputTokens: stat.outputTokens,
         totalTokens: stat.totalTokens,
+        ...(stat.cachedInputTokens === undefined ? {} : { cachedInputTokens: stat.cachedInputTokens }),
+        ...(stat.cacheWriteInputTokens === undefined
+          ? {}
+          : { cacheWriteInputTokens: stat.cacheWriteInputTokens }),
       });
     }
     return total;

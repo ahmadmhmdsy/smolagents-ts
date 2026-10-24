@@ -62,6 +62,10 @@ interface WireMessage {
 interface WireUsage {
   input_tokens?: number;
   output_tokens?: number;
+  /** Prompt tokens read from the cache, billed at the cached rate and excluded from input_tokens. */
+  cache_read_input_tokens?: number;
+  /** Prompt tokens written to the cache, excluded from input_tokens the same way. */
+  cache_creation_input_tokens?: number;
 }
 
 interface WireResponse {
@@ -189,9 +193,19 @@ function toFinishReason(raw: string | null | undefined): FinishReason {
 
 function fromWireUsage(usage: WireUsage | undefined): TokenUsage {
   if (usage === undefined) return EMPTY_TOKEN_USAGE;
-  const inputTokens = usage.input_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens;
+  const cacheWrite = usage.cache_creation_input_tokens;
+  // The wire counts cache reads and writes apart from input_tokens; the budget's prompt count is
+  // all three, and the split is kept so a caller can price each at its own rate.
+  const inputTokens = (usage.input_tokens ?? 0) + (cacheRead ?? 0) + (cacheWrite ?? 0);
   const outputTokens = usage.output_tokens ?? 0;
-  return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens };
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    ...(cacheRead === undefined ? {} : { cachedInputTokens: cacheRead }),
+    ...(cacheWrite === undefined ? {} : { cacheWriteInputTokens: cacheWrite }),
+  };
 }
 
 /** Anthropic's Messages API: a top-level system prompt, content blocks, a required limit. */
@@ -253,8 +267,10 @@ export class AnthropicModel implements Model {
     if (response.body === null) {
       throw new Error("The provider returned no body to stream");
     }
-    // The input count arrives once at the start; the output count arrives once at the end.
+    // The input count and the cache split arrive once at the start; the output count at the end.
     let inputTokens = 0;
+    let cachedInputTokens: number | undefined;
+    let cacheWriteInputTokens: number | undefined;
     for await (const event of parseSse(response.body)) {
       let parsed: WireStreamEvent;
       try {
@@ -263,9 +279,14 @@ export class AnthropicModel implements Model {
         continue; // a keep-alive that is not JSON
       }
       switch (event.event) {
-        case "message_start":
-          inputTokens = parsed.message?.usage?.input_tokens ?? 0;
+        case "message_start": {
+          const usage = parsed.message?.usage;
+          cachedInputTokens = usage?.cache_read_input_tokens;
+          cacheWriteInputTokens = usage?.cache_creation_input_tokens;
+          inputTokens =
+            (usage?.input_tokens ?? 0) + (cachedInputTokens ?? 0) + (cacheWriteInputTokens ?? 0);
           break;
+        }
         case "content_block_start":
           if (parsed.content_block?.type === "tool_use") {
             yield {
@@ -298,7 +319,13 @@ export class AnthropicModel implements Model {
           if (reason !== undefined && reason !== null) chunk.finishReason = toFinishReason(reason);
           const outputTokens = parsed.usage?.output_tokens;
           if (outputTokens !== undefined) {
-            chunk.usage = { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens };
+            chunk.usage = {
+              inputTokens,
+              outputTokens,
+              totalTokens: inputTokens + outputTokens,
+              ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
+              ...(cacheWriteInputTokens === undefined ? {} : { cacheWriteInputTokens }),
+            };
           }
           yield chunk;
           break;

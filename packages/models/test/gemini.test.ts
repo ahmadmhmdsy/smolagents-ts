@@ -102,6 +102,32 @@ describe("GeminiModel", () => {
     expect(result.finishReason).toBe("tool_calls");
   });
 
+  it("reports cached content tokens from the usage metadata", async () => {
+    const { fetch } = recorder(
+      JSON.stringify({
+        candidates: [
+          { content: { role: "model", parts: [{ text: "hi" }] }, finishReason: "STOP" },
+        ],
+        usageMetadata: {
+          promptTokenCount: 100,
+          candidatesTokenCount: 20,
+          totalTokenCount: 120,
+          cachedContentTokenCount: 40,
+        },
+      }),
+    );
+    const model = new GeminiModel({ model: "m", fetch });
+
+    const result = await model.generate([{ role: "user", content: "Hi" }]);
+
+    expect(result.usage).toEqual({
+      inputTokens: 100,
+      outputTokens: 20,
+      totalTokens: 120,
+      cachedInputTokens: 40,
+    });
+  });
+
   it("renders an assistant function call and its result as parts", async () => {
     const { fetch, calls } = recorder(completion);
     const model = new GeminiModel({ model: "m", fetch });

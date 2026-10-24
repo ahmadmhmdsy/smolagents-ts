@@ -62,6 +62,13 @@ const RUNTIME_EXPORTS = [
   // the opt-in export seam: a finished tree as an OTLP payload, and an HTTP exporter that sends it
   "toOtlpExport",
   "createOtlpHttpExporter",
+  // cost accounting: a dated price table, the lookup, the integer cost, and its budget counter
+  "PRICE_TABLE_DATE",
+  "DEFAULT_PRICE_TABLE",
+  "findModelPrice",
+  "deriveCost",
+  "formatMicroUsd",
+  "spendCostBudget",
   "scoreRun",
   // checkpointing: a run's steps as plain objects, and the store seam that holds them
   "stepToJSON",

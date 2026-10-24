@@ -44,6 +44,7 @@ import {
 import { Monitor } from "../monitoring/monitor.js";
 import type { SpanExporter } from "../monitoring/otel.js";
 import { TraceBuilder } from "../monitoring/trace.js";
+import { deriveCost, type ModelPrice, type RunCost } from "../monitoring/pricing.js";
 import { digestOf } from "../utils/digest.js";
 import { populateTemplate } from "../prompts/populate-template.js";
 import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
@@ -100,6 +101,7 @@ import {
   budgetSeedFromSteps,
   resolveBudget,
   spendBudget,
+  spendCostBudget,
   type LimitStopReason,
   type RunBudget,
   type RunBudgetHandle,
@@ -179,6 +181,12 @@ export interface AgentOptions {
    * is logged instead of failing the run.
    */
   exporter?: SpanExporter;
+  /**
+   * The prices a cost limit is checked against. Omitted, the shipped dated table is used; a model
+   * it does not price has no cost, so a cost limit cannot stop that run. A run reports the cost it
+   * worked out on its result, and the date of the row it used.
+   */
+  priceTable?: readonly ModelPrice[];
 }
 
 /** One step's resolved view of the tool set: what is advertised, what runs, and the policy. */
@@ -391,6 +399,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private stepView: StepToolView | undefined;
   /** The exporter a caller installed; undefined means this agent never builds a trace. */
   private readonly exporter: SpanExporter | undefined;
+  /** The price rows this agent costs a run against; undefined means the shipped table. */
+  private readonly priceTable: readonly ModelPrice[] | undefined;
   /** Refusals spent by the run in flight; the budget itself is the module constant. */
   private policyRepairs = 0;
   /** Tool names that completed a call in this run, for a "require" check. */
@@ -412,6 +422,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.condensation = options.condensation;
     this.toolPolicy = options.toolPolicy;
     this.exporter = options.exporter;
+    this.priceTable = options.priceTable;
     const managedAgents = options.managedAgents ?? [];
     const transfers = options.transfers ?? [];
     // Managed agents and transfers are added to this agent's registry, so a caller's registry is
@@ -1996,7 +2007,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
         this.monitor.record(this.model.id, streamUsage, Date.now() - startedAt);
         context.usage = addTokenUsage(context.usage, streamUsage);
       }
-      context.limitReached = spendBudget(context.budget, streamUsage ?? EMPTY_TOKEN_USAGE);
+      const turnUsage = streamUsage ?? EMPTY_TOKEN_USAGE;
+      const costReason = this.spendRunCost(turnUsage, context.budget);
+      context.limitReached = spendBudget(context.budget, turnUsage) ?? costReason;
       // Exactly one usage.updated per model turn, whether or not the stream reported usage.
       yield this.emit({ type: "usage.updated", usage: context.usage });
       completion = {
@@ -2018,7 +2031,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       if (kind === "action") yield* this.emitCodeDelta(completion.content, true, "", stepIndex);
       this.monitor.record(this.model.id, completion.usage, Date.now() - startedAt);
       context.usage = addTokenUsage(context.usage, completion.usage);
-      context.limitReached = spendBudget(context.budget, completion.usage);
+      const costReason = this.spendRunCost(completion.usage, context.budget);
+      context.limitReached = spendBudget(context.budget, completion.usage) ?? costReason;
       yield this.emit({ type: "usage.updated", usage: context.usage });
     }
     if (stepId !== undefined) {
@@ -2183,7 +2197,26 @@ export abstract class MultiStepAgent<TOut = unknown> {
     );
   }
 
+  /**
+   * Price one usage against this agent's table. Undefined means the table does not price the
+   * model: the run then reports no cost, and a cost limit never treats an unknown price as zero.
+   */
+  private priceUsage(usage: TokenUsage): RunCost | undefined {
+    return deriveCost(usage, {
+      provider: this.model.provider,
+      model: this.model.id,
+      ...(this.priceTable === undefined ? {} : { table: this.priceTable }),
+    });
+  }
+
+  /** Count one turn's cost against the budget, so the cap stops the run before the next call. */
+  private spendRunCost(usage: TokenUsage, budget: RunBudget): LimitStopReason | undefined {
+    const cost = this.priceUsage(usage);
+    return cost === undefined ? undefined : spendCostBudget(budget, cost.microUsd);
+  }
+
   private buildResult(output: unknown, context: RunContext, state: RunState): RunResult<TOut> {
+    const cost = this.priceUsage(context.usage);
     return makeRunResult<TOut>({
       runId: context.runId,
       output: output as TOut,
@@ -2196,6 +2229,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       budget: context.budget,
       ...(context.pending === undefined ? {} : { pending: context.pending }),
       ...(context.transfer === undefined ? {} : { transfer: context.transfer }),
+      ...(cost === undefined ? {} : { cost }),
     });
   }
 
@@ -2297,6 +2331,7 @@ function exhaustedBudget(budget: RunBudget): LimitStopReason | undefined {
   if (budget.turns >= budget.maxTurns) return "limitTurns";
   if (budget.outputTokens >= budget.maxOutputTokens) return "limitOutputTokens";
   if (budget.totalTokens >= budget.maxTotalTokens) return "limitTotalTokens";
+  if (budget.costMicroUsd >= budget.maxCostMicroUsd) return "limitCostUsd";
   return undefined;
 }
 

@@ -4,6 +4,37 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T04:38:00+03:00 — Phase 4.7 landed: E2B depth
+
+**State.** 4.1–4.7 are landed; 4.8 and the phase close remain.
+
+**Did.** `e2b-depth.test.ts` (8 tests, the 14th exec-remote file) was watched red on all eight
+cases, then the E2B backend gained four additions, each defaulted to today's behaviour:
+`metadata` reaches the vendor create call so an orphan is findable; `executionTimeoutMs`
+(default 60 000) is a step's deadline when it names none, so neither the prelude install nor a
+step borrows the sandbox lifetime again; `keepAliveMs` extends the lifetime before a step past
+the interval, and a seam without `setTimeout` is refused at start with `UnsupportedOptionError`
+after the created sandbox is killed; `contextId` may be declared on the backend or on a step
+(the step wins) and reaches every `runCode`, while the process and Docker backends refuse it
+typed because they own one namespace. `guestMetrics()` reports the seam's sample or
+`undefined` and stays out of `SandboxCapabilities`.
+
+**Verified.** `pnpm vitest run --project exec-remote` → 14 files / 105 tests, exit 0; the
+package typecheck is clean; `python scripts/validate_context.py` → 0 errors, 0 warnings; the
+item gate is recorded in the plan.
+
+**Unverified / open.** The vendor path (`loadE2BClient`) passes metadata, contextId,
+setTimeout and getMetrics through, but no test touches it: a double cannot prove the vendor
+accepts them. 4.8 is not started.
+
+**Next.** Rewrite `packages/exec-remote/test/docker.test.ts` on the exec transport and watch it
+fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:204` and `:280`,
+`packages/exec-remote/src/backends/e2b.ts`, `packages/exec-remote/test/e2b-depth.test.ts`.
+
 ## 2026-10-25T04:24:00+03:00 — Phase 4.6 landed: declared transfers
 
 **State.** 4.1–4.6 are landed; 4.7–4.8 and the phase close remain.

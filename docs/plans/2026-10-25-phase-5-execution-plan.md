@@ -116,9 +116,10 @@ models report no split. One case per adapter, in the existing files.
   OpenAI and Gemini), each with its source URL and effective date. A comment says the table is an
   estimate, rots, and is why an unknown model is `undefined`. A caller may pass its own
   `priceTable`.
-- `findModelPrice({ provider, model }, table?)` matches the provider exactly and the model by
+- `findModelPrice({ provider, model, table? })` matches the provider exactly and the model by
   prefix (the longest matching prefix wins) and returns `undefined` otherwise — never a zero row.
-- `deriveCost(usage, query, table?)` returns `undefined` when the price is unknown, otherwise
+- `deriveCost(usage, query)` takes the same query (so the table travels with it) and returns
+  `undefined` when the price is unknown, otherwise
   `{ costUsd: string, microUsd: number, basis }` where the arithmetic runs in integer micro-USD
   (rate in micro-USD per million tokens × tokens ÷ 1,000,000, rounded per component), `costUsd` is
   that integer formatted with six decimals, and `basis` names the currency, the table's effective
@@ -127,28 +128,30 @@ models report no split. One case per adapter, in the existing files.
   tokens at the input rate and says so in the basis, because a missing rate is not a free token.
 
 `packages/core/src/session/budget.ts`: `RunLimits.maxCostUsd?`, ceiling `maxCostUsd: 100`;
-`RunBudget` grows `maxCostMicroUsd?` (set only when the caller asked) and `costMicroUsd`;
-`LimitStopReason` grows `"limitCostUsd"`; `spendCostBudget(budget, microUsd)` accumulates and
-returns `"limitCostUsd"` when the cap is set and the cumulative cost reaches it; `exhaustedBudget`
+`RunBudget` grows `maxCostMicroUsd` (always resolved, the ceiling when the caller asked for none)
+and `costMicroUsd`; `LimitStopReason` grows `"limitCostUsd"`; `spendCostBudget(budget, microUsd)`
+accumulates and returns `"limitCostUsd"` once the cumulative cost reaches the cap; `exhaustedBudget`
 checks it too, so a resumed run does not spend again. `spendBudget` keeps its token-only signature.
 
 `packages/core/src/agent/multi-step-agent.ts`: `AgentOptions.priceTable?:` and
 `AgentOptions.exporter?` live beside `limits`; after each model turn the loop prices that turn with
-`deriveCost` against this agent's model and table, adds it to `context.budget.costMicroUsd` (via
-`spendCostBudget`) and to a per-run accumulator, and folds `limitCostUsd` into the same
-`context.limitReached` check the token reasons use, so the terminal event is emitted before the
-next model call. `run.started` carries its optional `provider` here.
+`deriveCost` against this agent's model and table and counts it with `spendCostBudget`, folding
+`limitCostUsd` into the same `context.limitReached` check the token reasons use, so the terminal
+event is emitted before the next model call. A budget is a record, so a handle continued into a
+later run carries the spent cost with it. `run.started` carries its optional `provider` here.
 
 `packages/core/src/agent/run-result.ts`: `RunResult` grows `cost?: RunCost` and
-`costBasis: "table" | "unknown"`; `makeRunResult` takes a `cost` input and defaults `costBasis`
-to `"unknown"`, deriving `"table"` only from a present `cost`. `buildResult` computes it from the
-run's cumulative usage and the agent's table.
+`costBasis?: "table" | "unknown"` (optional only so a hand-built result still type-checks);
+`makeRunResult` takes a `cost` input and defaults `costBasis` to `"unknown"`, deriving `"table"`
+only from a present `cost`. `buildResult` computes it from the run's cumulative usage and the
+agent's table, so the number agrees with the budget the loop counted.
 
-`packages/core/src/monitoring/monitor.ts`: `MonitorStat` gains `cachedInputTokens` so the monitor
-does not lose the split it now receives.
+`packages/core/src/monitoring/monitor.ts`: `MonitorStat` gains optional `cachedInputTokens` and
+`cacheWriteInputTokens` so the monitor does not lose the split it now receives; both stay absent
+until a recorded usage reports one, which keeps the existing stat shape for a reporting-free model.
 
-Five runtime names reach the barrel: `PRICE_TABLE_DATE`, `DEFAULT_PRICE_TABLE`,
-`findModelPrice`, `deriveCost`, `spendCostBudget`. Core pins 113 → 118.
+Six runtime names reach the barrel: `PRICE_TABLE_DATE`, `DEFAULT_PRICE_TABLE`,
+`findModelPrice`, `deriveCost`, `formatMicroUsd` and `spendCostBudget`. Core pins 113 → 119.
 
 ## Files likely affected
 
@@ -176,8 +179,8 @@ and commits before 5.2 begins.
 |---|---|---|---|---|
 | Phase 4 close | 110 | 56 | 631 | 71 |
 | 5.1 | 113 (+3) | 57 (+1) | 639 (+8, the three pins are three tests) | 71 |
-| 5.2 | 118 (+5) | 58 (+1) | 650 (+11, six cases and five pins) | 74 (+3) |
-| exit + close | 118 | 59 (+1) | 653 (+3) | 74 |
+| 5.2 | 119 (+6) | 58 (+1) | 652 (+13, seven cases and six pins) | 74 (+3) |
+| exit + close | 119 | 59 (+1) | 655 (+3) | 74 |
 
 No type-only export changes a pin. The exit test adds no name.
 
@@ -229,6 +232,15 @@ Each item runs the same loop, and the order is part of the criterion:
 
 ## Changes
 
+- **2026-10-25 — 5.2 landed.** `TokenUsage` keeps the cache split (absent when unreported) and
+  the three HTTP adapters fill it; `monitoring/pricing.ts` is the dated, sourced table, the
+  longest-prefix lookup, integer micro-dollar cost and the six-decimal string; the budget grows
+  `maxCostMicroUsd`/`costMicroUsd`, `limitCostUsd` and `spendCostBudget`, and the loop prices each
+  model turn so the cap stops before the next call. `RunResult` reports `cost` and `costBasis`; an
+  unknown price is `undefined` cost and `"unknown"` basis, never a zero. `usage-cost-budget.test.ts`
+  (58th core file, seven cases) was watched red first, and the three adapter cases failed on the
+  missing fields before the mapping landed. Core is 58 files and 652 tests (seven cases and six
+  pins); models is 13 files and 74 tests; pins 113 → 119.
 - **2026-10-25 — 5.1 landed.** `TraceBuilder` is the live fold (`buildTrace` replays through
   it), the root span records the provider and every closed span its duration, and
   `monitoring/otel.ts` maps a tree to OTLP/HTTP JSON and posts it through an injected fetch when

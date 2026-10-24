@@ -51,6 +51,8 @@ interface WireUsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   totalTokenCount?: number;
+  /** The part of promptTokenCount the provider served from its context cache. */
+  cachedContentTokenCount?: number;
 }
 
 interface WireResponse {
@@ -176,10 +178,12 @@ function fromWireUsage(usage: WireUsageMetadata | null | undefined): TokenUsage 
   if (usage === undefined || usage === null) return EMPTY_TOKEN_USAGE;
   const inputTokens = usage.promptTokenCount ?? 0;
   const outputTokens = usage.candidatesTokenCount ?? 0;
+  const cachedInputTokens = usage.cachedContentTokenCount;
   return {
     inputTokens,
     outputTokens,
     totalTokens: usage.totalTokenCount ?? inputTokens + outputTokens,
+    ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
   };
 }
 

@@ -105,6 +105,36 @@ describe("AnthropicModel", () => {
     expect(result.finishReason).toBe("tool_calls");
   });
 
+  it("adds the cache read and cache write tokens into the Anthropic prompt", async () => {
+    const { fetch } = recorder(
+      JSON.stringify({
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        model: "claude-sonnet-4-5",
+        content: [{ type: "text", text: "hi" }],
+        stop_reason: "end_turn",
+        usage: {
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_read_input_tokens: 40,
+          cache_creation_input_tokens: 5,
+        },
+      }),
+    );
+    const model = new AnthropicModel({ model: "m", fetch });
+
+    const result = await model.generate([{ role: "user", content: "Hi" }]);
+
+    expect(result.usage).toEqual({
+      inputTokens: 55,
+      outputTokens: 20,
+      totalTokens: 75,
+      cachedInputTokens: 40,
+      cacheWriteInputTokens: 5,
+    });
+  });
+
   it("renders an assistant tool call and its result as blocks", async () => {
     const { fetch, calls } = recorder(completion);
     const model = new AnthropicModel({ model: "m", fetch });

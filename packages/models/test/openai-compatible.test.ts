@@ -89,6 +89,30 @@ describe("OpenAICompatibleModel", () => {
     expect(result.finishReason).toBe("tool_calls");
   });
 
+  it("reports cached prompt tokens when the provider splits them out", async () => {
+    const { fetch } = recorder(
+      JSON.stringify({
+        choices: [{ message: { role: "assistant", content: "hi" }, finish_reason: "stop" }],
+        usage: {
+          prompt_tokens: 100,
+          completion_tokens: 20,
+          total_tokens: 120,
+          prompt_tokens_details: { cached_tokens: 40 },
+        },
+      }),
+    );
+    const model = new OpenAICompatibleModel({ model: "m", fetch });
+
+    const result = await model.generate([{ role: "user", content: "Hi" }]);
+
+    expect(result.usage).toEqual({
+      inputTokens: 100,
+      outputTokens: 20,
+      totalTokens: 120,
+      cachedInputTokens: 40,
+    });
+  });
+
   it("renders an assistant tool call and its result on the wire", async () => {
     const { fetch, calls } = recorder(completion);
     const model = new OpenAICompatibleModel({ model: "m", fetch });
