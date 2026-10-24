@@ -97,6 +97,11 @@ const RUNTIME_EXPORTS = [
   "MANAGED_AGENT_INPUT_SCHEMA",
   // delegation report: a child's answer as a validated value or a typed failure
   "runManagedAgent",
+  // background children: a row on the parent's record, and the typed cap refusal
+  "startBackgroundChild",
+  "listChildren",
+  "resumeBackgroundChild",
+  "ChildLimitError",
   // transfer: a handover the model declares, and the signal the loop recognises
   "transferTool",
   "transferToolName",

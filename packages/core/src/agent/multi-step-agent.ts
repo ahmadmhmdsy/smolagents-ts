@@ -170,6 +170,12 @@ export interface RunOptions {
    */
   agentPath?: readonly string[];
   /**
+   * The run that started this one as a background child. Unlike a fork this copies no memory:
+   * the child is a fresh run that names its parent so the parent's row and the child's record
+   * point at each other.
+   */
+  parentRunId?: string;
+  /**
    * Branch a fresh run from a parent record at one of its steps. The child copies the parent's
    * memory and journal up to that step, names the parent on its own record, and re-enters the
    * step with the copied journal, so a recorded effect replays instead of running twice.
@@ -215,6 +221,8 @@ export interface RunContext {
   readonly agentPath: readonly string[];
   /** The declared target this run handed the conversation to, once it has. */
   transfer: TransferSignal | undefined;
+  /** Background children this run started, when the loop itself started them. */
+  children: RunRecord["children"];
   /** The parent run and step of a fork, written on every commit of the branch. */
   parentRunId: string | undefined;
   parentStep: number | undefined;
@@ -637,7 +645,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       messages: [],
       agentPath: options.agentPath ?? [],
       transfer: undefined,
-      parentRunId: undefined,
+      children: undefined,
+      parentRunId: options.parentRunId,
       parentStep: undefined,
       completed: [],
       openStep: undefined,
@@ -1108,6 +1117,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
         memory: { steps },
         ...(context.pending === undefined ? {} : { pending: context.pending }),
         ...(context.transfer === undefined ? {} : { transfer: context.transfer }),
+        ...(context.children === undefined || context.children.length === 0
+          ? {}
+          : { children: context.children }),
         ...(context.settlements.length === 0 ? {} : { settlements: context.settlements }),
         createdAt: context.createdAt,
         updatedAt: new Date().toISOString(),

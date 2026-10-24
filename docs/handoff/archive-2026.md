@@ -4,6 +4,36 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-24T22:10:00+03:00 — 2.3: every event and record names its agent path
+
+**State.** Phase 2 is open; 2.1 (typed child report) and 2.3 (agent path) are landed. Next is 2.6,
+then 2.7, then the second slice. Nothing pushed.
+
+**Did.** `AgentEvent` is the payload union intersected with an optional `agentPath`, and `emit`
+writes the running context's path onto every event, so the runtime form always carries it. The
+root run's path is empty; a managed child runs with its parent's path plus its own name, so a
+second level reads `["researcher","writer"]`. `RunOptions.agentPath` seeds a run and
+`RunRecord.agentPath` keeps it; both executor seams forward the path to every tool call's
+`ToolContext`, which is how the managed-agent tool knows where to extend it. A caller-supplied
+path is extended, never replaced.
+
+**Verified.** `agent-path.test.ts` (45th core file, 5 cases) green: empty root path, one-level and
+two-level child paths, the stored record path, and extension of a caller's path. Core 45
+files/532 tests; `pnpm typecheck` clean across the workspace; `pnpm gate` exit 0; validator
+0/0; rotate clean. Two exact event-shape assertions moved to `toMatchObject` because the event
+contract grew a field.
+
+**Unverified / open.** 2.6, 2.7, 2.2, 2.4, 2.5 and 2.8 are not started. A child's record is not
+durable unless its own run names a run id; the path is on the record either way.
+
+**Next.** 2.6: `sendRunMessage` writes an ordinary user-role message into a run's record and
+returns a receipt; a running target sees it at its next step boundary, a parked one resumes.
+
+**Blockers.** None; the owner's blocked rows are unchanged.
+
+**Artifacts.** `packages/core/src/events.ts`; `packages/core/src/agent/multi-step-agent.ts`;
+`packages/core/src/session/run-record.ts`; `packages/core/test/agent-path.test.ts`.
+
 ## 2026-10-24T21:45:00+03:00 — Phase 2 opened; 2.1 gives a child a typed report
 
 **State.** Phase 2 (delegation that survives its parent) is open under

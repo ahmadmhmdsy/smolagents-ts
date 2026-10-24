@@ -20,6 +20,7 @@ export type AgentErrorCode =
   | "AGENT_RUN_CLAIMED"
   | "AGENT_RUN_STALE_WRITER"
   | "AGENT_RUN_MESSAGE_REFUSED"
+  | "AGENT_CHILD_LIMIT"
   | "AGENT_EFFECT_UNKNOWN";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
@@ -284,6 +285,17 @@ export class RunMessageRefusedError extends AgentError {
   }
 }
 
+/**
+ * Raised when a start would exceed the parent's cap on live background children. The start is
+ * refused before any row is written, so a refused start leaves the parent record untouched.
+ */
+export class ChildLimitError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_CHILD_LIMIT" });
+    this.name = "ChildLimitError";
+  }
+}
+
 /** Raised when a tool does not settle inside its deadline. */
 export class ToolTimeoutError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
@@ -323,5 +335,6 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_RUN_CLAIMED: RunClaimedError,
   AGENT_RUN_STALE_WRITER: StaleWriterError,
   AGENT_RUN_MESSAGE_REFUSED: RunMessageRefusedError,
+  AGENT_CHILD_LIMIT: ChildLimitError,
   AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
 };

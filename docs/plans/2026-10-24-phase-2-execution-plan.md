@@ -197,6 +197,17 @@ the phase task; handoff entry; final gate and commit. The goal is complete only 
 
 *(newest first; an entry is written when an item lands or a criterion proves wrong)*
 
+- **2026-10-24 — 2.4 as built.** `agent/background-child.ts` starts a child that outlives the
+  call. The parent record gains a `children` row (`provisioning`, then `active`, then
+  `completed`/`failed` with the typed `ChildReport`), written as its own commit at the parent's
+  next fence; the child runs under its own id with `parentRunId` on its record, so the two point
+  at each other. The cap (default 4) counts rows in `provisioning`/`active` and refuses the next
+  start with `ChildLimitError` before writing anything. `listChildren` reads rows and resumes
+  nothing; `resumeBackgroundChild` returns a stored report, adopts a child record behind a
+  `provisioning` row, fails a row that has no record, and resumes an unfinished child. The child's
+  agent must be built with the same store. Core 49 files/571 tests, CLI 11/77, `pnpm gate` exit 0.
+
+
 - **2026-10-24 — 2.2 as built.** `agent/transfer.ts` declares a `TransferTarget` and builds its
   `transfer_to_<name>` tool; the name comes from the declaration, so a target that was not
   declared has no call the model can make, and an invalid name, a blank description, a duplicate

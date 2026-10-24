@@ -48,6 +48,7 @@ export * from "./agent/tool-calling-agent.js";
 export * from "./agent/managed-agent.js";
 export * from "./agent/child-report.js";
 export * from "./agent/transfer.js";
+export * from "./agent/background-child.js";
 export * from "./agent/approval.js";
 export * from "./agent/guardrail.js";
 export * from "./middleware.js";
