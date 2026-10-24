@@ -4,6 +4,37 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T04:58:00+03:00 — Phase 4.8 landed: the Docker exec transport
+
+**State.** 4.1–4.8 are landed; the phase close remains (two exit tests, report, parent-plan
+check, `T-45` closed).
+
+**Did.** `docker.test.ts` was rewritten (9 tests) and watched red on the deny-all refusal, the
+missing `endpoint` on the new seam and every exec assertion. The Docker backend now starts one
+container from a plain `python:3.12-slim` image, opens one long-lived `docker exec` session
+whose program is the prelude plus the step loop, and resolves `start` on the guest's `ready`
+frame; steps and tool replies both cross that session's stdin, and an aborted step kills the
+session, whose kill path stops the container. `ContainerRuntime` replaced `endpoint()` with
+`execSession()`, `ContainerCreateRequest` carries `networkMode` instead of a published port,
+and `deny-all` is enforced as `none` and reported in the capability instead of refused.
+`jupyter.ts`, `rpc.ts` and their two tests plus `test/ws-server.ts` are deleted; the live docs
+that described the kernel gateway are updated.
+
+**Verified.** `pnpm vitest run --project exec-remote` → 12 files / 93 tests, exit 0; `pnpm -r
+typecheck` and `pnpm lint` are clean; `python scripts/validate_context.py` → 0 errors, 0
+warnings; the item gate is recorded in the plan.
+
+**Unverified / open.** No live daemon was touched: the dockerode exec implementation (hijacked
+stdio, kill-stops-container) is exercised only by the seam's double. The phase close is not
+started.
+
+**Next.** Write `packages/mcp/test/phase-4-exit.test.ts` and `packages/exec-remote/test/phase-4-exit.test.ts` and watch them fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:222` and `:276`,
+`packages/exec-remote/src/backends/docker.ts`, `packages/exec-remote/test/docker.test.ts`.
+
 ## 2026-10-25T04:38:00+03:00 — Phase 4.7 landed: E2B depth
 
 **State.** 4.1–4.7 are landed; 4.8 and the phase close remain.

@@ -6,7 +6,7 @@
 - **Read when:** deciding what to build next, or starting a phase.
 - **Update when:** a phase lands, an open question is answered, or the research behind an item is superseded.
 
-- **Status:** active — Phase 0 open
+- **Status:** active — Phases 0–5 closed; Phase 6 is reserved and unopened
 - **Owner:** owner
 - **Created:** 2026-10-22T14:20:00+03:00
 - **Authorized by:** owner, 2026-10-24 ("open Phase 0"); the dive's adoptable items and the delegation ruling are approved (`0025`), and Phase 0 executes under [`2026-10-24-phase-0-execution-plan.md`](docs/plans/2026-10-24-phase-0-execution-plan.md).
@@ -217,7 +217,7 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 | `T-43` | Phase 2 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-2-report.md) |
 | `T-44` | Phase 3 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-3-report.md) |
 | `T-45` | Phase 4 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-4-report.md) |
-| `T-46` | Phase 5 | in progress — [plan](docs/plans/2026-10-25-phase-5-execution-plan.md) |
+| `T-46` | Phase 5 | done 2026-10-25 — [report](docs/reports/2026-10-25-phase-5-report.md) |
 | reserved `T-47` | Phase 6 | not yet opened |
 
 ## Definition of done

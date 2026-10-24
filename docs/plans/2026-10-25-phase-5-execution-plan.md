@@ -1,6 +1,6 @@
 # Phase 5 — observation and cost: execution plan
 
-**Date:** 2026-10-25 · **Status:** in progress · **Owner:** lead · **Parent:**
+**Date:** 2026-10-25 · **Status:** complete · **Owner:** lead · **Parent:**
 [apply the competitor findings](2026-10-22-apply-the-competitor-findings-plan.md), rows 5.1–5.2.
 
 **Contract**
@@ -232,6 +232,12 @@ Each item runs the same loop, and the order is part of the criterion:
 
 ## Changes
 
+- **2026-10-25 — closed.** The three clauses ran as
+  `packages/core/test/phase-5-exit.test.ts` (59th core file, three cases); it passed on its
+  first run because each half was already pinned by its item, so it is the integration proof
+  rather than a red-first feature. Core is 59 files and 655 tests, models 13 and 74, the whole
+  repository 166 files and 1295 tests, pins 119. [The report](../reports/2026-10-25-phase-5-report.md)
+  records the evidence, the parent-plan check and the open items.
 - **2026-10-25 — 5.2 landed.** `TokenUsage` keeps the cache split (absent when unreported) and
   the three HTTP adapters fill it; `monitoring/pricing.ts` is the dated, sourced table, the
   longest-prefix lookup, integer micro-dollar cost and the six-decimal string; the budget grows

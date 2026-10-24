@@ -33,6 +33,35 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T07:10:00+03:00 — Phase 5 closed: observation and cost done
+
+**State.** Phases 0–5 are closed; Phase 6 is reserved and waits on the owner. `T-46` closed with
+its report; nothing pushed.
+
+**Did.** Wrote the exit criterion as `packages/core/test/phase-5-exit.test.ts` (59th core file,
+three clauses): the same run posts nothing with no exporter and one span tree with one, a priced
+turn crossing `maxCostUsd` emits `run.limitReached` with `limitCostUsd` while the model records
+one call, and an unknown price completes with no `cost` and `costBasis: "unknown"`. Wrote
+`docs/reports/2026-10-25-phase-5-report.md`; marked the phase plan complete, the parent plan's
+`T-46` row done and its status at Phases 0–5; updated `T-40`'s gate text and moved the `T-46` row
+verbatim to `docs/tasks/archive-2026.md`; refreshed the core count.
+
+**Verified.** The exit file passes 3 of 3; whole repo 166 files / 1295 tests (core 59/655, models
+13/74); pins core 119; validator 0/0; gate exit 0 at `56d2fb8`; the close commit is docs-only.
+
+**Unverified / open.** No live collector or bill: the exporter is proven against its mapping, and
+the three price rows are list prices read on 2026-10-25 that rot. A cap checks between steps, so
+the crossing turn is paid for. A resumed run without a handle starts cost at zero. Streamed
+Anthropic cache tokens are mapped but have no fixture.
+
+**Next.** Phase 6 waits for the owner to open it; `T-47` is reserved.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/reports/2026-10-25-phase-5-report.md`,
+`docs/plans/2026-10-25-phase-5-execution-plan.md`,
+`packages/core/test/phase-5-exit.test.ts`.
+
 ## 2026-10-25T06:40:00+03:00 — Phase 5.2 landed: priced cost and its cap
 
 **State.** 5.1 and 5.2 are landed; the phase close remains.
@@ -110,35 +139,4 @@ closed the client first — a test bug, recorded in the report.
 **Artifacts.** `docs/reports/2026-10-24-phase-4-report.md`,
 `packages/mcp/test/phase-4-exit.test.ts`,
 `packages/exec-remote/test/phase-4-exit.test.ts`.
-
-## 2026-10-25T04:58:00+03:00 — Phase 4.8 landed: the Docker exec transport
-
-**State.** 4.1–4.8 are landed; the phase close remains (two exit tests, report, parent-plan
-check, `T-45` closed).
-
-**Did.** `docker.test.ts` was rewritten (9 tests) and watched red on the deny-all refusal, the
-missing `endpoint` on the new seam and every exec assertion. The Docker backend now starts one
-container from a plain `python:3.12-slim` image, opens one long-lived `docker exec` session
-whose program is the prelude plus the step loop, and resolves `start` on the guest's `ready`
-frame; steps and tool replies both cross that session's stdin, and an aborted step kills the
-session, whose kill path stops the container. `ContainerRuntime` replaced `endpoint()` with
-`execSession()`, `ContainerCreateRequest` carries `networkMode` instead of a published port,
-and `deny-all` is enforced as `none` and reported in the capability instead of refused.
-`jupyter.ts`, `rpc.ts` and their two tests plus `test/ws-server.ts` are deleted; the live docs
-that described the kernel gateway are updated.
-
-**Verified.** `pnpm vitest run --project exec-remote` → 12 files / 93 tests, exit 0; `pnpm -r
-typecheck` and `pnpm lint` are clean; `python scripts/validate_context.py` → 0 errors, 0
-warnings; the item gate is recorded in the plan.
-
-**Unverified / open.** No live daemon was touched: the dockerode exec implementation (hijacked
-stdio, kill-stops-container) is exercised only by the seam's double. The phase close is not
-started.
-
-**Next.** Write `packages/mcp/test/phase-4-exit.test.ts` and `packages/exec-remote/test/phase-4-exit.test.ts` and watch them fail red.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/plans/2026-10-24-phase-4-execution-plan.md:222` and `:276`,
-`packages/exec-remote/src/backends/docker.ts`, `packages/exec-remote/test/docker.test.ts`.
 <!-- rotate:end -->
