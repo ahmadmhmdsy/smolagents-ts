@@ -345,6 +345,18 @@ The conditions: the package README gains the limitation paragraph in this commit
 
 Retrieval is the main capability the program deliberately deferred, and the decision already names the shape that keeps it out of the core. It should get a plan like the one that closed Phase 6, with the package question answered inside it. Starting before the release would delay 0.1.0 for a large surface.
 
+#### Decision (2026-10-25)
+
+**Option A.** Retrieval is scheduled as the first new capability phase after 0.1.0, with its execution plan written at that point rather than now. `0026` fixes the shape; the plan fixes the packaging and the acceptance tests, and it is written against a named consumer — a docs Q&A example — so the seam is designed for a user rather than for the record.
+
+Three conditions are pre-registered in the phase row and belong to that plan:
+
+- **A deterministic embedding** (a hashing or bag-of-words vector) for the tests and the example, so the gate proves the retrieval path with no network.
+- **The retriever is a message appended before `run()`**, which is what `0026` chose and what survives checkpointing under `0031`, with a thin `asTool()` adapter over the same implementation for callers whose agent decides when to retrieve.
+- **Packaging is tested against the refuse list inside the plan** (my expectation is a new `packages/retrieval` plus a facade entry), not pre-committed here.
+
+The boundary items this discussion surfaced are the plan's to settle: chunking as a stateless helper in the example rather than in the seam; embedding adapters opt-in and never a network default; dimension and fingerprint validation in the in-memory store; a retrieval record in the trace even without a core hook; and caller-owned persistence, with the injected-filesystem shape if a file-backed store ships.
+
 ### D-11 — multimodal stays parked (0018)
 
 **Row:** none. **Effort:** none unless reopened.
@@ -379,7 +391,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land. Then D-08 phase 0, which is additive and gates nothing.
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
 3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
-4. **D-10** as its own planned phase (retrieval).
+4. **D-10** as its own planned phase (retrieval) and the first new capability after the release, with the three conditions in `T-55`; it does not interleave with the hygiene batch.
 5. **Parked:** D-09 (a worker is pre-registered in `0033` and waits on a browser runner or a caller who cannot use the remote executors), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
 
 
@@ -396,7 +408,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-07 | a tool scenario in the parity corpus (T-19) | decided 2026-10-25 | B — a tool-calling scenario family (success and unknown-tool), post-release; the row's option A was a no-op | 2026-10-25 |
 | D-08 | OmniRoute intake (T-39) | decided 2026-10-25 | A — phase 0 now (README section, runbook, gateway example, four-frame fixture); phase 1 parked as `T-54` | 2026-10-25 |
 | D-09 | Pyodide interrupt (T-24) | decided 2026-10-25 | B — keep in-process and document it; `0033` corrects 0016's premises and pre-registers the terminate worker | 2026-10-25 |
-| D-10 | when retrieval gets built (0026) | open | | |
+| D-10 | when retrieval gets built (0026) | decided 2026-10-25 | A — the first post-release capability phase; its plan pre-registers a deterministic embedding, a message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging | 2026-10-25 |
 | D-11 | multimodal stays parked (0018) | open | | |
 | D-12 | residual-risk chores | open | | |
 
@@ -439,9 +451,18 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | "Wait for a caller report" makes the first hang victim the test | D-09 | `T-24`'s gate names a browser runner, a user who cannot use the remote executors, or a recorded hang |
 | The worker would report `cpuTimeLimitMs`; the in-process bag stays without one | D-09 | `0033` point 3; the pre-registered shape names the capability it earns |
 | State loss on interrupt is a recovery cost, not a bug; a worker's tool calls become message round trips | D-09 | `0033` point 3 |
+| Chunking is the boundary's soft spot: ingestion is refused, yet whole documents retrieve badly | D-10 | the plan decides, with the stateless helper in the example as the default |
+| An embedding adapter is a packaging question, not a reflex: `models` is scoped to the `Model` interface | D-10 | the plan; opt-in only, never a default that reaches the network |
+| A store that accepts one vector width and queries another returns confident nonsense | D-10 | fingerprint validation in the in-memory store, one of the plan's acceptance tests |
+| A message-only retriever is invisible in the trace | D-10 | the plan must decide a package-level retrieval record |
+| In-memory means embeddings die with the process | D-10 | caller-owned persistence stated in the docs; a file store only over an injected filesystem |
+| Embedding costs money and nothing caches in v1 | D-10 | bounded top-k and character defaults, and the no-cache sentence, in the docs |
+| The acceptance tests will prove the seam, not retrieval quality; this repository has no corpus | D-10 | said in the plan and its report |
+| A capability phase mixed with the hygiene batch loses its exit criterion | D-10 | the order section keeps D-10 its own phase |
 
 ## Changes
 
+- 2026-10-25: D-10 decided as option A, retrieval scheduled as the first post-release capability phase, with the plan written then against a named consumer. The three pre-registered conditions are the deterministic embedding, the message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging; the chunking, embedding-adapter, fingerprint, trace-visibility and persistence boundary items are the plan's to settle.
 - 2026-10-25: D-09 decided as option B, keep in-process and document it. The row's premise was wrong: COOP/COEP belong to the shared-interrupt-buffer variant, and the injectable-loader escape hatch is Node-only. The worker is pre-registered terminate-based in `0033`, the README gains the limitation paragraph, and `T-24`'s trigger is evidence the repository can see rather than a first report.
 - 2026-10-25: D-08 decided as option A, phase 0 only. The gateway already works at the wire level, so the work is discoverability: a README subsection, a runbook, one example and a hand-shaped four-frame fixture named by wire shape rather than by OmniRoute. Phase 1 stays parked as `T-54` with its metadata-channel question written down; the missing user-guide tree and the silently ignored `--api-base` become `T-52` and `T-53`.
 - 2026-10-25: filed at `d7e1677`. While checking D-01's premise, found that a budget stop reaches `.run()` through the generic fallback, so a normal condition is reported as a missing terminal event; folded into D-01. Two board rows found stale (T-26, T-29).

@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T21:10:00+03:00 — D-10 decided: retrieval is the first post-release capability
+
+**State.** Ten of twelve decided; no code changed. D-10 schedules retrieval as its own phase after the release, with its plan written then.
+
+**Did.** The owner chose A. `0026` already fixed the shape — a caller-supplied embedding, a store interface with one in-memory reference, and a retriever that inserts an ordinary transcript turn — so the row was scheduling, not design. The plan is written after 0.1.0 against a named consumer (a docs Q&A example), with three conditions pre-registered in `T-55`: a deterministic embedding so the gate needs no network, the retriever as a message appended before `run()` plus an `asTool()` adapter over the same implementation, and packaging tested against the refuse list (expected to be a new `packages/retrieval` and a facade entry, not pre-committed here).
+
+**Verified.** Nothing was built; the rotation and the context validator pass, and the tree was green on `d55f008` before this commit.
+
+**Unverified / open.** The chunking boundary, the embedding-adapter packaging, the store's dimension fingerprint, trace visibility for a message-only retriever, persistence and the no-cache cost are the plan's to settle; its tests will prove the seam, not retrieval quality, because this repository has no corpus.
+
+**Next.** D-11: multimodal stays parked.
+
+**Blockers.** `T-14` on credentials; `T-24`, `T-52` and `T-54` on the owner.
+
+**Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [`0026`](09-decisions/0026-retrieval-is-in.md).
+
 ## 2026-10-25T20:52:00+03:00 — D-09 decided: keep the Python executor in-process, and correct the record
 
 **State.** Nine of twelve decided; no code changed. No worker ships in 0.1.0; the parked row is pre-registered and the README now names the limit.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None for the decision; `T-14` needs registry credentials and the scope claim.
 
 **Artifacts.** [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record.py`](../scripts/parity/record.py), [`04-tasks.md`](04-tasks.md).
-
-## 2026-10-25T19:52:00+03:00 — D-06 decided: the snapshot carries the conversation
-
-**State.** Six of twelve decisions settled; no code changed, nothing published. The pre-release set is D-01, D-02 and D-06, with T-49 to T-51 on the board.
-
-**Did.** The owner chose A+A1, pre-release. Reading the code shrank the question: `AgentMemory.toChatMessages()` already existed, documented as the React shell's chat view and tested, but nothing consumed it. Decision [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md): the snapshot gains `messages`, recomputed at step boundaries only; `MultiStepAgent` gains one accessor delegating to the memory renderer; `ChatSurfaceProps.messages` becomes optional and defaults to the snapshot; the example drops its constant. The conversation is lossy by design (no observations, no plans) and spans turns only for a checkpointed session.
-
-**Verified.** `toChatMessages` is referenced only in `memory.ts`, its tests and the design. The loop adds to memory before the session's boundary events (`multi-step-agent.ts:1419-1420`, `:1249`), so boundary recomputation is not a step behind. `ChatSurface` already reads the snapshot context, and the public-surface pin lists runtime exports only, so no pinned name changes.
-
-**Unverified / open.** The wiring itself: the in-flight step is absent, a delta must not move the list, and a checkpointed session must show earlier turns. D-07 to D-12 are undiscussed.
-
-**Next.** D-07: a tool scenario in the parity corpus (T-19).
-
-**Blockers.** None for the decision; T-14 waits on credentials and the scope claim.
-
-**Artifacts.** [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md), [`memory.ts:167`](../packages/core/src/memory/memory.ts), [`04-tasks.md`](04-tasks.md).
 <!-- rotate:end -->

@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T19:52:00+03:00 — D-06 decided: the snapshot carries the conversation
+
+**State.** Six of twelve decisions settled; no code changed, nothing published. The pre-release set is D-01, D-02 and D-06, with T-49 to T-51 on the board.
+
+**Did.** The owner chose A+A1, pre-release. Reading the code shrank the question: `AgentMemory.toChatMessages()` already existed, documented as the React shell's chat view and tested, but nothing consumed it. Decision [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md): the snapshot gains `messages`, recomputed at step boundaries only; `MultiStepAgent` gains one accessor delegating to the memory renderer; `ChatSurfaceProps.messages` becomes optional and defaults to the snapshot; the example drops its constant. The conversation is lossy by design (no observations, no plans) and spans turns only for a checkpointed session.
+
+**Verified.** `toChatMessages` is referenced only in `memory.ts`, its tests and the design. The loop adds to memory before the session's boundary events (`multi-step-agent.ts:1419-1420`, `:1249`), so boundary recomputation is not a step behind. `ChatSurface` already reads the snapshot context, and the public-surface pin lists runtime exports only, so no pinned name changes.
+
+**Unverified / open.** The wiring itself: the in-flight step is absent, a delta must not move the list, and a checkpointed session must show earlier turns. D-07 to D-12 are undiscussed.
+
+**Next.** D-07: a tool scenario in the parity corpus (T-19).
+
+**Blockers.** None for the decision; T-14 waits on credentials and the scope claim.
+
+**Artifacts.** [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md), [`memory.ts:167`](../packages/core/src/memory/memory.ts), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T19:31:00+03:00 — D-05 decided: the 0.1.0 gate is stated
 
 **State.** Five of the twelve decisions are settled; no code changed and nothing is published. `T-14` stays blocked on the two external inputs.
