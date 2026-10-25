@@ -4,6 +4,38 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T06:40:00+03:00 — Phase 5.2 landed: priced cost and its cap
+
+**State.** 5.1 and 5.2 are landed; the phase close remains.
+
+**Did.** `TokenUsage` keeps the provider's cache split (absent when unreported) and the three
+HTTP adapters fill it from `prompt_tokens_details.cached_tokens`,
+`cache_read_input_tokens`/`cache_creation_input_tokens` and `cachedContentTokenCount`;
+Anthropic's input total adds its cache counts, as its wire reports them apart. New
+`monitoring/pricing.ts`: dated sourced rows, longest-prefix lookup, integer micro-USD cost and a
+six-decimal string; a missing rate falls back to the input rate, an unknown model is
+`undefined`. The budget gains `maxCostMicroUsd`/`costMicroUsd`, `limitCostUsd` and
+`spendCostBudget`; the loop prices each model turn so the cap lands before the next call, and
+the result reports `cost` plus `costBasis`. An unknown price completes with no cost and
+`"unknown"`, never zero.
+
+**Verified.** `usage-cost-budget.test.ts` (58th core file, seven cases) red first, then the
+three adapter cases red on the missing fields; core 58 files / 652 tests and models 13 / 74
+exit 0; typecheck clean. Totals and the pin count (119) are in the plan.
+
+**Unverified / open.** The streamed Anthropic cache split has no fixture, only the
+`message_start` mapping; the shipped rows are list prices read on 2026-10-25 and rot; a cap
+that a turn crosses still pays for that turn before stopping, so one response overshoots. The
+phase close is not started.
+
+**Next.** Write `packages/core/test/phase-5-exit.test.ts` and watch its three clauses fail red.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md:230`,
+`packages/core/src/monitoring/pricing.ts`, `packages/core/src/session/budget.ts`,
+`packages/core/test/usage-cost-budget.test.ts`.
+
 ## 2026-10-25T06:10:00+03:00 — Phase 5.1 landed: the opt-in OTel exporter
 
 **State.** Phase 5 is open as `T-46` and 5.1 is done; 5.2 is next. Phases 0–4 stay closed and nothing has been pushed.

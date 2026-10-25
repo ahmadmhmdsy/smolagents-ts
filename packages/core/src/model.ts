@@ -74,6 +74,12 @@ export interface GenerateOptions {
   temperature?: number;
   maxTokens?: number;
   signal?: AbortSignal;
+  /**
+   * Provider-specific request options, typed by the adapter that reads them. The core carries the
+   * object to the model and never reads a field of it, so a cache marker or a vendor knob does not
+   * need a core release. Every adapter exports its own interface for this field.
+   */
+  providerOptions?: Readonly<Record<string, unknown>>;
 }
 
 /**

@@ -187,6 +187,11 @@ export interface AgentOptions {
    * worked out on its result, and the date of the row it used.
    */
   priceTable?: readonly ModelPrice[];
+  /**
+   * Options handed to every model turn beneath the ones the loop builds: a pinned temperature, a
+   * per-run cache hint. The loop's own signal and advertised tools win over a caller's copy.
+   */
+  modelOptions?: GenerateOptions;
 }
 
 /** One step's resolved view of the tool set: what is advertised, what runs, and the policy. */
@@ -401,6 +406,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly exporter: SpanExporter | undefined;
   /** The price rows this agent costs a run against; undefined means the shipped table. */
   private readonly priceTable: readonly ModelPrice[] | undefined;
+  /** The options a caller pinned for every model turn, beneath the ones the loop builds. */
+  private readonly baseModelOptions: GenerateOptions;
   /** Refusals spent by the run in flight; the budget itself is the module constant. */
   private policyRepairs = 0;
   /** Tool names that completed a call in this run, for a "require" check. */
@@ -423,6 +430,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.toolPolicy = options.toolPolicy;
     this.exporter = options.exporter;
     this.priceTable = options.priceTable;
+    this.baseModelOptions = options.modelOptions ?? {};
     const managedAgents = options.managedAgents ?? [];
     const transfers = options.transfers ?? [];
     // Managed agents and transfers are added to this agent's registry, so a caller's registry is
@@ -1862,7 +1870,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /** The request options for one model turn, assembled in one place. */
   private modelOptions(context: RunContext): GenerateOptions {
-    const options: GenerateOptions = { signal: context.signal };
+    // The caller's options come first, so the loop's signal and advertised tools always win.
+    const options: GenerateOptions = { ...this.baseModelOptions, signal: context.signal };
     if (this.advertisesTools) {
       const specs = [...this.advertisedRegistry().toSpecs()];
       // The bound answer schema travels as the final_answer parameter schema, so the model

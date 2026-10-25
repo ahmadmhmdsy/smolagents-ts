@@ -33,6 +33,38 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T09:50:00+03:00 — Phase 6 closed, and with it the program
+
+**State.** Phases 0–6 are closed. `T-47` and `T-40` are done; nothing is pushed. Publication still waits on `T-14`.
+
+**Did.** `packages/models/test/phase-6-exit.test.ts` proves the three clauses: a shimmed pre-numbering model finishes a run, a cache hint set through agent options reaches the Anthropic body, and the barrel's adapters are exactly the conformance list. The list moved to a shared test module. Report, parent plan, tasks and the execution plan closed in one commit.
+
+**Verified.** Exit file 3 passed; core 61/662, models 16/89, whole repository 171/1317; validator 0 errors and 0 warnings; `pnpm gate` exit 0.
+
+**Unverified / open.** No v2 exists, so the shim's translation path is unproven by construction. 6.2 reopens only when a caller asks under 0018. Retrieval has a decision and no date.
+
+**Next.** `T-14` when the owner supplies credentials; otherwise the pending rows in the task file.
+
+**Blockers.** None.
+
+**Artifacts.** [`2026-10-25-phase-6-report.md`](reports/2026-10-25-phase-6-report.md).
+
+## 2026-10-25T09:30:00+03:00 — Phase 6.3 landed: provider options have a typed home
+
+**State.** Phase 6 is open as `T-47`; 6.3 is done and the exit criterion is next. 6.2 stays deferred under 0018 and 6.4 stays answered by 0026. Nothing pushed.
+
+**Did.** `GenerateOptions.providerOptions` is an opaque record; `AgentOptions.modelOptions` pins options for every turn and is spread beneath the loop's signal and advertised tools. The three wire adapters export typed interfaces with `extraBody`, Anthropic adds up to three cache breakpoints with a `5m`/`1h` lifetime, OpenAI names its prompt-cache key and retention, Gemini names `cachedContent`. Widened request parameters keep `Model` assignability.
+
+**Verified.** Both case files were watched red: the core file on the absent option, the adapter file on the missing fields. `pnpm typecheck` clean; core 61 files / 662 tests (two cases), models 15 / 86 (six cases).
+
+**Unverified / open.** No provider was reached; bodies come from recorded fixtures. The breakpoint cap is three, under Anthropic's four, because three are what a fixture can prove. The back-compat claim is one test: no options yields the same body shape as before.
+
+**Next.** Write the exit file, the report, close the phase.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/models/test/provider-options.test.ts`; `packages/core/test/model-options.test.ts`.
+
 ## 2026-10-25T09:10:00+03:00 — Phase 6.1 landed: the adapter contract is numbered
 
 **State.** Phase 6 is open as `T-47`; 6.1 is done and 6.3 is next. Phases 0–5 stay closed and nothing has been pushed.
@@ -93,36 +125,4 @@ Anthropic cache tokens are mapped but have no fixture.
 **Artifacts.** `docs/reports/2026-10-25-phase-5-report.md`,
 `docs/plans/2026-10-25-phase-5-execution-plan.md`,
 `packages/core/test/phase-5-exit.test.ts`.
-
-## 2026-10-25T06:40:00+03:00 — Phase 5.2 landed: priced cost and its cap
-
-**State.** 5.1 and 5.2 are landed; the phase close remains.
-
-**Did.** `TokenUsage` keeps the provider's cache split (absent when unreported) and the three
-HTTP adapters fill it from `prompt_tokens_details.cached_tokens`,
-`cache_read_input_tokens`/`cache_creation_input_tokens` and `cachedContentTokenCount`;
-Anthropic's input total adds its cache counts, as its wire reports them apart. New
-`monitoring/pricing.ts`: dated sourced rows, longest-prefix lookup, integer micro-USD cost and a
-six-decimal string; a missing rate falls back to the input rate, an unknown model is
-`undefined`. The budget gains `maxCostMicroUsd`/`costMicroUsd`, `limitCostUsd` and
-`spendCostBudget`; the loop prices each model turn so the cap lands before the next call, and
-the result reports `cost` plus `costBasis`. An unknown price completes with no cost and
-`"unknown"`, never zero.
-
-**Verified.** `usage-cost-budget.test.ts` (58th core file, seven cases) red first, then the
-three adapter cases red on the missing fields; core 58 files / 652 tests and models 13 / 74
-exit 0; typecheck clean. Totals and the pin count (119) are in the plan.
-
-**Unverified / open.** The streamed Anthropic cache split has no fixture, only the
-`message_start` mapping; the shipped rows are list prices read on 2026-10-25 and rot; a cap
-that a turn crosses still pays for that turn before stopping, so one response overshoots. The
-phase close is not started.
-
-**Next.** Write `packages/core/test/phase-5-exit.test.ts` and watch its three clauses fail red.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md:230`,
-`packages/core/src/monitoring/pricing.ts`, `packages/core/src/session/budget.ts`,
-`packages/core/test/usage-cost-budget.test.ts`.
 <!-- rotate:end -->

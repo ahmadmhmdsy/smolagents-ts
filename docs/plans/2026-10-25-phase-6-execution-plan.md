@@ -1,6 +1,6 @@
 # Phase 6 — model and output depth: execution plan
 
-**Date:** 2026-10-25 · **Status:** in progress · **Owner:** lead · **Parent:**
+**Date:** 2026-10-25 · **Status:** complete · **Owner:** lead · **Parent:**
 [apply the competitor findings](2026-10-22-apply-the-competitor-findings-plan.md), rows 6.1, 6.3
 and 6.4 (6.2 deferred).
 
@@ -192,12 +192,13 @@ in order, each with its own commit and gate.
 | after | core pins | core test files | core tests | models test files | models tests |
 |---|---|---|---|---|---|
 | Phase 5 close | 119 | 59 | 655 | 13 | 74 |
-| 6.1 | 121 (+2) | 60 (+1) | 658 (+3) | 14 (+1) | 80 (+6) |
-| 6.3 | 121 | 61 (+1) | 660 (+2) | 15 (+1) | 86 (+6) |
-| exit + close | 121 | 61 | 660 | 16 (+1) | 89 (+3) |
+| 6.1 | 121 (+2) | 60 (+1) | 660 (+5) | 14 (+1) | 80 (+6) |
+| 6.3 | 121 | 61 (+1) | 662 (+2) | 15 (+1) | 86 (+6) |
+| exit + close | 121 | 61 | 662 | 16 (+1) | 89 (+3) |
 
-Repository totals after the close: 171 files and 1315 tests (the Phase 5 close measured 166 and
-1295). No type-only export changes a pin; the models barrel keeps its six names.
+Repository totals after the close: 171 files and 1317 tests (the Phase 5 close measured 166 and
+1295). The 6.1 column gained two cases over its estimate because the core case file holds three,
+not one, once the shim's identity and forwarding paths are proved separately. No type-only export changes a pin; the models barrel keeps its six names.
 
 ## Verification per item
 
@@ -254,6 +255,24 @@ Each item runs the same loop, and the order is part of the criterion:
 
 ## Changes
 
+- **2026-10-25 — Phase 6 closed.** 6.1, 6.3 and the exit criterion are committed and the phase
+  report is [`2026-10-25-phase-6-report.md`](../reports/2026-10-25-phase-6-report.md). The
+  parent plan's Phase 6 row is done, `T-47` closes with the report, `T-40` closes with the
+  program, and 6.2 stays deferred under 0018 while 6.4 stays answered by 0026.
+- **2026-10-25 — 6.3 landed.** `GenerateOptions.providerOptions` is an opaque record the core
+  carries and never reads; `AgentOptions.modelOptions` pins options for every turn and is merged
+  beneath the loop's own signal and advertised tools. The three wire adapters export a typed
+  interface (`AnthropicProviderOptions`, `OpenAICompatibleProviderOptions`,
+  `GeminiProviderOptions`) and widen their request parameter to accept it. Anthropic writes at most
+  three cache breakpoints (system, last tool, last user block, with an optional TTL) and every
+  adapter merges `extraBody` beneath its own keys. The two case files failed first on the missing
+  field and the missing cache markers; core is 61 files and 662 tests (two cases), models is 15 and
+  86 (six cases).
+- **2026-10-25 — the exit criterion.** `phase-6-exit.test.ts` is the sixteenth models file and
+  proves three clauses: a shimmed pre-numbering model finishes a `CodeAgent` run, a cache hint set
+  through `AgentOptions.modelOptions` arrives in the Anthropic request body, and every name in the
+  barrel is the conformance list's name. The list moved to `test/adapter-contract.ts` so both
+  files read one copy. Models is 16 files and 89 tests.
 - **2026-10-25 — 6.1 landed.** `MODEL_ADAPTER_VERSION` is 1, `ModelAdapterV1` names the
   contract the four adapters already implemented, and `upgradeModelAdapter` supplies the marker
   on behalf of a model written before it, forwarding both calls and keeping its identity. Each

@@ -32,6 +32,19 @@ export interface GeminiOptions {
   provider?: string;
 }
 
+/** The provider-specific request options this adapter reads; the core never looks inside. */
+export interface GeminiProviderOptions {
+  /** A provider may add fields; an unknown key is the caller's to justify. */
+  [key: string]: unknown;
+  /** A context cache the provider already holds, addressed as "cachedContents/...". */
+  cachedContent?: string;
+  /** Extra top-level request fields, merged beneath the adapter's own. */
+  extraBody?: Readonly<Record<string, unknown>>;
+}
+
+/** The options this adapter accepts: the core's, with its own typed passthrough. */
+export type GeminiGenerateOptions = GenerateOptions & { providerOptions?: GeminiProviderOptions };
+
 interface WirePart {
   text?: string;
   functionCall?: { name?: string; args?: unknown; id?: string };
@@ -284,7 +297,7 @@ export class GeminiModel implements ModelAdapterV1 {
 
   async generate(
     messages: readonly ChatMessage[],
-    options: GenerateOptions = {},
+    options: GeminiGenerateOptions = {},
   ): Promise<ChatCompletion> {
     const url = methodUrl(this.baseUrl, this.id, "generateContent");
     const response = await this.post(url, this.payload(messages, options), options.signal);
@@ -303,7 +316,7 @@ export class GeminiModel implements ModelAdapterV1 {
 
   async *generateStream(
     messages: readonly ChatMessage[],
-    options: GenerateOptions = {},
+    options: GeminiGenerateOptions = {},
   ): AsyncGenerator<ChatCompletionChunk> {
     // Without alt=sse the provider answers with a JSON array that is not an event stream.
     const url = methodUrl(this.baseUrl, this.id, "streamGenerateContent") + "?alt=sse";
@@ -331,8 +344,9 @@ export class GeminiModel implements ModelAdapterV1 {
 
   protected payload(
     messages: readonly ChatMessage[],
-    options: GenerateOptions,
+    options: GeminiGenerateOptions,
   ): Record<string, unknown> {
+    const providerOptions = options.providerOptions;
     const transcript = toWireMessages(messages, options.systemPrompt ?? this.systemPrompt);
     const tools = options.tools;
     const temperature = options.temperature ?? this.temperature;
@@ -346,7 +360,12 @@ export class GeminiModel implements ModelAdapterV1 {
         : { stopSequences }),
     };
     return {
+      // The caller's extra fields come first, so the adapter's own keys win a collision.
+      ...providerOptions?.extraBody,
       ...transcript,
+      ...(providerOptions?.cachedContent === undefined
+        ? {}
+        : { cachedContent: providerOptions.cachedContent }),
       ...(tools === undefined || tools.length === 0 ? {} : { tools: toWireTools(tools) }),
       ...(Object.keys(config).length === 0 ? {} : { generationConfig: config }),
     };

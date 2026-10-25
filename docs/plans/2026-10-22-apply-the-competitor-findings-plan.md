@@ -6,7 +6,7 @@
 - **Read when:** deciding what to build next, or starting a phase.
 - **Update when:** a phase lands, an open question is answered, or the research behind an item is superseded.
 
-- **Status:** active — Phases 0–5 closed; Phase 6 is open as `T-47`
+- **Status:** done 2026-10-25 — Phases 0–6 closed
 - **Owner:** owner
 - **Created:** 2026-10-22T14:20:00+03:00
 - **Authorized by:** owner, 2026-10-24 ("open Phase 0"); the dive's adoptable items and the delegation ruling are approved (`0025`), and Phase 0 executes under [`2026-10-24-phase-0-execution-plan.md`](docs/plans/2026-10-24-phase-0-execution-plan.md).
@@ -24,7 +24,7 @@ The study filed 565 gap rows against 97 capabilities, and 75 of those capabiliti
 - No shared data blackboard and no team shelf ([`0025`](docs/09-decisions/0025-no-blackboard.md)): a typed report, a message that is a record entry, and a claim board only when a background child exists. Delegation is opt-in and never gated by prose.
 - Nothing on the study's refuse list ([`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md)): no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
 - A re-run of the study. The research is a pinned snapshot; phases cite it and do not re-litigate it.
-- Retrieval is in by [`0026`](docs/09-decisions/0026-retrieval-is-in.md); its seam waits on a later execution plan. Multimodal is deferred under `0018`, and provider-spec versioning is Phase 6.1.
+- Retrieval is in by [`0026`](docs/09-decisions/0026-retrieval-is-in.md); its seam waits on a later execution plan. Multimodal is deferred under `0018`, and provider-spec versioning landed as Phase 6.1.
 - A Python port. The `strands` dive prices it as a second implementation, not a translation, and that is a product decision this plan does not take.
 - A sandbox-level egress allow-list. `0020` keeps the policy axis additive; the list waits for a fetch or workspace capability.
 
@@ -178,6 +178,8 @@ Items here are independent and can be interleaved with Phases 3 and 5 by package
 
 **Opened 2026-10-25 as `T-47`.** Items 6.1 and 6.3 execute; 6.2 is deferred because no caller has asked under `0018`; 6.4 is answered by `0026`. The item-by-item acceptance tests are in [`2026-10-25-phase-6-execution-plan.md`](docs/plans/2026-10-25-phase-6-execution-plan.md).
 
+**Closed 2026-10-25.** 6.1 and 6.3 shipped with their acceptance tests; 6.4 is answered by [`0026`](docs/09-decisions/0026-retrieval-is-in.md); 6.2 remains deferred under [`0018`](docs/09-decisions/0018-post-0.1.0-scope-boundary.md). See the [phase report](docs/reports/2026-10-25-phase-6-report.md).
+
 ## Risks
 
 | Risk | Impact | Mitigation | Trigger that means it happened |
@@ -209,22 +211,22 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 
 ## Tasks
 
-`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The program is open**: the owner approved it on 2026-10-24 and opened each later phase; Phases 0–5 are closed, and Phase 6 runs as `T-47`.
+`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The program is open**: the owner approved it on 2026-10-24 and opened each later phase; All six phases are closed.
 
 | Task ID | Phase | Status |
 |---|---|---|
-| `T-40` | program | in progress — Phase 6 open |
+| `T-40` | program | done 2026-10-25 — Phases 0–6 closed; [Phase 6 report](docs/reports/2026-10-25-phase-6-report.md) |
 | `T-41` | Phase 0 | in progress — Wave 1 |
 | reserved `T-42` | Phase 1 | not yet opened |
 | `T-43` | Phase 2 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-2-report.md) |
 | `T-44` | Phase 3 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-3-report.md) |
 | `T-45` | Phase 4 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-4-report.md) |
 | `T-46` | Phase 5 | done 2026-10-25 — [report](docs/reports/2026-10-25-phase-5-report.md) |
-| `T-47` | Phase 6 | in progress — [plan](docs/plans/2026-10-25-phase-6-execution-plan.md) |
+| `T-47` | Phase 6 | done 2026-10-25 — [report](docs/reports/2026-10-25-phase-6-report.md) |
 
 ## Definition of done
 
-The plan is done when every item in Phases 0 to 5 is either shipped with a test that failed first, or explicitly refused in a decision record; the record's failover is proven by the conformance suite; the validator reports no error and no warning; `pnpm gate` exits 0; and the research tree points at the code that closed each of its top twenty rows.
+The plan is done when every item in Phases 0 to 6 is either shipped with a test that failed first, or explicitly refused in a decision record; the record's failover is proven by the conformance suite; the validator reports no error and no warning; `pnpm gate` exits 0; and the research tree points at the code that closed each of its top twenty rows.
 
 ## Notes
 

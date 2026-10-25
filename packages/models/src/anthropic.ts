@@ -35,6 +35,34 @@ export interface AnthropicOptions {
   version?: string;
 }
 
+/** How an Anthropic request may cache its prompt. At most three breakpoints, under the API's four. */
+export interface AnthropicCacheOptions {
+  /** Cache the system prompt. */
+  system?: boolean;
+  /** Cache the advertised tool list. */
+  tools?: boolean;
+  /** Cache the transcript up to and including its last user turn. */
+  transcript?: boolean;
+  /** How long the provider keeps the cache; the provider's own default when omitted. */
+  ttl?: "5m" | "1h";
+}
+
+/** The provider-specific request options this adapter reads; the core never looks inside. */
+export interface AnthropicProviderOptions {
+  /** A provider may add fields; an unknown key is the caller's to justify. */
+  [key: string]: unknown;
+  /** Ask the provider to cache part of the prompt. */
+  cache?: AnthropicCacheOptions;
+  /** Extra top-level request fields, merged beneath the adapter's own. */
+  extraBody?: Readonly<Record<string, unknown>>;
+}
+
+/** The options this adapter accepts: the core's, with its own typed passthrough. */
+export type AnthropicGenerateOptions = GenerateOptions & { providerOptions?: AnthropicProviderOptions };
+
+/** Anthropic's cache breakpoint marker. */
+type CacheMarker = { type: "ephemeral"; ttl?: "5m" | "1h" };
+
 interface WireTextBlock {
   type: "text";
   text: string;
@@ -53,7 +81,9 @@ interface WireToolResultBlock {
   content: string;
 }
 
-type WireBlock = WireTextBlock | WireToolUseBlock | WireToolResultBlock;
+type WireBlock = (WireTextBlock | WireToolUseBlock | WireToolResultBlock) & {
+  cache_control?: CacheMarker;
+};
 
 interface WireMessage {
   role: "user" | "assistant";
@@ -101,12 +131,15 @@ function toInput(raw: string): unknown {
   }
 }
 
-function toWireTools(tools: readonly ToolSpec[]): unknown[] {
-  return tools.map((spec) => ({
-    name: spec.name,
-    description: spec.description,
-    input_schema: spec.inputSchema,
-  }));
+interface WireTool {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  cache_control?: CacheMarker;
+}
+
+function toWireTool(spec: ToolSpec): WireTool {
+  return { name: spec.name, description: spec.description, input_schema: spec.inputSchema };
 }
 
 /** The transcript as blocks, with every tool result folded into the user turn after its call. */
@@ -157,6 +190,30 @@ function toWireMessages(
   }
   flush();
   return { ...(system.length === 0 ? {} : { system: system.join("\n\n") }), messages: wire };
+}
+
+/** The provider's ephemeral cache marker, with the requested lifetime when one was asked for. */
+function cacheMarker(ttl: "5m" | "1h" | undefined): CacheMarker {
+  return ttl === undefined ? { type: "ephemeral" } : { type: "ephemeral", ttl };
+}
+
+/** Moves the transcript's cache breakpoint onto the last block of the last user turn. */
+function markLastUserTurn(messages: WireMessage[], marker: CacheMarker): WireMessage[] {
+  let lastUser = -1;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "user") {
+      lastUser = index;
+      break;
+    }
+  }
+  if (lastUser < 0) return messages;
+  const target = messages[lastUser];
+  if (target === undefined || target.content.length === 0) return messages;
+  const content = [...target.content];
+  const last = content[content.length - 1];
+  if (last === undefined) return messages;
+  content[content.length - 1] = { ...last, cache_control: marker };
+  return messages.map((message, index) => (index === lastUser ? { ...target, content } : message));
 }
 
 function fromWireContent(content: WireBlock[] | undefined): {
@@ -244,7 +301,7 @@ export class AnthropicModel implements ModelAdapterV1 {
 
   async generate(
     messages: readonly ChatMessage[],
-    options: GenerateOptions = {},
+    options: AnthropicGenerateOptions = {},
   ): Promise<ChatCompletion> {
     const response = await this.post(this.payload(messages, options, false), options.signal);
     const body = (await response.json()) as WireResponse;
@@ -259,7 +316,7 @@ export class AnthropicModel implements ModelAdapterV1 {
 
   async *generateStream(
     messages: readonly ChatMessage[],
-    options: GenerateOptions = {},
+    options: AnthropicGenerateOptions = {},
   ): AsyncGenerator<ChatCompletionChunk> {
     const response = await this.post(
       this.payload(messages, options, true),
@@ -346,19 +403,41 @@ export class AnthropicModel implements ModelAdapterV1 {
 
   protected payload(
     messages: readonly ChatMessage[],
-    options: GenerateOptions,
+    options: AnthropicGenerateOptions,
     stream: boolean,
   ): Record<string, unknown> {
+    const providerOptions = options.providerOptions;
+    const cache = providerOptions?.cache;
+    const marker: CacheMarker | undefined = cache === undefined ? undefined : cacheMarker(cache.ttl);
     const transcript = toWireMessages(messages, options.systemPrompt ?? this.systemPrompt);
     const tools = options.tools;
     const temperature = options.temperature ?? this.temperature;
     const stopSequences = options.stopSequences;
+    const system =
+      transcript.system === undefined || cache?.system !== true || marker === undefined
+        ? transcript.system
+        : [{ type: "text", text: transcript.system, cache_control: marker }];
+    const wireTools =
+      tools === undefined || tools.length === 0
+        ? undefined
+        : tools.map((spec, index) =>
+            cache?.tools === true && marker !== undefined && index === tools.length - 1
+              ? { ...toWireTool(spec), cache_control: marker }
+              : toWireTool(spec),
+          );
+    const wireMessages =
+      cache?.transcript === true && marker !== undefined
+        ? markLastUserTurn(transcript.messages, marker)
+        : transcript.messages;
     return {
+      // The caller's extra fields come first, so the adapter's own keys win a collision.
+      ...providerOptions?.extraBody,
       model: this.id,
       max_tokens: options.maxTokens ?? this.maxTokens,
-      ...transcript,
+      messages: wireMessages,
       stream,
-      ...(tools === undefined || tools.length === 0 ? {} : { tools: toWireTools(tools) }),
+      ...(system === undefined ? {} : { system }),
+      ...(wireTools === undefined ? {} : { tools: wireTools }),
       ...(temperature === undefined ? {} : { temperature }),
       ...(stopSequences === undefined || stopSequences.length === 0
         ? {}

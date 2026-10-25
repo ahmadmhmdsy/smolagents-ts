@@ -15,6 +15,8 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-44 | Phase 3: memory and streams | done | lead | `packages/core/src/memory/**`, `packages/core/src/agent/**`, `packages/core/src/session/**`, `packages/react/src/**` | 3.1 then 3.2; closed by `docs/reports/2026-10-24-phase-3-report.md` | `docs/plans/2026-10-24-phase-3-execution-plan.md` |
 | T-45 | Phase 4: protocol and tool breadth | done | lead | `packages/mcp/**`, `packages/core/**`, `packages/exec-remote/**` | 4.1–4.8 each with its pre-registered test; closed by `docs/reports/2026-10-24-phase-4-report.md`; `pnpm gate` exit 0 | `docs/plans/2026-10-24-phase-4-execution-plan.md` |
 | T-46 | apply Phase 5 of the competitor findings: observation and cost | done | lead | `docs/plans/2026-10-25-phase-5-execution-plan.md`, `packages/core/**`, `packages/models/**` | 5.1 and 5.2 landed with their pre-registered tests; closed by `docs/reports/2026-10-25-phase-5-report.md`; `pnpm gate` exit 0 | `docs/plans/2026-10-25-phase-5-execution-plan.md`; `docs/reports/2026-10-25-phase-5-report.md` |
+| T-40 | apply the research plan | done | next session | `docs/research/competitors/**` | Phases 0–6 are closed 2026-10-25; the program row closes with the phase report | `docs/plans/2026-10-22-apply-the-competitor-findings-plan.md`; `docs/reports/2026-10-25-phase-6-report.md` |
+| T-47 | Phase 6: number the adapter contract and give provider options a typed home | done | next session | `packages/core/src/model.ts`, `packages/core/src/agent/multi-step-agent.ts`, `packages/models/src/**` | closed 2026-10-25: 6.1 and 6.3 shipped with their acceptance tests, 6.2 deferred under 0018, 6.4 answered by 0026 | `docs/reports/2026-10-25-phase-6-report.md` |
 
 ## Closed 2026-10-16
 

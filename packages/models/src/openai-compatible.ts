@@ -34,6 +34,23 @@ export interface OpenAICompatibleOptions {
   provider?: string;
 }
 
+/** The provider-specific request options this adapter reads; the core never looks inside. */
+export interface OpenAICompatibleProviderOptions {
+  /** A provider may add fields; an unknown key is the caller's to justify. */
+  [key: string]: unknown;
+  /** A key the provider groups cached prompt prefixes under, so a run's turns reuse one. */
+  promptCacheKey?: string;
+  /** How long the provider keeps a cached prefix, when the provider supports choosing. */
+  promptCacheRetention?: "in_memory" | "24h";
+  /** Extra top-level request fields, merged beneath the adapter's own. */
+  extraBody?: Readonly<Record<string, unknown>>;
+}
+
+/** The options this adapter accepts: the core's, with its own typed passthrough. */
+export type OpenAICompatibleGenerateOptions = GenerateOptions & {
+  providerOptions?: OpenAICompatibleProviderOptions;
+};
+
 interface WireToolCall {
   id: string;
   type: "function";
@@ -234,7 +251,7 @@ export class OpenAICompatibleModel implements ModelAdapterV1 {
 
   async generate(
     messages: readonly ChatMessage[],
-    options: GenerateOptions = {},
+    options: OpenAICompatibleGenerateOptions = {},
   ): Promise<ChatCompletion> {
     const response = await this.post("/chat/completions", this.payload(messages, options, false), options.signal);
     const body = (await response.json()) as WireResponse;
@@ -249,7 +266,7 @@ export class OpenAICompatibleModel implements ModelAdapterV1 {
 
   async *generateStream(
     messages: readonly ChatMessage[],
-    options: GenerateOptions = {},
+    options: OpenAICompatibleGenerateOptions = {},
   ): AsyncGenerator<ChatCompletionChunk> {
     const response = await this.post(
       "/chat/completions",
@@ -278,18 +295,27 @@ export class OpenAICompatibleModel implements ModelAdapterV1 {
   /** The request body. A subclass may extend it. */
   protected payload(
     messages: readonly ChatMessage[],
-    options: GenerateOptions,
+    options: OpenAICompatibleGenerateOptions,
     stream: boolean,
   ): Record<string, unknown> {
+    const providerOptions = options.providerOptions;
     const systemPrompt = options.systemPrompt ?? this.systemPrompt;
     const temperature = options.temperature ?? this.temperature;
     const maxTokens = options.maxTokens ?? this.maxTokens;
     const tools = options.tools;
     const stopSequences = options.stopSequences;
     return {
+      // The caller's extra fields come first, so the adapter's own keys win a collision.
+      ...providerOptions?.extraBody,
       model: this.id,
       messages: toWireMessages(messages, systemPrompt),
       stream,
+      ...(providerOptions?.promptCacheKey === undefined
+        ? {}
+        : { prompt_cache_key: providerOptions.promptCacheKey }),
+      ...(providerOptions?.promptCacheRetention === undefined
+        ? {}
+        : { prompt_cache_retention: providerOptions.promptCacheRetention }),
       // A provider reports no tokens on a streamed response unless the request asks
       // for them; the final chunk then carries `usage` with an empty `choices`, which
       // chunksFor already yields. Without this a streamed run cannot be priced.
