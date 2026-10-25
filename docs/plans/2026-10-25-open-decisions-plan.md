@@ -229,6 +229,14 @@ Two things belong to the release but are not code: a one-line scope statement in
 
 Additive, small, and it removes a class of divergence rather than one instance: the transcript the UI shows should be the transcript the next model call sees. Doing it after the release keeps 0.1.0's surface smaller and lets the example change in a normal feature commit; doing it at all is what makes the React layer honest.
 
+#### Decision (2026-10-25)
+
+**Option A with the lossy projection (A1), pre-release.** The row's binary framing was incomplete: `AgentMemory.toChatMessages()` already exists, is documented as "the derived chat view used by the React shell (design spec 5.3)", is tested, and was never wired. The choice is therefore to finish the seam, not to build one.
+
+The snapshot gains `messages`: the task, each action's assistant output, inter-agent messages and the final answer -- not `toMessages`, so observations and plan wrappers stay out of the conversation. `MultiStepAgent` gains one read-only accessor delegating to the memory renderer, so there is one implementation. The session recomputes the list at step boundaries only, never on a delta, which is also why the step in flight is absent from it. `ChatSurfaceProps.messages` becomes optional and defaults to the snapshot's value, so the change is source-compatible and the example drops its constant; a caller that wants the model transcript or the run view keeps using `toMessages` or `RunInspector`.
+
+Two consequences are recorded with the decision rather than left to implementation: the transcript mirrors memory, so it spans turns only for a checkpointed session (without one it resets per run), and the projection is lossy by design, so no surface may claim to show the run. Decision [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md) records the choice and its costs. Implementation is deferred until the register is settled.
+
 ### D-07 — a tool scenario in the parity corpus (T-19)
 
 **Row:** T-19. **Blocks 0.1.0:** no. **Effort:** M.
@@ -341,7 +349,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 
 ## Order of execution, as the decisions now stand
 
-1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane), then D-06 if it is decided pre-release. T-48 re-adjudicates the parity expectations after the first two land.
+1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land.
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
 3. **Post-release:** D-07 (tool scenario), D-08 phase 0 (docs page and fixture), D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
 4. **D-10** as its own planned phase (retrieval).
@@ -357,7 +365,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-03 | supply-chain confirmation (T-25) | decided 2026-10-25 | A — confirm; dev-tree scope and the shrink-at-next-bump rule recorded | 2026-10-25 |
 | D-04 | which upstream the recordings track (T-21) | decided 2026-10-25 | A — keep the 1.14.0 corpus, state the split, re-record only as a deliberate comparison | 2026-10-25 |
 | D-05 | the 0.1.0 gate (T-14) | decided 2026-10-25 | A — publish after the pre-release set, under the recorded gate | 2026-10-25 |
-| D-06 | the transcript `ChatSurface` renders (T-28) | open | | |
+| D-06 | the transcript `ChatSurface` renders (T-28) | decided 2026-10-25 | A+A1 — the snapshot carries the conversation projection, `ChatSurface` defaults to it; pre-release | 2026-10-25 |
 | D-07 | a tool scenario in the parity corpus (T-19) | open | | |
 | D-08 | OmniRoute intake (T-39) | open | | |
 | D-09 | Pyodide interrupt (T-24) | open | | |
@@ -378,6 +386,10 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | The parity expectations must be re-adjudicated after D-01 and D-02 land | D-04 | **`T-48`** — found in the audit of this section, not recorded when D-04 was taken |
 | The scope is unclaimed, the token needs 2FA bypass, a partial publish needs a recovery rule, step 3's expectation is stale, and the release note has no home | D-05 | decision `0030` gate; the four runbook amendments |
 | First-run evidence is a deliverable, and CI and Pages are checked on the release revision | D-05 | the runbook's notes; `0030` gate item 4 |
+| The transcript spans turns only for a checkpointed session; a live surface without one resets per run | D-06 | decided and recorded in `0031`; documentation is part of the wiring |
+| The plan's "one source of truth across CLI, React and the model call" overstates: the projection is not the model transcript, and the CLI renders events | D-06 | corrected in `0031`'s semantics; the accurate claim is one conversation projection, shared by its consumers |
+| Recomputing the projection on every event, deltas included, would be quadratic | D-06 | recorded as the boundary-only rule in `0031` and its follow-up |
+| The example's comment claims the surface reads the run while it renders a constant | D-06 | `0031` follow-up: delete the constant, correct the comment |
 
 ## Changes
 
@@ -387,3 +399,4 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 - 2026-10-25: D-03 decided as option A; `T-25` closed. The record gains a scope sentence (development tree only) and a release rule for the exclusion list (shrink it at the next vendor-peer bump).
 - 2026-10-25: D-04 decided as option A; `T-21` closed. The corpus stays on the 1.14.0 release, the design's pin stays a design reading, and the split plus the no-compatibility-range statement are live in `docs/01-project.md`.
 - 2026-10-25: D-05 decided as option A; `T-14` stays blocked on credentials and the scope claim. The release gate, the four flagged runbook corrections and the release-note step are recorded in `0030`; the runbook is amended. A missed consequence of D-04's group is now a live row: the parity expectations must be re-adjudicated after D-01 and D-02 land, because the endings and the planning position are what the two pinned divergences describe.
+- 2026-10-25: D-06 decided as option A with the lossy projection (A1), pre-release. Reading the code first shrank the question: `toChatMessages()` already existed, documented as the React shell's chat view, tested, and unused, so the work is a wire, not a renderer. The checkpoint-continuity trap, the overstated "one source of truth" rationale, the delta-recomputation cost and the example's false comment are recorded in `0031`.

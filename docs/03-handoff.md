@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T19:52:00+03:00 — D-06 decided: the snapshot carries the conversation
+
+**State.** Six of twelve decisions settled; no code changed, nothing published. The pre-release set is D-01, D-02 and D-06, with T-49 to T-51 on the board.
+
+**Did.** The owner chose A+A1, pre-release. Reading the code shrank the question: `AgentMemory.toChatMessages()` already existed, documented as the React shell's chat view and tested, but nothing consumed it. Decision [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md): the snapshot gains `messages`, recomputed at step boundaries only; `MultiStepAgent` gains one accessor delegating to the memory renderer; `ChatSurfaceProps.messages` becomes optional and defaults to the snapshot; the example drops its constant. The conversation is lossy by design (no observations, no plans) and spans turns only for a checkpointed session.
+
+**Verified.** `toChatMessages` is referenced only in `memory.ts`, its tests and the design. The loop adds to memory before the session's boundary events (`multi-step-agent.ts:1419-1420`, `:1249`), so boundary recomputation is not a step behind. `ChatSurface` already reads the snapshot context, and the public-surface pin lists runtime exports only, so no pinned name changes.
+
+**Unverified / open.** The wiring itself: the in-flight step is absent, a delta must not move the list, and a checkpointed session must show earlier turns. D-07 to D-12 are undiscussed.
+
+**Next.** D-07: a tool scenario in the parity corpus (T-19).
+
+**Blockers.** None for the decision; T-14 waits on credentials and the scope claim.
+
+**Artifacts.** [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md), [`memory.ts:167`](../packages/core/src/memory/memory.ts), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T19:31:00+03:00 — D-05 decided: the 0.1.0 gate is stated
 
 **State.** Five of the twelve decisions are settled; no code changed and nothing is published. `T-14` stays blocked on the two external inputs.
@@ -80,36 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None.
 
 **Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`pnpm-workspace.yaml`](../pnpm-workspace.yaml), [`04-tasks.md`](04-tasks.md).
-
-## 2026-10-25T18:45:00+03:00 — D-02 decided: the whole planning lane, structurally
-
-**State.** Phase 6 stays closed at `d7e1677`; two of the plan's twelve decisions are settled and no code changed.
-
-**Did.** The owner overrode the lead's cadence-only recommendation on the scale argument: planning exists for long runs, and only upstream's summary-mode update input stops the planning call growing with the transcript. Recorded in [`0028`](../09-decisions/0028-planning-is-structurally-upstream-shaped.md): plan at step 0 and every interval, an initial-plan template with task, tools and managed agents, update plans from a system prelude, summary-mode memory and a remaining-steps postlude, the `<end_plan>` stop sequence and the plan wrapper. The three templates are re-authored, so wording parity is not claimed.
-
-**Verified.** The upstream source was read at `E:\python_projects\smolagents` (`agents.py:639-760`, `memory.py:92-206`, `prompts/code_agent.yaml:175-270`), and the port's seams were checked: `streamCompletion` already has a planning kind, `GenerateOptions.stopSequences` exists, and `AgentMemory.toMessages` is the one projection to extend.
-
-**Unverified / open.** Nothing implemented; the lane's tests are the regression net because no parity recording enables planning.
-
-**Next.** D-03 and D-04, the two record-only decisions, then the release gate.
-
-**Blockers.** None.
-
-**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0028`](../09-decisions/0028-planning-is-structurally-upstream-shaped.md).
-
-## 2026-10-25T18:30:00+03:00 — D-01 decided: the run ending is a typed error
-
-**State.** Phase 6 stays closed at `d7e1677`; the open-decisions plan is the working agenda and its first row is settled. No code changed.
-
-**Did.** The owner answered D-01 with option A, recorded in [`0027`](../09-decisions/0027-a-run-that-runs-out-of-room-throws.md): `.run()` throws for every non-success ending, `AgentBudgetExceededError` (`AGENT_BUDGET_EXCEEDED`) joins the step error and carries the stop reason, `RunState` loses the unreachable `max_steps_reached`, `.stream()` stays the partial channel, and chapter 14.1 is corrected at implementation. A child budget stop gains its own `budget` stop reason.
-
-**Verified.** The premises were checked against the code before the record: `.run()` has no branch for `run.limitReached`, `RunState` is built only from `success` and `waiting`, and the child mapping only recognises the step error.
-
-**Unverified / open.** Nothing is implemented yet; the record's follow-ups wait for the register to settle.
-
-**Next.** D-02, the planning cadence.
-
-**Blockers.** None.
-
-**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0027`](../09-decisions/0027-a-run-that-runs-out-of-room-throws.md).
 <!-- rotate:end -->

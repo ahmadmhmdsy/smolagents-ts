@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0031 | the snapshot carries the conversation, and ChatSurface defaults to it | accepted | 2026-10-25 |
 | 0030 | 0.1.0 publishes after the pre-release set, with a stated gate | accepted | 2026-10-25 |
 | 0029 | the parity corpus stays on the 1.14.0 release, and the design's pin is a separate comparison | accepted | 2026-10-25 |
 | 0028 | the planning lane is structurally upstream-shaped, and its prompt text is ours | accepted | 2026-10-25 |
