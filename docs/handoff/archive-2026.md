@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T20:04:00+03:00 — D-07 decided: the corpus grows a tool-calling family
+
+**State.** Seven of twelve decisions settled; no code changed. The pre-release set stays D-01, D-02 and D-06; D-07 is the first post-release row.
+
+**Did.** The owner chose B with two scenarios. Reading the code first corrected the row: a stub tool inside a CodeAgent scenario changes no compared field, because the step only ever records `python_interpreter` and the harness compares no prompt, code or observation text. Decision [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md): the schema gains an `agent` axis defaulting to `code`, tool-calling turns gain `calls`, one shared `echo` stub is defined on both legs, and the family adds a success scenario and an unknown-tool failure scenario. The five existing recordings stay untouched; trace fields do not change; post-release, no public surface, no gate change.
+
+**Verified.** Python 3.13.7 with upstream `1.14.0` is installed here, so the recordings are reproducible offline. Upstream marks an unknown-tool step errored and leaves its call list empty (`agents.py:1466`, `:597-599`); ours records the failed call and continues (`tool-calling-agent.ts:142-148`), so the failure scenario measures a known-possible divergence.
+
+**Unverified / open.** The two traces themselves, whether the success scenario compares equal, and the failure scenario's exact `differsOn`.
+
+**Next.** D-08: OmniRoute intake (`T-39`).
+
+**Blockers.** None for the decision; `T-14` needs registry credentials and the scope claim.
+
+**Artifacts.** [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record.py`](../scripts/parity/record.py), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T19:52:00+03:00 — D-06 decided: the snapshot carries the conversation
 
 **State.** Six of twelve decisions settled; no code changed, nothing published. The pre-release set is D-01, D-02 and D-06, with T-49 to T-51 on the board.

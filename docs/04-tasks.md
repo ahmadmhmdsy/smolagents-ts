@@ -41,26 +41,27 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the pre-release set is implemented and the gate is green on the release revision; the owner claims the npm scope and supplies a 2FA-bypass publish token; then the runbook runs | decision `0030` records the gate and the runbook amendments; no credential has been used and both names are unclaimed |
-| T-19 | grow the parity corpus a tool-calling scenario family | pending | next session | `scripts/parity/**`, `packages/core/test/parity.test.ts` | decision `0032`: an `agent` axis, `calls` turns, one shared `echo` stub, a success and an unknown-tool scenario; the five recordings stay untouched | - |
-| T-24 | give the Pyodide executor a hard interrupt (the pre-registered worker) | blocked | owner | `packages/exec-pyodide/**` | decision `0033`: no headers needed; trigger is a browser test runner, a user who cannot use the remote executors, or a recorded hang, not a first report | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
-| T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | the models fix closed this shape in the OpenAI adapter; Gemini documents no null, so this waits on evidence rather than a speculative fix | - |
+| T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the pre-release set lands with the gate green on the release revision; the owner claims the npm scope and supplies a 2FA-bypass token; then the runbook runs | `0030` |
+| T-19 | grow the parity corpus a tool-calling scenario family | pending | next session | `scripts/parity/**`, `packages/core/test/parity.test.ts` | `0032`: `agent` axis, `calls` turns, one shared `echo` stub, success and unknown-tool scenarios; five recordings untouched | - |
+| T-24 | give the Pyodide executor a hard interrupt (the pre-registered worker) | blocked | owner | `packages/exec-pyodide/**` | `0033`: no headers; trigger is a browser runner, a caller who cannot use the remote executors, or a recorded hang | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
+| T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | the OpenAI fix closed this shape; Gemini documents no null, so this waits on evidence | - |
 | T-29 | settle `agent.on(type, handler)` against the shipped `agent.on(event)` | pending | next session | `packages/core/src/agent/` | a caller following the design gets a `TypeError`; add the overload or correct the design | - |
-| T-48 | re-adjudicate the parity expectations after the endings and planning changes land | pending | next session | `packages/core/test/parity.test.ts`, `scripts/parity/scenarios/*.json` | after `T-49` and `T-50` land; `D-02` unblocks the planning scenario S1.5 declined; a moved `differsOn` set is a finding, not churn | - |
-| T-49 | implement `D-01`'s ending contract | pending | lead | `packages/core/src/agent/`, `packages/core/src/session/`, `packages/core/test/` | decision `0027` is accepted; start with the loop's terminal paths and the two error classes, then `T-48` | - |
-| T-50 | implement `D-02`'s planning lane | pending | lead | `packages/core/src/agent/`, `packages/core/src/memory/`, `packages/core/test/` | decision `0028` is accepted; the three templates are re-authored, and the summary-mode branch belongs in `memory.toMessages` | - |
-| T-51 | wire the conversation projection into the snapshot and `ChatSurface` | pending | lead | `packages/core/src/session/`, `packages/core/test/`, `packages/react/`, `packages/react-ui/`, `examples/vite-app/` | decision `0031` is accepted; recompute at step boundaries only, never on a delta | - |
-| T-39 | implement the OmniRoute phase 0 (README, runbook, example, fixture) | pending | lead | `docs/**`, `examples/**`, `packages/models/**` | D-08 option A; the fixture is hand-shaped from the research shard, never a recording; the example prints SKIPPED without `OMNIROUTE_BASE_URL` | - |
+| T-48 | re-adjudicate the parity expectations after the endings and planning changes land | pending | next session | `packages/core/test/parity.test.ts`, `scripts/parity/scenarios/*.json` | after `T-49`/`T-50`; `D-02` unblocks the planning scenario S1.5 declined; a moved `differsOn` set is a finding | - |
+| T-49 | implement `D-01`'s ending contract | pending | lead | `packages/core/src/agent/`, `packages/core/src/session/`, `packages/core/test/` | `0027`; the loop's terminal paths and two error classes first, then `T-48` | - |
+| T-50 | implement `D-02`'s planning lane | pending | lead | `packages/core/src/agent/`, `packages/core/src/memory/`, `packages/core/test/` | `0028`; three templates re-authored, summary-mode branch in `memory.toMessages` | - |
+| T-51 | wire the conversation projection into the snapshot and `ChatSurface` | pending | lead | `packages/core/src/session/`, `packages/core/test/`, `packages/react/`, `packages/react-ui/`, `examples/vite-app/` | `0031`; recompute at step boundaries only | - |
+| T-39 | implement the OmniRoute phase 0 (README, runbook, example, fixture) | pending | lead | `docs/**`, `examples/**`, `packages/models/**` | D-08 A; the fixture is hand-shaped, never a recording; the example prints SKIPPED without `OMNIROUTE_BASE_URL` | - |
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
-| T-53 | warn when `--api-base` lacks `--model-type OpenAIModel` | pending | next session | `packages/cli/**` | raised by D-08: the flag is silently ignored on the default model type | - |
-| T-55 | write and run the retrieval plan (first post-release capability phase) | pending | lead | `packages/retrieval/**`, `docs/plans/**` | after 0.1.0 publishes; pre-register a deterministic embedding, a message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging | - |
+| T-53 | warn when `--api-base` lacks `--model-type OpenAIModel` | pending | next session | `packages/cli/**` | D-08: the flag is silently ignored on the default model type | - |
+| T-55 | write and run the retrieval plan | pending | lead | `packages/retrieval/**`, `docs/plans/**` | after 0.1.0; pre-register a deterministic embedding, a message-first retriever with `asTool()`, and refuse-list-tested packaging | - |
+| T-56 | write and run the multimodal input plan (0.2.0's headline) | pending | lead | `packages/core/**`, `packages/models/**`, `packages/react-ui/**` | after 0.1.0; `0034`: input-only parts, adapter v2 with the v1 shim, honest per-adapter capabilities, attachments without executor changes, `MediaRef`s in snapshots | - |
 | T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019`) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
 <!-- rotate:end -->
 
 ## Blocked
 
-Four live rows wait on the owner: T-14 on credentials and the scope claim, T-24
-on the worker trigger, T-52 on where guides live, and T-54 on a gateway demand.
+Four rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
+(guide home), T-54 (gateway demand).
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
 recorded; T-49, T-50, T-51 and T-39 are the implementation rows. A blocked row
 stays in the live table above; only `done` rows rotate to

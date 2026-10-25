@@ -347,7 +347,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 
 #### Decision (2026-10-25)
 
-**Option A.** Retrieval is scheduled as the first new capability phase after 0.1.0, with its execution plan written at that point rather than now. `0026` fixes the shape; the plan fixes the packaging and the acceptance tests, and it is written against a named consumer — a docs Q&A example — so the seam is designed for a user rather than for the record.
+**Option A.** Retrieval is scheduled as its own capability phase after 0.1.0, with its execution plan written at that point rather than now. **Re-ordered 2026-10-25:** D-11 reopened multimodal and the owner put that phase first, so retrieval runs second; the rest of this decision is unchanged. `0026` fixes the shape; the plan fixes the packaging and the acceptance tests, and it is written against a named consumer — a docs Q&A example — so the seam is designed for a user rather than for the record.
 
 Three conditions are pre-registered in the phase row and belong to that plan:
 
@@ -357,11 +357,17 @@ Three conditions are pre-registered in the phase row and belong to that plan:
 
 The boundary items this discussion surfaced are the plan's to settle: chunking as a stateless helper in the example rather than in the seam; embedding adapters opt-in and never a network default; dimension and fingerprint validation in the in-memory store; a retrieval record in the trace even without a core hook; and caller-owned persistence, with the injected-filesystem shape if a file-backed store ships.
 
-### D-11 — multimodal stays parked (0018)
+### D-11 — multimodal: the owner asks, so it is in (0018)
 
-**Row:** none. **Effort:** none unless reopened.
+#### Decision (2026-10-25)
 
-0018 defers multimodal until a caller asks and a seam hosts it; no caller has asked. The only mark in the tree is the unused capability flag. **Recommendation: confirm the park.** Reopening would need the content-part union, permission checks on image access, per-adapter mapping and a schema change, which is a phase, not a patch.
+**Reopened, as input only, post-release and before retrieval.** The owner asked for models that can see and hear, then approved the scope: two input modalities (image and audio), no output modalities, bytes rather than URLs, references rather than base64 in durable state, and both tool slices in the same phase. `0018`'s park was conditional on a user asking and a seam hosting it; both conditions hold, and the seam is the model layer's content shape — the same one `0031` already names when it says a later multimodal change reaches the projection.
+
+**The record is [`0034`](../09-decisions/0034-multimodal-input-is-in-and-scheduled.md).** Input messages widen to a part union while every model output stays text; the adapter contract moves to version 2 and the existing shim keeps 0.1.0-era adapters working; the capability bag gains an honest `audio` flag beside `images`; a tool may attach media by reference so the executors keep exchanging strings; snapshots carry references behind a `MediaStore` seam shaped like `RunStore`. PDFs, extraction pipelines, output modalities and realtime voice stay refused.
+
+**Scheduling:** `T-56` is the phase row and 0.2.0's headline; retrieval keeps `T-55` and its three conditions and becomes the second capability phase. Only the ordering claim in D-10's block and in the order section moves; that decision's substance does not.
+
+
 
 ### D-12 — residual-risk chores
 
@@ -391,8 +397,8 @@ The boundary items this discussion surfaced are the plan's to settle: chunking a
 1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land. Then D-08 phase 0, which is additive and gates nothing.
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
 3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
-4. **D-10** as its own planned phase (retrieval) and the first new capability after the release, with the three conditions in `T-55`; it does not interleave with the hygiene batch.
-5. **Parked:** D-09 (a worker is pre-registered in `0033` and waits on a browser runner or a caller who cannot use the remote executors), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
+4. **D-11** first, as its own plan (`T-56`, multimodal input, 0.2.0's headline), then **D-10** (`T-55`, retrieval) with its three pre-registered conditions; each is its own phase and neither interleaves with the hygiene batch.
+5. **Parked:** D-09 (a worker is pre-registered in `0033` and waits on a browser runner or a caller who cannot use the remote executors), D-08 phase 1 (waits on a demand), and image or audio output plus realtime voice (stay in `0018`'s bucket, pointed at by `0034`).
 
 
 ## Decision register
@@ -409,7 +415,7 @@ The boundary items this discussion surfaced are the plan's to settle: chunking a
 | D-08 | OmniRoute intake (T-39) | decided 2026-10-25 | A — phase 0 now (README section, runbook, gateway example, four-frame fixture); phase 1 parked as `T-54` | 2026-10-25 |
 | D-09 | Pyodide interrupt (T-24) | decided 2026-10-25 | B — keep in-process and document it; `0033` corrects 0016's premises and pre-registers the terminate worker | 2026-10-25 |
 | D-10 | when retrieval gets built (0026) | decided 2026-10-25 | A — the first post-release capability phase; its plan pre-registers a deterministic embedding, a message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging | 2026-10-25 |
-| D-11 | multimodal stays parked (0018) | open | | |
+| D-11 | multimodal: the owner asks, so it is in (0018) | decided 2026-10-25 | B — reopened; input-only parts in 0.2.0, before retrieval; `0034` fixes the scope and both tool slices ship in the phase | 2026-10-25 |
 | D-12 | residual-risk chores | open | | |
 
 ## Flagged items and where they landed
@@ -459,9 +465,19 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | Embedding costs money and nothing caches in v1 | D-10 | bounded top-k and character defaults, and the no-cache sentence, in the docs |
 | The acceptance tests will prove the seam, not retrieval quality; this repository has no corpus | D-10 | said in the plan and its report |
 | A capability phase mixed with the hygiene batch loses its exit criterion | D-10 | the order section keeps D-10 its own phase |
+| Output modalities are a different contract, not an extra wire mapping | D-11 | parked in `0034`, and named again in the order section |
+| PDFs and text extraction are the back door to ingestion | D-11 | refused in `0034`: a PDF is the caller's to rasterise |
+| Images in events and traces are a privacy decision nobody took | D-11 | `0034` keeps references in events; bytes stay in the caller's store |
+| A vision example teaches accessibility by what it omits | D-11 | `T-56` requires alt text in `examples/vision` |
+| Audio is not one capability across providers | D-11 | a per-adapter capability table, and refusal by typed error, in `T-56` |
+| Token accounting for image turns has no local estimate | D-11 | `0034` states provider-reported usage only |
+| Multimodal is not in the parity corpus, and upstream's wrappers are return types | D-11 | a parity claim needs its own scenario family, per `0034` |
+| The unused `images` flag becomes a real gate | D-11 | `0034` makes it honest per adapter, and `T-56` tests the refusal path |
+| Prompt injection inside an image is invisible to the guardrails | D-11 | documented as a caller-facing risk in `0034`'s costs and the phase docs |
 
 ## Changes
 
+- 2026-10-25: D-11 reopened at the owner's request and decided as input-only multimodal in 0.2.0, ahead of retrieval; `0034` fixes the scope (two modalities, bytes not URLs, references in durable state, both tool slices in one phase) and `T-56` is the phase row. The D-10 block and the order section are corrected for the new order.
 - 2026-10-25: D-10 decided as option A, retrieval scheduled as the first post-release capability phase, with the plan written then against a named consumer. The three pre-registered conditions are the deterministic embedding, the message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging; the chunking, embedding-adapter, fingerprint, trace-visibility and persistence boundary items are the plan's to settle.
 - 2026-10-25: D-09 decided as option B, keep in-process and document it. The row's premise was wrong: COOP/COEP belong to the shared-interrupt-buffer variant, and the injectable-loader escape hatch is Node-only. The worker is pre-registered terminate-based in `0033`, the README gains the limitation paragraph, and `T-24`'s trigger is evidence the repository can see rather than a first report.
 - 2026-10-25: D-08 decided as option A, phase 0 only. The gateway already works at the wire level, so the work is discoverability: a README subsection, a runbook, one example and a hand-shaped four-frame fixture named by wire shape rather than by OmniRoute. Phase 1 stays parked as `T-54` with its metadata-channel question written down; the missing user-guide tree and the silently ignored `--api-base` become `T-52` and `T-53`.

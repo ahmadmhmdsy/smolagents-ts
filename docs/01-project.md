@@ -66,8 +66,9 @@ Three parts are hard to get right independently:
 - An "improved" rewrite of upstream semantics. Where upstream is opinionated,
   the opinion is ported and documented.
 - A RAG or vector-store layer, a dev UI or Studio, a streaming UI transport,
-  multimodal and voice, an agent-to-agent protocol, MCP server authoring, and a
-  workspace sandbox — the platform gaps decision 0018 keeps out.
+  voice, an agent-to-agent protocol, MCP server authoring, and a workspace
+  sandbox — the platform gaps decision 0018 keeps out. Multimodal input is the
+  one exception: decision 0034 schedules it, while output modalities stay out.
 
 ## Success criteria
 
