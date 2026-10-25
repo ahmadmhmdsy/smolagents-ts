@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0028 | the planning lane is structurally upstream-shaped, and its prompt text is ours | accepted | 2026-10-25 |
 | 0027 | a run that runs out of room throws a typed error | accepted | 2026-10-25 |
 | 0026 | retrieval is in, as an opt-in seam for a later phase | accepted | 2026-10-25 |
 | 0025 | no blackboard: a report, a message, and a claim board | accepted | 2026-10-24 |

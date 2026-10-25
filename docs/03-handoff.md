@@ -33,6 +33,21 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T18:45:00+03:00 — D-02 decided: the whole planning lane, structurally
+
+**State.** Phase 6 stays closed at `d7e1677`; two of the plan's twelve decisions are settled and no code changed.
+
+**Did.** The owner overrode the lead's cadence-only recommendation on the scale argument: planning exists for long runs, and only upstream's summary-mode update input stops the planning call growing with the transcript. Recorded in [`0028`](../09-decisions/0028-planning-is-structurally-upstream-shaped.md): plan at step 0 and every interval, an initial-plan template with task, tools and managed agents, update plans from a system prelude, summary-mode memory and a remaining-steps postlude, the `<end_plan>` stop sequence and the plan wrapper. The three templates are re-authored, so wording parity is not claimed.
+
+**Verified.** The upstream source was read at `E:\python_projects\smolagents` (`agents.py:639-760`, `memory.py:92-206`, `prompts/code_agent.yaml:175-270`), and the port's seams were checked: `streamCompletion` already has a planning kind, `GenerateOptions.stopSequences` exists, and `AgentMemory.toMessages` is the one projection to extend.
+
+**Unverified / open.** Nothing implemented; the lane's tests are the regression net because no parity recording enables planning.
+
+**Next.** D-03 and D-04, the two record-only decisions, then the release gate.
+
+**Blockers.** None.
+
+**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0028`](../09-decisions/0028-planning-is-structurally-upstream-shaped.md).
 ## 2026-10-25T18:30:00+03:00 — D-01 decided: the run ending is a typed error
 
 **State.** Phase 6 stays closed at `d7e1677`; the open-decisions plan is the working agenda and its first row is settled. No code changed.

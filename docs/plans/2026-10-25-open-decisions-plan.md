@@ -8,7 +8,7 @@
 - **Read when:** choosing the next unit of work, or executing the implementation once the register is settled.
 - **Update when:** the owner decides a row, a recommendation is accepted or rejected, or a premise stops matching the code.
 
-**Status:** filed 2026-10-25. D-01 is decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
+**Status:** filed 2026-10-25. D-01 and D-02 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
 
 ## Why this plan
 
@@ -128,6 +128,12 @@ Upstream plans before the first action (step 0), then every `planning_interval` 
 The guard is an artefact of transcription, not a choice anyone made: the design's own pseudocode has it because the reading it came from had it. Restoring upstream's rule is one line in the loop, and it is cheaper before 0.1.0 than after, because it changes which turns carry a planning message. The blast radius is wider than the research note estimated: four test files script a plan turn in the second position, so the loop's first call changing from an action to a plan re-orders each of them, alongside the design line. The remaining gap — a different input for the summary plan — should be named in the record and left to the phase that can schedule it, so nobody reads the cadence fix as a parity claim.
 
 Long term, planning is a niche lane (most callers never set an interval), so spending a phase on prompt parity before the release would delay the release for a feature with no recordings behind it. Doing the one-line half now removes the accidental divergence; the deliberate half gets its own row.
+
+#### Decision (2026-10-25)
+
+**Option A, structurally.** The owner chose the whole lane, on the scale argument: planning exists for long runs, and only the summary-mode update input keeps the planning call from growing with the transcript. The lane matches upstream's behaviour shape — a plan at step 0 and every interval after, an initial-plan template carrying the task, tools and managed agents, update plans from a system prelude, summary-mode memory and a remaining-steps postlude, the `<end_plan>` stop sequence and the plan wrapper. `AgentMemory.toMessages` gains the summary-mode branch.
+
+**Boundary:** the three templates are re-authored in this project's voice with upstream's structure, not copied; wording parity is not claimed. Byte-level fidelity, if ever wanted, is a new record. Decision [`0028`](../09-decisions/0028-planning-is-structurally-upstream-shaped.md) records the choice and its costs, including the extra planning call before the first action.
 
 ### D-03 — supply-chain confirmation (T-25)
 
@@ -335,7 +341,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | id | item | status | choice | date |
 |---|---|---|---|---|
 | D-01 | the `.run()` ending contract (T-18) | decided 2026-10-25 | A — typed errors for both ceilings, dead state removed, stream stays the partial channel | 2026-10-25 |
-| D-02 | planning cadence (T-16) | open | | |
+| D-02 | planning cadence (T-16) | decided 2026-10-25 | A — the whole lane, structurally; prompt text re-authored | 2026-10-25 |
 | D-03 | supply-chain confirmation (T-25) | open | | |
 | D-04 | which upstream the recordings track (T-21) | open | | |
 | D-05 | the 0.1.0 gate (T-14) | open | | |
@@ -351,3 +357,4 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 
 - 2026-10-25: filed at `d7e1677`. While checking D-01's premise, found that a budget stop reaches `.run()` through the generic fallback, so a normal condition is reported as a missing terminal event; folded into D-01. Two board rows found stale (T-26, T-29).
 - 2026-10-25: D-01 decided as option A. Two sub-choices recorded with defaults: the error carries the reason only, and a child budget stop gains its own `ChildStopReason` value.
+- 2026-10-25: D-02 decided as option A, after the owner weighed the scale case against the lead's release-economics recommendation. The lead's D-02 blast-radius estimate was corrected to four test files before this decision.
