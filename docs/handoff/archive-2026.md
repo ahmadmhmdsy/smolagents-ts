@@ -4,6 +4,36 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T05:20:00+03:00 — Phase 4 closed: protocol and tool breadth done
+
+**State.** Phases 0–4 are closed; Phase 5 is not opened and waits on the owner. Nothing pushed.
+
+**Did.** Wrote the parent plan's exit criterion as its two pre-registered files.
+`packages/mcp/test/phase-4-exit.test.ts` (14th mcp file): an agent over adapted MCP tools with
+`secret` hidden — absent from prompt and request specs, named in `tool.policy` — plus the adapted
+`slow` tool called with a progress sink, which gets the notification while an abort ends the call.
+`packages/exec-remote/test/phase-4-exit.test.ts` (13th exec-remote file): a `ProcessSandbox`
+guest under a declared transfer calls `host_tool(seed + 1)`, the body runs once and answers 42;
+a tool outside the transfer is not installed, so the step fails with `NameError`. Closed the
+phase: report, plan complete, parent `T-45` row done, task row archived, scoped counts refreshed
+(mcp 14/136, exec-remote 13/95).
+
+**Verified.** Both exit files 4 passed; whole repo 163 files / 1268 tests (core 56/631, mcp 14/136,
+tools 7/32, exec-remote 13/95, CLI 11/77, react 12/56); pins core 110, mcp 32, react 13,
+exec-remote root 10; validator 0/0; gate exit 0 at `c9dfa90`.
+
+**Unverified / open.** No live daemon or sandbox was touched; dockerode's exec path is proven only
+through the seam's double. The mcp exit test's second case initially failed because the harness
+closed the client first — a test bug, recorded in the report.
+
+**Next.** Open Phase 5 (observation and cost) with its plan and `T-46`, or hand back to the owner.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/reports/2026-10-24-phase-4-report.md`,
+`packages/mcp/test/phase-4-exit.test.ts`,
+`packages/exec-remote/test/phase-4-exit.test.ts`.
+
 ## 2026-10-25T04:58:00+03:00 — Phase 4.8 landed: the Docker exec transport
 
 **State.** 4.1–4.8 are landed; the phase close remains (two exit tests, report, parent-plan

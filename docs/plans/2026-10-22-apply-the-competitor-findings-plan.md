@@ -6,7 +6,7 @@
 - **Read when:** deciding what to build next, or starting a phase.
 - **Update when:** a phase lands, an open question is answered, or the research behind an item is superseded.
 
-- **Status:** active — Phases 0–5 closed; Phase 6 is reserved and unopened
+- **Status:** active — Phases 0–5 closed; Phase 6 is open as `T-47`
 - **Owner:** owner
 - **Created:** 2026-10-22T14:20:00+03:00
 - **Authorized by:** owner, 2026-10-24 ("open Phase 0"); the dive's adoptable items and the delegation ruling are approved (`0025`), and Phase 0 executes under [`2026-10-24-phase-0-execution-plan.md`](docs/plans/2026-10-24-phase-0-execution-plan.md).
@@ -24,7 +24,7 @@ The study filed 565 gap rows against 97 capabilities, and 75 of those capabiliti
 - No shared data blackboard and no team shelf ([`0025`](docs/09-decisions/0025-no-blackboard.md)): a typed report, a message that is a record entry, and a claim board only when a background child exists. Delegation is opt-in and never gated by prose.
 - Nothing on the study's refuse list ([`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md)): no workspace sandbox, no MCP server authoring, no OAuth, no A2A, no graph engine, no job queue, no hosted control plane, no exporter on by default, no chat transport, no generative UI, no provider router.
 - A re-run of the study. The research is a pinned snapshot; phases cite it and do not re-litigate it.
-- Retrieval, multimodal and provider-spec versioning are in Phase 6 and gated by a decision, not assumed.
+- Retrieval is in by [`0026`](docs/09-decisions/0026-retrieval-is-in.md); its seam waits on a later execution plan. Multimodal is deferred under `0018`, and provider-spec versioning is Phase 6.1.
 - A Python port. The `strands` dive prices it as a second implementation, not a translation, and that is a product decision this plan does not take.
 - A sandbox-level egress allow-list. `0020` keeps the policy axis additive; the list waits for a fetch or workspace capability.
 
@@ -165,7 +165,7 @@ Items here are independent and can be interleaved with Phases 3 and 5 by package
 
 ### Phase 6 — Model and output depth
 
-**Deliverable.** An adapter written against one interface version keeps working across the next; images are a message part; provider options have a typed home. Retrieval stays a decision, not an item.
+**Deliverable.** An adapter written against one interface version keeps working across the next; provider options have a typed home. Images are deferred under `0018`, and retrieval is decided in [`0026`](docs/09-decisions/0026-retrieval-is-in.md) as a later phase's seam.
 
 | # | item | ids | effort | precondition |
 |---|---|---|---|---|
@@ -175,6 +175,8 @@ Items here are independent and can be interleaved with Phases 3 and 5 by package
 | 6.4 | retrieval: in or out, decided in writing | `MD-10` | L | open question 5 |
 
 **Verification.** Models suite, the adapter conformance test, `pnpm gate` exit 0.
+
+**Opened 2026-10-25 as `T-47`.** Items 6.1 and 6.3 execute; 6.2 is deferred because no caller has asked under `0018`; 6.4 is answered by `0026`. The item-by-item acceptance tests are in [`2026-10-25-phase-6-execution-plan.md`](docs/plans/2026-10-25-phase-6-execution-plan.md).
 
 ## Risks
 
@@ -200,25 +202,25 @@ Every phase ends at a commit with `pnpm gate` green, so stopping between phases 
 - [x] **Record vocabulary**: answered by [`0023`](docs/09-decisions/0023-one-identity-per-run.md) — `runId` is the identity, `waiting` the state, `pending` the reason, `resume` the verb; the public `checkpoint` option is renamed in 1.1.
 - [x] **`MA-05`**: answered by [`0025`](docs/09-decisions/0025-no-blackboard.md) — no data blackboard; a typed report, a message that is a record entry, and a claim board only with a background child; delegation is opt-in and the team shelf is out of scope.
 - [x] **The dive's adoptable list**: approved 2026-10-24. The ten ideas are folded into 0.1, 0.4, 0.5, 0.7, 0.8, 0.9, 1.3 and the Phase 2 cut, and no new phase item is opened for them.
-- [ ] **`MD-10`**: retrieval in or out; the plan defaults to out. Blocks Phase 6.4 only.
+- [x] **`MD-10`**: answered by [`0026`](docs/09-decisions/0026-retrieval-is-in.md) — retrieval is in, as an opt-in seam with no core hook, scheduled for a later phase.
 - [x] **The refuse list**: adopted by [`0022`](docs/09-decisions/0022-the-refuse-list-is-the-boundary.md), with the blackboard row held for the delegation decision.
 - [x] **`T-14` timing**: answered by [`0024`](docs/09-decisions/0024-publication-waits-for-corrections.md) — 0.1.0 waits for the correction pass and for the package to be near finished.
 - [x] **Execution wave**: answered — Phase 0 runs in two waves, the loop single-writer: Wave 1 is 0.1, 0.2, 0.5, with 0.4 beside it on the disjoint `exec-remote` scope; Wave 2 is 0.3, 0.6, 0.7, 0.8, 0.9, 0.10.
 
 ## Tasks
 
-`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The program is open**: the owner approved it on 2026-10-24, `T-41` is in progress, and Wave 1 is 0.1 then 0.2 and 0.5, with 0.4 beside them on `exec-remote`.
+`T-40` covers the program: it is the row that says the backlog is filed and none of it is implemented. Per-phase rows are opened when a phase starts, because the task file carries a byte cap and the phase plan is the artifact that justifies the row. **The program is open**: the owner approved it on 2026-10-24 and opened each later phase; Phases 0–5 are closed, and Phase 6 runs as `T-47`.
 
 | Task ID | Phase | Status |
 |---|---|---|
-| `T-40` | program | in progress — Phase 0 open |
+| `T-40` | program | in progress — Phase 6 open |
 | `T-41` | Phase 0 | in progress — Wave 1 |
 | reserved `T-42` | Phase 1 | not yet opened |
 | `T-43` | Phase 2 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-2-report.md) |
 | `T-44` | Phase 3 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-3-report.md) |
 | `T-45` | Phase 4 | done 2026-10-24 — [report](docs/reports/2026-10-24-phase-4-report.md) |
 | `T-46` | Phase 5 | done 2026-10-25 — [report](docs/reports/2026-10-25-phase-5-report.md) |
-| reserved `T-47` | Phase 6 | not yet opened |
+| `T-47` | Phase 6 | in progress — [plan](docs/plans/2026-10-25-phase-6-execution-plan.md) |
 
 ## Definition of done
 

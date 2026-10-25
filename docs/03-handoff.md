@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T08:20:00+03:00 — Phase 6 opened: adapter numbering and typed provider options
+
+**State.** Phase 6 is open as `T-47`; items 6.1 and 6.3 are scheduled, 6.2 is deferred and 6.4 is answered. Phases 0–5 stay closed and nothing has been pushed.
+
+**Did.** Asked the owner the two questions the parent plan had left to them and recorded the answers in `docs/plans/2026-10-25-phase-6-execution-plan.md`: 6.1 executes because opening the phase is what puts the adapter-interface change on the roadmap (the contract is numbered without inventing a break), and 6.2 waits under decision 0018 because no caller has asked. Wrote [decision 0026](docs/09-decisions/0026-retrieval-is-in.md): retrieval is in, as an opt-in seam for a later phase with no core hook and no scheduled code, so 6.4 closes on the record. The plan pre-registers twelve cases across three new files: core `model-adapter.test.ts` and `model-options.test.ts`, models `adapter-conformance.test.ts` and `provider-options.test.ts`, plus the phase-exit file. Updated the parent plan (status, Phase 6 note, `MD-10` checkbox, task table) and opened the task row.
+
+**Verified.** The parent plan, the decision index, the live task table and the plan agree on the same scope; `rotate --check` is clean; no source file changed yet.
+
+**Unverified / open.** 6.1 and 6.3 have no code: their red tests have not been written. 6.2 remains a deferred row rather than a decision.
+
+**Next.** Land 6.1: the version marker, `ModelAdapterV1`, `upgradeModelAdapter`, the adapter declarations and the conformance suite; then 6.3.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-25-phase-6-execution-plan.md`; `docs/09-decisions/0026-retrieval-is-in.md`.
+
 ## 2026-10-25T07:10:00+03:00 — Phase 5 closed: observation and cost done
 
 **State.** Phases 0–5 are closed; Phase 6 is reserved and waits on the owner. `T-46` closed with
@@ -109,34 +125,4 @@ phase close is not started.
 **Blockers.** None.
 
 **Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md`; `packages/core/src/monitoring/otel.ts`; `packages/core/src/monitoring/trace.ts`.
-
-## 2026-10-25T05:20:00+03:00 — Phase 4 closed: protocol and tool breadth done
-
-**State.** Phases 0–4 are closed; Phase 5 is not opened and waits on the owner. Nothing pushed.
-
-**Did.** Wrote the parent plan's exit criterion as its two pre-registered files.
-`packages/mcp/test/phase-4-exit.test.ts` (14th mcp file): an agent over adapted MCP tools with
-`secret` hidden — absent from prompt and request specs, named in `tool.policy` — plus the adapted
-`slow` tool called with a progress sink, which gets the notification while an abort ends the call.
-`packages/exec-remote/test/phase-4-exit.test.ts` (13th exec-remote file): a `ProcessSandbox`
-guest under a declared transfer calls `host_tool(seed + 1)`, the body runs once and answers 42;
-a tool outside the transfer is not installed, so the step fails with `NameError`. Closed the
-phase: report, plan complete, parent `T-45` row done, task row archived, scoped counts refreshed
-(mcp 14/136, exec-remote 13/95).
-
-**Verified.** Both exit files 4 passed; whole repo 163 files / 1268 tests (core 56/631, mcp 14/136,
-tools 7/32, exec-remote 13/95, CLI 11/77, react 12/56); pins core 110, mcp 32, react 13,
-exec-remote root 10; validator 0/0; gate exit 0 at `c9dfa90`.
-
-**Unverified / open.** No live daemon or sandbox was touched; dockerode's exec path is proven only
-through the seam's double. The mcp exit test's second case initially failed because the harness
-closed the client first — a test bug, recorded in the report.
-
-**Next.** Open Phase 5 (observation and cost) with its plan and `T-46`, or hand back to the owner.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/reports/2026-10-24-phase-4-report.md`,
-`packages/mcp/test/phase-4-exit.test.ts`,
-`packages/exec-remote/test/phase-4-exit.test.ts`.
 <!-- rotate:end -->
