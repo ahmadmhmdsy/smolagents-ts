@@ -4,6 +4,35 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T07:10:00+03:00 — Phase 5 closed: observation and cost done
+
+**State.** Phases 0–5 are closed; Phase 6 is reserved and waits on the owner. `T-46` closed with
+its report; nothing pushed.
+
+**Did.** Wrote the exit criterion as `packages/core/test/phase-5-exit.test.ts` (59th core file,
+three clauses): the same run posts nothing with no exporter and one span tree with one, a priced
+turn crossing `maxCostUsd` emits `run.limitReached` with `limitCostUsd` while the model records
+one call, and an unknown price completes with no `cost` and `costBasis: "unknown"`. Wrote
+`docs/reports/2026-10-25-phase-5-report.md`; marked the phase plan complete, the parent plan's
+`T-46` row done and its status at Phases 0–5; updated `T-40`'s gate text and moved the `T-46` row
+verbatim to `docs/tasks/archive-2026.md`; refreshed the core count.
+
+**Verified.** The exit file passes 3 of 3; whole repo 166 files / 1295 tests (core 59/655, models
+13/74); pins core 119; validator 0/0; gate exit 0 at `56d2fb8`; the close commit is docs-only.
+
+**Unverified / open.** No live collector or bill: the exporter is proven against its mapping, and
+the three price rows are list prices read on 2026-10-25 that rot. A cap checks between steps, so
+the crossing turn is paid for. A resumed run without a handle starts cost at zero. Streamed
+Anthropic cache tokens are mapped but have no fixture.
+
+**Next.** Phase 6 waits for the owner to open it; `T-47` is reserved.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/reports/2026-10-25-phase-5-report.md`,
+`docs/plans/2026-10-25-phase-5-execution-plan.md`,
+`packages/core/test/phase-5-exit.test.ts`.
+
 ## 2026-10-25T06:40:00+03:00 — Phase 5.2 landed: priced cost and its cap
 
 **State.** 5.1 and 5.2 are landed; the phase close remains.

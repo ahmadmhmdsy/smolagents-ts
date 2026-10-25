@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T18:15:00+03:00 — open decisions plan filed; the first decision is under discussion
+
+**State.** Phase 6 is closed at `d7e1677`; tree clean, `main` equals `origin/main`, CI green. The remaining work is collected in one decision plan, no decision is taken yet, and no code changed.
+
+**Did.** Filed `docs/plans/2026-10-25-open-decisions-plan.md`: eleven board rows, the stale pair, twelve decisions with options and a recommendation each, the additions the board lacks, and a live register. Writing it exposed that a budget stop reaches `.run()` through the generic fallback, so a normal ending is reported as a missing terminal event; that folded into D-01.
+
+**Verified.** The plan's claims were checked against `d7e1677` — the loop's endings, the dead `RunState` value, the stale rows' tests. No command was needed for a document.
+
+**Unverified / open.** All twelve decisions. Implementation starts only when the register is settled.
+
+**Next.** Owner decides D-01 (the `.run()` ending contract); then D-02 to D-05 before the release.
+
+**Blockers.** D-05 waits on npm credentials; the rest wait on the owner.
+
+**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md).
+
 ## 2026-10-25T09:50:00+03:00 — Phase 6 closed, and with it the program
 
 **State.** Phases 0–6 are closed. `T-47` and `T-40` are done; nothing is pushed. Publication still waits on `T-14`.
@@ -96,33 +112,4 @@ entry is prepended inside the markers below.
 **Blockers.** None.
 
 **Artifacts.** `docs/plans/2026-10-25-phase-6-execution-plan.md`; `docs/09-decisions/0026-retrieval-is-in.md`.
-
-## 2026-10-25T07:10:00+03:00 — Phase 5 closed: observation and cost done
-
-**State.** Phases 0–5 are closed; Phase 6 is reserved and waits on the owner. `T-46` closed with
-its report; nothing pushed.
-
-**Did.** Wrote the exit criterion as `packages/core/test/phase-5-exit.test.ts` (59th core file,
-three clauses): the same run posts nothing with no exporter and one span tree with one, a priced
-turn crossing `maxCostUsd` emits `run.limitReached` with `limitCostUsd` while the model records
-one call, and an unknown price completes with no `cost` and `costBasis: "unknown"`. Wrote
-`docs/reports/2026-10-25-phase-5-report.md`; marked the phase plan complete, the parent plan's
-`T-46` row done and its status at Phases 0–5; updated `T-40`'s gate text and moved the `T-46` row
-verbatim to `docs/tasks/archive-2026.md`; refreshed the core count.
-
-**Verified.** The exit file passes 3 of 3; whole repo 166 files / 1295 tests (core 59/655, models
-13/74); pins core 119; validator 0/0; gate exit 0 at `56d2fb8`; the close commit is docs-only.
-
-**Unverified / open.** No live collector or bill: the exporter is proven against its mapping, and
-the three price rows are list prices read on 2026-10-25 that rot. A cap checks between steps, so
-the crossing turn is paid for. A resumed run without a handle starts cost at zero. Streamed
-Anthropic cache tokens are mapped but have no fixture.
-
-**Next.** Phase 6 waits for the owner to open it; `T-47` is reserved.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/reports/2026-10-25-phase-5-report.md`,
-`docs/plans/2026-10-25-phase-5-execution-plan.md`,
-`packages/core/test/phase-5-exit.test.ts`.
 <!-- rotate:end -->
