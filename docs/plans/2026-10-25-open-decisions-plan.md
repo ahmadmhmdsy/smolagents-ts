@@ -120,12 +120,12 @@ Upstream plans before the first action (step 0), then every `planning_interval` 
 | option | what changes | cost | consequence |
 |---|---|---|---|
 | A. Port the whole lane | cadence, both prompt templates, the model and memory seams | L | full parity for planning, at the price of surface the phase plan never scoped |
-| B. Match the cadence only | delete the `stepIndex > 0` guard; move one test from index 1 to 0; correct the design line | S | the first plan happens when upstream's does; the prompt input still differs, and no recording can show either way because every scenario leaves the interval at 0 |
+| B. Match the cadence only | delete the `stepIndex > 0` guard at `multi-step-agent.ts:1114`; re-order the planning tests' scripted turns (four test files pin the order); correct design line 391 | S | the first plan happens when upstream's does; the prompt input still differs, and no recording can show either way because every scenario leaves the interval at 0 |
 | C. Keep it and record the divergence | one note | XS | the port keeps an unscheduled, unexplained difference from upstream |
 
 #### Recommendation: B
 
-The guard is an artefact of transcription, not a choice anyone made: the design's own pseudocode has it because the reading it came from had it. Restoring upstream's rule is one line in the loop and one test index, and it is cheaper before 0.1.0 than after, because it changes which turns carry a planning message. The remaining gap — a different input for the summary plan — should be named in the record and left to the phase that can schedule it, so nobody reads the cadence fix as a parity claim.
+The guard is an artefact of transcription, not a choice anyone made: the design's own pseudocode has it because the reading it came from had it. Restoring upstream's rule is one line in the loop, and it is cheaper before 0.1.0 than after, because it changes which turns carry a planning message. The blast radius is wider than the research note estimated: four test files script a plan turn in the second position, so the loop's first call changing from an action to a plan re-orders each of them, alongside the design line. The remaining gap — a different input for the summary plan — should be named in the record and left to the phase that can schedule it, so nobody reads the cadence fix as a parity claim.
 
 Long term, planning is a niche lane (most callers never set an interval), so spending a phase on prompt parity before the release would delay the release for a feature with no recordings behind it. Doing the one-line half now removes the accidental divergence; the deliberate half gets its own row.
 
