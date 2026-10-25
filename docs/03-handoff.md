@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T20:31:00+03:00 — D-08 decided: document the gateway, do not open the package
+
+**State.** Eight of twelve decided; no code changed. The pre-release set stays D-01, D-02 and D-06; D-08 phase 0 is additive and gates nothing, and phase 1 is parked.
+
+**Did.** The owner chose A. The gateway already works at the wire level — 5/5 wire checks and 4/4 stream irregularities absorbed with no source change — so the work is discoverability: a README subsection plus a runbook (recipe, exact CLI form, CORS, localhost-only, pinned model id, `GET /v1/models`, `AbortSignal` timeout, retry is the caller's), a `examples/gateway/` that prints SKIPPED without `OMNIROUTE_BASE_URL`, and a hand-shaped four-frame SSE fixture named by wire shape so LiteLLM and Portkey reuse it. Phase 1 needs its own record: `0019` leaves routing unscheduled, and last-response metadata is unsafe as instance state under concurrent sessions.
+
+**Verified.** The research is offline evidence against a stand-in built from OmniRoute `3.8.53`'s own frames; no live gateway was contacted, so the docs say wire-compatible by construction, never "tested with OmniRoute".
+
+**Unverified / open.** The example and fixture do not exist yet; `--api-base` is silently ignored without `--model-type OpenAIModel` (`T-53`); the site has no user-guide tree (`T-52`, owner).
+
+**Next.** D-09: the Pyodide interrupt (`T-24`).
+
+**Blockers.** None for the decision; `T-14` waits on credentials, `T-52` and `T-54` on the owner.
+
+**Artifacts.** [`04-tasks.md`](04-tasks.md), [the plan](plans/2026-10-25-open-decisions-plan.md), [the research](../docs/research/2026-10-21-omniroute-gateway-support.md).
+
 ## 2026-10-25T20:04:00+03:00 — D-07 decided: the corpus grows a tool-calling family
 
 **State.** Seven of twelve decisions settled; no code changed. The pre-release set stays D-01, D-02 and D-06; D-07 is the first post-release row.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None for the decision; `T-14` waits on credentials and the scope claim.
 
 **Artifacts.** [`0030`](../09-decisions/0030-the-0-1-0-gate.md), [`publish-0.1.0.md`](10-runbooks/publish-0.1.0.md), [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
-
-## 2026-10-25T19:12:00+03:00 — D-04 decided: the parity corpus stays on the 1.14.0 release
-
-**State.** Four of the twelve decisions are settled; no code changed. `T-21` is closed.
-
-**Did.** The owner chose to keep the corpus on the observed release instead of re-recording it against the design's dev commit. Decision [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md): the design's pin names what the design read (`main` at `96f33fa`, `v1.27.0.dev0`, 2026-10-06), each recording names what the corpus observed (`1.14.0` on Python 3.13.7), neither is a support range. [`docs/01-project.md`](01-project.md) now states that split and that no upstream API-compatibility range is claimed; the recording runbook gained the re-record rule — a deliberate comparison with a purpose, moving the suite constant, the runbook and the recordings in one change.
-
-**Verified.** Every recording already stamps `meta.upstreamVersion`, the suite asserts it against `PINNED_UPSTREAM_VERSION` (`parity.test.ts:28`, `:244`), and the runbook pins the install command, so the corpus cannot silently compare across releases.
-
-**Unverified / open.** Re-recording against `1.27.0.dev0` was not attempted: it needs a git-commit install and the recorder's imports are unproven there. That is a future comparison, not a correction.
-
-**Next.** D-05: the 0.1.0 gate.
-
-**Blockers.** None.
-
-**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md), [`01-project.md`](01-project.md), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md).
 <!-- rotate:end -->

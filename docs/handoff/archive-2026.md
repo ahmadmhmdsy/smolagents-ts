@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T19:12:00+03:00 — D-04 decided: the parity corpus stays on the 1.14.0 release
+
+**State.** Four of the twelve decisions are settled; no code changed. `T-21` is closed.
+
+**Did.** The owner chose to keep the corpus on the observed release instead of re-recording it against the design's dev commit. Decision [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md): the design's pin names what the design read (`main` at `96f33fa`, `v1.27.0.dev0`, 2026-10-06), each recording names what the corpus observed (`1.14.0` on Python 3.13.7), neither is a support range. [`docs/01-project.md`](01-project.md) now states that split and that no upstream API-compatibility range is claimed; the recording runbook gained the re-record rule — a deliberate comparison with a purpose, moving the suite constant, the runbook and the recordings in one change.
+
+**Verified.** Every recording already stamps `meta.upstreamVersion`, the suite asserts it against `PINNED_UPSTREAM_VERSION` (`parity.test.ts:28`, `:244`), and the runbook pins the install command, so the corpus cannot silently compare across releases.
+
+**Unverified / open.** Re-recording against `1.27.0.dev0` was not attempted: it needs a git-commit install and the recorder's imports are unproven there. That is a future comparison, not a correction.
+
+**Next.** D-05: the 0.1.0 gate.
+
+**Blockers.** None.
+
+**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md), [`01-project.md`](01-project.md), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md).
+
 ## 2026-10-25T18:56:00+03:00 — D-03 decided: the supply-chain posture is confirmed
 
 **State.** Three of the twelve decisions are settled; no code changed. `T-25` is closed.

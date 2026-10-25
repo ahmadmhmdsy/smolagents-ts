@@ -50,14 +50,17 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-49 | implement `D-01`'s ending contract | pending | lead | `packages/core/src/agent/`, `packages/core/src/session/`, `packages/core/test/` | decision `0027` is accepted; start with the loop's terminal paths and the two error classes, then `T-48` | - |
 | T-50 | implement `D-02`'s planning lane | pending | lead | `packages/core/src/agent/`, `packages/core/src/memory/`, `packages/core/test/` | decision `0028` is accepted; the three templates are re-authored, and the summary-mode branch belongs in `memory.toMessages` | - |
 | T-51 | wire the conversation projection into the snapshot and `ChatSurface` | pending | lead | `packages/core/src/session/`, `packages/core/test/`, `packages/react/`, `packages/react-ui/`, `examples/vite-app/` | decision `0031` is accepted; recompute at step boundaries only, never on a delta | - |
-| T-39 | decide how OmniRoute gateway support ships: docs plus one fixture, or the pre-registered `models-gateway` package | blocked | owner | `docs/**`, `examples/**` and `packages/models/**` for phase 0; `packages/models-gateway/**` for phase 1 | the owner picks a phase; phase 1 needs a new record because 0019 leaves routing unscheduled | `docs/research/2026-10-21-omniroute-gateway-support.md` |
+| T-39 | implement the OmniRoute phase 0 (README, runbook, example, fixture) | pending | lead | `docs/**`, `examples/**`, `packages/models/**` | D-08 option A; the fixture is hand-shaped from the research shard, never a recording; the example prints SKIPPED without `OMNIROUTE_BASE_URL` | - |
+| T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | raised by D-08: the site publishes the internal pack, so a guide lands in README or a runbook; a new kind needs a template and a router row | - |
+| T-53 | warn when `--api-base` is passed without `--model-type OpenAIModel` | pending | next session | `packages/cli/**` | raised by D-08: the flag is silently ignored on the default model type | - |
+| T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019` leaves routing unscheduled) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
 <!-- rotate:end -->
 
 ## Blocked
 
-Two live rows are blocked on the owner, each `gate` cell naming what unblocks
-it: T-14 waits on registry credentials and the scope claim, and T-39 on a phase
-for OmniRoute gateway support. T-16, T-18 and T-28 left the live table on
-2026-10-25 when their decisions were recorded; T-49, T-50 and T-51 are the
-pre-release implementation rows. A blocked row stays in the live table above;
-only `done` rows rotate to `docs/tasks/archive-2026.md`.
+Three live rows wait on the owner: T-14 on registry credentials and the scope
+claim, T-52 on where user guides live, and T-54 on a gateway feature demand.
+T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
+recorded; T-49, T-50, T-51 and T-39 are the implementation rows. A blocked row
+stays in the live table above; only `done` rows rotate to
+`docs/tasks/archive-2026.md`.

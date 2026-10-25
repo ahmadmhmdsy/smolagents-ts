@@ -8,7 +8,7 @@
 - **Read when:** choosing the next unit of work, or executing the implementation once the register is settled.
 - **Update when:** the owner decides a row, a recommendation is accepted or rejected, or a premise stops matching the code.
 
-**Status:** filed 2026-10-25. D-01 to D-05 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
+**Status:** filed 2026-10-25. D-01 to D-08 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
 
 ## Why this plan
 
@@ -40,7 +40,7 @@ Sources swept, all at `d7e1677`:
 | `T-26` | Gemini null usage | **stale** — handled and tested | close the row | XS |
 | `T-28` | `ChatSurface` transcript | takes caller-supplied messages; no session projection | none | S |
 | `T-29` | `agent.on(type, handler)` | **stale** — the overload shipped and is tested | close the row | XS |
-| `T-39` | OmniRoute | phase 0 needs no decision; phase 1 needs a record | owner picks the phase | S/M for phase 0, L for phase 1 |
+| `T-39` | OmniRoute | phase 0 decided (option A) 2026-10-25; phase 1 parked as `T-54` | none for phase 0 | S/M for phase 0, L for phase 1 |
 
 ## Rows that are stale — close, do not decide
 
@@ -285,6 +285,16 @@ The research note confirms the gateway speaks the OpenAI-compatible wire and the
 
 Phase 0 is the research's own recommendation and needs no decision. Phase 1 is legitimate but should be opened as a phase of its own with a record, not slipped in under a research row. C and D should stay refused: the compatible adapter already carries the gateway, and the extra seam would teach the core a provider field, which is the one invariant both Phase 6 and 0019 protect.
 
+#### Decision (2026-10-25)
+
+**Option A.** Reachability is documented and regression-tested; the gateway package is not opened.
+
+- **Docs.** A "Gateways and proxies" subsection in `README.md` — the two-line constructor recipe, the exact CLI form (`--model-type OpenAIModel --api-base http://localhost:20128/v1 --model-id auto --api-key …`), the browser-CORS note, the localhost-only-while-`REQUIRE_API_KEY=false` note and a link — plus a new runbook under `docs/10-runbooks/` with an index row, carrying preconditions, steps, verification, rollback, the model-id determinism rule, the `GET /v1/models` discovery note, the `AbortSignal` timeout hook, and the statement that retry is the caller's.
+- **Example.** A new `examples/gateway/`, shaped like `examples/live-provider`: it prints SKIPPED and exits 0 without `OMNIROUTE_BASE_URL`, then drives `generate`, `generateStream` and one `CodeAgent` run through `OpenAICompatibleModel`. Extending `live-provider` was refused — one purpose per example, and its test pins its skip message.
+- **Fixture.** `packages/models/test/fixtures/openai-compatible-gateway.sse.txt`, hand-shaped from the research shard's frame inventory, with a test pinning the keepalive drop, the error-as-data throw with no key in the message, one usage chunk from a `choices: []` frame and one finish chunk. Named by wire shape, not by the gateway, because LiteLLM and Portkey emit the same frames; the comment cites the shard and `3.8.53` and never claims a recording.
+- **Scheduling.** Phase 0 is additive — no public export, no core change, no gate change — so it gates nothing. It is scheduled after the pre-release implementation set if the owner's timing allows, otherwise immediately post-release.
+- **Phase 1.** Not opened now. It needs its own record because `0019` leaves provider routing unscheduled, and its metadata channel is unsettled: a last-response struct read off a model instance is shared mutable state under concurrent sessions, so instance state, an additive `GenerateOptions` callback and core events must be chosen before the package is built. Parked as `T-54` with that trigger written down.
+
 ### D-09 — Pyodide interrupt (T-24)
 
 **Row:** T-24. **Blocks 0.1.0:** no. **Effort:** M/L.
@@ -356,9 +366,9 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 
 ## Order of execution, as the decisions now stand
 
-1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land.
+1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land. Then D-08 phase 0, which is additive and gates nothing.
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
-3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-08 phase 0 (docs page and fixture), D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
+3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
 4. **D-10** as its own planned phase (retrieval).
 5. **Parked:** D-09 (waits on a report), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
 
@@ -374,7 +384,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-05 | the 0.1.0 gate (T-14) | decided 2026-10-25 | A — publish after the pre-release set, under the recorded gate | 2026-10-25 |
 | D-06 | the transcript `ChatSurface` renders (T-28) | decided 2026-10-25 | A+A1 — the snapshot carries the conversation projection, `ChatSurface` defaults to it; pre-release | 2026-10-25 |
 | D-07 | a tool scenario in the parity corpus (T-19) | decided 2026-10-25 | B — a tool-calling scenario family (success and unknown-tool), post-release; the row's option A was a no-op | 2026-10-25 |
-| D-08 | OmniRoute intake (T-39) | open | | |
+| D-08 | OmniRoute intake (T-39) | decided 2026-10-25 | A — phase 0 now (README section, runbook, gateway example, four-frame fixture); phase 1 parked as `T-54` | 2026-10-25 |
 | D-09 | Pyodide interrupt (T-24) | open | | |
 | D-10 | when retrieval gets built (0026) | open | | |
 | D-11 | multimodal stays parked (0018) | open | | |
@@ -401,10 +411,20 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | D-02 unblocks a planning scenario, which S1.5 had ruled out because the two sides planned at different points | D-07 | `T-48`'s gate gains it, and the runbook's "two divergences" note is corrected when it lands |
 | The runbook's "Adding a scenario" step says a scenario's `tools` stays empty | D-07 | `0032` follow-up rewrites that step and the failure-table row |
 | The failure scenario may expose a step-error divergence: upstream marks the step errored and keeps no call list; ours records the failed call and continues | D-07 | `0032`: pinned with `differsOn` if measured; changing the loop is a new decision |
-| Both scripted models need a tool-call turn shape, and the schema needs an `agent` axis that leaves the five existing recordings valid | D-07 | `0032` decision clauses: default `code`, arguments stored once, stub defined on both legs |
+| A site page and a runbook page are all the pack has for a user-facing guide; the published site is the internal pack plus README | D-08 | **`T-52`**, a blocked decision row on where user guides live |
+| `--api-base` is silently ignored unless `--model-type OpenAIModel` is also passed | D-08 | **`T-53`** |
+| The four-frame fixture outlives the gateway version it was read from | D-08 | `T-39`: the fixture cites its shard and `3.8.53`, and the new runbook's update-when trigger names a gateway major |
+| No live gateway was contacted, so phase 0 may not claim "tested with OmniRoute" | D-08 | `T-39`: the docs say wire-compatible by construction with a frame-shape regression, and the runbook's last-verified says never executed until it is |
+| One gateway id can front a tool-less model while `capabilities.toolCalls` is `true` | D-08 | `T-39`: the README and runbook say to pin a known tool-capable id for `ToolCallingAgent` |
+| Retry and backoff are the caller's; the adapter stays policy-free | D-08 | `T-39`: the runbook states the timeout hook is `AbortSignal` and retry is the caller's |
+| Gateway CORS is deny-by-default and `REQUIRE_API_KEY` defaults to `false` | D-08 | `T-39`: both are gateway-side settings, stated in the README and the runbook |
+| A routed gateway must never enter the golden or parity corpus | D-08 | `T-39`: the runbook states gateways live in examples and runbooks, with a pinned model id |
+| Phase 1's last-response metadata on a model instance is shared mutable state under concurrent sessions | D-08 | **`T-54`**: the record must settle instance state vs a `GenerateOptions` callback vs core events |
+| A `docs/guides/` tree would need a new artifact kind, a template and a router row on a frozen surface | D-08 | recorded in the D-08 decision text; the question is `T-52`'s |
 
 ## Changes
 
+- 2026-10-25: D-08 decided as option A, phase 0 only. The gateway already works at the wire level, so the work is discoverability: a README subsection, a runbook, one example and a hand-shaped four-frame fixture named by wire shape rather than by OmniRoute. Phase 1 stays parked as `T-54` with its metadata-channel question written down; the missing user-guide tree and the silently ignored `--api-base` become `T-52` and `T-53`.
 - 2026-10-25: filed at `d7e1677`. While checking D-01's premise, found that a budget stop reaches `.run()` through the generic fallback, so a normal condition is reported as a missing terminal event; folded into D-01. Two board rows found stale (T-26, T-29).
 - 2026-10-25: D-01 decided as option A. Two sub-choices recorded with defaults: the error carries the reason only, and a child budget stop gains its own `ChildStopReason` value.
 - 2026-10-25: D-02 decided as option A, after the owner weighed the scale case against the lead's release-economics recommendation. The lead's D-02 blast-radius estimate was corrected to four test files before this decision.
