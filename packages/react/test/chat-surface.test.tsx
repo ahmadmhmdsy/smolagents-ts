@@ -42,6 +42,28 @@ describe("ChatSurface", () => {
     expect(items[0]?.textContent).not.toContain("hi there");
   });
 
+  it("defaults to the snapshot's conversation", () => {
+    const { container } = wrap(<ChatSurface onSubmit={() => undefined} />, {
+      messages: [
+        { role: "user", content: "from the snapshot" },
+        { role: "assistant", content: "answered" },
+      ],
+    });
+    const items = container.querySelectorAll("li");
+    expect(items).toHaveLength(2);
+    expect(items[0]?.textContent).toContain("from the snapshot");
+    expect(items[1]?.textContent).toContain("answered");
+  });
+
+  it("renders an explicit transcript instead of the snapshot's when one is passed", () => {
+    wrap(<ChatSurface messages={[{ role: "user", content: "explicit" }]} onSubmit={() => undefined} />, {
+      messages: [{ role: "user", content: "from the snapshot" }],
+    });
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]?.textContent).toContain("explicit");
+  });
+
   it("renders children inside the surface", () => {
     wrap(
       <ChatSurface messages={[]} onSubmit={() => undefined}>

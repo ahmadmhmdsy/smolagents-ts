@@ -4,7 +4,7 @@ import type { AgentEvent, AgentEventType } from "../events.js";
 import type { ApprovalOutcome } from "../agent/approval.js";
 import type { MultiStepAgent } from "../agent/multi-step-agent.js";
 import type { RunResult } from "../agent/run-result.js";
-import { type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
+import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
 
 export type SessionStatus =
   | "idle"
@@ -76,6 +76,14 @@ export interface AgentSessionSnapshot {
   readonly isRunning: boolean;
   readonly steps: readonly StepView[];
   readonly planning: readonly PlanningView[];
+  /**
+   * The derived conversation -- the task as a user turn, each action's assistant output,
+   * inter-agent messages and the final answer (decision 0031). Not the model transcript:
+   * observations, planning wrappers and the system prompt stay out. It reflects committed steps
+   * only, so the step in flight is in `steps` and `planning` but not here, and it moves at step
+   * boundaries only, never on a delta.
+   */
+  readonly messages: readonly ChatMessage[];
   readonly approvals: readonly ApprovalView[];
   readonly output: unknown;
   readonly error: AgentErrorInfo | null;
@@ -113,6 +121,7 @@ interface RunDraft {
   status: SessionStatus;
   steps: StepDraft[];
   planning: PlanningDraft[];
+  messages: ChatMessage[];
   approvals: ApprovalView[];
   output: unknown;
   error: AgentErrorInfo | null;
@@ -129,6 +138,7 @@ function emptyRun(): RunDraft {
     status: "idle",
     steps: [],
     planning: [],
+    messages: [],
     approvals: [],
     output: undefined,
     error: null,
@@ -274,6 +284,11 @@ export class AgentSession<TOut = unknown> {
 
   private apply(event: AgentEvent): void {
     this.reduce(event);
+    if (MESSAGE_BOUNDARY.has(event.type)) {
+      // Recompute once per step, not per token: the projection is O(transcript) and a delta must
+      // not move `messages` (decision 0031).
+      this.draft.messages = this.agent.messages.map((message) => ({ ...message }));
+    }
     this.publish(event.type);
   }
 
@@ -503,6 +518,23 @@ export class AgentSession<TOut = unknown> {
   }
 }
 
+/**
+ * The events after which the conversation can have changed: a committed step, a completed plan, a
+ * message, or an ending. A delta is not one of them (decision 0031).
+ */
+const MESSAGE_BOUNDARY: ReadonlySet<AgentEventType> = new Set<AgentEventType>([
+  "planning.completed",
+  "observation.completed",
+  "message.completed",
+  "run.completed",
+  "run.failed",
+  "run.cancelled",
+  "run.maxStepsReached",
+  "run.limitReached",
+  "run.transferred",
+  "run.waiting",
+]);
+
 function statusForCode(code: string): SessionStatus {
   if (code === "AGENT_CANCELLED") return "cancelled";
   if (code === "AGENT_MAX_STEPS") return "max_steps";
@@ -532,6 +564,9 @@ function freezeRun(draft: RunDraft, lastEventType: AgentEventType | null): Agent
           ...(step.endedAt === undefined ? {} : { endedAt: step.endedAt }),
         }),
       ),
+    ),
+    messages: Object.freeze(
+      draft.messages.map((message) => Object.freeze({ ...message })),
     ),
     planning: Object.freeze(
       draft.planning.map((planning) =>

@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T22:45:00+03:00 — T-51 lands: the snapshot carries the conversation
+
+**State.** `D-06` is code. `T-39` (gateway docs, example, fixture) is the last implementation row before `T-48` and the `T-14` release.
+
+**Did.** `MultiStepAgent` gained a `messages` getter over `AgentMemory.toChatMessages`, and the renderer now walks every task step, not the first, so a checkpointed memory reads as a multi-turn conversation. `AgentSessionSnapshot.messages` is additive and readonly; the session recomputes it from the agent at step boundaries only -- planning and observation completion, message completion, and every terminal transition -- guarded by a frozen event-type set, so a delta never touches it. `ChatSurfaceProps.messages` is optional and defaults to the snapshot; the vite example now renders its own run instead of a fixed `TRANSCRIPT`.
+
+**Verified.** Core 63 files and 680 tests, react 12 and 58, react-ui 5 and 23, all exit 0; `pnpm typecheck`, the example's typecheck and suite, and the validator (0/0) clean. Four cases in the new `agent-session-messages.test.ts` pin the agent-equals-snapshot projection, the getter-read count across deltas, the in-flight step's absence, and a checkpointed second turn; react tests pin the default and the override, react-ui the styled default.
+
+**Unverified / open.** The example's rendered conversation was checked by its typecheck, not by a browser run. The projection keeps its pre-existing treatment of condensation (hidden steps still render); that is a follow-up for whichever task owns condensation in chat.
+
+**Next.** `T-39`: the gateway phase-0 README subsection, runbook, example and hand-shaped fixture.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`agent-session-messages.test.ts`](../packages/core/test/agent-session-messages.test.ts), [`agent-session.ts`](../packages/core/src/session/agent-session.ts), [`chat-surface.tsx`](../packages/react/src/chat-surface.tsx), [`0031`](09-decisions/0031-the-snapshot-carries-the-conversation.md).
+
 ## 2026-10-25T22:35:00+03:00 — T-50 lands: the planning lane is upstream-shaped
 
 **State.** `D-02` is code. `T-51` (projection) and `T-39` (gateway docs) remain before `T-48` and the `T-14` release.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` on credentials; `T-24`, `T-52`, `T-54` on the owner.
 
 **Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [the register](plans/2026-10-25-open-decisions-plan.md).
-
-## 2026-10-25T21:40:00+03:00 — D-11 reopened: multimodal input is in, input-only, ahead of retrieval
-
-**State.** Eleven of twelve decided; no code changed. The owner asked for models that see and hear, so `0018`'s park is lifted for input only; `0034` fixes the scope and `T-56` is the phase row.
-
-**Did.** The owner approved the proposed shape: two input modalities, no output modalities, bytes never URLs, references never base64, both tool slices in one phase. [`0034`](09-decisions/0034-multimodal-input-is-in-and-scheduled.md) records it: an input message may carry text, image or audio parts while every model output stays a string; the adapter contract moves to version 2 with the existing shim keeping version-1 adapters working; capabilities gain an honest audio flag; a tool may attach media by reference so the executors keep exchanging strings; snapshots carry references behind a `MediaStore` seam shaped like `RunStore`. The phase runs after 0.1.0 as 0.2.0's headline, before retrieval; D-10's "first" claim and the order section are corrected, and `01-project.md` points at the new record.
-
-**Verified.** Nothing was built; the rotation and validator pass, and the pre-release set is untouched.
-
-**Unverified / open.** Token accounting for image turns is provider-reported with no local estimate; audio is absent on Anthropic; prompt injection inside an image is invisible to the guardrails; this is the largest surface since Phase 6 — core types, three adapters, the projection, `react-ui` and tool results.
-
-**Next.** D-12: the residual-risk chores, to close the register.
-
-**Blockers.** `T-14` on credentials; `T-24`, `T-52`, `T-54` on the owner.
-
-**Artifacts.** [`0034`](09-decisions/0034-multimodal-input-is-in-and-scheduled.md), [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
 <!-- rotate:end -->

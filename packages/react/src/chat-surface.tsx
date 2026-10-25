@@ -3,7 +3,13 @@ import type { ChatMessage } from "@smolagents-ts/core";
 import { useAgentRunSnapshot } from "./context.js";
 
 export interface ChatSurfaceProps {
-  readonly messages: readonly ChatMessage[];
+  /**
+   * The transcript to render. Omitted, the surface renders the snapshot's conversation (decision
+   * 0031) -- the same projection the run view does not show. That list is per run unless the
+   * session names a checkpoint, so a caller that wants a chat across turns passes a checkpoint
+   * to `AgentSession`; passing messages explicitly still wins.
+   */
+  readonly messages?: readonly ChatMessage[];
   readonly onSubmit?: (text: string) => void;
   readonly disabledReason?: string;
   readonly children?: ReactNode;
@@ -17,6 +23,7 @@ export interface ChatSurfaceProps {
  */
 export function ChatSurface({ messages, onSubmit, disabledReason, children }: ChatSurfaceProps) {
   const snapshot = useAgentRunSnapshot();
+  const transcript = messages ?? snapshot.messages;
   const running = snapshot.isRunning;
   const hasHandler = onSubmit !== undefined;
   const disabled = running || !hasHandler;
@@ -41,7 +48,7 @@ export function ChatSurface({ messages, onSubmit, disabledReason, children }: Ch
   return (
     <section>
       <ol>
-        {messages.map((message, index) => (
+        {transcript.map((message, index) => (
           <li key={index} data-role={message.role}>
             <span>{message.role}</span>
             <span>{message.content}</span>

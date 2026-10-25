@@ -212,12 +212,12 @@ export class AgentMemory {
    */
   toChatMessages(): ChatMessage[] {
     const messages: ChatMessage[] = [];
-    const task = this.task;
-    if (task !== undefined) {
-      messages.push({ role: "user", content: task });
-    }
     for (const step of this.items) {
-      if (step.kind === "action" && step.modelOutput !== null) {
+      if (step.kind === "task") {
+        // Every task turn, not just the first: a checkpointed memory spans turns, and a
+        // conversation that showed only the newest task would misrepresent it.
+        messages.push({ role: "user", content: step.task });
+      } else if (step.kind === "action" && step.modelOutput !== null) {
         messages.push({ role: "assistant", content: step.modelOutput });
       } else if (step.kind === "message") {
         messages.push({ role: "user", content: step.from + ": " + step.text });

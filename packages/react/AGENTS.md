@@ -30,12 +30,13 @@ package publishes beside the facade like the other internal ones;
 
     pnpm vitest run --project react
 
-Expected result: 12 test files and 56 tests pass, exit code 0. Measured on
+Expected result: 12 test files and 58 tests pass, exit code 0. Measured on
 2026-10-18 as "Test Files 11 passed (11)" and "Tests 51 passed (51)". The
 adoption revision reported one file and one test; the surface test is what
 remains of that smoke test, the rest is the layer, the server-render test
 added the eleventh file and its two cases, and `useRunEvents` added the twelfth
-and four cases, plus the surface test's case for the new name (56). The three `AgentRun` lifecycle cases
+and four cases, plus the surface test's case for the new name (56); decision 0031's default and
+override cases made it 58. The three `AgentRun` lifecycle cases
 (a task changed mid-run, unmount, StrictMode) were added on 2026-10-18.
 
 ## Boundaries
@@ -69,6 +70,9 @@ peer; `react-dom` is not a dependency of this package.
   double that never calls it renders an empty logs region.
 - The run patterns render no class name and take none, so a consumer styles one
   by wrapping it rather than by targeting it.
+- `ChatSurface` renders the snapshot's conversation when no `messages` is
+  passed. That list mirrors memory, so it spans turns only when the session
+  names a checkpoint; without one it resets with each run.
 
 ## Pointers to root rules
 

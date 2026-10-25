@@ -49,6 +49,8 @@ own. The headless package never imports it.
   accept a class name. A selector that assumed the wrapped component was the
   outermost node reaches the wrong one.
 - The package ships no theme, so a dark mode is a consumer's copy of the sheet.
+- `StyledChatSurface` inherits the headless default: called without `messages`
+  it renders the snapshot's conversation, which needs a run host above it.
 - The vitest project runs under jsdom, whose global `URL` differs from Node's,
   so a test reading a sibling file resolves a path rather than handing a file
   URL to `node:fs`.

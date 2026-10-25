@@ -719,6 +719,17 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /**
+   * The derived conversation (decision 0031): the task as a user turn, each action's assistant
+   * output, inter-agent messages and the final answer. It is deliberately lossy -- it is a
+   * conversation, not the run -- so observations, planning wrappers and the system prompt stay out.
+   * The single implementation is `AgentMemory.toChatMessages`; the session snapshot and every
+   * chat surface read this same view, which is what keeps them from drifting apart.
+   */
+  get messages(): readonly ChatMessage[] {
+    return this.memory.toChatMessages();
+  }
+
+  /**
    * Subscribe to every event, or to one event type with a handler that receives the narrowed
    * event (design spec 6.4). Returns an unsubscribe function.
    */

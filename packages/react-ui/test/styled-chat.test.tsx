@@ -113,4 +113,11 @@ describe("StyledChatSurface", () => {
     );
     expect(screen.getByTestId("chat-extra").textContent).toBe("extra");
   });
+
+  it("renders the run's own conversation when no messages are passed", async () => {
+    await renderChat(<StyledChatSurface disabledReason="This transcript is read-only." />);
+    const items = surface().querySelectorAll("li");
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0]?.textContent).toContain("Q");
+  });
 });

@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T21:40:00+03:00 — D-11 reopened: multimodal input is in, input-only, ahead of retrieval
+
+**State.** Eleven of twelve decided; no code changed. The owner asked for models that see and hear, so `0018`'s park is lifted for input only; `0034` fixes the scope and `T-56` is the phase row.
+
+**Did.** The owner approved the proposed shape: two input modalities, no output modalities, bytes never URLs, references never base64, both tool slices in one phase. [`0034`](09-decisions/0034-multimodal-input-is-in-and-scheduled.md) records it: an input message may carry text, image or audio parts while every model output stays a string; the adapter contract moves to version 2 with the existing shim keeping version-1 adapters working; capabilities gain an honest audio flag; a tool may attach media by reference so the executors keep exchanging strings; snapshots carry references behind a `MediaStore` seam shaped like `RunStore`. The phase runs after 0.1.0 as 0.2.0's headline, before retrieval; D-10's "first" claim and the order section are corrected, and `01-project.md` points at the new record.
+
+**Verified.** Nothing was built; the rotation and validator pass, and the pre-release set is untouched.
+
+**Unverified / open.** Token accounting for image turns is provider-reported with no local estimate; audio is absent on Anthropic; prompt injection inside an image is invisible to the guardrails; this is the largest surface since Phase 6 — core types, three adapters, the projection, `react-ui` and tool results.
+
+**Next.** D-12: the residual-risk chores, to close the register.
+
+**Blockers.** `T-14` on credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`0034`](09-decisions/0034-multimodal-input-is-in-and-scheduled.md), [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T21:10:00+03:00 — D-10 decided: retrieval is the first post-release capability
 
 **State.** Ten of twelve decided; no code changed. D-10 schedules retrieval as its own phase after the release, with its plan written then.

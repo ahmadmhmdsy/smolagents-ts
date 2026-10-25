@@ -70,13 +70,14 @@ describe("the browser example", () => {
     expect(inspector?.querySelector(".agent-run")).not.toBeNull();
     expect(inspector?.querySelector(".agent-final-answer")?.textContent).toContain("Hello, world!");
 
-    // The chat surface carries the fixed transcript in message order.
+    // The chat surface renders the run's own conversation: the task turn, then the run's turns.
     const surface = document.querySelector(".smol-chat-surface");
     expect(surface).not.toBeNull();
-    const roles = [...(surface?.querySelectorAll("li") ?? [])].map((item) =>
-      item.getAttribute("data-role"),
-    );
-    expect(roles).toEqual(["user", "assistant"]);
+    const items = [...(surface?.querySelectorAll("li") ?? [])];
+    expect(items.length).toBeGreaterThanOrEqual(2);
+    expect(items[0]?.getAttribute("data-role")).toBe("user");
+    expect(items[0]?.textContent).toContain("Greet the world");
+    expect(items.at(-1)?.textContent).toContain("Hello, world!");
 
     // No handler is supplied, so the composer is disabled and its reason is reachable from the
     // input through aria-describedby: visible text, not a second live region.
@@ -86,7 +87,7 @@ describe("the browser example", () => {
     const reasonId = input.getAttribute("aria-describedby");
     expect(reasonId).toBeTruthy();
     const reason = document.getElementById(reasonId ?? "");
-    expect(reason?.textContent).toBe("This page fixes the transcript, so there is nothing to send.");
+    expect(reason?.textContent).toBe("This page shows the run's conversation, so there is nothing to send.");
     expect(reason?.getAttribute("aria-live")).toBeNull();
   });
 });

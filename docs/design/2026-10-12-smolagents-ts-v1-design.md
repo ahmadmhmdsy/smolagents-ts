@@ -236,7 +236,7 @@ privileged, and adding one never changes the other.
 interface AgentSessionSnapshot<TOut = unknown> {
   status: "idle" | "running" | "done" | "error" | "cancelled";
   steps: AgentStep[];          // the run inspector renders this
-  messages: ChatMessage[];     // the chat surface renders this (derived from steps)
+  messages: ChatMessage[];     // the chat surface renders this (the conversation projection; 0031)
   finalAnswer?: TOut;
   usage: TokenUsage;
   error?: AgentErrorInfo;

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { ChatMessage } from "smolagents-ts";
 import { StyledChatSurface, StyledRunInspector } from "@smolagents-ts/react-ui";
 import "../../../packages/react-ui/src/styles.css";
 import {
@@ -12,16 +11,11 @@ import {
 } from "./agent.js";
 
 /**
- * The transcript the styled chat surface renders, fixed on purpose. The page hands the surface
- * no `onSubmit`, so its composer stays disabled and says why: the session exposes no live
- * message list (the run's steps are not a chat history), so the transcript is authored here.
+ * The styled chat surface renders the snapshot's conversation: the task as a user turn and the
+ * run's answers. The page hands the surface no `onSubmit`, so its composer stays disabled and
+ * says why.
  */
-const TRANSCRIPT: readonly ChatMessage[] = [
-  { role: "user", content: DEMO_TASK },
-  { role: "assistant", content: "Hello, world!" },
-];
-
-const NO_COMPOSER = "This page fixes the transcript, so there is nothing to send.";
+const NO_COMPOSER = "This page shows the run's conversation, so there is nothing to send.";
 
 /** What the dev server reports about the live mode. It never reports the key. */
 interface LiveInfo {
@@ -160,10 +154,10 @@ export function App() {
         {/*
           One run, rendered once. A second <AgentRun> over the same agent would create a second
           session — and a scripted one would exhaust its two turns — so the styled inspector is
-          the run's only host; the chat surface reads the same run's snapshot through it.
+          the run's only host; the chat surface reads the same run's conversation through it.
         */}
         <StyledRunInspector agent={demo.agent} task={task}>
-          <StyledChatSurface messages={TRANSCRIPT} disabledReason={NO_COMPOSER} />
+          <StyledChatSurface disabledReason={NO_COMPOSER} />
         </StyledRunInspector>
       </section>
     </main>
