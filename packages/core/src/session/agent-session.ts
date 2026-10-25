@@ -506,6 +506,7 @@ export class AgentSession<TOut = unknown> {
 function statusForCode(code: string): SessionStatus {
   if (code === "AGENT_CANCELLED") return "cancelled";
   if (code === "AGENT_MAX_STEPS") return "max_steps";
+  if (code === "AGENT_BUDGET_EXCEEDED") return "limit_reached";
   return "failed";
 }
 

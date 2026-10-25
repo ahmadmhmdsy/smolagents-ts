@@ -245,22 +245,12 @@ async function setPhase(
 /** The report a finished run leaves; a non-success state carries the typed failure instead. */
 function reportOfResult(result: RunResult): ChildReport {
   if (result.state === "success") return { stopReason: "success", value: result.output };
-  if (result.state === "waiting") {
-    return {
-      stopReason: "waiting",
-      failure: {
-        kind: "agent",
-        name: "RunWaiting",
-        message: "The child parked on a request and has not produced a final answer.",
-      },
-    };
-  }
   return {
-    stopReason: "max_steps",
+    stopReason: "waiting",
     failure: {
       kind: "agent",
-      name: "AgentMaxStepsError",
-      message: "The child reached its step limit without a final answer.",
+      name: "RunWaiting",
+      message: "The child parked on a request and has not produced a final answer.",
     },
   };
 }

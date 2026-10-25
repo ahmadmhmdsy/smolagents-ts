@@ -1,11 +1,16 @@
-import { AgentError, AgentMaxStepsError, AgentCancelledError } from "../errors.js";
+import {
+  AgentBudgetExceededError,
+  AgentCancelledError,
+  AgentError,
+  AgentMaxStepsError,
+} from "../errors.js";
 import type { RunResult } from "./run-result.js";
 import type { ManagedAgent } from "./managed-agent.js";
 import { populateTemplate } from "../prompts/populate-template.js";
 import { MANAGED_AGENT_TASK_TEMPLATE } from "../prompts/templates.js";
 
 /** Why a child run stopped, in the vocabulary a caller can branch on. */
-export type ChildStopReason = "success" | "failure" | "max_steps" | "waiting";
+export type ChildStopReason = "success" | "failure" | "budget" | "max_steps" | "waiting";
 
 /** The failure channel of a child report; never carries the child's inputs or produced values. */
 export interface ChildFailure {
@@ -95,6 +100,7 @@ export async function runManagedAgent<T = unknown>(
 
 function stopReasonOf(error: unknown): ChildStopReason {
   if (error instanceof AgentMaxStepsError) return "max_steps";
+  if (error instanceof AgentBudgetExceededError) return "budget";
   if (error instanceof AgentCancelledError) return "failure";
   return "failure";
 }

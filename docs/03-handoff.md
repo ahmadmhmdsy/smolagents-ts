@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T22:20:00+03:00 — T-49 lands: both ceilings throw
+
+**State.** `D-01` is code. The pre-release set is `T-50`, `T-51` and `T-39`; `T-48` re-adjudicates parity after the first two. Nothing is published.
+
+**Did.** `0027`'s ending contract is in. `AGENT_BUDGET_EXCEEDED` and `AgentBudgetExceededError` join the typed errors and carry the `LimitStopReason` in `info.reason`, with no usage snapshot; `.run()` gains the missing `run.limitReached` branch, so a budget stop throws instead of hitting the "ended without a terminal event" guard; `RunState` loses the dead `max_steps_reached`; a child stopped by its budget reports `stopReason: "budget"`; `AgentSession` maps the new code back to `limit_reached`. Design 6.5, 6.6 and 14.1 now say a ceiling throws, and the 14.1 row drops the `max_steps_error` result claim. The background-child result helper lost the branch that built a `max_steps` report from a state the type cannot hold.
+
+**Verified.** `pnpm typecheck` and `pnpm lint` clean; `pnpm vitest run --project core` is 61 files and 669 tests, exit 0 (six new cases over four files); validator 0 errors, 0 warnings; the pinned export list is 122.
+
+**Unverified / open.** `AgentSession`'s code-to-status mapping has no case of its own, so the `limit_reached` path is proven by the terminal-event test, not by a session test. `D-01`'s two sub-defaults were never put to the owner: the error carries the reason only, and the child reason is spelled `"budget"`.
+
+**Next.** `T-50`: `D-02`'s planning lane per `0028`.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`errors.ts`](../packages/core/src/errors.ts), [`run-result.ts`](../packages/core/src/agent/run-result.ts), [`0027`](09-decisions/0027-a-run-that-runs-out-of-room-throws.md), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T22:05:00+03:00 — D-12 decided: the register closes with a residual-risk batch
 
 **State.** All twelve decided; no code changed. `T-57` is the batch row, and the fork test inside it may land before 0.1.0.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` on credentials; `T-24`, `T-52` and `T-54` on the owner.
 
 **Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [`0026`](09-decisions/0026-retrieval-is-in.md).
-
-## 2026-10-25T20:52:00+03:00 — D-09 decided: keep the Python executor in-process, and correct the record
-
-**State.** Nine of twelve decided; no code changed. No worker ships in 0.1.0; the parked row is pre-registered and the README now names the limit.
-
-**Did.** The owner weighed my recommendation of a terminate-based worker against the portfolio and the gate, and chose to keep in-process and document it. The audit had found decision 0016's cost premise wrong: COOP/COEP belong to the shared-interrupt-buffer variant only, and the injectable-loader escape hatch is Node-only because `PyodideRuntime` has synchronous members. Decision [`0033`](09-decisions/0033-the-pyodide-interrupt-stays-deferred.md) corrects both, pre-registers the terminate shape (separate class, `cpuTimeLimitMs` reported, state lost on interrupt, `dispose()` reclaims 13.40 MiB, browser half a runbook claim) and sets the trigger to evidence the repository can see: a browser test runner, a user who cannot use the remote executors, or a recorded hang. [The package README](../packages/exec-pyodide/README.md) gained the limitation paragraph in the same commit; `T-24` is now the parked worker row.
-
-**Verified.** The measurements were re-read, not re-taken: a 200 ms timer never fired during a 3.9 s guest run, a worker woken through a shared buffer took 519 ms, cold start is 1.94–2.35 s on Node and 2,912 ms in the measured browser, and the runtime is 13.40 MiB.
-
-**Unverified / open.** No browser test runner exists, so any future worker claim is a runbook claim; the capability bag keeps reporting no CPU budget, which is correct today.
-
-**Next.** D-10: when retrieval gets built (`0026`).
-
-**Blockers.** `T-14` on credentials; `T-24`, `T-52` and `T-54` on the owner.
-
-**Artifacts.** [`0033`](09-decisions/0033-the-pyodide-interrupt-stays-deferred.md), [the README](../packages/exec-pyodide/README.md), [the plan](plans/2026-10-25-open-decisions-plan.md).
 <!-- rotate:end -->

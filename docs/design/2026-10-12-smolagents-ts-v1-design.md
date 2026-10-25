@@ -519,7 +519,8 @@ interface RunResult<TOut = unknown> {
   readonly messages: ChatMessage[];
   readonly tokenUsage: TokenUsage;
   readonly timing: { start: number; end: number; durationMs: number };
-  readonly state: "success" | "max_steps_reached";
+  // success | waiting; a step or budget ceiling throws instead of returning (decision 0027)
+  readonly state: "success" | "waiting";
   readonly runId: string;
 }
 ```
@@ -532,6 +533,7 @@ class AgentParsingError     extends AgentError {}   // model output could not be
 class AgentExecutionError   extends AgentError {}   // the generated code threw
 class AgentGenerationError  extends AgentError {}   // the model call failed
 class AgentMaxStepsError    extends AgentError {}   // the step budget was exhausted
+class AgentBudgetExceededError extends AgentError { readonly reason: string }  // a budget ceiling ended the run
 class AgentToolCallError    extends AgentError {}   // a tool call failed
 class AgentTimeoutError     extends AgentError {}   // the run or a tool exceeded its deadline
 class AgentCancelledError   extends AgentError {}   // AbortSignal fired
@@ -542,6 +544,7 @@ interface AgentErrorInfo {
   readonly code: string;
   readonly stepIndex?: number;
   readonly cause?: string;  // v1: the stringified message, so `info` survives events, workers and the wire
+  readonly reason?: string;  // the budget stop reason, on AGENT_BUDGET_EXCEEDED only
   // (the design's serialisability rule above); the original error stays on the Error's own `cause`
 }
 ```
@@ -971,7 +974,7 @@ beforehand:
 |---|---|---|
 | base step class `AgentStep` | base step class `MemoryStep` | upstream's name leaks its Python implementation detail |
 | `AgentTimeoutError` has no counterpart here (yet) | upstream's omitted sibling is `AgentToolExecutionError` | the error that *is* ported should not be confused with the one that is not |
-| `RunResult.state = "max_steps_reached"` | `"max_steps_error"` | a step limit is not an error |
+| `RunResult.state` is `"success"` or `"waiting"`; both ceilings throw typed errors | a result carries `state = "max_steps_error"` | a run that never produced a final answer is an ending, not a value (decision 0027) |
 
 One behavioural divergence is deeper than naming. Upstream detects a final answer by raising
 `FinalAnswerException extends BaseException`, which deliberately escapes `except Exception` so agent code cannot

@@ -1,9 +1,12 @@
+import type { LimitStopReason } from "./session/budget.js";
+
 export type AgentErrorCode =
   | "AGENT_ERROR"
   | "AGENT_PARSING"
   | "AGENT_EXECUTION"
   | "AGENT_GENERATION"
   | "AGENT_MAX_STEPS"
+  | "AGENT_BUDGET_EXCEEDED"
   | "AGENT_TOOL_CALL"
   | "AGENT_TIMEOUT"
   | "AGENT_CANCELLED"
@@ -35,6 +38,8 @@ export interface AgentErrorInfo {
   code: string;
   stepIndex?: number;
   cause?: string;
+  /** The budget stop reason, when the error is the budget ending. Absent on every other code. */
+  reason?: string;
 }
 
 export interface AgentErrorOptions {
@@ -77,9 +82,10 @@ export class AgentError extends Error {
    * subclass, so an `instanceof` check on the rebuilt error agrees with the one that was raised.
    */
   static fromInfo(info: AgentErrorInfo): AgentError {
-    const options: AgentErrorOptions = { code: info.code as AgentErrorCode };
+    const options: AgentErrorOptions & { reason?: string } = { code: info.code as AgentErrorCode };
     if (info.stepIndex !== undefined) options.stepIndex = info.stepIndex;
     if (info.cause !== undefined) options.cause = info.cause;
+    if (info.reason !== undefined) options.reason = info.reason;
     const Subclass = SUBCLASS_FOR_CODE[info.code];
     const error = Subclass === undefined ? new AgentError(info.message, options) : new Subclass(info.message, options);
     error.name = info.name;
@@ -112,6 +118,32 @@ export class AgentMaxStepsError extends AgentError {
   constructor(message: string, options: AgentErrorOptions = {}) {
     super(message, { ...options, code: "AGENT_MAX_STEPS" });
     this.name = "AgentMaxStepsError";
+  }
+}
+
+export interface AgentBudgetExceededOptions extends AgentErrorOptions {
+  /** The `LimitStopReason` that ended the run. Absent only on an error rebuilt from bare info. */
+  readonly reason?: LimitStopReason;
+}
+
+/**
+ * Raised when a run crosses one of its budget ceilings. The error carries the stop reason the
+ * `run.limitReached` event reported, and nothing else: the usage snapshot would be a second
+ * account of spend that the event and the result already carry.
+ */
+export class AgentBudgetExceededError extends AgentError {
+  readonly reason: LimitStopReason | undefined;
+
+  constructor(message: string, options: AgentBudgetExceededOptions = {}) {
+    super(message, { ...options, code: "AGENT_BUDGET_EXCEEDED" });
+    this.name = "AgentBudgetExceededError";
+    this.reason = options.reason;
+  }
+
+  override get info(): AgentErrorInfo {
+    const info = super.info;
+    if (this.reason !== undefined) info.reason = this.reason;
+    return info;
   }
 }
 
@@ -377,6 +409,7 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_EXECUTION: AgentExecutionError,
   AGENT_GENERATION: AgentGenerationError,
   AGENT_MAX_STEPS: AgentMaxStepsError,
+  AGENT_BUDGET_EXCEEDED: AgentBudgetExceededError,
   AGENT_TOOL_CALL: AgentToolCallError,
   AGENT_TIMEOUT: AgentTimeoutError,
   AGENT_CANCELLED: AgentCancelledError,

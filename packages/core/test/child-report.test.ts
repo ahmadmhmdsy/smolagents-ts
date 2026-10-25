@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { AgentError, AgentMaxStepsError } from "../src/errors.js";
+import { AgentBudgetExceededError, AgentError, AgentMaxStepsError } from "../src/errors.js";
 import { managedAgent, type ManagedAgent } from "../src/agent/managed-agent.js";
 import { runManagedAgent } from "../src/agent/child-report.js";
 import type { MultiStepAgent } from "../src/agent/multi-step-agent.js";
@@ -72,6 +72,16 @@ describe("runManagedAgent", () => {
     expect(report.value).toBeUndefined();
     expect(report.failure?.kind).toBe("agent");
     expect(report.failure?.name).toBe("AgentMaxStepsError");
+  });
+
+  it("reports a child stopped by its budget with the budget stop reason", async () => {
+    const report = await runManagedAgent(
+      entry(agentThrowing(new AgentBudgetExceededError("The run reached its budget (limitTurns)", { reason: "limitTurns" }))),
+      TASK,
+    );
+
+    expect(report.stopReason).toBe("budget");
+    expect(report.failure?.name).toBe("AgentBudgetExceededError");
   });
 
   it("bounds a provider diagnostic and strips the task and key-shaped tokens from it", async () => {

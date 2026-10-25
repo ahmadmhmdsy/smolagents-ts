@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentBudgetExceededError,
   AgentCancelledError,
   AgentError,
   AgentExecutionError,
@@ -71,6 +72,7 @@ describe("AgentError.from", () => {
       new AgentExecutionError("e"),
       new AgentGenerationError("g"),
       new AgentMaxStepsError("m"),
+      new AgentBudgetExceededError("b", { reason: "limitTurns" }),
       new AgentToolCallError("t"),
       new AgentTimeoutError("o"),
       new AgentCancelledError("c"),
@@ -81,6 +83,30 @@ describe("AgentError.from", () => {
       expect(rebuilt).toBeInstanceOf(error.constructor);
       expect(rebuilt.info).toEqual(error.info);
     }
+  });
+
+  it("carries the budget stop reason in info and survives a rebuild with it", () => {
+    const error = new AgentBudgetExceededError("The run reached its budget (limitTurns)", {
+      reason: "limitTurns",
+      stepIndex: 4,
+    });
+    expect(error.code).toBe("AGENT_BUDGET_EXCEEDED");
+    expect(error.reason).toBe("limitTurns");
+    expect(error.info.reason).toBe("limitTurns");
+    const rebuilt = AgentError.fromInfo(error.info);
+    expect(rebuilt).toBeInstanceOf(AgentBudgetExceededError);
+    expect((rebuilt as AgentBudgetExceededError).reason).toBe("limitTurns");
+    expect(rebuilt.stepIndex).toBe(4);
+  });
+
+  it("omits the reason key when the error was rebuilt from bare info", () => {
+    const rebuilt = AgentError.fromInfo({
+      name: "AgentBudgetExceededError",
+      message: "b",
+      code: "AGENT_BUDGET_EXCEEDED",
+    });
+    expect(rebuilt).toBeInstanceOf(AgentBudgetExceededError);
+    expect(Object.keys(rebuilt.info)).not.toContain("reason");
   });
 
   it("rebuilds an unknown code as a plain AgentError", () => {

@@ -1,4 +1,5 @@
 import {
+  AgentBudgetExceededError,
   AgentCancelledError,
   AgentError,
   AgentGuardrailError,
@@ -799,6 +800,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
         case "run.maxStepsReached":
           failure = new AgentMaxStepsError(
             "Reached the maximum number of steps (" + String(event.steps) + ")",
+          );
+          break;
+        case "run.limitReached":
+          failure = new AgentBudgetExceededError(
+            "The run reached its budget (" + event.reason + ")",
+            { reason: event.reason },
           );
           break;
         default:

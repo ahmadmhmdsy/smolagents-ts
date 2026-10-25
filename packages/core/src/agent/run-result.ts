@@ -5,7 +5,11 @@ import type { RunBudget } from "../session/budget.js";
 import type { RunCost } from "../monitoring/pricing.js";
 import type { TransferSignal } from "./transfer.js";
 
-export type RunState = "success" | "max_steps_reached" | "waiting";
+/**
+ * How a run that returned ended. A ceiling that stops a run does not return a result: `.run()`
+ * throws (decision 0027), so the state has no "max_steps_reached" value to advertise.
+ */
+export type RunState = "success" | "waiting";
 
 export interface RunResult<TOut = unknown> {
   readonly output: TOut;

@@ -4,6 +4,7 @@ import type { InterpretedAction } from "../src/agent/action.js";
 import { MultiStepAgent, type RunOptions } from "../src/agent/multi-step-agent.js";
 import { ToolCallingAgent, FINAL_ANSWER_TOOL_NAME } from "../src/agent/tool-calling-agent.js";
 import {
+  AgentBudgetExceededError,
   AgentCancelledError,
   AgentError,
   AgentGuardrailError,
@@ -274,6 +275,28 @@ describe("run() rethrows the subclass", () => {
   it("rejects with an AgentMaxStepsError when the budget runs out", async () => {
     const agent = new ToolCallingAgent({ model: new MockModel(["no tool call"]), maxSteps: 1 });
     await expect(agent.run("task")).rejects.toBeInstanceOf(AgentMaxStepsError);
+  });
+
+  it("rejects with an AgentBudgetExceededError carrying the stop reason", async () => {
+    const agent = new ToolCallingAgent({ model: new MockModel(["no tool call"]), limits: { maxTurns: 1 } });
+    const error = await agent.run("task").catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AgentBudgetExceededError);
+    expect((error as AgentBudgetExceededError).reason).toBe("limitTurns");
+    expect((error as AgentBudgetExceededError).message).toContain("limitTurns");
+  });
+});
+
+describe("a budget ceiling keeps the partial run on the stream", () => {
+  it("yields the step before the terminal, then reports the limit", async () => {
+    const agent = new ToolCallingAgent({ model: new MockModel(["no tool call"]), limits: { maxTurns: 1 } });
+    const events: AgentEvent[] = [];
+    for await (const event of agent.stream("task")) events.push(event);
+
+    expect(events.some((event) => event.type === "step.started")).toBe(true);
+    const terminal = events[events.length - 1];
+    expect(terminal?.type).toBe("run.limitReached");
+    expect(terminal as { reason?: string }).toMatchObject({ reason: "limitTurns" });
+    expect(isTerminal(terminal?.type ?? "run.completed")).toBe(true);
   });
 });
 
