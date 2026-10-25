@@ -8,7 +8,7 @@
 - **Read when:** choosing the next unit of work, or executing the implementation once the register is settled.
 - **Update when:** the owner decides a row, a recommendation is accepted or rejected, or a premise stops matching the code.
 
-**Status:** filed 2026-10-25. D-01, D-02 and D-03 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
+**Status:** filed 2026-10-25. D-01 to D-04 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
 
 ## Why this plan
 
@@ -179,6 +179,10 @@ The parity corpus under `scripts/parity/recordings/` was recorded against the in
 
 Recordings are observations, and the observation happened on 1.14.0; rewriting them to a newer pin would discard the evidence the phases were built on. The fix is to put the split where a reader meets it — the design's pin line or the parity README — and to note that re-recording is a new comparison, not a correction. If the owner wants a 1.27 comparison later, that is a task with a purpose, not maintenance.
 
+#### Decision (2026-10-25)
+
+**Option A — keep the corpus, state the split, and rule the re-record.** The corpus stays on the 1.14.0 release. The design's pin names what the design read (`main` at commit `96f33fa`, `v1.27.0.dev0`); each recording names what the corpus observed; neither is a support range. The live split and the "no upstream API-compatibility range is claimed" statement go in [`docs/01-project.md`](../01-project.md), because the design record is history and is not edited. A re-record is a deliberate comparison with a purpose, and when it happens the suite constant, the runbook and the recordings move in one change — recorded in [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md) and in the recording runbook.
+
 ### D-05 — the 0.1.0 gate (T-14)
 
 **Row:** T-14. **Blocks:** everything intended for the first release. **Effort:** 20–30 min plus registry propagation.
@@ -347,7 +351,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-01 | the `.run()` ending contract (T-18) | decided 2026-10-25 | A — typed errors for both ceilings, dead state removed, stream stays the partial channel | 2026-10-25 |
 | D-02 | planning cadence (T-16) | decided 2026-10-25 | A — the whole lane, structurally; prompt text re-authored | 2026-10-25 |
 | D-03 | supply-chain confirmation (T-25) | decided 2026-10-25 | A — confirm; dev-tree scope and the shrink-at-next-bump rule recorded | 2026-10-25 |
-| D-04 | which upstream the recordings track (T-21) | open | | |
+| D-04 | which upstream the recordings track (T-21) | decided 2026-10-25 | A — keep the 1.14.0 corpus, state the split, re-record only as a deliberate comparison | 2026-10-25 |
 | D-05 | the 0.1.0 gate (T-14) | open | | |
 | D-06 | the transcript `ChatSurface` renders (T-28) | open | | |
 | D-07 | a tool scenario in the parity corpus (T-19) | open | | |
@@ -363,3 +367,4 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 - 2026-10-25: D-01 decided as option A. Two sub-choices recorded with defaults: the error carries the reason only, and a child budget stop gains its own `ChildStopReason` value.
 - 2026-10-25: D-02 decided as option A, after the owner weighed the scale case against the lead's release-economics recommendation. The lead's D-02 blast-radius estimate was corrected to four test files before this decision.
 - 2026-10-25: D-03 decided as option A; `T-25` closed. The record gains a scope sentence (development tree only) and a release rule for the exclusion list (shrink it at the next vendor-peer bump).
+- 2026-10-25: D-04 decided as option A; `T-21` closed. The corpus stays on the 1.14.0 release, the design's pin stays a design reading, and the split plus the no-compatibility-range statement are live in `docs/01-project.md`.

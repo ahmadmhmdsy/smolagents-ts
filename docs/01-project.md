@@ -98,7 +98,11 @@ only; the rest follow the milestones below.
 - **Legal or policy:** Apache-2.0, a derivative of upstream `smolagents`. The
   project keeps upstream's licence text verbatim, a `NOTICE` recording the
   derivation, a disclaimer on line one of `README.md`, and `docs/attribution.md`
-  mapping modules to the upstream files they came from.
+  mapping modules to the upstream files they came from. The derivation reads
+  upstream `main` at commit `96f33fa` (`v1.27.0.dev0`, 2026-10-06); the parity
+  traces were observed on the `1.14.0` release. The two are separate
+  comparisons -- the design says what was read, the recordings what was observed
+  -- and no upstream API-compatibility range is claimed.
 - **Time or budget:** none stated.
 
 ## Key components

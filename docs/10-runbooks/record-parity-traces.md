@@ -101,6 +101,15 @@ The recorder writes only under `scripts/parity/recordings/`, so the committed st
 
 ## Notes
 
+- This runbook pins the release the corpus **observed**; the design record pins the
+  revision it **read** (`main` at commit `96f33fa`, `v1.27.0.dev0`, 2026-10-06).
+  They are separate comparisons, and neither is a supported upstream range
+  (decision [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md)).
+- Re-record only as a deliberate comparison with a purpose -- a new upstream
+  release whose parity-relevant shapes changed, or a caller report of a behaviour
+  difference -- never as routine maintenance. A re-record moves the suite
+  constant, this runbook and the recordings in one change, and a trace that
+  changed while the version did not is a finding to adjudicate.
 - The comparison is structural on purpose: step kinds, the code-execution call, each step's error presence, the final-answer value, and the roles of the messages each side sent its model. Prompt text, code source and observation text are never compared, so a prose change does not invalidate a recording.
 - Our side's scripted executor returns the scenario's observation instead of computing it, so the differential claim covers upstream's real execution and our loop's structure, not our executor's semantics.
 - Two divergences ship as pinned facts rather than as hidden failures: the planning position and the max-steps terminal shape, both recorded in `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`.

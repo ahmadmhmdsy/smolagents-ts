@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T09:30:00+03:00 — Phase 6.3 landed: provider options have a typed home
+
+**State.** Phase 6 is open as `T-47`; 6.3 is done and the exit criterion is next. 6.2 stays deferred under 0018 and 6.4 stays answered by 0026. Nothing pushed.
+
+**Did.** `GenerateOptions.providerOptions` is an opaque record; `AgentOptions.modelOptions` pins options for every turn and is spread beneath the loop's signal and advertised tools. The three wire adapters export typed interfaces with `extraBody`, Anthropic adds up to three cache breakpoints with a `5m`/`1h` lifetime, OpenAI names its prompt-cache key and retention, Gemini names `cachedContent`. Widened request parameters keep `Model` assignability.
+
+**Verified.** Both case files were watched red: the core file on the absent option, the adapter file on the missing fields. `pnpm typecheck` clean; core 61 files / 662 tests (two cases), models 15 / 86 (six cases).
+
+**Unverified / open.** No provider was reached; bodies come from recorded fixtures. The breakpoint cap is three, under Anthropic's four, because three are what a fixture can prove. The back-compat claim is one test: no options yields the same body shape as before.
+
+**Next.** Write the exit file, the report, close the phase.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/models/test/provider-options.test.ts`; `packages/core/test/model-options.test.ts`.
+
 ## 2026-10-25T09:10:00+03:00 — Phase 6.1 landed: the adapter contract is numbered
 
 **State.** Phase 6 is open as `T-47`; 6.1 is done and 6.3 is next. Phases 0–5 stay closed and nothing has been pushed.

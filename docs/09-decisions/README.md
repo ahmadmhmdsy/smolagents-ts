@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0029 | the parity corpus stays on the 1.14.0 release, and the design's pin is a separate comparison | accepted | 2026-10-25 |
 | 0028 | the planning lane is structurally upstream-shaped, and its prompt text is ours | accepted | 2026-10-25 |
 | 0027 | a run that runs out of room throws a typed error | accepted | 2026-10-25 |
 | 0026 | retrieval is in, as an opt-in seam for a later phase | accepted | 2026-10-25 |
