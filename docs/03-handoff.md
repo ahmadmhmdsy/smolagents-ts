@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T20:04:00+03:00 — D-07 decided: the corpus grows a tool-calling family
+
+**State.** Seven of twelve decisions settled; no code changed. The pre-release set stays D-01, D-02 and D-06; D-07 is the first post-release row.
+
+**Did.** The owner chose B with two scenarios. Reading the code first corrected the row: a stub tool inside a CodeAgent scenario changes no compared field, because the step only ever records `python_interpreter` and the harness compares no prompt, code or observation text. Decision [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md): the schema gains an `agent` axis defaulting to `code`, tool-calling turns gain `calls`, one shared `echo` stub is defined on both legs, and the family adds a success scenario and an unknown-tool failure scenario. The five existing recordings stay untouched; trace fields do not change; post-release, no public surface, no gate change.
+
+**Verified.** Python 3.13.7 with upstream `1.14.0` is installed here, so the recordings are reproducible offline. Upstream marks an unknown-tool step errored and leaves its call list empty (`agents.py:1466`, `:597-599`); ours records the failed call and continues (`tool-calling-agent.ts:142-148`), so the failure scenario measures a known-possible divergence.
+
+**Unverified / open.** The two traces themselves, whether the success scenario compares equal, and the failure scenario's exact `differsOn`.
+
+**Next.** D-08: OmniRoute intake (`T-39`).
+
+**Blockers.** None for the decision; `T-14` waits on credentials and the scope claim.
+
+**Artifacts.** [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record.py`](../scripts/parity/record.py), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T19:52:00+03:00 — D-06 decided: the snapshot carries the conversation
 
 **State.** Six of twelve decisions settled; no code changed, nothing published. The pre-release set is D-01, D-02 and D-06, with T-49 to T-51 on the board.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None.
 
 **Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0029`](../09-decisions/0029-the-parity-corpus-stays-on-the-release.md), [`01-project.md`](01-project.md), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md).
-
-## 2026-10-25T18:56:00+03:00 — D-03 decided: the supply-chain posture is confirmed
-
-**State.** Three of the twelve decisions are settled; no code changed. `T-25` is closed.
-
-**Did.** The owner confirmed decision [`0017`](../09-decisions/0017-release-age-quarantine.md) unchanged: the release-age quarantine and the three exact-version e2b exclusions stay. The confirmation adds two things the record lacked: the exemptions apply to this development tree only and ship with no package, and every exclusion is temporary — delete it at the next vendor-peer bump unless a frozen-lockfile install still needs it. Both are written in [`pnpm-workspace.yaml`](../pnpm-workspace.yaml) where the list is maintained.
-
-**Verified.** The settings are unchanged since 0017 and CI installs with `--frozen-lockfile` (`ci.yml:30`, `ci.yml:66`), so neither the list nor the resolution can drift in CI. The one open weakness — a local install may append a fourth entry to the tracked list — is recorded for the D-12 hardening batch.
-
-**Unverified / open.** Nothing implemented; the exclusion-list guard is deferred.
-
-**Next.** D-04: which upstream the parity recordings track.
-
-**Blockers.** None.
-
-**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`pnpm-workspace.yaml`](../pnpm-workspace.yaml), [`04-tasks.md`](04-tasks.md).
 <!-- rotate:end -->

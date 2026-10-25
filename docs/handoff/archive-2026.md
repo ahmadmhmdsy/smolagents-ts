@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T18:56:00+03:00 — D-03 decided: the supply-chain posture is confirmed
+
+**State.** Three of the twelve decisions are settled; no code changed. `T-25` is closed.
+
+**Did.** The owner confirmed decision [`0017`](../09-decisions/0017-release-age-quarantine.md) unchanged: the release-age quarantine and the three exact-version e2b exclusions stay. The confirmation adds two things the record lacked: the exemptions apply to this development tree only and ship with no package, and every exclusion is temporary — delete it at the next vendor-peer bump unless a frozen-lockfile install still needs it. Both are written in [`pnpm-workspace.yaml`](../pnpm-workspace.yaml) where the list is maintained.
+
+**Verified.** The settings are unchanged since 0017 and CI installs with `--frozen-lockfile` (`ci.yml:30`, `ci.yml:66`), so neither the list nor the resolution can drift in CI. The one open weakness — a local install may append a fourth entry to the tracked list — is recorded for the D-12 hardening batch.
+
+**Unverified / open.** Nothing implemented; the exclusion-list guard is deferred.
+
+**Next.** D-04: which upstream the parity recordings track.
+
+**Blockers.** None.
+
+**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`pnpm-workspace.yaml`](../pnpm-workspace.yaml), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T18:45:00+03:00 — D-02 decided: the whole planning lane, structurally
 
 **State.** Phase 6 stays closed at `d7e1677`; two of the plan's twelve decisions are settled and no code changed.

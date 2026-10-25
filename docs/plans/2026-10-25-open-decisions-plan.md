@@ -256,6 +256,13 @@ Every recording in the corpus declares an empty tool list, and the Python record
 #### Recommendation: A, after the release
 
 It is the unfinished half of the harness, and it is test-only work with no public surface, which makes it safe to do between releases. The recorder's refusal is the work item: both readers need a stub tool whose answer is fixed, then a scenario that calls it once and observes the result.
+#### Decision (2026-10-25)
+
+**Option B, with two scenarios, post-release.** Reading the harness first corrected the row: a stub tool inside a CodeAgent scenario changes no compared field, because upstream records only `python_interpreter` on the step (`agents.py:1715-1721`), our code turns carry no tool calls (`multi-step-agent.ts:1183`), and prompt, code and observation text are never compared. The observable branch is the model-emitted call.
+
+So the scenario schema gains an `agent` axis (`"code" | "tool-calling"`, absent meaning `"code"`) and tool-calling turns gain `calls`; one shared `echo` stub is defined identically on both legs; the family adds a success scenario (call the stub, then answer) and an unknown-tool failure scenario (call a missing name, then recover). The trace fields do not change. The failure scenario is expected to measure a real difference -- upstream marks the step errored and keeps no call list (`agents.py:1466`, `:597-599`), ours records the failed call and continues (`tool-calling-agent.ts:142-148`) -- so a divergence there is pinned with `differsOn` and a `why`, and aligning the loop is a separate decision.
+
+The five existing scenarios and recordings stay untouched; the recorder's blanket refusal narrows to a precise rule; the runbook's scenario procedure is rewritten with the family. Code-called tools stay out (`0007`'s executor boundary), as do parallel calls and approvals. Decision [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md) records the choice and its costs.
 
 ### D-08 — OmniRoute intake (T-39)
 
@@ -351,7 +358,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 
 1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land.
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
-3. **Post-release:** D-07 (tool scenario), D-08 phase 0 (docs page and fixture), D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
+3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-08 phase 0 (docs page and fixture), D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
 4. **D-10** as its own planned phase (retrieval).
 5. **Parked:** D-09 (waits on a report), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
 
@@ -366,7 +373,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-04 | which upstream the recordings track (T-21) | decided 2026-10-25 | A — keep the 1.14.0 corpus, state the split, re-record only as a deliberate comparison | 2026-10-25 |
 | D-05 | the 0.1.0 gate (T-14) | decided 2026-10-25 | A — publish after the pre-release set, under the recorded gate | 2026-10-25 |
 | D-06 | the transcript `ChatSurface` renders (T-28) | decided 2026-10-25 | A+A1 — the snapshot carries the conversation projection, `ChatSurface` defaults to it; pre-release | 2026-10-25 |
-| D-07 | a tool scenario in the parity corpus (T-19) | open | | |
+| D-07 | a tool scenario in the parity corpus (T-19) | decided 2026-10-25 | B — a tool-calling scenario family (success and unknown-tool), post-release; the row's option A was a no-op | 2026-10-25 |
 | D-08 | OmniRoute intake (T-39) | open | | |
 | D-09 | Pyodide interrupt (T-24) | open | | |
 | D-10 | when retrieval gets built (0026) | open | | |
@@ -390,6 +397,11 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | The plan's "one source of truth across CLI, React and the model call" overstates: the projection is not the model transcript, and the CLI renders events | D-06 | corrected in `0031`'s semantics; the accurate claim is one conversation projection, shared by its consumers |
 | Recomputing the projection on every event, deltas included, would be quadratic | D-06 | recorded as the boundary-only rule in `0031` and its follow-up |
 | The example's comment claims the surface reads the run while it renders a constant | D-06 | `0031` follow-up: delete the constant, correct the comment |
+| A stub tool in a CodeAgent scenario changes no compared field; upstream records only `python_interpreter` on the step | D-07 | recorded in `0032`; option A is replaced by the tool-calling family |
+| D-02 unblocks a planning scenario, which S1.5 had ruled out because the two sides planned at different points | D-07 | `T-48`'s gate gains it, and the runbook's "two divergences" note is corrected when it lands |
+| The runbook's "Adding a scenario" step says a scenario's `tools` stays empty | D-07 | `0032` follow-up rewrites that step and the failure-table row |
+| The failure scenario may expose a step-error divergence: upstream marks the step errored and keeps no call list; ours records the failed call and continues | D-07 | `0032`: pinned with `differsOn` if measured; changing the loop is a new decision |
+| Both scripted models need a tool-call turn shape, and the schema needs an `agent` axis that leaves the five existing recordings valid | D-07 | `0032` decision clauses: default `code`, arguments stored once, stub defined on both legs |
 
 ## Changes
 
@@ -400,3 +412,4 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 - 2026-10-25: D-04 decided as option A; `T-21` closed. The corpus stays on the 1.14.0 release, the design's pin stays a design reading, and the split plus the no-compatibility-range statement are live in `docs/01-project.md`.
 - 2026-10-25: D-05 decided as option A; `T-14` stays blocked on credentials and the scope claim. The release gate, the four flagged runbook corrections and the release-note step are recorded in `0030`; the runbook is amended. A missed consequence of D-04's group is now a live row: the parity expectations must be re-adjudicated after D-01 and D-02 land, because the endings and the planning position are what the two pinned divergences describe.
 - 2026-10-25: D-06 decided as option A with the lossy projection (A1), pre-release. Reading the code first shrank the question: `toChatMessages()` already existed, documented as the React shell's chat view, tested, and unused, so the work is a wire, not a renderer. The checkpoint-continuity trap, the overstated "one source of truth" rationale, the delta-recomputation cost and the example's false comment are recorded in `0031`.
+- 2026-10-25: D-07 decided as option B with two scenarios, post-release. The row's option A was a no-op: a stub tool in a CodeAgent scenario changes no compared field, because upstream records only `python_interpreter` on the step and prompt, code and observation text are never compared. The family exercises the model-emitted call instead, and its failure scenario is pre-registered as a likely pinned divergence; `0032` also records that D-02 unblocks the planning scenario S1.5 declined.
