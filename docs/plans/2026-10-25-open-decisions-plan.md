@@ -8,7 +8,7 @@
 - **Read when:** choosing the next unit of work, or executing the implementation once the register is settled.
 - **Update when:** the owner decides a row, a recommendation is accepted or rejected, or a premise stops matching the code.
 
-**Status:** filed 2026-10-25. The register is empty at filing; implementation starts only after it is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
+**Status:** filed 2026-10-25. D-01 is decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
 
 ## Why this plan
 
@@ -95,6 +95,17 @@ The library will keep its error taxonomy for the whole 1.x line; adding names to
 #### If you choose otherwise
 
 Option B needs a second decision attached: whether the extra model call is allowed outside the ceiling, whether the returned text must pass the guardrails, and whether the budget stop then becomes a `RunResult.state` value or keeps throwing under a different name. It is a coherent design, but it is a phase-sized one, not a pre-release edit.
+
+#### Decision (2026-10-25)
+
+**Option A.** Both ceilings throw typed errors; `AgentBudgetExceededError` (code `AGENT_BUDGET_EXCEEDED`) joins `AgentMaxStepsError`; the dead `max_steps_reached` state is removed; `.stream()` stays the partial-output channel; design chapter 14.1 is corrected to say exhaustion throws.
+
+Two sub-choices travel with the implementation and are recorded here so they are not lost:
+
+- **What the error carries.** Reason only keeps the `run.limitReached` event untouched; reason plus the spent snapshot needs one optional field on that event. Default: reason only, with the spent numbers left to the event and the budget handle.
+- **Child stop reason.** A budget-exhausted child currently lands in `"failure"` because only the max-steps error is mapped. Default: add `"budget"` to `ChildStopReason` and map the new error, so the child vocabulary stays as precise as the run vocabulary.
+
+Implementation is deferred until the register is settled, per the plan's contract.
 
 ### D-02 — planning cadence (T-16)
 
@@ -323,7 +334,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 
 | id | item | status | choice | date |
 |---|---|---|---|---|
-| D-01 | the `.run()` ending contract (T-18) | open | | |
+| D-01 | the `.run()` ending contract (T-18) | decided 2026-10-25 | A — typed errors for both ceilings, dead state removed, stream stays the partial channel | 2026-10-25 |
 | D-02 | planning cadence (T-16) | open | | |
 | D-03 | supply-chain confirmation (T-25) | open | | |
 | D-04 | which upstream the recordings track (T-21) | open | | |
@@ -339,3 +350,4 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 ## Changes
 
 - 2026-10-25: filed at `d7e1677`. While checking D-01's premise, found that a budget stop reaches `.run()` through the generic fallback, so a normal condition is reported as a missing terminal event; folded into D-01. Two board rows found stale (T-26, T-29).
+- 2026-10-25: D-01 decided as option A. Two sub-choices recorded with defaults: the error carries the reason only, and a child budget stop gains its own `ChildStopReason` value.

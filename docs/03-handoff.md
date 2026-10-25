@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T18:30:00+03:00 — D-01 decided: the run ending is a typed error
+
+**State.** Phase 6 stays closed at `d7e1677`; the open-decisions plan is the working agenda and its first row is settled. No code changed.
+
+**Did.** The owner answered D-01 with option A, recorded in [`0027`](../09-decisions/0027-a-run-that-runs-out-of-room-throws.md): `.run()` throws for every non-success ending, `AgentBudgetExceededError` (`AGENT_BUDGET_EXCEEDED`) joins the step error and carries the stop reason, `RunState` loses the unreachable `max_steps_reached`, `.stream()` stays the partial channel, and chapter 14.1 is corrected at implementation. A child budget stop gains its own `budget` stop reason.
+
+**Verified.** The premises were checked against the code before the record: `.run()` has no branch for `run.limitReached`, `RunState` is built only from `success` and `waiting`, and the child mapping only recognises the step error.
+
+**Unverified / open.** Nothing is implemented yet; the record's follow-ups wait for the register to settle.
+
+**Next.** D-02, the planning cadence.
+
+**Blockers.** None.
+
+**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0027`](../09-decisions/0027-a-run-that-runs-out-of-room-throws.md).
+
 ## 2026-10-25T18:15:00+03:00 — open decisions plan filed; the first decision is under discussion
 
 **State.** Phase 6 is closed at `d7e1677`; tree clean, `main` equals `origin/main`, CI green. The remaining work is collected in one decision plan, no decision is taken yet, and no code changed.
@@ -96,20 +112,4 @@ entry is prepended inside the markers below.
 **Blockers.** None.
 
 **Artifacts.** `packages/core/src/model.ts`; `packages/models/test/adapter-conformance.test.ts`.
-
-## 2026-10-25T08:20:00+03:00 — Phase 6 opened: adapter numbering and typed provider options
-
-**State.** Phase 6 is open as `T-47`; items 6.1 and 6.3 are scheduled, 6.2 is deferred and 6.4 is answered. Phases 0–5 stay closed and nothing has been pushed.
-
-**Did.** Asked the owner the two questions the parent plan had left to them and recorded the answers in `docs/plans/2026-10-25-phase-6-execution-plan.md`: 6.1 executes because opening the phase is what puts the adapter-interface change on the roadmap (the contract is numbered without inventing a break), and 6.2 waits under decision 0018 because no caller has asked. Wrote [decision 0026](docs/09-decisions/0026-retrieval-is-in.md): retrieval is in, as an opt-in seam for a later phase with no core hook and no scheduled code, so 6.4 closes on the record. The plan pre-registers twelve cases across three new files: core `model-adapter.test.ts` and `model-options.test.ts`, models `adapter-conformance.test.ts` and `provider-options.test.ts`, plus the phase-exit file. Updated the parent plan (status, Phase 6 note, `MD-10` checkbox, task table) and opened the task row.
-
-**Verified.** The parent plan, the decision index, the live task table and the plan agree on the same scope; `rotate --check` is clean; no source file changed yet.
-
-**Unverified / open.** 6.1 and 6.3 have no code: their red tests have not been written. 6.2 remains a deferred row rather than a decision.
-
-**Next.** Land 6.1: the version marker, `ModelAdapterV1`, `upgradeModelAdapter`, the adapter declarations and the conformance suite; then 6.3.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/plans/2026-10-25-phase-6-execution-plan.md`; `docs/09-decisions/0026-retrieval-is-in.md`.
 <!-- rotate:end -->
