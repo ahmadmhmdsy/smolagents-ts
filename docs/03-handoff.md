@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T19:31:00+03:00 — D-05 decided: the 0.1.0 gate is stated
+
+**State.** Five of the twelve decisions are settled; no code changed and nothing is published. `T-14` stays blocked on the two external inputs.
+
+**Did.** The owner approved the gate and the sequencing. Decision [`0030`](../09-decisions/0030-the-0-1-0-gate.md): 0.1.0 ships the six-phase program plus `D-01` and `D-02` (and `D-06` if decided pre-release); it publishes only when the two behaviour decisions are implemented, the gate and CI are green on the release revision, the `@smolagents-ts` scope is owned, a publish token with 2FA bypass is in place, and the release note exists. The discussion's four flagged items are now in the runbook: the stale step-3 expectation is corrected against the observed output, `EOTP` and partial-publish recovery are rows in the failure table, step 11 creates the release note from the facade tag, and the scope claim is a checklist step with commands.
+
+**Verified.** Checked today rather than trusted: all eleven manifests read `0.1.0`; no changesets are pending; `npm view` answers `E404` for both names, so both are still unclaimed; `npm whoami` answers `ENEEDAUTH`, so no credential exists here; and the runbook had never been executed.
+
+**Unverified / open.** The publish itself; the token class the owner's account will use; whether `gh` is authenticated on the release machine (the runbook notes the web UI as the fallback).
+
+**Next.** D-06: whether the transcript `ChatSurface` renders is a pre-release row.
+
+**Blockers.** None for the decision; `T-14` waits on credentials and the scope claim.
+
+**Artifacts.** [`0030`](../09-decisions/0030-the-0-1-0-gate.md), [`publish-0.1.0.md`](10-runbooks/publish-0.1.0.md), [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T19:12:00+03:00 — D-04 decided: the parity corpus stays on the 1.14.0 release
 
 **State.** Four of the twelve decisions are settled; no code changed. `T-21` is closed.
@@ -96,36 +112,4 @@ entry is prepended inside the markers below.
 **Blockers.** None.
 
 **Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`0027`](../09-decisions/0027-a-run-that-runs-out-of-room-throws.md).
-
-## 2026-10-25T18:15:00+03:00 — open decisions plan filed; the first decision is under discussion
-
-**State.** Phase 6 is closed at `d7e1677`; tree clean, `main` equals `origin/main`, CI green. The remaining work is collected in one decision plan, no decision is taken yet, and no code changed.
-
-**Did.** Filed `docs/plans/2026-10-25-open-decisions-plan.md`: eleven board rows, the stale pair, twelve decisions with options and a recommendation each, the additions the board lacks, and a live register. Writing it exposed that a budget stop reaches `.run()` through the generic fallback, so a normal ending is reported as a missing terminal event; that folded into D-01.
-
-**Verified.** The plan's claims were checked against `d7e1677` — the loop's endings, the dead `RunState` value, the stale rows' tests. No command was needed for a document.
-
-**Unverified / open.** All twelve decisions. Implementation starts only when the register is settled.
-
-**Next.** Owner decides D-01 (the `.run()` ending contract); then D-02 to D-05 before the release.
-
-**Blockers.** D-05 waits on npm credentials; the rest wait on the owner.
-
-**Artifacts.** [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md).
-
-## 2026-10-25T09:50:00+03:00 — Phase 6 closed, and with it the program
-
-**State.** Phases 0–6 are closed. `T-47` and `T-40` are done; nothing is pushed. Publication still waits on `T-14`.
-
-**Did.** `packages/models/test/phase-6-exit.test.ts` proves the three clauses: a shimmed pre-numbering model finishes a run, a cache hint set through agent options reaches the Anthropic body, and the barrel's adapters are exactly the conformance list. The list moved to a shared test module. Report, parent plan, tasks and the execution plan closed in one commit.
-
-**Verified.** Exit file 3 passed; core 61/662, models 16/89, whole repository 171/1317; validator 0 errors and 0 warnings; `pnpm gate` exit 0.
-
-**Unverified / open.** No v2 exists, so the shim's translation path is unproven by construction. 6.2 reopens only when a caller asks under 0018. Retrieval has a decision and no date.
-
-**Next.** `T-14` when the owner supplies credentials; otherwise the pending rows in the task file.
-
-**Blockers.** None.
-
-**Artifacts.** [`2026-10-25-phase-6-report.md`](reports/2026-10-25-phase-6-report.md).
 <!-- rotate:end -->

@@ -8,7 +8,7 @@
 - **Read when:** choosing the next unit of work, or executing the implementation once the register is settled.
 - **Update when:** the owner decides a row, a recommendation is accepted or rejected, or a premise stops matching the code.
 
-**Status:** filed 2026-10-25. D-01 to D-04 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
+**Status:** filed 2026-10-25. D-01 to D-05 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
 
 ## Why this plan
 
@@ -205,6 +205,10 @@ The release is the point of the program; the clean tree and the green CI are the
 
 Two things belong to the release but are not code: a one-line scope statement in the release note that 0.1.0 contains the six phases, and a post-publish consumer check from the registry — the runbook already includes a fresh-directory install, so the second is a step to run, not a task to add.
 
+#### Decision (2026-10-25)
+
+**Option A — publish after the pre-release set, under a stated gate.** 0.1.0 contains the six-phase program plus `D-01` and `D-02` (and `D-06` if it is decided pre-release); the additive rows ship later. The gate is recorded in [`0030`](../09-decisions/0030-the-0-1-0-gate.md): the two behaviour decisions implemented and documented, the gate and CI green on the exact release revision, the `@smolagents-ts` scope owned and a publish token with 2FA bypass in `~/.npmrc`, a release note on the facade tag carrying the scope line, and the runbook's post-publish consumer check. The four items flagged in the discussion are folded in: the stale step-3 expectation and the missing token/recovery rows are corrected in the runbook, the release-note step is added, the scope-ownership precondition is now a checklist step with commands, and the first-run evidence is named a deliverable.
+
 ### D-06 — the transcript `ChatSurface` renders (T-28)
 
 **Row:** T-28. **Blocks 0.1.0:** no. **Effort:** S.
@@ -352,7 +356,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-02 | planning cadence (T-16) | decided 2026-10-25 | A — the whole lane, structurally; prompt text re-authored | 2026-10-25 |
 | D-03 | supply-chain confirmation (T-25) | decided 2026-10-25 | A — confirm; dev-tree scope and the shrink-at-next-bump rule recorded | 2026-10-25 |
 | D-04 | which upstream the recordings track (T-21) | decided 2026-10-25 | A — keep the 1.14.0 corpus, state the split, re-record only as a deliberate comparison | 2026-10-25 |
-| D-05 | the 0.1.0 gate (T-14) | open | | |
+| D-05 | the 0.1.0 gate (T-14) | decided 2026-10-25 | A — publish after the pre-release set, under the recorded gate | 2026-10-25 |
 | D-06 | the transcript `ChatSurface` renders (T-28) | open | | |
 | D-07 | a tool scenario in the parity corpus (T-19) | open | | |
 | D-08 | OmniRoute intake (T-39) | open | | |
@@ -368,3 +372,4 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 - 2026-10-25: D-02 decided as option A, after the owner weighed the scale case against the lead's release-economics recommendation. The lead's D-02 blast-radius estimate was corrected to four test files before this decision.
 - 2026-10-25: D-03 decided as option A; `T-25` closed. The record gains a scope sentence (development tree only) and a release rule for the exclusion list (shrink it at the next vendor-peer bump).
 - 2026-10-25: D-04 decided as option A; `T-21` closed. The corpus stays on the 1.14.0 release, the design's pin stays a design reading, and the split plus the no-compatibility-range statement are live in `docs/01-project.md`.
+- 2026-10-25: D-05 decided as option A; `T-14` stays blocked on credentials and the scope claim. The release gate, the four flagged runbook corrections and the release-note step are recorded in `0030`; the runbook is amended. A missed consequence of D-04's group is now a live row: the parity expectations must be re-adjudicated after D-01 and D-02 land, because the endings and the planning position are what the two pinned divergences describe.

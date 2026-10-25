@@ -2,7 +2,9 @@
 
 - **Last verified:** never executed. Written 2026-10-14; amended 2026-10-21 by the
   release-identity change (the version bump, the `version:check` gate stage and the
-  two version streams). Every step below is a hypothesis until the first run.
+  two version streams); amended 2026-10-25 by decision `0030` (the release gate,
+  the token class, the recovery rule, the release-note step and the step-3
+  expectation). Every step below is a hypothesis until the first run.
 - **Estimated duration:** 20–30 minutes, plus the registry's propagation delay.
 - **Risk:** high — a published version is immutable. npm refuses to unpublish a
   version older than 72 hours, and refuses outright once anything depends on it.
@@ -44,12 +46,17 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
 ## Preconditions
 
 - [ ] The npm account owns the `@smolagents-ts` scope **and** the unscoped name
-      `smolagents-ts`; both were verified unclaimed on 2026-10-14 and the choice
-      is recorded in decision 0010.
-- [ ] A token with publish rights sits in the operator's own `~/.npmrc` as
-      `//registry.npmjs.org/:_authToken=…`. It is **not** in this repository: a
-      local secrets file is not pack surface, and `.env` is never read by this
-      procedure.
+      `smolagents-ts`; both were verified unclaimed on 2026-10-14 and again on
+      2026-10-25 (both answered `E404`), and the choice is recorded in decision
+      0010. Claim them before the release: `npm whoami`, then create the org
+      `@smolagents-ts` if it does not exist, and confirm the unscoped name is
+      claimable.
+- [ ] A token **that can publish without an interactive OTP** sits in the
+      operator's own `~/.npmrc` as `//registry.npmjs.org/:_authToken=…` (a
+      granular token with publish rights and 2FA bypass, or an automation
+      token). It is **not** in this repository: a local secrets file is not pack
+      surface, and `.env` is never read by this procedure. Without the bypass,
+      `changeset publish` stops mid-way on `EOTP` and leaves a partial release.
 - [ ] `git status --porcelain` is empty on `main`, `main` equals
       `origin/main`, and the tip's CI run is green. Push first if the release
       commit is still local; a green local gate is not a green CI run.
@@ -80,9 +87,10 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
        # expect: a fixed-group package appears only when a changeset names one of
        # the six (then all six move together); independent packages appear only
        # with their own changeset. When the bump is already applied (the 0.1.0
-       # re-cut consumed the five v1-5 module changesets), the command exits 1
-       # with "Some packages have been changed but no changesets were found" —
-       # that is the expected state, not a failure.
+       # re-cut consumed the five v1-5 module changesets), the command prints an
+       # empty "Packages to be bumped:" list — that is the expected state, not a
+       # failure. Observed 2026-10-25; the earlier exit-1 expectation described a
+       # state that no longer occurs here (decision 0030 corrects it).
 
 4. Apply the bump — skip to step 5 when it is already applied. `commit: false`
    in `.changeset/config.json` means this writes the manifests, the CHANGELOGs
@@ -143,6 +151,18 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
         git push --follow-tags origin main
         # the CI run on this sha must be green; Pages deploys the same commit
 
+11. Create the release note from the facade tag, so the first thing a visitor
+    reads says what 0.1.0 is:
+
+        gh release create smolagents-ts@0.1.0 --title "0.1.0" --notes-file .superpowers/release-note-0.1.0.md
+
+    The body carries two lines: 0.1.0 is the six-phase program (runtime, models,
+    tools, executors, React layer, distribution), and the install line
+    `npm install smolagents-ts`. The root `CHANGELOG.md` belongs to the context
+    pack, so this release note is the only user-facing record of what the version
+    contains (decision `0030`). Without `gh`, create it in the web UI from the
+    same tag.
+
 ## Verification
 
 The registry answers, and a consumer that has never seen this repository installs
@@ -179,6 +199,8 @@ honest rollback is forward:
 | Symptom                                                 | Cause                                                                    | Action                                                                                                         |
 | ------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `E403` / "you do not have permission"                   | the token lacks publish rights, or the scope is owned by another account | `npm whoami`, then `npm owner ls @smolagents-ts/core`; settle ownership before retrying                        |
+| `EOTP` / "one-time password"                           | the token has no 2FA bypass and the registry wants an interactive OTP    | stop; create a granular token with publish rights and 2FA bypass (or an automation token), then re-run step 9   |
+| publish stopped part-way                               | one name failed after others landed; the fixed group is now split        | re-run `pnpm changeset publish` (it skips versions already on the registry), then `npm view` every name; never bump mid-recovery |
 | "cannot publish over the previously published versions" | the version already exists — often after a partial publish               | `pnpm changeset status`; add a changeset and bump only what did not land                                       |
 | a tarball carries `workspace:*`                         | the publish tool was npm rather than pnpm                                | check `packageManager` in the root manifest, then publish the remainder with `pnpm -r publish --access public` |
 | the six fixed-group packages are on different versions  | a manifest was hand-edited                                               | return to a clean tree and run `pnpm changeset version && pnpm version:sync` again                             |
@@ -202,4 +224,5 @@ honest rollback is forward:
   `pnpm release:version` (bump) or `pnpm version:check` (verify).
 - The first operator to run this must replace the "never executed" line above
   with the date, the exact output of step 9, and anything that differed from
-  these steps.
+  these steps. That evidence is a deliverable, not a footnote: it is what makes
+  the next release cheaper than this one (decision `0030`).
