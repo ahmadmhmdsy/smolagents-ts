@@ -12,6 +12,13 @@ preferFrozenLockfile: true
 # esbuild ships a prebuilt platform binary; its postinstall only validates the install.
 # Recording it explicitly stops pnpm from appending a placeholder to this checked-in file
 # on every non-interactive install (pnpm issue 11574).
+# Supply-chain posture: decision 0017, confirmed 2026-10-25 (plan D-03).
+# The quarantine is pnpm's default release-age behaviour, not a setting here; the
+# entries below are the only exemptions, and the list is itself the evidence that it
+# is active -- `pnpm config get minimumReleaseAge` prints undefined regardless.
+# The exemptions apply to this development tree only; no published package carries
+# them. Each entry is temporary: at the next vendor-peer bump, try deleting it and
+# keep it only if a frozen-lockfile install still needs it.
 allowBuilds:
   cpu-features: false
   esbuild: true

@@ -8,7 +8,7 @@
 - **Read when:** choosing the next unit of work, or executing the implementation once the register is settled.
 - **Update when:** the owner decides a row, a recommendation is accepted or rejected, or a premise stops matching the code.
 
-**Status:** filed 2026-10-25. D-01 and D-02 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
+**Status:** filed 2026-10-25. D-01, D-02 and D-03 are decided; the rest of the register is open. Implementation starts only after the register is settled. Each discussion picks one row, so this file is the durable copy of the agenda and the decisions.
 
 ## Why this plan
 
@@ -154,6 +154,10 @@ Decision [0017](../09-decisions/0017-supply-chain-posture.md) froze a quarantine
 #### Recommendation: A
 
 A confirmation is the cheapest useful outcome and it is what the row was written for. Record the date and the fact that nothing changed, then close; if the owner later wants the exclusions re-examined, that is a new decision with fresh evidence, which is exactly the rule 0017 was written to enforce.
+
+#### Decision (2026-10-25)
+
+**Option A — confirmed, with the scope sentence and the release rule recorded.** The quarantine and the three exact-version exclusions stand unchanged. They apply to this development tree only and ship with no package, and the exclusion list is the evidence the quarantine is active — `pnpm config get minimumReleaseAge` prints `undefined` on a machine where it plainly is. Each exclusion is temporary: at the next vendor-peer bump it is deleted unless the frozen-lockfile install still needs it. The one weakness — nothing stops a local install appending a fourth entry to the tracked list — is deliberately left to the post-release hardening batch (D-12) rather than fixed here.
 
 ### D-04 — which upstream the recordings track (T-21)
 
@@ -342,7 +346,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 |---|---|---|---|---|
 | D-01 | the `.run()` ending contract (T-18) | decided 2026-10-25 | A — typed errors for both ceilings, dead state removed, stream stays the partial channel | 2026-10-25 |
 | D-02 | planning cadence (T-16) | decided 2026-10-25 | A — the whole lane, structurally; prompt text re-authored | 2026-10-25 |
-| D-03 | supply-chain confirmation (T-25) | open | | |
+| D-03 | supply-chain confirmation (T-25) | decided 2026-10-25 | A — confirm; dev-tree scope and the shrink-at-next-bump rule recorded | 2026-10-25 |
 | D-04 | which upstream the recordings track (T-21) | open | | |
 | D-05 | the 0.1.0 gate (T-14) | open | | |
 | D-06 | the transcript `ChatSurface` renders (T-28) | open | | |
@@ -358,3 +362,4 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 - 2026-10-25: filed at `d7e1677`. While checking D-01's premise, found that a budget stop reaches `.run()` through the generic fallback, so a normal condition is reported as a missing terminal event; folded into D-01. Two board rows found stale (T-26, T-29).
 - 2026-10-25: D-01 decided as option A. Two sub-choices recorded with defaults: the error carries the reason only, and a child budget stop gains its own `ChildStopReason` value.
 - 2026-10-25: D-02 decided as option A, after the owner weighed the scale case against the lead's release-economics recommendation. The lead's D-02 blast-radius estimate was corrected to four test files before this decision.
+- 2026-10-25: D-03 decided as option A; `T-25` closed. The record gains a scope sentence (development tree only) and a release rule for the exclusion list (shrink it at the next vendor-peer bump).

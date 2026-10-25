@@ -47,7 +47,6 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-19 | grow the parity corpus a tool scenario | pending | next session | `scripts/parity/scenarios/*.json`, `scripts/parity/record.py`, `packages/core/test/parity.test.ts` | the owner deferred it; both readers must first learn to wire tools | - |
 | T-21 | decide which upstream the parity recordings track | blocked | owner | `scripts/parity/recordings/*.json`, `scripts/parity/record.py` | the owner picks the upstream; the design pins 1.27.0.dev0, the recordings 1.14.0 | - |
 | T-24 | give the Pyodide executor a worker-backed interrupt path | pending | next session | `packages/exec-pyodide/**` | decision 0016 defers it: a hard wall-clock timeout needs a worker entry and cross-origin isolation headers, which changes the deployment story | `docs/09-decisions/0016-pyodide-in-process-and-fidelity.md` |
-| T-25 | confirm the supply-chain posture decision 0017 records | blocked | owner | `pnpm-workspace.yaml`, `pnpm-lock.yaml` | the owner confirms or reverses the release-age quarantine and the three exact-version exclusions the install required; a reversal is a new record, not an edit | `docs/09-decisions/0017-release-age-quarantine.md` |
 | T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | the models fix closed this shape in the OpenAI adapter; Gemini documents no null, so this waits on evidence rather than a speculative fix | - |
 | T-28 | let the session snapshot feed `ChatSurface` | pending | next session | `packages/core/src/session/` | the design's chat surface takes caller-supplied messages while the snapshot returns steps; decide whether the snapshot grows `messages` or the surface derives its rows | - |
 | T-29 | settle `agent.on(type, handler)` against the shipped `agent.on(event)` | pending | next session | `packages/core/src/agent/` | a caller following the design gets a `TypeError`; add the overload or correct the design | - |
@@ -56,9 +55,8 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 
 ## Blocked
 
-Six live rows are blocked on the owner, and each `gate` cell names what unblocks
+Five live rows are blocked on the owner, and each `gate` cell names what unblocks
 it: T-14 waits on registry credentials, T-16 on the planning-cadence choice, T-18
-on the max-steps ending, T-21 on which upstream the parity recordings track, T-25
-on confirmation of the supply-chain posture, and T-39 on the owner picking a phase
-for OmniRoute gateway support. A blocked row stays in the live
+on the max-steps ending, T-21 on which upstream the parity recordings track, and
+T-39 on the owner picking a phase for OmniRoute gateway support. A blocked row stays in the live
 table above; only `done` rows rotate to `docs/tasks/archive-2026.md`.
