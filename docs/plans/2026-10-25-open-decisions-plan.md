@@ -339,14 +339,14 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 5. **A v2 deprecation policy while v1 is fresh.** The contract number exists and the shim works; the policy for how long v1 adapters keep working after a v2 lands does not exist. Record it when v2 is first planned, not after.
 6. **A release scope line.** No decision says what 0.1.0 contains. A sentence in the release note (0.1.0 is the six-phase program) prevents a later reader from inventing a boundary.
 
-## Order of execution if every recommendation is accepted
+## Order of execution, as the decisions now stand
 
-1. **Housekeeping (no decisions):** close T-26 and T-29; delete the merged branches; add the required check.
-2. **D-01 to D-04 (pre-release):** two small code changes (run ending, planning cadence), two confirmations, two decision records, tests moved or added.
-3. **D-05 (release):** the runbook, the changelog pass, the registry consumer check, the scope line.
-4. **D-06 to D-08 phase 0, D-12 (post-release):** transcript projection, the tool scenario, the gateway docs page and fixture, the cheap chores.
-5. **D-10 (new phase):** retrieval, planned and executed like Phase 6.
-6. **Parked:** D-09 waits on a report; D-11 waits on a caller; D-08 phase 1 waits on the owner.
+1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane), then D-06 if it is decided pre-release. T-48 re-adjudicates the parity expectations after the first two land.
+2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
+3. **Post-release:** D-07 (tool scenario), D-08 phase 0 (docs page and fixture), D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
+4. **D-10** as its own planned phase (retrieval).
+5. **Parked:** D-09 (waits on a report), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
+
 
 ## Decision register
 
@@ -364,6 +364,20 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-10 | when retrieval gets built (0026) | open | | |
 | D-11 | multimodal stays parked (0018) | open | | |
 | D-12 | residual-risk chores | open | | |
+
+## Flagged items and where they landed
+
+Every item raised as "missed" in a decision discussion lands in one of four places: a clause in the decision record, a live document edit, a task row, or an explicit deferral with a destination named here. Chat text alone is not a home.
+
+| item | raised in | home |
+|---|---|---|
+| The error carries the stop reason only, and a child budget stop gains its own `ChildStopReason` value | D-01 | recorded as defaults in `0027` and the register; **owner confirmation is still outstanding** |
+| A guard that stops a local install appending a fourth exclusion to the tracked list | D-03 | deferred to D-12 (post-release hardening); named in the D-03 decision text and the handoff |
+| The user-facing statement that the design pin is a reading, the corpus an observation, and no upstream compatibility range is claimed | D-04 | decision `0029` item 3; implemented in `docs/01-project.md` |
+| The pin is declared three times by design; a re-record moves all three in one change | D-04 | decision `0029` item 5 |
+| The parity expectations must be re-adjudicated after D-01 and D-02 land | D-04 | **`T-48`** — found in the audit of this section, not recorded when D-04 was taken |
+| The scope is unclaimed, the token needs 2FA bypass, a partial publish needs a recovery rule, step 3's expectation is stale, and the release note has no home | D-05 | decision `0030` gate; the four runbook amendments |
+| First-run evidence is a deliverable, and CI and Pages are checked on the release revision | D-05 | the runbook's notes; `0030` gate item 4 |
 
 ## Changes
 
