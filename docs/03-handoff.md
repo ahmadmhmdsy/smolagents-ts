@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T09:10:00+03:00 — Phase 6.1 landed: the adapter contract is numbered
+
+**State.** Phase 6 is open as `T-47`; 6.1 is done and 6.3 is next. Phases 0–5 stay closed and nothing has been pushed.
+
+**Did.** `packages/core/src/model.ts` exports `MODEL_ADAPTER_VERSION` (1), `ModelAdapterV1` and `upgradeModelAdapter`; the shim returns a declared adapter by identity and otherwise supplies the version while forwarding `generate` and `generateStream`. `OpenAICompatibleModel`, `AnthropicModel`, `GeminiModel` and `CustomModel` declare the version; `HuggingFaceModel` inherits it. `packages/models/test/adapter-conformance.test.ts` drives all five adapters over their recorded fixtures with one request-bound fetch, plus a bare model through the shim. Three core cases and two pins.
+
+**Verified.** `model-adapter.test.ts` was watched red (the export was not a function); the conformance file was red for the four wire adapters and green after the declarations, with the Gemini case red once more until the stream URL picked the SSE fixture. Core suite 60 files / 660 tests, models 14 / 80, pins 121, `pnpm typecheck` exit 0.
+
+**Unverified / open.** No second contract version exists, so the shim is proven on a pre-numbering model, not on a v1-to-v2 translation; that path is owed by whichever change bumps the number. The conformance file is a list, and the exit test will import it.
+
+**Next.** Land 6.3: the opaque `providerOptions` field, `AgentOptions.modelOptions`, and the three typed adapter interfaces with their cache markers.
+
+**Blockers.** None.
+
+**Artifacts.** `packages/core/src/model.ts`; `packages/models/test/adapter-conformance.test.ts`.
+
 ## 2026-10-25T08:20:00+03:00 — Phase 6 opened: adapter numbering and typed provider options
 
 **State.** Phase 6 is open as `T-47`; items 6.1 and 6.3 are scheduled, 6.2 is deferred and 6.4 is answered. Phases 0–5 stay closed and nothing has been pushed.
@@ -109,20 +125,4 @@ phase close is not started.
 **Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md:230`,
 `packages/core/src/monitoring/pricing.ts`, `packages/core/src/session/budget.ts`,
 `packages/core/test/usage-cost-budget.test.ts`.
-
-## 2026-10-25T06:10:00+03:00 — Phase 5.1 landed: the opt-in OTel exporter
-
-**State.** Phase 5 is open as `T-46` and 5.1 is done; 5.2 is next. Phases 0–4 stay closed and nothing has been pushed.
-
-**Did.** Opened the phase with `docs/plans/2026-10-25-phase-5-execution-plan.md`, pre-registering the tests for 5.1, 5.2 and the exit criterion, and committed it with the `T-46` row. Landed 5.1: `TraceBuilder` is the live fold over the event stream and `buildTrace` replays through it; the root span records the provider and every closed span its duration; `monitoring/otel.ts` maps a tree to an OTLP/HTTP JSON payload and posts it through an injected fetch only when `AgentOptions.exporter` is installed. A failing exporter logs a warning and never ends the run, and payload keys are dropped unless `includePayloads` is set.
-
-**Verified.** `packages/core/test/otel-exporter.test.ts` was watched red first (the module did not exist). Core suite: 57 files, 639 tests; pins 110 → 113 (`TraceBuilder`, `toOtlpExport`, `createOtlpHttpExporter`); typecheck clean. The gate is the last thing before the 5.1 commit.
-
-**Unverified / open.** No export has reached a real collector; the payload is checked against its own mapping only. 5.2 has not started.
-
-**Next.** Land 5.2: the usage split, the dated price table, the decimal cost and the between-step cost cap.
-
-**Blockers.** None.
-
-**Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md`; `packages/core/src/monitoring/otel.ts`; `packages/core/src/monitoring/trace.ts`.
 <!-- rotate:end -->

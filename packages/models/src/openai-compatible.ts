@@ -1,12 +1,13 @@
 import {
   EMPTY_TOKEN_USAGE,
+  MODEL_ADAPTER_VERSION,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
-  type Model,
+  type ModelAdapterV1,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallDelta,
@@ -201,10 +202,11 @@ function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
  * because they agree on the request and response shape, not because they agree on the
  * host.
  */
-export class OpenAICompatibleModel implements Model {
+export class OpenAICompatibleModel implements ModelAdapterV1 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
+  readonly adapterVersion = MODEL_ADAPTER_VERSION;
 
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;

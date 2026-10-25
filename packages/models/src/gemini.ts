@@ -1,12 +1,13 @@
 import {
   EMPTY_TOKEN_USAGE,
+  MODEL_ADAPTER_VERSION,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
-  type Model,
+  type ModelAdapterV1,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallRequest,
@@ -251,10 +252,11 @@ function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCom
 }
 
 /** Google's generateContent: contents and parts, a system instruction, and no tool finish reason. */
-export class GeminiModel implements Model {
+export class GeminiModel implements ModelAdapterV1 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
+  readonly adapterVersion = MODEL_ADAPTER_VERSION;
 
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;

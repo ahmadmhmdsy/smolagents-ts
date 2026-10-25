@@ -1,12 +1,13 @@
 import {
   EMPTY_TOKEN_USAGE,
+  MODEL_ADAPTER_VERSION,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
-  type Model,
+  type ModelAdapterV1,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallRequest,
@@ -209,10 +210,11 @@ function fromWireUsage(usage: WireUsage | undefined): TokenUsage {
 }
 
 /** Anthropic's Messages API: a top-level system prompt, content blocks, a required limit. */
-export class AnthropicModel implements Model {
+export class AnthropicModel implements ModelAdapterV1 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
+  readonly adapterVersion = MODEL_ADAPTER_VERSION;
 
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;

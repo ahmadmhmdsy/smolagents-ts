@@ -28,6 +28,9 @@ const RUNTIME_EXPORTS = [
   // model and execution seams
   "modelCapabilities",
   "collectCompletion",
+  // The adapter contract's version and the shim that accepts a model written before it.
+  "MODEL_ADAPTER_VERSION",
+  "upgradeModelAdapter",
   // Published beside collectCompletion: an adapter that reassembles a streamed answer in
   // its own generate() needs the same accumulator the built-in helper uses.
   "ToolCallAccumulator",

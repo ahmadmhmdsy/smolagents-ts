@@ -91,6 +91,41 @@ export interface Model {
   ): AsyncIterable<ChatCompletionChunk>;
 }
 
+/**
+ * The version of the adapter contract the loop speaks. An adapter declares the version it was
+ * written against; a later breaking change bumps this number, and `upgradeModelAdapter` keeps an
+ * adapter written for the previous version working. Nothing here is provider-specific.
+ */
+export const MODEL_ADAPTER_VERSION = 1 as const;
+
+/** The adapter contract at its numbered version: `Model` plus the version the adapter implements. */
+export interface ModelAdapterV1 extends Model {
+  readonly adapterVersion: typeof MODEL_ADAPTER_VERSION;
+}
+
+/** Whether a model already declares the current contract version. */
+function declaresAdapterVersion(model: Model): model is ModelAdapterV1 {
+  return (model as { adapterVersion?: unknown }).adapterVersion === MODEL_ADAPTER_VERSION;
+}
+
+/**
+ * The upgrade shim for a model written before the contract was numbered: it supplies the version
+ * on the model's behalf and forwards both calls unchanged, so an adapter that has not been
+ * rewritten keeps working. When the contract moves to a new version, this is the one place that
+ * translates the previous version's options.
+ */
+export function upgradeModelAdapter(model: Model): ModelAdapterV1 {
+  if (declaresAdapterVersion(model)) return model;
+  return {
+    id: model.id,
+    provider: model.provider,
+    capabilities: model.capabilities,
+    adapterVersion: MODEL_ADAPTER_VERSION,
+    generate: (messages, options) => model.generate(messages, options),
+    generateStream: (messages, options) => model.generateStream(messages, options),
+  };
+}
+
 const DEFAULT_CAPABILITIES: ModelCapabilities = {
   streaming: true,
   toolCalls: false,

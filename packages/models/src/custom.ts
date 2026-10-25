@@ -1,10 +1,11 @@
 import {
+  MODEL_ADAPTER_VERSION,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type GenerateOptions,
-  type Model,
+  type ModelAdapterV1,
   type ModelCapabilities,
 } from "@smolagents-ts/core";
 
@@ -32,10 +33,11 @@ export interface CustomModelOptions {
  * script a turn, and what a caller needs to plug in a transport this package does not
  * ship.
  */
-export class CustomModel implements Model {
+export class CustomModel implements ModelAdapterV1 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
+  readonly adapterVersion = MODEL_ADAPTER_VERSION;
 
   private readonly generateImpl: CustomGenerate;
   private readonly generateStreamImpl: CustomGenerateStream | undefined;

@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T06:10:00+03:00 — Phase 5.1 landed: the opt-in OTel exporter
+
+**State.** Phase 5 is open as `T-46` and 5.1 is done; 5.2 is next. Phases 0–4 stay closed and nothing has been pushed.
+
+**Did.** Opened the phase with `docs/plans/2026-10-25-phase-5-execution-plan.md`, pre-registering the tests for 5.1, 5.2 and the exit criterion, and committed it with the `T-46` row. Landed 5.1: `TraceBuilder` is the live fold over the event stream and `buildTrace` replays through it; the root span records the provider and every closed span its duration; `monitoring/otel.ts` maps a tree to an OTLP/HTTP JSON payload and posts it through an injected fetch only when `AgentOptions.exporter` is installed. A failing exporter logs a warning and never ends the run, and payload keys are dropped unless `includePayloads` is set.
+
+**Verified.** `packages/core/test/otel-exporter.test.ts` was watched red first (the module did not exist). Core suite: 57 files, 639 tests; pins 110 → 113 (`TraceBuilder`, `toOtlpExport`, `createOtlpHttpExporter`); typecheck clean. The gate is the last thing before the 5.1 commit.
+
+**Unverified / open.** No export has reached a real collector; the payload is checked against its own mapping only. 5.2 has not started.
+
+**Next.** Land 5.2: the usage split, the dated price table, the decimal cost and the between-step cost cap.
+
+**Blockers.** None.
+
+**Artifacts.** `docs/plans/2026-10-25-phase-5-execution-plan.md`; `packages/core/src/monitoring/otel.ts`; `packages/core/src/monitoring/trace.ts`.
+
 ## 2026-10-25T05:20:00+03:00 — Phase 4 closed: protocol and tool breadth done
 
 **State.** Phases 0–4 are closed; Phase 5 is not opened and waits on the owner. Nothing pushed.

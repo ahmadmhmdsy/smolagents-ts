@@ -254,6 +254,14 @@ Each item runs the same loop, and the order is part of the criterion:
 
 ## Changes
 
+- **2026-10-25 — 6.1 landed.** `MODEL_ADAPTER_VERSION` is 1, `ModelAdapterV1` names the
+  contract the four adapters already implemented, and `upgradeModelAdapter` supplies the marker
+  on behalf of a model written before it, forwarding both calls and keeping its identity. Each
+  adapter now declares the version, and `adapter-conformance.test.ts` (14th models file) runs the
+  same assertions over all five shipped adapters plus a bare model through the shim. The new core
+  case file failed first on the missing name; the conformance file failed on the four wire adapters
+  and then on the shim. Core is 60 files and 660 tests (three cases and two pins); models is 14 and
+  80; pins 119 → 121.
 - **2026-10-25 — 6.0 opening.** Plan written and registered: the scope decision (6.1 and 6.3 in,
   6.2 deferred, 6.4 answered by 0026), the two designs, the twelve pre-registered cases and the
   accounting. `T-47` opened.
