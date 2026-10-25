@@ -383,6 +383,20 @@ The boundary items this discussion surfaced are the plan's to settle: chunking a
 | adapter v2 translation path | Phase 6 | unproven by construction until a v2 exists | none until v2 is planned |
 | handoff size and the 16 baselined validator findings | 0008, Phase 0 | the handoff sits at the rotation edge; the baseline hides findings | one cleanup pass when a session is otherwise idle |
 
+#### Decision (2026-10-25)
+
+**Option A, the batch, with two reassignments.** None of the seven is user-visible, so none blocks the release except one: the fork at an in-doubt `intent` is a legal, reachable, untested combination, and it gets its test before 0.1.0. Everything else becomes `T-57`, one row whose gate is a checklist with one observable proof per item, because a batch row without evidence is a parking space.
+
+Two items changed homes when D-11 made the version-2 contract real: the v1→v2 shim translation test and the Anthropic streamed cache-split fixture now belong to `T-56`'s gate. Leaving them in the D-12 table would assign them to a phase that does not know it owes them.
+
+Three dispositions are decisions rather than bookkeeping:
+
+- **The claim-board fence and the child-store rule are documented, not enforced.** The fence is per parent generation, so enforcing it in the single shipped store would be a false abstraction; the document says so and the next store inherits the requirement.
+- **The resumed-cost sentence goes into the README's budget section until `T-52` decides where guides live.** The "budget guide" it was written against does not exist, and a chore whose destination does not exist becomes chat-only debt.
+- **The re-baseline is the first item of the next session, not "when idle".** Sixteen findings with a review date of 2026-11-20 are only visible while someone reads them; the pass adjudicates what stays rather than deleting to reach zero.
+
+D-03's exclusion-list guard joins the batch as an eighth item; it was deferred here when D-03 was recorded and it must not be lost between the two tables.
+
 ## Not on the board — additions I propose
 
 1. **A docs page for the provider-options seam.** No page under `docs/` mentions `providerOptions`, the three typed interfaces or the adapter version; the only account is in the AGENTS entries and the report. A library whose first release hides its newest seam is a library whose users will not find it. Add a short page after the release, pointing at the typed interfaces rather than repeating them.
@@ -392,11 +406,13 @@ The boundary items this discussion surfaced are the plan's to settle: chunking a
 5. **A v2 deprecation policy while v1 is fresh.** The contract number exists and the shim works; the policy for how long v1 adapters keep working after a v2 lands does not exist. Record it when v2 is first planned, not after.
 6. **A release scope line.** No decision says what 0.1.0 contains. A sentence in the release note (0.1.0 is the six-phase program) prevents a later reader from inventing a boundary.
 
+**Accepted 2026-10-25 under D-12, with destinations:** the provider-options page and the changelog truth pass ride the release-note work; the required status check is the owner's repository setting; branch cleanup is the next session's first command; the v2 deprecation policy is now owed by `T-56`, because it ships the version that needs it; the release scope line belongs to `0030`'s tag checklist.
+
 ## Order of execution, as the decisions now stand
 
 1. **Implement the pre-release set:** D-01 (endings), D-02 (planning lane) and D-06 (the conversation projection on the snapshot, consumed by `ChatSurface`). T-48 re-adjudicates the parity expectations after the first two land. Then D-08 phase 0, which is additive and gates nothing.
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
-3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
+3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-12 (`T-57`: the hardening batch, D-03's exclusion-list guard, and the re-baseline, whose first item is the fork test if it did not land pre-release), and the not-on-the-board hygiene items accepted so far.
 4. **D-11** first, as its own plan (`T-56`, multimodal input, 0.2.0's headline), then **D-10** (`T-55`, retrieval) with its three pre-registered conditions; each is its own phase and neither interleaves with the hygiene batch.
 5. **Parked:** D-09 (a worker is pre-registered in `0033` and waits on a browser runner or a caller who cannot use the remote executors), D-08 phase 1 (waits on a demand), and image or audio output plus realtime voice (stay in `0018`'s bucket, pointed at by `0034`).
 
@@ -416,7 +432,7 @@ The boundary items this discussion surfaced are the plan's to settle: chunking a
 | D-09 | Pyodide interrupt (T-24) | decided 2026-10-25 | B — keep in-process and document it; `0033` corrects 0016's premises and pre-registers the terminate worker | 2026-10-25 |
 | D-10 | when retrieval gets built (0026) | decided 2026-10-25 | A — the first post-release capability phase; its plan pre-registers a deterministic embedding, a message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging | 2026-10-25 |
 | D-11 | multimodal: the owner asks, so it is in (0018) | decided 2026-10-25 | B — reopened; input-only parts in 0.2.0, before retrieval; `0034` fixes the scope and both tool slices ship in the phase | 2026-10-25 |
-| D-12 | residual-risk chores | open | | |
+| D-12 | residual-risk chores | decided 2026-10-25 | A — one batch row (`T-57`); the fork-at-`intent` test pre-release; the v2 shim and streamed-split items reassigned to `T-56`; re-baseline first next session | 2026-10-25 |
 
 ## Flagged items and where they landed
 
@@ -474,9 +490,18 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | Multimodal is not in the parity corpus, and upstream's wrappers are return types | D-11 | a parity claim needs its own scenario family, per `0034` |
 | The unused `images` flag becomes a real gate | D-11 | `0034` makes it honest per adapter, and `T-56` tests the refusal path |
 | Prompt injection inside an image is invisible to the guardrails | D-11 | documented as a caller-facing risk in `0034`'s costs and the phase docs |
+| The "budget guide" the resumed-cost note points at does not exist | D-12 | the sentence goes in the README budget section until `T-52` picks the guide home |
+| Two chores changed homes when D-11 made version 2 real | D-12 | the v1→v2 shim test and the Anthropic streamed-split fixture are named in `T-56`'s gate |
+| A batch row without observable evidence is a parking space | D-12 | `T-57`'s gate is a checklist, one observable proof per item |
+| Owner-gated chores rot without a named trigger | D-12 | live Docker/E2B waits on an account in `T-57`; `T-52` gates the cost sentence |
+| "When idle" is not a criterion for the re-baseline | D-12 | the pass is the first item of the next session, with the 2026-11-20 review date as the backstop |
+| A baseline that only shrinks is a graveyard | D-12 | the pass adjudicates the sixteen findings rather than deleting them to reach zero |
+| D-03's exclusion-list guard was deferred here and does not appear in the chore table | D-12 | an eighth item in `T-57` |
+| The six not-on-the-board additions are the same residue | D-12 | accepted with destinations, and the v2 deprecation policy is now owed by `T-56` |
 
 ## Changes
 
+- 2026-10-25: D-12 decided as the batch: one row (`T-57`) with a checklist gate, the fork-at-`intent` test pre-release, the v2 shim and Anthropic streamed-split items reassigned to `T-56`, the resumed-cost sentence in the README until `T-52`, and the re-baseline as the next session's first item. The six not-on-the-board additions are accepted with destinations. The register is closed.
 - 2026-10-25: D-11 reopened at the owner's request and decided as input-only multimodal in 0.2.0, ahead of retrieval; `0034` fixes the scope (two modalities, bytes not URLs, references in durable state, both tool slices in one phase) and `T-56` is the phase row. The D-10 block and the order section are corrected for the new order.
 - 2026-10-25: D-10 decided as option A, retrieval scheduled as the first post-release capability phase, with the plan written then against a named consumer. The three pre-registered conditions are the deterministic embedding, the message-first retriever with an `asTool()` adapter, and refuse-list-tested packaging; the chunking, embedding-adapter, fingerprint, trace-visibility and persistence boundary items are the plan's to settle.
 - 2026-10-25: D-09 decided as option B, keep in-process and document it. The row's premise was wrong: COOP/COEP belong to the shared-interrupt-buffer variant, and the injectable-loader escape hatch is Node-only. The worker is pre-registered terminate-based in `0033`, the README gains the limitation paragraph, and `T-24`'s trigger is evidence the repository can see rather than a first report.

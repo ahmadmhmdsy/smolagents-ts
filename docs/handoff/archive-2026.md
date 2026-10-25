@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T20:31:00+03:00 — D-08 decided: document the gateway, do not open the package
+
+**State.** Eight of twelve decided; no code changed. The pre-release set stays D-01, D-02 and D-06; D-08 phase 0 is additive and gates nothing, and phase 1 is parked.
+
+**Did.** The owner chose A. The gateway already works at the wire level — 5/5 wire checks and 4/4 stream irregularities absorbed with no source change — so the work is discoverability: a README subsection plus a runbook (recipe, exact CLI form, CORS, localhost-only, pinned model id, `GET /v1/models`, `AbortSignal` timeout, retry is the caller's), a `examples/gateway/` that prints SKIPPED without `OMNIROUTE_BASE_URL`, and a hand-shaped four-frame SSE fixture named by wire shape so LiteLLM and Portkey reuse it. Phase 1 needs its own record: `0019` leaves routing unscheduled, and last-response metadata is unsafe as instance state under concurrent sessions.
+
+**Verified.** The research is offline evidence against a stand-in built from OmniRoute `3.8.53`'s own frames; no live gateway was contacted, so the docs say wire-compatible by construction, never "tested with OmniRoute".
+
+**Unverified / open.** The example and fixture do not exist yet; `--api-base` is silently ignored without `--model-type OpenAIModel` (`T-53`); the site has no user-guide tree (`T-52`, owner).
+
+**Next.** D-09: the Pyodide interrupt (`T-24`).
+
+**Blockers.** None for the decision; `T-14` waits on credentials, `T-52` and `T-54` on the owner.
+
+**Artifacts.** [`04-tasks.md`](04-tasks.md), [the plan](plans/2026-10-25-open-decisions-plan.md), [the research](../docs/research/2026-10-21-omniroute-gateway-support.md).
+
 ## 2026-10-25T20:04:00+03:00 — D-07 decided: the corpus grows a tool-calling family
 
 **State.** Seven of twelve decisions settled; no code changed. The pre-release set stays D-01, D-02 and D-06; D-07 is the first post-release row.
