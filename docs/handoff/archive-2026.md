@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T22:20:00+03:00 — T-49 lands: both ceilings throw
+
+**State.** `D-01` is code. The pre-release set is `T-50`, `T-51` and `T-39`; `T-48` re-adjudicates parity after the first two. Nothing is published.
+
+**Did.** `0027`'s ending contract is in. `AGENT_BUDGET_EXCEEDED` and `AgentBudgetExceededError` join the typed errors and carry the `LimitStopReason` in `info.reason`, with no usage snapshot; `.run()` gains the missing `run.limitReached` branch, so a budget stop throws instead of hitting the "ended without a terminal event" guard; `RunState` loses the dead `max_steps_reached`; a child stopped by its budget reports `stopReason: "budget"`; `AgentSession` maps the new code back to `limit_reached`. Design 6.5, 6.6 and 14.1 now say a ceiling throws, and the 14.1 row drops the `max_steps_error` result claim. The background-child result helper lost the branch that built a `max_steps` report from a state the type cannot hold.
+
+**Verified.** `pnpm typecheck` and `pnpm lint` clean; `pnpm vitest run --project core` is 61 files and 669 tests, exit 0 (six new cases over four files); validator 0 errors, 0 warnings; the pinned export list is 122.
+
+**Unverified / open.** `AgentSession`'s code-to-status mapping has no case of its own, so the `limit_reached` path is proven by the terminal-event test, not by a session test. `D-01`'s two sub-defaults were never put to the owner: the error carries the reason only, and the child reason is spelled `"budget"`.
+
+**Next.** `T-50`: `D-02`'s planning lane per `0028`.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`errors.ts`](../packages/core/src/errors.ts), [`run-result.ts`](../packages/core/src/agent/run-result.ts), [`0027`](09-decisions/0027-a-run-that-runs-out-of-room-throws.md), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T22:05:00+03:00 — D-12 decided: the register closes with a residual-risk batch
 
 **State.** All twelve decided; no code changed. `T-57` is the batch row, and the fork test inside it may land before 0.1.0.

@@ -1,0 +1,30 @@
+{
+  "id": "planning-cadence",
+  "task": "Add 2 and 3 and report the sum.",
+  "tools": [],
+  "planningInterval": 2,
+  "maxSteps": 4,
+  "plans": [
+    {
+      "py": "1. Compute 2 + 3 in one code step.\n2. Call final_answer with the result.\n<end_plan>",
+      "ts": "1. Compute 2 + 3 in one code step.\n2. Call final_answer with the result.\n<end_plan>"
+    }
+  ],
+  "turns": [
+    {
+      "intent": "code",
+      "py": "```python\ntotal = 2 + 3\nprint(total)\n```",
+      "ts": "```javascript\nconst total = 2 + 3;\nconsole.log(total);\n```",
+      "observation": "5"
+    },
+    {
+      "intent": "final-answer",
+      "py": "```python\nfinal_answer(5)\n```",
+      "ts": "```javascript\nfinal_answer(5);\n```",
+      "value": 5
+    }
+  ],
+  "expect": {
+    "parity": "equal"
+  }
+}

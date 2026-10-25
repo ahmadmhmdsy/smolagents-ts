@@ -1,0 +1,52 @@
+{
+  "scenario": "planning-cadence",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-10-25T22:51:17+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "planning-cadence",
+    "outcome": "final-answer",
+    "finalAnswer": 5,
+    "steps": [
+      "planning",
+      "action",
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      },
+      {
+        "toolCalls": [
+          "code"
+        ],
+        "error": false
+      }
+    ],
+    "modelCalls": [
+      [
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+        "observation"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>smolagents-ts - The Review Room - 2026-10-25</title>
+<style>
+  :root{
+    --bg:#0a0c10; --bg2:#0e1116; --panel:#11151b; --line:#222a33; --line2:#2b3642;
+    --ink:#e8edf2; --ink2:#aab6c2; --ink3:#6f7d8b;
+    --amber:#e8a33d; --amber2:#f4c37a;
+    --eng:#5b9dff; --adv:#e4574f; --cus:#38b88a; --exp:#b07bff; --mae:#e8a33d;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  a{color:var(--amber2);text-decoration:none;border-bottom:1px solid rgba(244,195,122,.25)}
+  a:hover{border-bottom-color:var(--amber2)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 26px}
+  header.top{border-bottom:1px solid var(--line);background:radial-gradient(1200px 300px at 20% -60%, rgba(232,163,61,.10), transparent 60%), var(--bg2)}
+  .topin{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 0;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:14px}
+  .dot{width:9px;height:9px;border-radius:99px;background:var(--amber);box-shadow:0 0 0 4px rgba(232,163,61,.12);animation:pulse 2.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .brand b{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+  .brand span{font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
+  .stamp{font-family:var(--mono);font-size:11.5px;color:var(--ink3);text-align:right}
+  .stamp b{color:var(--ink2);font-weight:500}
+  .hero{padding:52px 0 30px;border-bottom:1px solid var(--line)}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
+  h1{font-size:clamp(30px,4.6vw,50px);line-height:1.04;letter-spacing:-.025em;margin:0 0 18px;font-weight:680}
+  h1 em{font-style:normal;color:var(--amber2)}
+  .lede{max-width:790px;color:var(--ink2);font-size:16.5px}
+  .lede b{color:var(--ink)}
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:34px 0 0;background:var(--panel)}
+  .stat{padding:16px 16px 14px;border-right:1px solid var(--line)}
+  .stat:last-child{border-right:0}
+  .stat .v{font-family:var(--mono);font-size:20px;color:var(--ink);letter-spacing:-.02em}
+  .stat .v.bad{color:var(--adv)} .stat .v.good{color:var(--cus)} .stat .v.warn{color:var(--amber)}
+  .stat .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-top:3px}
+  .grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:38px;padding:38px 0 20px;align-items:start}
+  aside{position:sticky;top:22px;display:flex;flex-direction:column;gap:18px}
+  .card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:16px 16px 14px}
+  .card h4{margin:0 0 12px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+  .who{display:flex;gap:11px;padding:7px 0;align-items:flex-start}
+  .who .ava{width:26px;height:26px;border-radius:8px;flex:0 0 auto;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:#0a0c10}
+  .who .nm{font-size:12.8px;font-weight:600;line-height:1.25}
+  .who .rl{font-size:11px;color:var(--ink3);line-height:1.35}
+  .ruling{display:flex;gap:9px;padding:8px 0;border-top:1px dashed var(--line);font-size:12px;color:var(--ink2)}
+  .ruling:first-of-type{border-top:0}
+  .ruling .tag{font-family:var(--mono);font-size:10.5px;color:var(--adv);flex:0 0 44px;padding-top:1px}
+  .ruling.o .tag{color:var(--ink3)}
+  .note{font-size:11.5px;color:var(--ink3);line-height:1.55}
+  .note b{color:var(--ink2)}
+  .note code{font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+  .thread{display:flex;flex-direction:column;gap:0}
+  .beat{margin:0 0 6px;padding:26px 0 6px;border-bottom:1px solid rgba(34,42,51,.55)}
+  .beat .bk{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
+  .beat h2{margin:0;font-size:13px;font-weight:600;color:var(--ink2);letter-spacing:.02em}
+  .beat:first-child{padding-top:0;border-bottom:0}
+  .msg{display:grid;grid-template-columns:40px minmax(0,1fr);gap:14px;padding:18px 0 20px;border-bottom:1px dashed rgba(34,42,51,.6)}
+  .msg:last-child{border-bottom:0}
+  .ava{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:800;letter-spacing:.03em;color:#0a0c10;margin-top:2px}
+  .msg .head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+  .msg .name{font-size:13.5px;font-weight:700;letter-spacing:.01em}
+  .msg .role{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+  .msg .tc{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-left:auto}
+  .body{font-size:14.8px;color:var(--ink);max-width:76ch}
+  .body p{margin:0 0 10px}
+  .body p:last-child{margin-bottom:0}
+  .body em{color:var(--amber2);font-style:normal}
+  .body strong{font-weight:650}
+  .body ul{margin:6px 0 10px;padding-left:20px}
+  .body li{margin:3px 0}
+  .body .q{border-left:2px solid var(--line2);padding:2px 0 2px 13px;color:var(--ink2);font-style:italic;margin:8px 0}
+  .body code{font-family:var(--mono);font-size:12.5px;color:var(--amber2);background:rgba(232,163,61,.07);padding:1px 4px;border-radius:4px}
+  .foot{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:9px}
+  .eng .ava{background:var(--eng)} .eng .name{color:var(--eng)}
+  .adv .ava{background:var(--adv)} .adv .name{color:var(--adv)} .adv .body{border-left:2px solid rgba(228,87,79,.25);padding-left:16px}
+  .cus .ava{background:var(--cus)} .cus .name{color:var(--cus)}
+  .exp .ava{background:var(--exp)} .exp .name{color:var(--exp)} .exp .body{border-left:2px solid rgba(176,123,255,.22);padding-left:16px}
+  .mae .ava{background:var(--mae)} .mae .name{color:var(--mae)}
+  .aside-note{margin:6px 0 18px;padding:12px 15px;border:1px solid var(--line);border-left:2px solid var(--ink3);border-radius:0 10px 10px 0;background:rgba(17,21,27,.7);font-size:12.5px;color:var(--ink2);font-family:var(--mono);line-height:1.55}
+  .verdict{margin:44px 0 0;border:1px solid rgba(232,163,61,.35);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,rgba(232,163,61,.07),rgba(17,21,27,0) 240px),#0e1116}
+  .vhead{padding:26px 28px 22px;border-bottom:1px solid rgba(232,163,61,.2);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .lock{width:44px;height:44px;border-radius:12px;background:rgba(232,163,61,.14);border:1px solid rgba(232,163,61,.4);display:grid;place-items:center;font-size:20px;color:var(--amber)}
+  .vhead h2{margin:0;font-size:21px;letter-spacing:-.01em}
+  .vhead p{margin:3px 0 0;font-size:12.5px;color:var(--ink3);font-family:var(--mono)}
+  .vbody{padding:6px 28px 30px}
+  .vsec{padding:24px 0 6px;border-bottom:1px solid rgba(34,42,51,.7)}
+  .vsec:last-child{border-bottom:0}
+  .vsec .vk{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-bottom:8px}
+  .vsec h3{margin:0 0 10px;font-size:17px;letter-spacing:-.01em}
+  .vsec p{color:var(--ink2);font-size:14.3px}
+  .vsec p b{color:var(--ink)}
+  .phase{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:16px 18px;margin:12px 0}
+  .phase .ph{display:flex;gap:11px;align-items:baseline;flex-wrap:wrap}
+  .ph .num{font-family:var(--mono);font-size:11px;font-weight:700;color:#0a0c10;background:var(--amber);border-radius:6px;padding:2px 7px}
+  .ph .ttl{font-weight:650;font-size:14.5px}
+  .ph .when{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-left:auto}
+  .steps{margin:12px 0 0;padding:0;list-style:none;counter-reset:s}
+  .steps li{counter-increment:s;position:relative;padding:7px 0 7px 26px;font-size:13.6px;color:var(--ink2);border-top:1px solid rgba(34,42,51,.5)}
+  .steps li:first-child{border-top:0}
+  .steps li:before{content:counter(s);position:absolute;left:0;top:9px;font-family:var(--mono);font-size:10.5px;color:var(--amber)}
+  .steps li b{color:var(--ink);font-weight:600}
+  .steps code{font-family:var(--mono);font-size:11.5px;color:var(--amber2)}
+  .cmd{display:block;font-family:var(--mono);font-size:12px;color:var(--ink);background:#0a0d11;border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-top:10px;overflow-x:auto;white-space:pre;line-height:1.65}
+  .cmd .c{color:var(--ink3)}
+  table.t{width:100%;border-collapse:collapse;margin:14px 0 4px;font-size:13.2px}
+  table.t th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:8px 10px;border-bottom:1px solid var(--line2);font-weight:600}
+  table.t td{padding:9px 10px;border-bottom:1px solid rgba(34,42,51,.6);color:var(--ink2);vertical-align:top}
+  table.t td:first-child{color:var(--ink);font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+  table.t tr:last-child td{border-bottom:0}
+  table.t code{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;padding:1px 7px;border-radius:99px;border:1px solid var(--line2);color:var(--ink2)}
+  .pill.go{border-color:rgba(56,184,138,.5);color:var(--cus)}
+  .pill.stop{border-color:rgba(228,87,79,.5);color:var(--adv)}
+  .pill.wait{border-color:rgba(232,163,61,.5);color:var(--amber)}
+  .callout{border:1px solid rgba(228,87,79,.35);background:rgba(228,87,79,.06);border-radius:12px;padding:14px 16px;margin:16px 0;font-size:13.6px;color:var(--ink2)}
+  .callout b{color:var(--ink)}
+  .accept{font-family:var(--mono);font-size:12px;color:var(--ink2);background:#0a0d11;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px;white-space:pre-wrap;line-height:1.6}
+  footer{margin:50px 0 0;padding:22px 0 60px;border-top:1px solid var(--line);color:var(--ink3);font-size:11.5px;font-family:var(--mono);line-height:1.7}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}aside{position:static}.stats{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}.msg{grid-template-columns:30px minmax(0,1fr)}.ava{width:30px;height:30px;font-size:10px;border-radius:8px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap topin">
+    <div class="brand">
+      <div class="dot"></div>
+      <div><b>The Review Room</b><br><span>smolagents_ts / main / E:\python_projects\smolagents_ts</span></div>
+    </div>
+    <div class="stamp">
+      session <b>RR-0007</b> / recorded 2026-10-25 / 23:05 Asia/Baghdad<br>
+      <b>maestro silent</b> until the room closes / no summary / no polite consensus
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="kicker">live transcript / objective: analyze the project and review it</div>
+  <h1>A working library that <em>nobody can install yet</em>,<br>put on trial by the people who would.</h1>
+  <p class="lede">
+    The room was given one job: take <b>smolagents-ts</b> apart. Not the pitch - the tree. Eleven packages,
+    ~19.4k lines of source, an eleven-stage gate, a 1,345-test suite that is genuinely green, and a release
+    that has never happened. The Expert was called first and asked to name the problem before anyone defended
+    anything. What follows is the clash as it happened, including the independent code audit that was fed into
+    the room mid-session. The Maestro's sealed ruling is at the bottom, and it is built from the corrections -
+    not from the opening plan.
+  </p>
+  <div class="stats">
+    <div class="stat"><div class="v">11</div><div class="k">published packages</div></div>
+    <div class="stat"><div class="v">19.4k</div><div class="k">source lines</div></div>
+    <div class="stat"><div class="v good">1345 / 1345</div><div class="k">tests green (175 files)</div></div>
+    <div class="stat"><div class="v bad">0.1.0</div><div class="k">never published</div></div>
+    <div class="stat"><div class="v bad">0</div><div class="k">browser CI jobs</div></div>
+    <div class="stat"><div class="v warn">never</div><div class="k">release runbook run</div></div>
+  </div>
+</section>
+
+<div class="grid">
+  <aside>
+    <div class="card">
+      <h4>The room</h4>
+      <div class="who"><div class="ava" style="background:var(--eng)">EN</div><div><div class="nm" style="color:var(--eng)">The Engineer</div><div class="rl">builds the framework / owns the plan</div></div></div>
+      <div class="who"><div class="ava" style="background:var(--adv)">DA</div><div><div class="nm" style="color:var(--adv)">Devil's Advocate</div><div class="rl">first draft rejected / fatal flaw required</div></div></div>
+      <div class="who"><div class="ava" style="background:var(--cus)">DC</div><div><div class="nm" style="color:var(--cus)">The Dumb Customer</div><div class="rl">sarcastic end user / hates complexity</div></div></div>
+      <div class="who"><div class="ava" style="background:var(--exp)">EX</div><div><div class="nm" style="color:var(--exp)">The Expert</div><div class="rl">Marcus Feld / TypeScript SDK maintainer</div></div></div>
+      <div class="who"><div class="ava" style="background:var(--mae)">MA</div><div><div class="nm" style="color:var(--mae)">The Maestro</div><div class="rl">silent / observer / ruling at the end</div></div></div>
+    </div>
+
+    <div class="card">
+      <h4>Rulings recorded</h4>
+      <div class="ruling"><span class="tag">EX-1</span><span>The product is mis-stated: it is a <b>runtime contract</b>, not a library.</span></div>
+      <div class="ruling"><span class="tag">DA-1</span><span>Fatal: the facade's quick start <b>does not install its sandbox</b>, and the release is unrehearsed.</span></div>
+      <div class="ruling"><span class="tag">DC-1</span><span>Fatal: first run is minutes-to-nothing; the demo is a recording; the name collides.</span></div>
+      <div class="ruling"><span class="tag">EX-2</span><span>Fatal: a stream can emit <b>two terminal events</b>, and a store failure produces both.</span></div>
+      <div class="ruling"><span class="tag">EX-3</span><span>Fatal: the remote executor lets <b>guest stdout forge host control frames</b>.</span></div>
+      <div class="ruling o"><span class="tag">EN-4</span><span>Plan rewritten: install contract, canary, terminal invariant, dated kill-criterion.</span></div>
+    </div>
+
+    <div class="card">
+      <h4>What the room read</h4>
+      <p class="note">
+        <b>verified in session:</b> <code>pnpm test</code> -> 175 files / 1345 tests, exit 0, 240.8s /
+        registry: <code>smolagents-ts</code> and <code>@smolagents-ts/*</code> -> 404 / tree dirty with the
+        T-48 parity work / facade declares the quickjs engine as an <b>optional peer</b>.
+      </p>
+      <p class="note" style="margin-top:10px">
+        <b>independent audit, mid-session:</b> 15 findings with file:line evidence, four High - double terminal
+        on commit failure, session cannot resume a parked run, Pyodide cannot interrupt, forged remote frames.
+      </p>
+    </div>
+  </aside>
+
+  <main class="thread">
+
+    <div class="beat">
+      <div class="bk">00:00</div>
+      <h2>The door closes / the Expert is called before anyone presents / the Maestro takes the corner seat and says nothing</h2>
+    </div>
+
+    <div class="aside-note">
+      [recorder] Marcus Feld arrives first and is handed the tree, not the pitch. The Engineer is asked to wait.
+      The Dumb Customer has already opened the README and is annoyed. The Maestro sits, pours the water, and does not open the folder.
+    </div>
+
+    <div class="msg exp">
+      <div class="ava">MF</div>
+      <div>
+        <div class="head"><span class="name">Marcus Feld</span><span class="role">The Expert / called for this specific problem</span><span class="tc">00:04</span></div>
+        <div class="body">
+          <p>I was called because this is not an "is the code good" problem. It is a <strong>shipping decision</strong> about a runtime that executes machine-written code, and I have been maintainer of record on two of those - one that reached a million installs and one that died with its docs still claiming v1 features. The second one is the relevant one tonight.</p>
+          <p>Before I hear anyone's plan: I read the tree, not the roadmap. Here is what I see.</p>
+          <ul>
+            <li>Eleven packages, ~19.4k source lines, 1,345 tests green in 240 seconds, an eleven-stage gate. This is not a weekend repo; it is institutionally shaped.</li>
+            <li>0.1.0 exists in every manifest and has never touched the registry. The names all answer <em>404</em>. So the project is at the one boundary where code quality stops mattering and distribution starts.</li>
+            <li>The gate is honest about what it proves - the README itself says a green suite proves nothing about a live provider, a Docker daemon, or a browser. That sentence is the most trustworthy line in the repository, and it is aimed directly at the project's own sales claim.</li>
+          </ul>
+          <p>My first-principles read is blunt. <strong>This project is not a library. It is a runtime contract with a UI on top, and contracts fail at their edges.</strong> The edges are: the install, the first run, the sandbox boundary, and the release. Everything in the middle is already strong. So the question I will judge every plan against tonight is not "does it improve the library?" - it is <em>"does it move a stranger from a URL to a working agent without reading your design record?"</em></p>
+          <p>I will dissect each plan twice: once for what it claims, once for what it accidentally guarantees thirty days later. I expect to disagree with the first draft. Please present it.</p>
+        </div>
+        <div class="foot">expertise on tap / second-order effects are the deliverable</div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="bk">00:11</div>
+      <h2>The Engineer presents the plan</h2>
+    </div>
+
+    <div class="msg eng">
+      <div class="ava">EN</div>
+      <div>
+        <div class="head"><span class="name">The Engineer</span><span class="role">The Engineer / presenting</span><span class="tc">00:12</span></div>
+        <div class="body">
+          <p>I will not sell it. Here is the state I measured before I walked in, then what I propose.</p>
+          <p><strong>Measured, this session:</strong> 175 test files, 1,345 tests, exit 0, 240.8s. Eleven-stage gate green. All eleven manifests at 0.1.0. Names unclaimed on npm. Working tree dirty with the T-48 parity re-adjudication. T-39 landed at 22:48. Publication is blocked on two things only: an npm token with 2FA bypass, and the <code>@smolagents-ts</code> org not existing yet.</p>
+          <p><strong>The plan I brought: a six-week release-and-hardening march.</strong></p>
+          <ul>
+            <li><strong>Weeks 1-2 - release readiness.</strong> Docs truth pass, close the two stale task rows (T-26 and T-29 - the code already ships both behaviours), finish T-48, re-run the gate, take a clean handoff entry.</li>
+            <li><strong>Weeks 3-4 - the hardening batch.</strong> Work the ranked backlog's Release 1: per-tool deadlines, structured-output modes, schema-failure repair, approval bound to its call, honest network policy, schemaVersion on stored runs.</li>
+            <li><strong>Weeks 5-6 - publish.</strong> Create the org, run the eleven-package runbook for the first time, fix whatever breaks, then announce.</li>
+          </ul>
+          <p>The logic is that the release is irreversible, so it goes last, after the quality ceiling is as high as we can push it. That is how the project has been run for six phases already - gate first, proof second, publish third - and every phase landed green. I am proposing we keep doing the thing that has been working.</p>
+        </div>
+        <div class="foot">draft v1 / six weeks / publish last / rejected on contact</div>
+      </div>
+    </div>
+
+    <div class="msg adv">
+      <div class="ava">DA</div>
+      <div>
+        <div class="head"><span class="name">Devil's Advocate</span><span class="role">Devil's Advocate</span><span class="tc">00:15</span></div>
+        <div class="body">
+          <p>Rejected. Not the schedule - the <em>sentence under it</em>: "the release is irreversible, so it goes last." That is backwards, and it is the one error this project has been making for six phases without noticing.</p>
+          <p>A publish is not dangerous because it is irreversible. It is dangerous because it is <strong>unrehearsed</strong>. You have eleven packages, six of them in one fixed version group, five outside it, a CLI deliberately off the group, and a runbook whose first line is "never executed". You are proposing to rehearse the only irreversible operation in the project <em>after</em> two weeks of unrelated code changes, at the moment of maximum accumulated risk, with a token type you have never used, into a scope organisation that does not exist yet.</p>
+          <p>That is not a release plan. It is a bet that the eleven-package publish path works on the first try - and the evidence is that every other path in this repo was debugged on it. The runbook itself says the fixed group means <em>a partial release cannot be repaired one package at a time</em>. You have designed a single point of total failure, scheduled it last, and called scheduling it last caution.</p>
+          <p><strong>Fatal flaw, first draft:</strong> the plan treats publication as a reward for finishing, when it is the highest-uncertainty process in the repository and must be rehearsed first, on a version that can be deleted.</p>
+          <p>And while I have the floor - the thing you did not mention at all. <em>Who installs this?</em> You have a rank-ordered backlog of eleven hardening items and not one line about a single human outside this building getting an agent to run. Your last three phases were "apply the competitor findings". You are hardening a product that has zero external users, and calling that progress because the gate is green.</p>
+        </div>
+        <div class="foot">first draft rejected / fatal flaw logged: unrehearsed irreversible operation</div>
+      </div>
+    </div>
+
+    <div class="msg cus">
+      <div class="ava">DC</div>
+      <div>
+        <div class="head"><span class="name">The Dumb Customer</span><span class="role">The Dumb Customer</span><span class="tc">00:19</span></div>
+        <div class="body">
+          <p>Okay. I'm the guy you're building this for, allegedly. I heard "agents that think in code, natively in TypeScript" and I clicked the README because I want an agent in my Next.js app by lunch. Here is my entire experience, in order.</p>
+          <div class="q">"Install: until 0.1.0 is on the registry, run it from this repository."</div>
+          <p>So the thing I came for is not installed by any command a normal human would type. Fine, open source, whatever. I clone it. Then the quick start wants <code>CodeAgent</code>, a <code>QuickJSExecutor</code>, <em>and</em> a <code>MockModel</code> that I have to hand-write a fake thought-and-code string for. So my first run of an "agent library" is me typing out what the agent would have said. I am the model. Congratulations, you built a very fancy way for me to talk to myself.</p>
+          <p>Then I go to the part I actually care about - talking to a real model - and the example is six adapters, a gateway runbook, and a sentence that says the gateway must stay bound to localhost and cross-origin requests are denied by default. So the browser story, which is your headline, is also the thing that needs a dev-server proxy and a CORS conversation.</p>
+          <p><strong>My fatal flaw:</strong> the first thing your README makes me do is <em>script the model myself</em>, and the second thing is <em>configure networking so it can't do anything</em>. For a library whose pitch is "simpler than chat", my five-minute experience is worse than a five-minute experience with the thing you're telling me is bloated. Also - "smolagents-ts". Sounds like a Python package someone ran through a converter and forgot to rename. I'd trust it less, not more.</p>
+        </div>
+        <div class="foot">customer / rejects first draft / fatal flaw: onboarding is a rehearsal of the maintainer's tests</div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="bk">00:22</div>
+      <h2>The audit lands on the table - fifteen findings with file and line, four of them High</h2>
+    </div>
+
+    <div class="aside-note">
+      [recorder] An independent read-only audit of the current tree is handed in mid-session. The room goes quiet for a
+      minute while the Engineer reads it. It is not a summary of the old review; every line number was re-read against the source.
+    </div>
+
+    <div class="msg exp">
+      <div class="ava">MF</div>
+      <div>
+        <div class="head"><span class="name">Marcus Feld</span><span class="role">The Expert / reading the audit aloud</span><span class="tc">00:27</span></div>
+        <div class="body">
+          <p>This changes the shape of the conversation, so I will read the four that matter into the record.</p>
+          <ul>
+            <li><strong>One - the terminal event is not the last thing that happens.</strong> <code>complete()</code> numbers and emits <code>run.completed</code>, then commits; if the commit fails it calls <code>failRun</code>, which emits <code>run.failed</code>. Two terminals, one run. The same shape sits in <code>parkRun</code> and <code>transferRun</code>. Every consumer that treats the stream as authoritative - the session snapshot, the CLI exit code, the trace export - inherits that contradiction.</li>
+            <li><strong>Two - the framework-facing session cannot resume the run it just parked.</strong> <code>send()</code> calls <code>agent.run</code> without <code>resume</code>, and a waiting record rejects a resume that names no request or outcome. So the approval your own stream announced can only be settled by dropping a level to the raw agent. The React and CLI layers are built on an API that cannot finish its own hand-off.</li>
+            <li><strong>Three - the remote executor treats guest stdout as host control.</strong> Any printed <code>@@SMOLAGENTS_FRAME@@{"type":"tool_call",...}</code> is accepted as a frame, and the tool name is resolved against the <em>full registry</em>, not the declared transfer set. A "narrow" transfer enforces nothing; any writer on that stdout can drive host tools with host privileges.</li>
+            <li><strong>Four - Pyodide's stop is a timer on the same thread as the code it is trying to stop.</strong> A synchronous guest loop never lets the timer fire, and there is no memory cap. One untrusted step hangs the host forever, and every abandoned stop leaks a live interpreter.</li>
+          </ul>
+          <p>Now hear me carefully: <strong>these do not invalidate the plan; they reclassify it.</strong> The Engineer's six weeks presumed the code was finished and the release was ceremony. The audit says the code is finished <em>for a library with no users</em>. The moment you publish, findings one and two become support tickets, and finding three becomes a security report. That is what the Advocate was circling when he asked who installs it - not because users are the goal, but because <b>a user is the only thing that turns a latent defect into an urgent one</b>.</p>
+          <p>So my verdict on draft v1 stands, and it hardens: <b>you may not publish a runtime whose terminal-event invariant and privilege boundary are wrong</b>. But note what that costs - two of the four are small, structural fixes, and two are honest documentation plus a scope decision. That is not six weeks. That is days.</p>
+        </div>
+        <div class="foot">audit absorbed / the release is not the problem, the unexamined edges are</div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="bk">00:31</div>
+      <h2>The Engineer revises under fire</h2>
+    </div>
+
+    <div class="msg eng">
+      <div class="ava">EN</div>
+      <div>
+        <div class="head"><span class="name">The Engineer</span><span class="role">The Engineer / revising</span><span class="tc">00:31</span></div>
+        <div class="body">
+          <p>I am not conceding the whole thing, but I concede the sequencing and two facts.</p>
+          <p><strong>Conceded:</strong> the optional-peer reading of the facade is correct. I checked it again. <code>exec-quickjs</code> has the engine as a real dependency, the facade hoists the engine to an optional peer, and pack smoke installs tarballs and imports entries - it does not construct an executor from a clean consumer. So the one path a stranger takes is the one path our release automation does not run. That is not a docs bug; that is the facade's contract being unenforced.</p>
+          <p><strong>Conceded:</strong> the fixed-group trap. <code>.changeset/config.json</code> fixes six packages and leaves cli, exec-pyodide, exec-remote, mcp and react-ui independent. On a first release, "run the runbook" is not a sufficient instruction; the independent five have to be named or they silently stay unpublished.</p>
+          <p><strong>Not conceded: publishing first with a canary.</strong> The Advocate wants a rehearsal publish today. I will meet him halfway, and here is the distinction I will defend: what needs rehearsing is not the registry write, it is the <strong>artifact the registry will serve</strong>. A tarball can be packed, installed into an empty project and exercised without a publish - <code>npm pack</code> plus <code>npm install</code> in a temp dir is free, repeatable, and catches every defect the Advocate is worried about except the token and the scope.</p>
+          <p>So my revised position: <strong>the release moves from last to first</strong>, but in the safe direction - artifact rehearsal now, canary publish as soon as the install path is green, announcement only after a stranger succeeds. The hardening backlog does not disappear; it moves behind the release and the audit, because a hardening item no user has asked for is a guess, and a published version a user can file a bug against turns guesses into evidence.</p>
+          <p>On the audit: findings one and two are real and I will fix them before anything publishes. Finding three - the remote frame forging - is a per-run nonce and a declared-set check, which is contained. Finding four, Pyodide, is a worker-based interrupt that is a milestone on its own and already parked behind an owner decision. I will not pretend that is a two-day fix.</p>
+        </div>
+        <div class="foot">draft v2 / release moved first / artifact rehearsal, then canary / audit reclassified the work</div>
+      </div>
+    </div>
+
+    <div class="msg adv">
+      <div class="ava">DA</div>
+      <div>
+        <div class="head"><span class="name">Devil's Advocate</span><span class="role">Devil's Advocate / second attack</span><span class="tc">00:35</span></div>
+        <div class="body">
+          <p>Better. Still leaking. Four holes in v2.</p>
+          <p><strong>One - you have no rehearsal of the <em>token</em>, which is the part that actually fails.</strong> Your runbook's precondition is a token with 2FA bypass and a scope org that does not exist. "npm pack into a temp dir" proves the tarball installs; it proves nothing about <code>changeset publish</code> walking an eleven-package graph, the fixed-group ordering, or what a halfway failure leaves behind. If the write is thirty seconds, rehearse the write for free: publish <code>0.0.0-canary.0</code> under a <code>canary</code> dist-tag. It costs one version number you will never use, it exercises the token, the scope and the ordering, and if a package ends up wrong you deprecate a version nobody was told about. You are refusing a free rehearsal because it feels like shipping before you are ready - which is exactly the instinct this project has been feeding for six phases.</p>
+          <p><strong>Two - the Pyodide answer is a shrug wearing a scope decision.</strong> You just said it hangs the host forever. It is in the canary set. Either say "not in 0.1.0" in writing, or fix it, or <em>label it experimental in the capability table and the README with the words 'no CPU interrupt, no memory cap, do not run untrusted code in-process'</em>. What you may not do is publish a package that is cheerful about a hang. The fourth finding is a documentation blocker, not a milestone.</p>
+          <p><strong>Three - "hardening behind the release" is a slogan, not a plan.</strong> Which items move? How long do they sit? If the answer is "until a user asks", then T-18 and T-16 have been scheduled forever, and the two stale rows stay stale while you wait. Name the boundary: what must be true <em>at</em> 0.1.0, what is a 0.1.x patch, and what is explicitly 0.2.0. Otherwise "after release" is where work goes to die politely.</p>
+          <p><strong>Four - the claim demotion you both danced around.</strong> The Expert says the isomorphic claim is unsupported. You cannot fix that in the release window - a browser CI matrix is a day of work and it will flake on the first three runs. So demote the claim in <em>writing</em> before the tag and schedule the browser job as the thing that earns it back. If the README says "isomorphic by contract, verified in Node, Bun and Deno; browser support is declared, exercised by the example, and not yet gated in CI" - that sentence is true, defensible, and it removes the biggest attack surface a hostile reviewer has on day one. A library that states its own limits is harder to embarrass than one that overclaims.</p>
+        </div>
+        <div class="foot">second attack / canary publish demanded / Pyodide label demanded / boundary demanded / claim demotion demanded</div>
+      </div>
+    </div>
+
+    <div class="msg cus">
+      <div class="ava">DC</div>
+      <div>
+        <div class="head"><span class="name">The Dumb Customer</span><span class="role">The Dumb Customer / still annoyed</span><span class="tc">00:39</span></div>
+        <div class="body">
+          <p>Great, a canary. My mom is thrilled. Let me tell you what I still don't have, because I'm the one you keep not asking.</p>
+          <p>I don't want a rehearsal. I want a page where I paste a task, and an agent does it. You have that - the live demo, hosted on GitHub Pages, scripted model by default, and a "live Gemini mode" that needs the key to sit in a dev server so it never touches the browser. Cool. Now read that back to me: <em>the one way I can try this without a key is the one way where it isn't actually an agent.</em> Your demo is a recording played in a theatre. The real version needs me to run a dev server and paste a Google key into a terminal.</p>
+          <p>And here is the part that makes me put my card away. Every README sentence I hit is a rule: "must stay bound to localhost", "cross-origin requests are denied by default", "pin one model id when a run must be reproducible", "a gateway without auth should not be exposed". I'm not building a bridge to hostile territory. I'm trying to make a chatbot with extra steps. If the first page of setup is eleven lines of security posture, I assume the library is for people who are already experts - which means I'm not the audience, which means you can be as green as you like on tests I'll never run.</p>
+          <p><strong>What I actually demand:</strong> one hosted page, one task box, one real model, no key on my side. If you can't do that for free, say so in the README in the first three lines and stop pretending the demo is it. And put a working copy-paste "real model" example <em>directly under</em> the quick start - not on line 121 after gateways and proxies.</p>
+        </div>
+        <div class="foot">customer / rejects v2 / the demo is not first contact / the key story is the conversion</div>
+      </div>
+    </div>
+
+    <div class="msg exp">
+      <div class="ava">MF</div>
+      <div>
+        <div class="head"><span class="name">Marcus Feld</span><span class="role">The Expert / second dissection</span><span class="tc">00:43</span></div>
+        <div class="body">
+          <p>The Customer has just named the real product problem, and it is not the demo. Sit with it.</p>
+          <p><strong>First principles again.</strong> A runtime library's adoption curve has one convert-or-die moment: the first time someone's own model output runs in your executor and comes back with an answer they could not have written. Your demo deliberately removes that moment - a scripted model is a recording. So the demo reassures the maintainer and fails to convert the visitor, while the one live path requires the visitor to become an operator. That is the pitch broken at the joint.</p>
+          <p>The engineering implication is not "build a hosted backend". That is a product and a cost centre and the project's non-goals refuse it. The implication is that <strong>the deterministic path and the live path must be the same page</strong>: the demo loads with a real in-browser run seeded by a scripted model, and a single input field swaps the script for a user-supplied key held in the tab's session storage, calling the provider directly from the browser. That is a function call, not a platform. It keeps the zero-key guarantee and makes the conversion moment one paste away.</p>
+          <p>Now let me answer draft v2 properly, with consequences.</p>
+          <ul>
+            <li><strong>The canary is correct, and it should be the first thing that happens.</strong> But be precise about what it can and cannot delete: you can deprecate a canary version; you cannot un-index a mistake in the <em>unscoped</em> name. So the canary publishes the scoped eleven only, and the unscoped <code>smolagents-ts</code> facade stays virgin until the install path is green. That asymmetry is what makes the rehearsal genuinely free.</li>
+            <li><strong>Second-order effect of publishing early that nobody has priced:</strong> the moment there is a registry entry, the repo's own gate stops being the definition of green. Support load starts with a queue, and this project is run by one person with an eleven-stage gate and a context pack. A 0.1.0 that converts three users into six issues a week is a good trade. A release that produces a security report about forged remote frames - finding three - is not. Publishing first only works if the danger documents are true at the tag: the sandbox docs must say plainly that QuickJS is a memory boundary and not a credentials boundary, and that the process backend inherits only an allow-listed environment. That is a documentation release blocker, not a nice-to-have.</li>
+            <li><strong>Third-order effect of demoting the browser claim:</strong> demotion is cheap and honest, but it costs the only differentiator the competitor study found. So the demotion must be paired with a clock - a browser job lands within the release cycle or the demotion becomes the permanent description. An honest weakness after a cycle reads as a roadmap; an honest weakness after two years reads as a tombstone.</li>
+            <li><strong>On the terminal event and the parked session:</strong> those two are not products of the audit, they are products of the design. The design says the event stream is the source of truth, and then emits the truth before it knows the record is safe. That is the one place where "stream first, persist second" cannot hold, because the stream's terminal IS the persistence verdict. Fix it by making the terminal conditional on the commit and treating commit failure as the only <code>run.failed</code> - one place, not four.</li>
+          </ul>
+          <p>I will not sign a plan that publishes with the danger documents soft. I will sign one that publishes a rehearsed, honestly described artifact, with the conversion page and the browser job dated.</p>
+        </div>
+        <div class="foot">second-order: support load is the real cost of a release / safety docs become release blockers</div>
+      </div>
+    </div>
+
+    <div class="msg eng">
+      <div class="ava">EN</div>
+      <div>
+        <div class="head"><span class="name">The Engineer</span><span class="role">The Engineer / final revision</span><span class="tc">00:49</span></div>
+        <div class="body">
+          <p>I'm taking the third revision, and I will name exactly which parts are mine and which parts were forced.</p>
+          <p><strong>Mine, unchanged:</strong> the artifact contract. Every claim in the docs is proved by a command, and the release is not announced until a stranger can complete the first-run path from the installed artifact. That instinct was right in v1 and it survives three rewrites.</p>
+          <p><strong>Forced by the Advocate, and I was wrong:</strong> publish order. Canary first, and the canary publishes the <em>scoped</em> eleven only - the Expert's asymmetry point is better than my version. The unscoped facade is the thing a stranger will judge, so it goes last, after the install path is green. My v2 had the right direction and the wrong blast radius.</p>
+          <p><strong>Forced by the audit, and it changes the release definition:</strong> two code fixes are release blockers because they are contract fixes, not features. The terminal event becomes conditionally emitted after the commit, so exactly one terminal per run survives a store failure. The remote frame path gets a per-run nonce embedded in the shim plus a check against the declared transfer set, so a guest cannot fabricate a host frame or name a tool it was not given. The parked-session resume becomes one API: a <code>resume</code> option on the session's send, or a <code>pending</code> field the caller settles - pick one and test the park-decide-continue loop end to end.</p>
+          <p><strong>Forced by the Expert, and this one changes what "done" means:</strong> the danger documents are release blockers. The executor docs must say the memory-versus-credentials boundary out loud, and Pyodide gets the honest label the Advocate demanded - experimental, no interrupt, no memory cap, not for untrusted code in-process - or it does not ship in 0.1.0. I choose the label, because the package is useful to people who know what they are doing and the honest label is the difference between a tool and a trap.</p>
+          <p><strong>Forced by the Customer, and it is the cheapest win in the room:</strong> the conversion page. A zero-key scripted run for the guarantee, and a key-in-sessionStorage live path on the same page for the actual product. An afternoon, and it is the only change in this whole transcript that creates a user rather than a promise.</p>
+          <p><strong>What I refuse to accept:</strong> adding the browser CI job inside the release window. I have watched matrix jobs flake on their first three runs in every project I have ever shipped. It goes into the plan as a dated deliverable with its own budget, not as a gate on the publish. If it is green before the tag, excellent; if it is not, the README says what the Expert wrote and the job lands as 0.1.1.</p>
+          <p>The plan is now: <strong>fix the two contracts → rehearse the artifact → rehearse the write → publish the scope → convert a stranger → then harden against evidence.</strong> Six weeks became two weeks to first external user, and the hardening backlog moved behind the evidence instead of in front of it. I can build that.</p>
+        </div>
+        <div class="foot">draft v3 / accepted by the room after four rounds / one refusal retained</div>
+      </div>
+    </div>
+
+    <div class="msg exp">
+      <div class="ava">MF</div>
+      <div>
+        <div class="head"><span class="name">Marcus Feld</span><span class="role">The Expert / closing the argument</span><span class="tc">00:53</span></div>
+        <div class="body">
+          <p>One last thing before the Maestro speaks, because it is the thing this room would otherwise leave out.</p>
+          <p>The plan now has a success condition that is not internal: a stranger completes the first-run path. Make it measurable and make it dated, or "a stranger" will mean "the next session's version of us". Three named first-contact testers, a date thirty days out, and a written criterion for what counts as failure. If nobody outside this repository runs an agent on the 0.1.0 artifact within thirty days, the correct conclusion is not "harden more" - it is that the product thesis needs to narrow. That is a decision this project has never been forced to confront, because every gate it has built measures itself.</p>
+          <p>A runtime that nobody runs is not a small project. It is an unexercised one.</p>
+          <p>The room is yours, Maestro.</p>
+        </div>
+        <div class="foot">argument exhausted / the room falls silent</div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="bk">00:55</div>
+      <h2>The room falls silent / the Maestro opens the folder for the first time</h2>
+    </div>
+
+  </main>
+</div>
+
+<section class="verdict">
+  <div class="vhead">
+    <div class="lock">&#10022;</div>
+    <div>
+      <h2>The Maestro's ruling - the implementable answer</h2>
+      <p>derived exclusively from the corrections above / no summary of the debate / one executable plan</p>
+    </div>
+  </div>
+
+  <div class="vbody">
+
+    <div class="vsec">
+      <div class="vk">0 / the decision, stated once</div>
+      <h3>Ship 0.1.0 to a stranger in two weeks, not six. Fix the two broken contracts first. Prove every claim you print. Rehearse the irreversible step before you take it.</h3>
+      <p>
+        The project does not need more depth before its first release; it needs its <b>edges tested</b>. Every fatal flaw in the
+        room pointed at an edge: the install that does not carry its sandbox, the stream that can emit two terminals, the remote
+        guest that can forge host authority, the isomorphic claim no CI job observes, the release runbook that has never run, the
+        version group that leaves five packages behind, and the first-contact page that asks the visitor to script the model
+        themselves. The middle of this product is strong and does not need another hardening phase before anyone uses it. So the
+        order is: <b>fix the contracts, rehearse the artifact, make the docs true, rehearse the write, publish the scope, convert
+        one stranger, then harden against evidence.</b>
+      </p>
+      <div class="callout">
+        <b>The one sentence to hold the whole plan together:</b> a green gate is a claim about the repository; a stranger's first
+        successful agent run is a claim about the product. 0.1.0 exists to convert the first into the second.
+      </div>
+    </div>
+
+    <div class="vsec">
+      <div class="vk">1 / preconditions - do not start the clock until these are true</div>
+      <table class="t">
+        <tr><th>check</th><th>command / evidence</th><th>state</th></tr>
+        <tr><td>P1 / clean tree</td><td><code>git status --porcelain</code> empty on <code>main</code>; T-48 committed and its planning scenario counted (core 63 files / 681 tests)</td><td><span class="pill wait">in flight</span></td></tr>
+        <tr><td>P2 / gate</td><td><code>pnpm gate</code> exit 0 on the exact revision to be tagged</td><td><span class="pill go">green locally</span></td></tr>
+        <tr><td>P3 / names</td><td><code>smolagents-ts</code> and <code>@smolagents-ts/*</code> answer 404 on registry.npmjs.org</td><td><span class="pill go">verified</span></td></tr>
+        <tr><td>P4 / org</td><td>npm org <code>@smolagents-ts</code> created; token with publish rights and 2FA bypass in the operator npmrc</td><td><span class="pill stop">owner action</span></td></tr>
+        <tr><td>P5 / bookkeeping</td><td>T-26 and T-29 closed as stale with the tests that prove them; the T-30 contradiction removed from the board</td><td><span class="pill stop">30 min</span></td></tr>
+      </table>
+      <p><b>Why P5 is a precondition, not cleanup:</b> a release published against a board that describes bugs the code does not have teaches every future reader to distrust the board. The board ships with the docs.</p>
+    </div>
+
+    <div class="vsec">
+      <div class="vk">2 / the plan - five phases, two weeks to first external user</div>
+
+      <div class="phase">
+        <div class="ph"><span class="num">1</span><span class="ttl">Fix the two contracts - terminal event and executor boundary</span><span class="when">day 1-2 / 6-8 h</span></div>
+        <ul class="steps">
+          <li><b>One terminal per run, conditionally emitted.</b> In <code>packages/core/src/agent/multi-step-agent.ts</code> the terminal must be emitted <em>after</em> a successful commit, and a commit failure must be the sole <code>run.failed</code>. Today <code>complete()</code> emits <code>run.completed</code> at ~2242, commits at ~2246, and on failure calls <code>failRun</code> at ~2248 - which emits a second terminal; the same shape sits in the park and transfer paths. Collapse the four sites into one helper so the invariant is structural, not remembered. Add a test that injects a failing store and asserts exactly one terminal event and one throw.</li>
+          <li><b>Remote frames obey the declared transfer.</b> In <code>packages/exec-remote/src/shim-source.ts</code> the frame marker is a constant, so any guest print can forge one (~7, 86-125). Generate a per-run random nonce, embed it in the shim, and reject any frame whose nonce or <code>type</code> does not match. In <code>executor.ts</code> (~249) resolve the tool against the <em>declared transfer set</em>, not the full registry. Test both refusals: forged marker, and a real marker naming an undeclared tool.</li>
+          <li><b>The session can finish its own hand-off.</b> In <code>packages/core/src/session/agent-session.ts</code> <code>send()</code> (~243-248) drops <code>resume</code>, so the parked approval the session announced can only be settled through the raw agent. Add the resume path (or expose <code>pending</code> and a settle method) and test park, decide, continue through the session API only - the same loop React and the CLI will use.</li>
+          <li><b>Fix the two contract leaks the audit found alongside them:</b> the CLI's successful transfer currently exits 1 (<code>packages/cli/src/run.ts:340-352</code>), and <code>AgentError.from</code> ignores the code-to-subclass table that <code>fromInfo</code> uses (<code>packages/core/src/errors.ts:74-92</code>). Both are one-file fixes; both are exactly the kind of lie a first user reports.</li>
+        </ul>
+        <div class="accept">AC-1: a failing run-store commit yields exactly one terminal event (run.failed) and one thrown error; four new cases cover complete, park, transfer and the happy path.
+AC-2: a forged @@SMOLAGENTS_FRAME@@ line is rejected, and a frame naming an undeclared tool is rejected, both with typed errors.
+AC-3: a run parked on an approval is decided and continued through AgentSession alone; no raw agent.run in the test.
+AC-4: pnpm vitest run --project core is green; the CLI transfer case asserts exit 0.</div>
+      </div>
+
+      <div class="phase">
+        <div class="ph"><span class="num">2</span><span class="ttl">Rehearse the artifact - the install contract becomes a test</span><span class="when">day 2 / 3-4 h</span></div>
+        <ul class="steps">
+          <li><b>Fix the facade's install contract.</b> In <code>packages/smolagents-ts/package.json</code> move <code>quickjs-emscripten-core</code> and <code>@jitl/quickjs-wasmfile-release-sync</code> from optional peers into real <code>dependencies</code>. The facade's own default-executor subpath must be satisfied by installing the facade. If you refuse the weight, the alternative is an explicit typed error at import naming the two packages - but then the README's twelve-line example is a lie and loses the default-sandbox promise. Choose the dependency: the whole product claim is one install.</li>
+          <li><b>Extend pack smoke into a first-run test.</b> In <code>scripts/pack-smoke.mjs</code>, after installing the packed tarballs into the throwaway consumer, execute the README quick start <em>verbatim</em> there: scripted model, real QuickJS executor, one tool, assert the final answer. A tarball that imports but cannot sandbox is not shipped software.</li>
+          <li><b>Assert the registry path, not just the workspace path.</b> Install the facade tarball into a temp dir with an empty npm cache and instantiate the executor with no extra install step.</li>
+        </ul>
+        <div class="accept">AC-5: pnpm pack:smoke runs the README quick start end to end in a clean consumer with an empty cache.
+AC-6: installing the facade tarball alone yields a working QuickJSExecutor - no extra install step.</div>
+      </div>
+
+      <div class="phase">
+        <div class="ph"><span class="num">3</span><span class="ttl">Make the danger documents release-true</span><span class="when">day 2-3 / 3 h</span></div>
+        <ul class="steps">
+          <li><b>Sandbox boundary, in the executor docs and the README.</b> One paragraph, no hedging: QuickJS is a memory and ambient-authority boundary against generated code; it is <em>not</em> a credentials boundary. Host tools run with the host's authority, and the process backend inherits only its documented environment allow-list. This paragraph is the answer to the first hostile security review, and it is cheaper before the tag than after.</li>
+          <li><b>Pyodide gets the honest label.</b> The audit is right: its stop is a timer on the same thread as synchronous guest code, and there is no memory cap. Until the pre-registered worker lands (owner-gated), the package table and the README say: <em>experimental - no CPU interrupt, no memory cap; do not run untrusted code in-process.</em> Either that sentence ships, or the package does not ship in 0.1.0. No third option.</li>
+          <li><b>Demote the isomorphic claim in writing</b> until a browser job exists: "one core across Node, Bun and Deno, verified in CI; browser execution ships and is exercised by the example, and is not yet gated by a browser CI job." Put it in <code>README.md</code> and in <code>docs/01-project.md</code>'s constraint note; it earns the claim back in phase 6.</li>
+          <li><b>Fix the release-mechanics prose.</b> In <code>docs/10-runbooks/publish-0.1.0.md</code>, state the two version groups explicitly - fixed six (core, models, tools, exec-quickjs, react, facade) and independent five (cli, exec-pyodide, exec-remote, mcp, react-ui) - and add a step that enumerates all eleven tarballs before publishing.</li>
+        </ul>
+        <div class="accept">AC-7: README carries the sandbox-limits paragraph, the Pyodide label, and the demoted isomorphism sentence.
+AC-8: the publish runbook names all eleven packages and both version groups.</div>
+      </div>
+
+      <div class="phase">
+        <div class="ph"><span class="num">4</span><span class="ttl">Rehearse the write - canary, scoped packages only</span><span class="when">day 3 / 1 h + propagation</span></div>
+        <ul class="steps">
+          <li><b>Publish 0.0.0-canary.0</b> of the eleven scoped packages under the <code>canary</code> dist-tag: <code>pnpm changeset publish --tag canary</code>. The unscoped facade is <b>excluded</b>. The canary exercises the token, the org, the fixed-group ordering and the changeset graph - it is not an installable product and must not be described as one.</li>
+          <li><b>Install the canary in a clean dir</b> and import every documented subpath of every package. Record what fails. Fix, bump to <code>0.0.0-canary.1</code>, repeat until the import matrix is clean.</li>
+          <li><b>Write down what a partial failure leaves behind.</b> Append the observed truth from the canary to the runbook's recovery rule, so the next release reads a tested runbook.</li>
+        </ul>
+        <div class="accept">AC-9: eleven scoped packages install from the registry at the canary tag and every documented subpath imports in a clean consumer.
+AC-10: the runbook "Last verified" line changes from "never executed" to the canary date.</div>
+      </div>
+
+      <div class="phase">
+        <div class="ph"><span class="num">5</span><span class="ttl">Publish 0.1.0 - scope first, facade last</span><span class="when">day 4 / 1 h + 24 h observation</span></div>
+        <ul class="steps">
+          <li><b>Publish the eleven scoped packages at 0.1.0</b> (no dist-tag). Verify each tarball from the registry, not from the workspace: install, import, run the quick start.</li>
+          <li><b>Publish the unscoped facade last</b>, only after the scoped set is verified - it is the name a stranger types. Tag <code>v0.1.0</code>, create the GitHub release from the package changelogs, and state in the notes that the live demo is scripted by default and the live path needs the visitor's own key.</li>
+          <li><b>Do not announce for 24 hours.</b> Watch the registry, the docs site, and a fresh-machine install. The first bug found in that window is fixed before the first outside reader is invited.</li>
+        </ul>
+        <div class="accept">AC-11: installing the facade in an empty directory runs the README quick start on a machine that never saw this repo.
+AC-12: tag, GitHub release and registry agree: eleven scoped packages plus one facade, all 0.1.0.</div>
+      </div>
+
+      <div class="phase">
+        <div class="ph"><span class="num">6</span><span class="ttl">Convert one stranger - the page, the testers, the clock</span><span class="when">day 5-14 / 2-3 d</span></div>
+        <ul class="steps">
+          <li><b>Bring the live path onto the demo page.</b> In <code>examples/vite-app</code> (which the Pages build publishes) add a single key field held in <code>sessionStorage</code> so a visitor swaps the scripted model for a real one in the same page, calling the provider directly. The zero-key guarantee stays: the page runs with the script until a key is pasted.</li>
+          <li><b>Put a real-model quick start directly under the README quick start</b> - copy-paste, one adapter, one environment variable. Gateways stay below, where they are.</li>
+          <li><b>Name three first-contact testers and a date.</b> Each gets a one-paragraph brief: install the published facade in a fresh project, run the quick start, build one agent with one custom tool, report where they stopped. No repo access, no design record, no help from the maintainer unless blocked more than fifteen minutes.</li>
+          <li><b>Schedule the browser job behind the claim.</b> A Vitest browser-mode job over the example (Playwright and Chromium) enters CI as its own deliverable with a flake budget. Two consecutive green runs restore the full isomorphic sentence; the demotion is a loan, not a rewrite.</li>
+          <li><b>Set the kill-date: 2026-11-25.</b> If no external tester completes the first-run path by then, the thesis narrows - the confrontation the Expert demanded and this project has never held itself to.</li>
+        </ul>
+        <div class="accept">AC-13: the demo page runs a real model from a pasted key without moving the key off the tab.
+AC-14: three testers each leave a written record (what they tried, where they stopped, whether they finished).
+AC-15: browser CI job scheduled with an owner and a flake budget.</div>
+      </div>
+    </div>
+
+    <div class="vsec">
+      <div class="vk">3 / what is allowed to wait, and why each one waits</div>
+      <table class="t">
+        <tr><th>item</th><th>when</th><th>the evidence that reopens it</th></tr>
+        <tr><td>Pyodide worker interrupt (T-24)</td><td>0.1.x</td><td>the experimental label plus the owner's worker trigger; until then the honest label is the deliverable</td></tr>
+        <tr><td>QuickJS step timeout vs runaway tool</td><td>0.1.x</td><td>a reported hang; the step timeout already bounds the step, the leak is the host tool behind it</td></tr>
+        <tr><td>tool deadlines (ranked #8)</td><td>0.1.x</td><td>a hanging tool in a stranger's issue - until then it is a guess</td></tr>
+        <tr><td>approval bound to its call (#4)</td><td>0.1.x</td><td>an approval-mismatch report, or the first security review that asks</td></tr>
+        <tr><td>honest network policy (#6)</td><td>0.1.x</td><td>the phase 3 docs are the interim answer, and they are already true</td></tr>
+        <tr><td>schemaVersion on stored runs (#7)</td><td>0.2.0</td><td>the first durable-store user; versioning before a consumer is decoration</td></tr>
+        <tr><td>MCP hardening (#26), resources (#27)</td><td>0.2.0</td><td>a remote server on someone's path</td></tr>
+        <tr><td>structured-output modes, repair loop (#2, #3)</td><td>0.2.0</td><td>the first adapter that overstates support - the enum is the answer, not the boolean</td></tr>
+        <tr><td>retrieval, multimodal input</td><td>0.2.0</td><td>already decided; they need evidence of demand, not more design</td></tr>
+        <tr><td>gateway package (T-54)</td><td>parked</td><td>owner decision; the OpenAI-compatible path already covers the wire</td></tr>
+      </table>
+      <p><b>The rule that decides the column:</b> an item moves earlier only when a named external event demands it. "It would be better" is not an event. This is the boundary the Advocate extracted: "after release" is never a sentence - it is a version number and a trigger.</p>
+    </div>
+
+    <div class="vsec">
+      <div class="vk">4 / task rows to cut</div>
+      <table class="t">
+        <tr><th>id</th><th>title</th><th>owner</th><th>scope</th><th>gate</th></tr>
+        <tr><td>T-58</td><td>one terminal per run: conditional emit after commit, four sites collapsed</td><td>lead</td><td><code>packages/core/src/agent/multi-step-agent.ts</code></td><td>AC-1</td></tr>
+        <tr><td>T-59</td><td>executor privilege boundary: per-run frame nonce plus declared-transfer tool check</td><td>lead</td><td><code>packages/exec-remote/src/**</code></td><td>AC-2</td></tr>
+        <tr><td>T-60</td><td>session resume: park, decide, continue through AgentSession alone</td><td>lead</td><td><code>packages/core/src/session/agent-session.ts</code></td><td>AC-3</td></tr>
+        <tr><td>T-58b</td><td>transfer exit code and AgentError.from subclass parity</td><td>lead</td><td><code>packages/cli/src/run.ts</code>, <code>packages/core/src/errors.ts</code></td><td>AC-4</td></tr>
+        <tr><td>T-61</td><td>facade install contract: sandbox into dependencies plus first-run pack test</td><td>lead</td><td><code>packages/smolagents-ts/package.json</code>, <code>scripts/pack-smoke.mjs</code></td><td>AC-5, AC-6</td></tr>
+        <tr><td>T-62</td><td>danger-docs pass: sandbox boundary, Pyodide label, demoted isomorphism, two-group publish prose</td><td>lead</td><td><code>README.md</code>, <code>docs/01-project.md</code>, <code>docs/10-runbooks/publish-0.1.0.md</code></td><td>AC-7, AC-8</td></tr>
+        <tr><td>T-63</td><td>canary publish of the scoped set</td><td>owner (token)</td><td>registry only</td><td>AC-9, AC-10</td></tr>
+        <tr><td>T-14</td><td>publish 0.1.0 (existing row; reopen with the new gate)</td><td>owner</td><td>registry only</td><td>AC-11, AC-12</td></tr>
+        <tr><td>T-64</td><td>conversion page: key-in-tab live path on the published demo</td><td>lead</td><td><code>examples/vite-app/**</code>, <code>README.md</code></td><td>AC-13</td></tr>
+        <tr><td>T-65</td><td>first-contact program: three testers, the brief, the record</td><td>lead</td><td><code>docs/reports/</code></td><td>AC-14</td></tr>
+        <tr><td>T-66</td><td>browser CI job earns the isomorphic claim back</td><td>lead</td><td><code>.github/workflows/ci.yml</code>, <code>README.md</code></td><td>AC-15 plus two green runs</td></tr>
+      </table>
+    </div>
+
+    <div class="vsec">
+      <div class="vk">5 / the run of commands, in order</div>
+      <span class="cmd"><span class="c"># phase 0 - the tree must be the tree that ships</span>
+git status --porcelain           <span class="c"># empty</span>
+pnpm install --frozen-lockfile
+pnpm gate                        <span class="c"># 11 stages, exit 0</span>
+pnpm changeset status --verbose  <span class="c"># confirm the two-group state</span>
+
+<span class="c"># phase 1 - contract fixes, then prove them</span>
+pnpm vitest run --project core   <span class="c"># terminal, session, error cases</span>
+pnpm --filter @smolagents-ts/exec-remote test
+pnpm --filter @smolagents-ts/cli test
+
+<span class="c"># phase 2 - install contract, after the manifest and smoke edits</span>
+pnpm build
+pnpm pack:smoke                  <span class="c"># now runs the README quick start in the consumer</span>
+
+<span class="c"># phase 3 - docs must be true at the tag, then re-gate</span>
+pnpm gate
+
+<span class="c"># phase 4 - the canary: scoped eleven only</span>
+pnpm changeset version           <span class="c"># 0.0.0-canary.0 on the scoped packages</span>
+pnpm version:check
+pnpm changeset publish --tag canary
+npm view @smolagents-ts/core dist-tags   <span class="c"># canary present, latest untouched</span>
+
+<span class="c"># phase 5 - 0.1.0, scope first, facade last</span>
+pnpm changeset publish
+npm view smolagents-ts version   <span class="c"># 0.1.0, only now</span>
+git tag v0.1.0
+git push origin main v0.1.0
+gh release create v0.1.0 --notes-file packages/core/CHANGELOG.md
+
+<span class="c"># the only acceptance that matters - a machine that never saw this repo</span>
+mkdir first-run
+cd first-run
+npm init -y
+npm i smolagents-ts              <span class="c"># then paste the README quick start verbatim</span>
+</span>
+      <div class="accept">The last line is the whole plan: a project that has never been installed by a stranger, installed by a stranger.</div>
+    </div>
+
+    <div class="vsec">
+      <div class="vk">6 / the scope fence - what this plan explicitly does not do</div>
+      <ul class="steps">
+        <li><b>No new packages.</b> Retrieval, gateway, multimodal input stay decided-but-unscheduled. A release is not the moment to widen a surface.</li>
+        <li><b>No hardening of things no user has touched.</b> The ranked backlog is still the ranking; a trigger moves an item, not the calendar.</li>
+        <li><b>No rename.</b> The Customer's objection is real and the decision is already recorded with the name verified free. A rename in the release window buys registrations and no conversion.</li>
+        <li><b>No second front door.</b> Node, Bun and Deno are the tested targets until the browser job is green. The demo is a page, not a platform.</li>
+        <li><b>No silent changes to the record.</b> Every phase writes its own handoff entry, its own task movement and its own report; the corrections in this room are cited, not rewritten into history.</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<footer class="wrap" style="border-top:0">
+  recorded RR-0007 / 2026-10-25 / transcript closed 00:55 / ruling sealed by the Maestro<br>
+  the Engineer's v3 is the plan of record; the Expert's closing condition (a dated, measurable first-contact test) is binding on phase 6<br>
+  figures verified in-session against main of E:\python_projects\smolagents_ts - eleven packages, 175 test files, 1,345 passing tests, 0.1.0 unpublished
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # 10 — Runbook: re-recording the parity traces
 
-- **Last verified:** 2026-10-14 by the S1.5 session
+- **Last verified:** 2026-10-25 by the T-48 session
 - **Estimated duration:** about two minutes
 - **Risk:** low — it rewrites committed data files, and only those
 - **Reversible:** yes — `git checkout -- scripts/parity/recordings`
@@ -73,9 +73,9 @@
     # expect: ['1.14.0']
 
     pnpm vitest run --project core parity
-    # expect: Test Files 1 passed (1) and Tests 6 passed (6), exit code 0
+    # expect: Test Files 1 passed (1) and Tests 7 passed (7), exit code 0
 
-Measured on 2026-10-14 at commit `2ad7d8f`: five recordings, six tests, exit code 0. Recording twice in a row left every trace identical and moved only `meta.recordedAt`, which is why a diff confined to that field is not a behavioural change.
+Measured on 2026-10-25 at commit `377aa76` for `T-48`: six recordings, seven tests, exit code 0, and every pre-existing trace identical apart from `meta.recordedAt` -- the endings and planning changes did not move a single compared field. The first measurement, on 2026-10-14 at commit `2ad7d8f`, was the same for its five recordings. Recording twice in a row leaves every trace identical and moves only `meta.recordedAt`, which is why a diff confined to that field is not a behavioural change.
 
 ## Rollback
 
@@ -89,13 +89,15 @@ The recorder writes only under `scripts/parity/recordings/`, so the committed st
 |---|---|---|
 | `ModuleNotFoundError: No module named 'smolagents'` | the interpreter on `PATH` has no upstream installed | install the pinned release, or run the recorder with the interpreter that has it |
 | the recorder exits saying a scenario declares tools | neither reader wires tools from the corpus, so both runs would ignore them | support tools in both readers first, or drop the list from that scenario |
+| the recorder exits saying a scenario declares plans the cadence never asks for | the run's turns end before the declared plans are consumed | raise `maxSteps` and add turns, lower `planningInterval`, or drop the extra plans |
+| a scripted turn fails inside upstream's interpreter | the code assigns a name upstream reserves, such as a builtin it registers as a tool | rename the variable; a scenario bug, not a parity finding |
 | the suite fails with a missing-recording error | a scenario has no recording | record it and commit the new file |
 | the suite fails on `meta.upstreamVersion` | the recording was made against another release | record again with the pinned release |
 | the suite fails on a `differsOn` set | the two sides converged, or diverged further | decide which side is right, then update the scenario's expectation and the plan's measured results |
 
 ## Adding a scenario
 
-1. Add one JSON file under `scripts/parity/scenarios/` with `id`, `task`, `tools`, `planningInterval`, `maxSteps`, `turns` and `expect`. Each turn carries the Python script and the TypeScript script for that turn, and `tools` stays empty.
+1. Add one JSON file under `scripts/parity/scenarios/` with `id`, `task`, `tools`, `planningInterval`, `maxSteps`, `turns` and `expect`. Each turn carries the Python script and the TypeScript script for that turn, and `tools` stays empty. A scenario with `planningInterval` above zero also carries a `plans` list: one reply per planning call the cadence makes, in order, each with the Python and TypeScript text the model returns for it. Both readers interleave a plan before each turn the cadence plans at, so a list longer than the run reaches is refused by the recorder and the suite rather than silently shifting every later reply.
 2. Record it (step 4) and replay it (step 6). The suite discovers scenarios from the directory, so nothing else needs registering.
 3. State the expectation honestly: equal, or divergent with the exact `differsOn` fields, a `why`, and the values our side must still produce.
 
@@ -112,8 +114,8 @@ The recorder writes only under `scripts/parity/recordings/`, so the committed st
   changed while the version did not is a finding to adjudicate.
 - The comparison is structural on purpose: step kinds, the code-execution call, each step's error presence, the final-answer value, and the roles of the messages each side sent its model. Prompt text, code source and observation text are never compared, so a prose change does not invalidate a recording.
 - Our side's scripted executor returns the scenario's observation instead of computing it, so the differential claim covers upstream's real execution and our loop's structure, not our executor's semantics.
-- Two divergences ship as pinned facts rather than as hidden failures: the planning position and the max-steps terminal shape, both recorded in `docs/plans/2026-10-14-s1.5-parity-harness-plan.md`.
+- One divergence ships as a pinned fact: the max-steps terminal shape, recorded in `docs/plans/2026-10-14-s1.5-parity-harness-plan.md` and restated by the `step-budget` scenario. The other divergence S1.5 could not measure -- the planning position, because the two sides planned at different points -- is gone: `D-02` made both plan before the first action, and the `planning-cadence` scenario replays it equal, step kinds and model-call roles included.
 
 ## Last executed
 
-2026-10-14, on this machine, exit code 0, against upstream 1.14.0 on Python 3.13.7.
+2026-10-25, on this machine, exit code 0, against upstream 1.14.0 on Python 3.13.7: six recordings, seven tests.

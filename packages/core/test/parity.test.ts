@@ -52,6 +52,8 @@ interface ParityScenario {
   readonly tools: readonly string[];
   readonly planningInterval: number;
   readonly maxSteps: number;
+  /** The plan the model returns before each turn the cadence plans at, in order. */
+  readonly plans?: readonly { readonly py: string; readonly ts: string }[];
   readonly turns: readonly ParityTurn[];
   readonly expect: ParityExpectation;
 }
@@ -117,7 +119,44 @@ function readScenario(id: string): ParityScenario {
   if (scenario.expect.parity !== "equal" && scenario.expect.parity !== "divergent") {
     throw new Error("Scenario " + id + " declares no expectation");
   }
+  for (const [index, plan] of (scenario.plans ?? []).entries()) {
+    if (typeof plan.ts !== "string" || plan.ts.length === 0) {
+      throw new Error("Scenario " + id + " plan " + index + " has no TypeScript script");
+    }
+  }
   return scenario;
+}
+
+/**
+ * The scripted replies in call order: a plan before each turn the cadence plans at, which is
+ * the same interleave scripts/parity/record.py hands upstream. A plan the cadence never asks
+ * for would shift every later reply by one, so it is refused rather than left unused.
+ */
+function scriptedReplies(scenario: ParityScenario): string[] {
+  const plans = scenario.plans ?? [];
+  let planIndex = 0;
+  const replies: string[] = [];
+  for (const [index, turn] of scenario.turns.entries()) {
+    if (
+      scenario.planningInterval > 0 &&
+      index % scenario.planningInterval === 0 &&
+      planIndex < plans.length
+    ) {
+      replies.push(plans[planIndex]?.ts ?? "");
+      planIndex += 1;
+    }
+    replies.push(turn.ts);
+  }
+  if (planIndex < plans.length) {
+    throw new Error(
+      "Scenario " +
+        scenario.id +
+        " declares " +
+        String(plans.length - planIndex) +
+        " plan(s) the cadence never asks for",
+    );
+  }
+  return replies;
 }
 
 /**
@@ -147,7 +186,7 @@ async function replay(scenario: ParityScenario): Promise<ParityTrace> {
   // prose turn is recorded by the loop as a parsing error and never executes.
   const executing = scenario.turns.filter((turn) => turn.intent !== "text");
   let index = 0;
-  const model = new MockModel(scenario.turns.map((turn) => turn.ts));
+  const model = new MockModel(scriptedReplies(scenario));
   const executor = new ScriptedExecutor({
     handler: (code, options) => {
       const turn = executing[index];

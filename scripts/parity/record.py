@@ -100,6 +100,29 @@ class ScriptedModel(Model):
         return ChatMessage(role=MessageRole.ASSISTANT, content=self._contents.pop(0))
 
 
+def scripted_contents(scenario: dict) -> list[str]:
+    """The scripted replies in call order: a plan before each turn the cadence plans at.
+
+    Upstream plans before the first action and again every planning_interval steps. The
+    scenario lists plans separately from turns so both readers interleave them the same way.
+    """
+    plans = scenario.get("plans") or []
+    interval = scenario.get("planningInterval") or 0
+    contents: list[str] = []
+    plan_index = 0
+    for index, turn in enumerate(scenario["turns"]):
+        if interval > 0 and index % interval == 0 and plan_index < len(plans):
+            contents.append(plans[plan_index]["py"])
+            plan_index += 1
+        contents.append(turn["py"])
+    if plan_index < len(plans):
+        raise SystemExit(
+            scenario["id"] + " declares " + str(len(plans) - plan_index) + " plan(s) the"
+            + " declared cadence never asks for; raise planningInterval's run or drop them"
+        )
+    return contents
+
+
 def read_scenarios() -> list[dict]:
     files = sorted(glob.glob(str(SCENARIOS / "*.json")))
     if not files:
@@ -117,12 +140,15 @@ def read_scenarios() -> list[dict]:
                 + " declares tools, and this recorder builds no tool for them; a scenario"
                 + " with tools would compare two runs that both ignored them"
             )
+        for plan in scenario.get("plans") or []:
+            if not isinstance(plan.get("py"), str) or not isinstance(plan.get("ts"), str):
+                raise SystemExit(path + " declares a plan without a Python and a TypeScript reply")
         scenarios.append(scenario)
     return scenarios
 
 
 def record(scenario: dict) -> dict:
-    model = ScriptedModel([turn["py"] for turn in scenario["turns"]])
+    model = ScriptedModel(scripted_contents(scenario))
     options = {"tools": [], "model": model, "max_steps": scenario["maxSteps"]}
     if scenario.get("planningInterval"):
         options["planning_interval"] = scenario["planningInterval"]
