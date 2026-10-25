@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T19:31:00+03:00 — D-05 decided: the 0.1.0 gate is stated
+
+**State.** Five of the twelve decisions are settled; no code changed and nothing is published. `T-14` stays blocked on the two external inputs.
+
+**Did.** The owner approved the gate and the sequencing. Decision [`0030`](../09-decisions/0030-the-0-1-0-gate.md): 0.1.0 ships the six-phase program plus `D-01` and `D-02` (and `D-06` if decided pre-release); it publishes only when the two behaviour decisions are implemented, the gate and CI are green on the release revision, the `@smolagents-ts` scope is owned, a publish token with 2FA bypass is in place, and the release note exists. The discussion's four flagged items are now in the runbook: the stale step-3 expectation is corrected against the observed output, `EOTP` and partial-publish recovery are rows in the failure table, step 11 creates the release note from the facade tag, and the scope claim is a checklist step with commands.
+
+**Verified.** Checked today rather than trusted: all eleven manifests read `0.1.0`; no changesets are pending; `npm view` answers `E404` for both names, so both are still unclaimed; `npm whoami` answers `ENEEDAUTH`, so no credential exists here; and the runbook had never been executed.
+
+**Unverified / open.** The publish itself; the token class the owner's account will use; whether `gh` is authenticated on the release machine (the runbook notes the web UI as the fallback).
+
+**Next.** D-06: whether the transcript `ChatSurface` renders is a pre-release row.
+
+**Blockers.** None for the decision; `T-14` waits on credentials and the scope claim.
+
+**Artifacts.** [`0030`](../09-decisions/0030-the-0-1-0-gate.md), [`publish-0.1.0.md`](10-runbooks/publish-0.1.0.md), [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
+
 ## 2026-10-25T19:12:00+03:00 — D-04 decided: the parity corpus stays on the 1.14.0 release
 
 **State.** Four of the twelve decisions are settled; no code changed. `T-21` is closed.

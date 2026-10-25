@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T20:52:00+03:00 — D-09 decided: keep the Python executor in-process, and correct the record
+
+**State.** Nine of twelve decided; no code changed. No worker ships in 0.1.0; the parked row is pre-registered and the README now names the limit.
+
+**Did.** The owner weighed my recommendation of a terminate-based worker against the portfolio and the gate, and chose to keep in-process and document it. The audit had found decision 0016's cost premise wrong: COOP/COEP belong to the shared-interrupt-buffer variant only, and the injectable-loader escape hatch is Node-only because `PyodideRuntime` has synchronous members. Decision [`0033`](09-decisions/0033-the-pyodide-interrupt-stays-deferred.md) corrects both, pre-registers the terminate shape (separate class, `cpuTimeLimitMs` reported, state lost on interrupt, `dispose()` reclaims 13.40 MiB, browser half a runbook claim) and sets the trigger to evidence the repository can see: a browser test runner, a user who cannot use the remote executors, or a recorded hang. [The package README](../packages/exec-pyodide/README.md) gained the limitation paragraph in the same commit; `T-24` is now the parked worker row.
+
+**Verified.** The measurements were re-read, not re-taken: a 200 ms timer never fired during a 3.9 s guest run, a worker woken through a shared buffer took 519 ms, cold start is 1.94–2.35 s on Node and 2,912 ms in the measured browser, and the runtime is 13.40 MiB.
+
+**Unverified / open.** No browser test runner exists, so any future worker claim is a runbook claim; the capability bag keeps reporting no CPU budget, which is correct today.
+
+**Next.** D-10: when retrieval gets built (`0026`).
+
+**Blockers.** `T-14` on credentials; `T-24`, `T-52` and `T-54` on the owner.
+
+**Artifacts.** [`0033`](09-decisions/0033-the-pyodide-interrupt-stays-deferred.md), [the README](../packages/exec-pyodide/README.md), [the plan](plans/2026-10-25-open-decisions-plan.md).
+
 ## 2026-10-25T20:31:00+03:00 — D-08 decided: document the gateway, do not open the package
 
 **State.** Eight of twelve decided; no code changed. The pre-release set stays D-01, D-02 and D-06; D-08 phase 0 is additive and gates nothing, and phase 1 is parked.
@@ -61,7 +77,7 @@ entry is prepended inside the markers below.
 
 **Next.** D-08: OmniRoute intake (`T-39`).
 
-**Blockers.** None for the decision; `T-14` waits on credentials and the scope claim.
+**Blockers.** None for the decision; `T-14` needs registry credentials and the scope claim.
 
 **Artifacts.** [`0032`](../09-decisions/0032-the-corpus-grows-a-tool-calling-family.md), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record.py`](../scripts/parity/record.py), [`04-tasks.md`](04-tasks.md).
 
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** None for the decision; T-14 waits on credentials and the scope claim.
 
 **Artifacts.** [`0031`](../09-decisions/0031-the-snapshot-carries-the-conversation.md), [`memory.ts:167`](../packages/core/src/memory/memory.ts), [`04-tasks.md`](04-tasks.md).
-
-## 2026-10-25T19:31:00+03:00 — D-05 decided: the 0.1.0 gate is stated
-
-**State.** Five of the twelve decisions are settled; no code changed and nothing is published. `T-14` stays blocked on the two external inputs.
-
-**Did.** The owner approved the gate and the sequencing. Decision [`0030`](../09-decisions/0030-the-0-1-0-gate.md): 0.1.0 ships the six-phase program plus `D-01` and `D-02` (and `D-06` if decided pre-release); it publishes only when the two behaviour decisions are implemented, the gate and CI are green on the release revision, the `@smolagents-ts` scope is owned, a publish token with 2FA bypass is in place, and the release note exists. The discussion's four flagged items are now in the runbook: the stale step-3 expectation is corrected against the observed output, `EOTP` and partial-publish recovery are rows in the failure table, step 11 creates the release note from the facade tag, and the scope claim is a checklist step with commands.
-
-**Verified.** Checked today rather than trusted: all eleven manifests read `0.1.0`; no changesets are pending; `npm view` answers `E404` for both names, so both are still unclaimed; `npm whoami` answers `ENEEDAUTH`, so no credential exists here; and the runbook had never been executed.
-
-**Unverified / open.** The publish itself; the token class the owner's account will use; whether `gh` is authenticated on the release machine (the runbook notes the web UI as the fallback).
-
-**Next.** D-06: whether the transcript `ChatSurface` renders is a pre-release row.
-
-**Blockers.** None for the decision; `T-14` waits on credentials and the scope claim.
-
-**Artifacts.** [`0030`](../09-decisions/0030-the-0-1-0-gate.md), [`publish-0.1.0.md`](10-runbooks/publish-0.1.0.md), [`2026-10-25-open-decisions-plan.md`](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
 <!-- rotate:end -->

@@ -315,6 +315,16 @@ The in-process Pyodide executor cannot interrupt a synchronous loop, so it execu
 
 The deferred decision was right: the fix changes what everyone who hosts the executor must configure. The right trigger is a report, not a roadmap slot. If it reopens, it should be an opt-in executor, never the default, so existing hosts keep working.
 
+#### Decision (2026-10-25)
+
+**Option B, with the record corrected.** Keep in-process and document it. The audit found the row's cost premise wrong: COOP/COEP belong to the shared-interrupt-buffer variant, not to a worker as such, and the injectable-loader escape hatch is Node-only because `PyodideRuntime` carries synchronous members a browser main thread cannot proxy. So the deferred worker is terminate-based and needs no hosting change.
+
+The posture holds for 0.1.0 on the portfolio argument: untrusted or unbounded Python is `exec-remote`'s job, browser code is QuickJS's, and this executor's niche is real Python, in-process, trusted or local. A second executor path whose headline behaviour only a runbook can prove is the wrong thing to add on the eve of a release, and the capability bag already reports no CPU budget.
+
+The conditions: the package README gains the limitation paragraph in this commit; `T-24` becomes the parked worker row, gated on evidence the repository can see rather than on a first report; and [`0033`](../09-decisions/0033-the-pyodide-interrupt-stays-deferred.md) corrects 0016's two premises and pre-registers the terminate shape (`cpuTimeLimitMs` reported, state lost on interrupt, `dispose()` reclaims the runtime, message-round-trip tool calls, browser half a runbook claim).
+
+
+
 ### D-10 — when retrieval gets built (0026)
 
 **Row:** none yet. **Effort:** L.
@@ -370,7 +380,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 2. **Publish 0.1.0** under the `0030` gate, once the owner claims the scope and supplies a token with 2FA bypass.
 3. **Post-release:** D-07 (the tool-calling scenario family), then T-48's re-adjudication and planning scenario, then D-12 (the hardening batch, including D-03's exclusion-list guard), and the not-on-the-board hygiene items accepted so far.
 4. **D-10** as its own planned phase (retrieval).
-5. **Parked:** D-09 (waits on a report), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
+5. **Parked:** D-09 (a worker is pre-registered in `0033` and waits on a browser runner or a caller who cannot use the remote executors), D-11 (waits on a caller), D-08 phase 1 (waits on a demand).
 
 
 ## Decision register
@@ -385,7 +395,7 @@ Retrieval is the main capability the program deliberately deferred, and the deci
 | D-06 | the transcript `ChatSurface` renders (T-28) | decided 2026-10-25 | A+A1 — the snapshot carries the conversation projection, `ChatSurface` defaults to it; pre-release | 2026-10-25 |
 | D-07 | a tool scenario in the parity corpus (T-19) | decided 2026-10-25 | B — a tool-calling scenario family (success and unknown-tool), post-release; the row's option A was a no-op | 2026-10-25 |
 | D-08 | OmniRoute intake (T-39) | decided 2026-10-25 | A — phase 0 now (README section, runbook, gateway example, four-frame fixture); phase 1 parked as `T-54` | 2026-10-25 |
-| D-09 | Pyodide interrupt (T-24) | open | | |
+| D-09 | Pyodide interrupt (T-24) | decided 2026-10-25 | B — keep in-process and document it; `0033` corrects 0016's premises and pre-registers the terminate worker | 2026-10-25 |
 | D-10 | when retrieval gets built (0026) | open | | |
 | D-11 | multimodal stays parked (0018) | open | | |
 | D-12 | residual-risk chores | open | | |
@@ -422,8 +432,17 @@ Every item raised as "missed" in a decision discussion lands in one of four plac
 | Phase 1's last-response metadata on a model instance is shared mutable state under concurrent sessions | D-08 | **`T-54`**: the record must settle instance state vs a `GenerateOptions` callback vs core events |
 | A `docs/guides/` tree would need a new artifact kind, a template and a router row on a frozen surface | D-08 | recorded in the D-08 decision text; the question is `T-52`'s |
 
+| A worker does not need COOP/COEP headers; only the shared-interrupt-buffer variant does | D-09 | corrected in `0033`; the plan's `## Changes` records that D-09's row was priced with it |
+| 0016's "worker-backed runtime through the injectable loader" is Node-only: `PyodideRuntime` has synchronous members | D-09 | corrected in `0033` |
+| The package README omitted that `timeoutMs` is reported late and the runtime is never reclaimed | D-09 | the limitation paragraph in `packages/exec-pyodide/README.md`, same commit as `0033` |
+| No browser test runner exists, so a browser worker's claim would be a runbook claim | D-09 | `0033` point 6; named as the cost of A rather than left implied |
+| "Wait for a caller report" makes the first hang victim the test | D-09 | `T-24`'s gate names a browser runner, a user who cannot use the remote executors, or a recorded hang |
+| The worker would report `cpuTimeLimitMs`; the in-process bag stays without one | D-09 | `0033` point 3; the pre-registered shape names the capability it earns |
+| State loss on interrupt is a recovery cost, not a bug; a worker's tool calls become message round trips | D-09 | `0033` point 3 |
+
 ## Changes
 
+- 2026-10-25: D-09 decided as option B, keep in-process and document it. The row's premise was wrong: COOP/COEP belong to the shared-interrupt-buffer variant, and the injectable-loader escape hatch is Node-only. The worker is pre-registered terminate-based in `0033`, the README gains the limitation paragraph, and `T-24`'s trigger is evidence the repository can see rather than a first report.
 - 2026-10-25: D-08 decided as option A, phase 0 only. The gateway already works at the wire level, so the work is discoverability: a README subsection, a runbook, one example and a hand-shaped four-frame fixture named by wire shape rather than by OmniRoute. Phase 1 stays parked as `T-54` with its metadata-channel question written down; the missing user-guide tree and the silently ignored `--api-base` become `T-52` and `T-53`.
 - 2026-10-25: filed at `d7e1677`. While checking D-01's premise, found that a budget stop reaches `.run()` through the generic fallback, so a normal condition is reported as a missing terminal event; folded into D-01. Two board rows found stale (T-26, T-29).
 - 2026-10-25: D-01 decided as option A. Two sub-choices recorded with defaults: the error carries the reason only, and a child budget stop gains its own `ChildStopReason` value.

@@ -43,7 +43,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 |---|---|---|---|---|---|---|
 | T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the pre-release set (`D-01`, `D-02`, and `D-06` if decided pre-release) is implemented and the gate is green on the release revision; the owner claims the npm scope and supplies a publish token with 2FA bypass; then the publish runbook runs | the gate and runbook amendments are recorded in decision `0030` (2026-10-25); no credential has been used and both names are still unclaimed |
 | T-19 | grow the parity corpus a tool-calling scenario family | pending | next session | `scripts/parity/**`, `packages/core/test/parity.test.ts` | decision `0032` is accepted: an `agent` axis (default `code`), `calls` turns, one shared `echo` stub on both legs, a success scenario and an unknown-tool failure scenario; the five existing recordings stay untouched | - |
-| T-24 | give the Pyodide executor a worker-backed interrupt path | pending | next session | `packages/exec-pyodide/**` | decision 0016 defers it: a hard wall-clock timeout needs a worker entry and cross-origin isolation headers, which changes the deployment story | `docs/09-decisions/0016-pyodide-in-process-and-fidelity.md` |
+| T-24 | give the Pyodide executor a hard interrupt (the pre-registered worker) | blocked | owner | `packages/exec-pyodide/**` | decision `0033`: no headers needed; trigger is a browser test runner, a user who cannot use the remote executors, or a recorded hang, not a first report | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
 | T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | the models fix closed this shape in the OpenAI adapter; Gemini documents no null, so this waits on evidence rather than a speculative fix | - |
 | T-29 | settle `agent.on(type, handler)` against the shipped `agent.on(event)` | pending | next session | `packages/core/src/agent/` | a caller following the design gets a `TypeError`; add the overload or correct the design | - |
 | T-48 | re-adjudicate the parity expectations after the endings and planning changes land | pending | next session | `packages/core/test/parity.test.ts`, `scripts/parity/scenarios/*.json` | after `T-49` and `T-50` land; the max-steps ending is what the corpus pins today, and `D-02` unblocks a planning scenario that S1.5 declined; a moved `differsOn` set is a finding, not churn | - |
@@ -58,8 +58,8 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 
 ## Blocked
 
-Three live rows wait on the owner: T-14 on registry credentials and the scope
-claim, T-52 on where user guides live, and T-54 on a gateway feature demand.
+Four live rows wait on the owner: T-14 on credentials and the scope claim, T-24
+on the worker trigger, T-52 on where guides live, and T-54 on a gateway demand.
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
 recorded; T-49, T-50, T-51 and T-39 are the implementation rows. A blocked row
 stays in the live table above; only `done` rows rotate to
