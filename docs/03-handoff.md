@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T22:55:00+03:00 — T-39 lands: D-08's phase 0 ships
+
+**State.** `D-08`'s phase 0 is done. `T-48` (parity re-adjudication) is the last live row before the `T-14` release; phase 1 stays parked behind `T-54`'s demand.
+
+**Did.** README gained "Gateways and proxies": the two-line `OpenAICompatibleModel` recipe, the CLI form with `--api-base`, `--model-id` and `--api-key`, the browser CORS and localhost-only rules, and the pin-the-id rule. `docs/10-runbooks/gateway-through-openai-compatible.md` carries discovery through `GET /v1/models`, the model id as the determinism boundary, `AbortSignal` ownership, retry-is-the-caller's, verification and failure modes. `examples/gateway/` drives `generate`, `generateStream` and one `CodeAgent` through the adapter and prints `SKIPPED`, exit 0, without `OMNIROUTE_BASE_URL`. The fixture `openai-compatible-gateway.sse.txt` and four cases pin the keepalive drop, the `choices: []` usage chunk, the synthesized finish and the error-as-data raise without the key.
+
+**Verified.** Models 17 files and 93 tests, example-gateway 3 tests, both exit 0; `pnpm typecheck`, lint, the validator (0/0) and the full gate green.
+
+**Unverified / open.** No live gateway was contacted: the fixture is hand-shaped from the research note at `3.8.53`, the example's tests drive an injected fetch, and the runbook records "never executed" as its verification. An error stream replaces the body it interrupts, so that fourth frame is an inline body in the test rather than a fixture line.
+
+**Next.** `T-48`: re-adjudicate parity against the five scenarios that declare `planningInterval: 0`.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`gateway-through-openai-compatible.md`](10-runbooks/gateway-through-openai-compatible.md), [`openai-compatible-gateway.test.ts`](../packages/models/test/openai-compatible-gateway.test.ts), [`examples/gateway/index.mjs`](../examples/gateway/index.mjs), [`README.md`](../README.md:121).
+
 ## 2026-10-25T22:45:00+03:00 — T-51 lands: the snapshot carries the conversation
 
 **State.** `D-06` is code. `T-39` (gateway docs, example, fixture) is the last implementation row before `T-48` and the `T-14` release.
@@ -41,7 +57,7 @@ entry is prepended inside the markers below.
 
 **Verified.** Core 63 files and 680 tests, react 12 and 58, react-ui 5 and 23, all exit 0; `pnpm typecheck`, the example's typecheck and suite, and the validator (0/0) clean. Four cases in the new `agent-session-messages.test.ts` pin the agent-equals-snapshot projection, the getter-read count across deltas, the in-flight step's absence, and a checkpointed second turn; react tests pin the default and the override, react-ui the styled default.
 
-**Unverified / open.** The example's rendered conversation was checked by its typecheck, not by a browser run. The projection keeps its pre-existing treatment of condensation (hidden steps still render); that is a follow-up for whichever task owns condensation in chat.
+**Unverified / open.** The example's rendered conversation was checked by its typecheck, not by a browser run. The projection keeps its treatment of condensation (hidden steps still render); that is a follow-up for whichever task owns condensation in chat.
 
 **Next.** `T-39`: the gateway phase-0 README subsection, runbook, example and hand-shaped fixture.
 
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
 
 **Artifacts.** [`errors.ts`](../packages/core/src/errors.ts), [`run-result.ts`](../packages/core/src/agent/run-result.ts), [`0027`](09-decisions/0027-a-run-that-runs-out-of-room-throws.md), [`04-tasks.md`](04-tasks.md).
-
-## 2026-10-25T22:05:00+03:00 — D-12 decided: the register closes with a residual-risk batch
-
-**State.** All twelve decided; no code changed. `T-57` is the batch row, and the fork test inside it may land before 0.1.0.
-
-**Did.** The owner confirmed the batch shape. Seven phase-report notes plus D-03's exclusion-list guard become one checklist row; the fork at an in-doubt intent gets its test before the release, because the combination is legal today, reachable, and no test has seen it. Two items moved to `T-56` when D-11 made version 2 real: the v1→v2 shim test and the Anthropic streamed-split fixture. The resumed-cost sentence goes in the README budget section until `T-52` decides where guides live; the claim-board fence and the child-store rule are documented rather than enforced; and the re-baseline is the next session's first item. The six not-on-the-board additions are accepted with destinations, including a v2 deprecation policy that `T-56` now owes.
-
-**Verified.** Nothing was built; the rotation and validator are at zero. The register has twelve rows and all are closed.
-
-**Unverified / open.** Sixteen validator findings stay baselined with a review date of 2026-11-20, and the re-baseline is the only thing that will look at them; the live Docker and E2B check waits on an account rather than a decision.
-
-**Next.** The pre-release set: `T-49` (endings), `T-50` (planning) and `T-51` (projection), then `T-39`; `T-48` re-adjudicates parity after the first two, and `T-14` publishes under the `0030` gate.
-
-**Blockers.** `T-14` on credentials; `T-24`, `T-52`, `T-54` on the owner.
-
-**Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [the register](plans/2026-10-25-open-decisions-plan.md).
 <!-- rotate:end -->

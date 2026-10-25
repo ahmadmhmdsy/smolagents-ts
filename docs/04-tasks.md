@@ -47,7 +47,6 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | waits on evidence; the OpenAI fix closed this shape | - |
 | T-29 | settle `agent.on(type, handler)` against the shipped `agent.on(event)` | pending | next session | `packages/core/src/agent/` | a caller following the design gets a `TypeError`; add the overload or correct the design | - |
 | T-48 | re-adjudicate parity after the endings and planning changes | pending | next session | `packages/core/test/parity.test.ts`, `scripts/parity/scenarios/*.json` | after `T-49`/`T-50`; `D-02` unblocks the planning scenario S1.5 declined; a moved `differsOn` set is a finding | - |
-| T-39 | implement D-08 phase 0 (README, runbook, example, fixture) | pending | lead | `docs/**`, `examples/**`, `packages/models/**` | D-08 A; fixture hand-shaped, never a recording; example prints SKIPPED without `OMNIROUTE_BASE_URL` | - |
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
 | T-53 | warn when `--api-base` lacks `--model-type OpenAIModel` | pending | next session | `packages/cli/**` | D-08: the flag is silently ignored on the default model type | - |
 | T-55 | write and run the retrieval plan | pending | lead | `packages/retrieval/**`, `docs/plans/**` | after 0.1.0; deterministic embedding, message-first retriever with `asTool()`, refuse-list-tested packaging | - |
@@ -61,6 +60,6 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 Four rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
 (guide home), T-54 (gateway demand).
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
-recorded; T-49, T-50 and T-51 are done and T-39 is the last implementation row. A blocked row
+recorded; T-49, T-50, T-51 and T-39 are done, and T-48 is the last row of that sequence before the 0.1.0 gate. A blocked row
 stays in the live table above; only `done` rows rotate to
 `docs/tasks/archive-2026.md`.

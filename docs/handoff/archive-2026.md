@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T22:05:00+03:00 — D-12 decided: the register closes with a residual-risk batch
+
+**State.** All twelve decided; no code changed. `T-57` is the batch row, and the fork test inside it may land before 0.1.0.
+
+**Did.** The owner confirmed the batch shape. Seven phase-report notes plus D-03's exclusion-list guard become one checklist row; the fork at an in-doubt intent gets its test before the release, because the combination is legal today, reachable, and no test has seen it. Two items moved to `T-56` when D-11 made version 2 real: the v1→v2 shim test and the Anthropic streamed-split fixture. The resumed-cost sentence goes in the README budget section until `T-52` decides where guides live; the claim-board fence and the child-store rule are documented rather than enforced; and the re-baseline is the next session's first item. The six not-on-the-board additions are accepted with destinations, including a v2 deprecation policy that `T-56` now owes.
+
+**Verified.** Nothing was built; the rotation and validator are at zero. The register has twelve rows and all are closed.
+
+**Unverified / open.** Sixteen validator findings stay baselined with a review date of 2026-11-20, and the re-baseline is the only thing that will look at them; the live Docker and E2B check waits on an account rather than a decision.
+
+**Next.** The pre-release set: `T-49` (endings), `T-50` (planning) and `T-51` (projection), then `T-39`; `T-48` re-adjudicates parity after the first two, and `T-14` publishes under the `0030` gate.
+
+**Blockers.** `T-14` on credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [the register](plans/2026-10-25-open-decisions-plan.md).
+
 ## 2026-10-25T21:40:00+03:00 — D-11 reopened: multimodal input is in, input-only, ahead of retrieval
 
 **State.** Eleven of twelve decided; no code changed. The owner asked for models that see and hear, so `0018`'s park is lifted for input only; `0034` fixes the scope and `T-56` is the phase row.

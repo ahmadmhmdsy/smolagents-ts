@@ -22,6 +22,7 @@ rediscovery of the same failure.
 | gate.md | before committing, or before reporting a gate result | 2026-10-13 |
 | record-parity-traces.md | when a parity scenario is added or edited, or the pinned upstream release changes | 2026-10-14 |
 | live-provider-smoke.md | after a model adapter changes, or before a release, to prove one adapter against its real provider | 2026-10-14 |
+| gateway-through-openai-compatible.md | when a reader runs the adapter against a gateway or proxy, or an adapter change needs a form the fixtures cannot reach | never executed (fixture only) |
 | mcp-live-check.md | after a change to the MCP client, a transport or the tool adapter, or before a release | 2026-10-14 |
 | exec-pyodide-browser-probe.md | after a change to the exec-pyodide loader, executor or capabilities, or before a release that ships a browser bundle | 2026-10-14 |
 | exec-remote-live-backends.md | after a change to a remote backend, its transport or its lifecycle, or before a release that claims a live path | 2026-10-14 (process only) |

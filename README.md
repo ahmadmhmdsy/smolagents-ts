@@ -118,6 +118,28 @@ for the task:
 The port never prompts for a key. The command ships as its own package, so the
 invocation above is the repository one.
 
+## Gateways and proxies
+
+`OpenAICompatibleModel` speaks the chat-completions wire, so a gateway or a proxy
+is a base URL and a model id, not a new adapter:
+
+```ts
+import { OpenAICompatibleModel } from "smolagents-ts/models";
+const model = new OpenAICompatibleModel({ model: "auto", baseUrl: "http://localhost:20128/v1" });
+```
+
+The CLI reaches the same gateway: `--model-type OpenAIModel` with
+`--api-base http://localhost:20128/v1`, `--model-id auto` and, only when the
+gateway requires one, `--api-key`. A gateway that runs with `REQUIRE_API_KEY=false`
+accepts no key at all and **must stay bound to localhost**. In a browser tab the
+gateway must allow the page's origin: cross-origin requests are denied by default,
+and a hosted page should go through a same-origin dev-server proxy rather than a
+widened gateway. A gateway can also route `auto` per request, so pin one model id
+when a run must be reproducible. The full procedure, with verification and failure
+modes, is [the gateway runbook](docs/10-runbooks/gateway-through-openai-compatible.md).
+
+
+
 ## In the browser
 
     pnpm --filter example-vite-app run dev

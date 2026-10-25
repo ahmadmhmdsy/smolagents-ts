@@ -25,6 +25,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-49 | implement `D-01`'s ending contract | done | lead | `packages/core/src/agent/`, `packages/core/src/session/`, `packages/core/test/` | `0027`; `T-48` next | `packages/core/test/core-loop-fixes.test.ts` |
 | T-50 | implement `D-02`'s planning lane | done | lead | `packages/core/src/agent/`, `packages/core/src/memory/`, `packages/core/test/` | `0028`; `T-48` next | `packages/core/test/planning.test.ts` |
 | T-51 | wire the projection into the snapshot and `ChatSurface` | done | lead | `packages/core/src/session/`, `packages/core/test/`, `packages/react/`, `packages/react-ui/` | `0031`; `T-48` next | `packages/core/test/agent-session-messages.test.ts` |
+| T-39 | implement D-08 phase 0 (README, runbook, example, fixture) | done | lead | `docs/**`, `examples/**`, `packages/models/**` | D-08 A; fixture hand-shaped, never a recording; example prints SKIPPED without `OMNIROUTE_BASE_URL` | `packages/models/test/openai-compatible-gateway.test.ts` |
 
 ## Closed 2026-10-16
 

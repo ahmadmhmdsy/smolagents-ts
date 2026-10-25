@@ -1,0 +1,14 @@
+: keep-alive
+
+data: {"id":"chatcmpl-keepalive","object":"chat.completion.chunk","created":0,"model":"keepalive","choices":[{"index":0,"delta":{"role":"assistant"}}]}
+
+data: {"id":"chatcmpl-gateway1","object":"chat.completion.chunk","created":1760000000,"model":"auto","choices":[{"index":0,"delta":{"content":"Gateway "}}]}
+
+data: {"id":"chatcmpl-gateway1","object":"chat.completion.chunk","created":1760000000,"model":"auto","choices":[{"index":0,"delta":{"content":"ready."}}]}
+
+data: {"id":"chatcmpl-gateway1","object":"chat.completion.chunk","created":1760000000,"model":"auto","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl-gateway1","object":"chat.completion.chunk","created":1760000000,"model":"auto","choices":[],"usage":{"prompt_tokens":12,"completion_tokens":4,"total_tokens":16}}
+
+data: [DONE]
+
