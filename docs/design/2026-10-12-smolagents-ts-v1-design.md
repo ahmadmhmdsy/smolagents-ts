@@ -388,11 +388,18 @@ run(task):
   emit run.started
   for stepIndex in 0 .. maxSteps-1:
     if signal.aborted: emit run.cancelled; return
-    if stepIndex > 0 and stepIndex % planningInterval == 0:
+    if planningInterval > 0 and (stepIndex == 0 or stepIndex % planningInterval == 0):
       emit planning.started
-      plan = await model.generateForPlanning(memory)          # streamed
+      if stepIndex == 0:                                      # first plan: one user template
+        messages = [initialPlanTemplate(task, tools, managedAgents)]
+      else:                                                   # update plan: prelude, history, postlude
+        messages = [updatePrelude(task)]
+                 + memory.toMessages(summaryMode=true)
+                 + [updatePostlude(tools, managedAgents, remainingSteps)]
+      plan = await model.generateForPlanning(messages,        # streamed, stop at <end_plan>
+        { stopSequences: ["<end_plan>"] })
       emit planning.completed
-      memory.addStep(PlanningStep(plan))
+      memory.addStep(PlanningStep(wrapPlan(plan)))
     emit step.started
     modelOutput = await model.generate(memory, { stream: true })   # emits *.delta, then *.completed
     parsed = parseCodeBlocks(modelOutput)                          # re-expressed from upstream's regex
@@ -975,6 +982,7 @@ beforehand:
 | base step class `AgentStep` | base step class `MemoryStep` | upstream's name leaks its Python implementation detail |
 | `AgentTimeoutError` has no counterpart here (yet) | upstream's omitted sibling is `AgentToolExecutionError` | the error that *is* ported should not be confused with the one that is not |
 | `RunResult.state` is `"success"` or `"waiting"`; both ceilings throw typed errors | a result carries `state = "max_steps_error"` | a run that never produced a final answer is an ending, not a value (decision 0027) |
+| the three planning prompts are re-authored, not copied | upstream's `initial_plan` and `update_plan_*` text | structure follows upstream, wording is this project's (decision 0028) |
 
 One behavioural divergence is deeper than naming. Upstream detects a final answer by raising
 `FinalAnswerException extends BaseException`, which deliberately escapes `except Exception` so agent code cannot

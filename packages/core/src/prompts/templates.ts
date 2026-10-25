@@ -187,6 +187,95 @@ export const CODE_AGENT_TEMPLATE_VARIABLES = [
   "managedAgents",
 ] as const;
 
+
+/**
+ * The planning lane's text, re-authored from upstream's three `planning` keys in
+ * `prompts/code_agent.yaml` (decision 0028). Structure follows upstream — a first plan in one user
+ * turn, an update plan as a system prelude plus a summary-mode history plus a user postlude — while
+ * the wording is this project's. Wording parity is not claimed.
+ *
+ * The reply stops at `{{planEndTag}}`, which the loop also passes as the model's stop sequence.
+ */
+export const PLAN_END_TAG = "<end_plan>";
+
+export const PLANNING_INITIAL_TEMPLATE = `You are an expert at reading a task, surveying the facts it needs and planning the way to solve it.
+
+Work in two parts.
+
+Part 1 — the facts survey. List the facts the task gives you, the facts you still need to look up and where to find them, and the facts you must derive and how. Assume nothing: reason each item through.
+Part 2 — the plan. Write a step-by-step, high-level plan that uses the available tools and reaches the answer. One step per task, none skipped and none superfluous, and no individual tool calls spelled out.
+
+{{toolsBlock}}
+
+{{managedAgentsBlock}}
+
+The task follows.
+{{codeFence}}
+{{task}}
+{{codeFence}}
+
+Write the facts survey first, then the plan. After the final plan step, write {{planEndTag}} and stop there.`;
+
+export const PLANNING_UPDATE_SYSTEM_TEMPLATE = `You are an expert at reading a situation and re-planning towards a task.
+
+The task you were given:
+{{codeFence}}
+{{task}}
+{{codeFence}}
+
+The history that follows is a summary of the attempts so far: the tool calls, their observations and any condensation of earlier steps. The model's own reasoning and the earlier plans are deliberately left out, so what you see is what the run learned, not what it was thinking.
+
+From that history, survey the facts you now know, the facts you still must look up and the facts you still must derive. Then decide the plan: build on attempts that are making progress, and start again if they are stuck.`;
+
+export const PLANNING_UPDATE_USER_TEMPLATE = `Write the updated facts survey and the plan now.
+
+{{toolsBlock}}
+
+{{managedAgentsBlock}}
+
+This step has {{remainingSteps}} of the run's step ceiling left.
+
+Plan only the work that remains: one step per task, none skipped and none superfluous, and no individual tool calls spelled out. After the final plan step, write {{planEndTag}} and stop there.`;
+
+/** Variables the three planning templates declare; asserted by the drift test. */
+export const PLANNING_TEMPLATE_VARIABLES = [
+  "codeFence",
+  "managedAgentsBlock",
+  "planEndTag",
+  "remainingSteps",
+  "task",
+  "toolsBlock",
+] as const;
+
+/**
+ * The frame upstream wraps an initial plan in before it becomes the stored plan. A function rather
+ * than a template: the plan is model output, and model output must never be scanned for
+ * placeholders.
+ */
+export function wrapInitialPlan(plan: string): string {
+  return [
+    "Here are the facts I know and the plan of action I will follow to solve the task:",
+    CODE_FENCE,
+    plan,
+    CODE_FENCE,
+  ].join(String.fromCharCode(10));
+}
+
+/** The frame upstream wraps an updated plan in; it repeats the task the planner is re-planning. */
+export function wrapUpdatedPlan(task: string, plan: string): string {
+  return [
+    "I still need to solve the task I was given:",
+    CODE_FENCE,
+    task,
+    CODE_FENCE,
+    "",
+    "Here are the facts I know and my new plan of action:",
+    CODE_FENCE,
+    plan,
+    CODE_FENCE,
+  ].join(String.fromCharCode(10));
+}
+
 /**
  * The internal prompt a manager's task is wrapped in before a managed agent runs, and the report
  * wrapped around its answer. Ported verbatim from upstream's managed_agent prompt templates.

@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-25T22:35:00+03:00 — T-50 lands: the planning lane is upstream-shaped
+
+**State.** `D-02` is code. `T-51` (projection) and `T-39` (gateway docs) remain before `T-48` and the `T-14` release.
+
+**Did.** The loop now plans before the first action and every interval after it. The first plan is one user turn from `PLANNING_INITIAL_TEMPLATE` carrying the task, the tool prompts and the managed agents; every later plan is a system prelude, the summary-mode history and a user postlude carrying the tools and the remaining steps. Both calls stop at `<end_plan>`, and the stored plan is the reply wrapped as upstream wraps it. `AgentMemory.toMessages` gained `summaryMode`: the system prompt and earlier plans render nothing, an action keeps its tool calls, error and observation and loses the model output, and the task and condensation summaries stay. A planning call carries its own stop sequence and no tool schemas, so `modelOptions` takes a per-turn override. The three templates and their drift test live in `prompts/templates.ts`.
+
+**Verified.** `pnpm vitest run --project core`: 62 files and 676 tests, exit 0; `pnpm typecheck` and `pnpm lint` clean; validator 0 errors, 0 warnings. The new `planning.test.ts` pins the cadence, both input shapes, the wrapper, the stop sequence, the budget turn and the template variables; two summary-mode cases joined `memory.test.ts`.
+
+**Unverified / open.** No recording covers planning — all five parity scenarios declare `planningInterval: 0` — so plan quality and provider-side stop-sequence behaviour are untested. Five test scripts re-ordered; `T-48` owns the parity re-adjudication.
+
+**Next.** `T-51`: the conversation projection into the snapshot.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`planning.test.ts`](../packages/core/test/planning.test.ts), [`templates.ts`](../packages/core/src/prompts/templates.ts), [`0028`](09-decisions/0028-planning-is-structurally-upstream-shaped.md).
+
 ## 2026-10-25T22:20:00+03:00 — T-49 lands: both ceilings throw
 
 **State.** `D-01` is code. The pre-release set is `T-50`, `T-51` and `T-39`; `T-48` re-adjudicates parity after the first two. Nothing is published.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` on credentials; `T-24`, `T-52`, `T-54` on the owner.
 
 **Artifacts.** [`0034`](09-decisions/0034-multimodal-input-is-in-and-scheduled.md), [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md).
-
-## 2026-10-25T21:10:00+03:00 — D-10 decided: retrieval is the first post-release capability
-
-**State.** Ten of twelve decided; no code changed. D-10 schedules retrieval as its own phase after the release, with its plan written then.
-
-**Did.** The owner chose A. `0026` already fixed the shape — a caller-supplied embedding, a store interface with one in-memory reference, and a retriever that inserts an ordinary transcript turn — so the row was scheduling, not design. The plan is written after 0.1.0 against a named consumer (a docs Q&A example), with three conditions pre-registered in `T-55`: a deterministic embedding so the gate needs no network, the retriever as a message appended before `run()` plus an `asTool()` adapter over the same implementation, and packaging tested against the refuse list (expected to be a new `packages/retrieval` and a facade entry, not pre-committed here).
-
-**Verified.** Nothing was built; the rotation and the context validator pass, and the tree was green on `d55f008` before this commit.
-
-**Unverified / open.** The chunking boundary, the embedding-adapter packaging, the store's dimension fingerprint, trace visibility for a message-only retriever, persistence and the no-cache cost are the plan's to settle; its tests will prove the seam, not retrieval quality, because this repository has no corpus.
-
-**Next.** D-11: multimodal stays parked.
-
-**Blockers.** `T-14` on credentials; `T-24`, `T-52` and `T-54` on the owner.
-
-**Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [`0026`](09-decisions/0026-retrieval-is-in.md).
 <!-- rotate:end -->

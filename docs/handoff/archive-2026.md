@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T21:10:00+03:00 — D-10 decided: retrieval is the first post-release capability
+
+**State.** Ten of twelve decided; no code changed. D-10 schedules retrieval as its own phase after the release, with its plan written then.
+
+**Did.** The owner chose A. `0026` already fixed the shape — a caller-supplied embedding, a store interface with one in-memory reference, and a retriever that inserts an ordinary transcript turn — so the row was scheduling, not design. The plan is written after 0.1.0 against a named consumer (a docs Q&A example), with three conditions pre-registered in `T-55`: a deterministic embedding so the gate needs no network, the retriever as a message appended before `run()` plus an `asTool()` adapter over the same implementation, and packaging tested against the refuse list (expected to be a new `packages/retrieval` and a facade entry, not pre-committed here).
+
+**Verified.** Nothing was built; the rotation and the context validator pass, and the tree was green on `d55f008` before this commit.
+
+**Unverified / open.** The chunking boundary, the embedding-adapter packaging, the store's dimension fingerprint, trace visibility for a message-only retriever, persistence and the no-cache cost are the plan's to settle; its tests will prove the seam, not retrieval quality, because this repository has no corpus.
+
+**Next.** D-11: multimodal stays parked.
+
+**Blockers.** `T-14` on credentials; `T-24`, `T-52` and `T-54` on the owner.
+
+**Artifacts.** [the plan](plans/2026-10-25-open-decisions-plan.md), [`04-tasks.md`](04-tasks.md), [`0026`](09-decisions/0026-retrieval-is-in.md).
+
 ## 2026-10-25T20:52:00+03:00 — D-09 decided: keep the Python executor in-process, and correct the record
 
 **State.** Nine of twelve decided; no code changed. No worker ships in 0.1.0; the parked row is pre-registered and the README now names the limit.

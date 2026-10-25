@@ -22,12 +22,13 @@ describe("AgentSession's planning lane", () => {
   it("collects one entry per planning step and closes it with the completed text", async () => {
     const agent = new CodeAgent({
       model: new MockModel([
-        fenced("compute()"),
         "Plan: do the thing",
+        fenced("compute()"),
         fenced("final_answer(7)"),
       ] as never),
       executor: answeringExecutor,
-      planningInterval: 1,
+      // Two steps of interval: only the initial plan lands before the run answers.
+      planningInterval: 2,
     });
     const session = new AgentSession(agent);
     await session.send("Q");
@@ -35,9 +36,10 @@ describe("AgentSession's planning lane", () => {
     const snapshot = session.getSnapshot();
     expect(snapshot.status).toBe("success");
     expect(snapshot.planning).toHaveLength(1);
-    expect(snapshot.planning[0]?.stepIndex).toBe(1);
+    expect(snapshot.planning[0]?.stepIndex).toBe(0);
     expect(snapshot.planning[0]?.status).toBe("complete");
-    expect(snapshot.planning[0]?.text).toBe("Plan: do the thing");
+    expect(snapshot.planning[0]?.text).toContain("Plan: do the thing");
+    expect(snapshot.planning[0]?.text).toContain("Here are the facts I know");
     expect(Object.isFrozen(snapshot.planning)).toBe(true);
   });
 

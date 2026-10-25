@@ -32,13 +32,13 @@ function reportingAgent(planningInterval = 0): CodeAgent {
       return { logs: "searching", isFinalAnswer: false, durationMs: 3, toolCallCount: 1 };
     },
   });
-  // The plan turn only exists when planning is on: with an interval of zero the loop has no
-  // planning step to consume it, and an unparseable turn becomes an action step of its own.
+  // The plan turn only exists when planning is on, and it comes first: the loop plans before the
+  // first action. An interval above the run's length keeps it to one plan.
   const turns =
     planningInterval > 0
       ? [
-          fenced("one", "results = search({ q: 'x' })"),
           "Plan: do the thing",
+          fenced("one", "results = search({ q: 'x' })"),
           fenced("two", "final_answer('42')"),
         ]
       : [fenced("one", "results = search({ q: 'x' })"), fenced("two", "final_answer('42')")];
@@ -135,7 +135,7 @@ describe("the composition", () => {
   });
 
   it("renders the planning lane from the snapshot", async () => {
-    const agent = reportingAgent(1);
+    const agent = reportingAgent(3);
     function PlanningLane() {
       const snapshot = useAgentRunSnapshot();
       return (
@@ -159,6 +159,6 @@ describe("the composition", () => {
     });
     const lane = document.querySelector(".agent-step-planning");
     expect(lane?.getAttribute("data-status")).toBe("complete");
-    expect(lane?.textContent).toBe("Plan: do the thing");
+    expect(lane?.textContent).toContain("Plan: do the thing");
   });
 });

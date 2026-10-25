@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AgentMemory } from "../src/memory/memory.js";
 import {
   ActionStep,
+  CondensationStep,
   FinalAnswerStep,
   PlanningStep,
   SystemPromptStep,
@@ -151,5 +152,36 @@ describe("toChatMessages", () => {
     const memory = seeded();
     memory.addStep(new FinalAnswerStep({ a: 1 }));
     expect(memory.toChatMessages()[1]).toEqual({ role: "assistant", content: '{"a":1}' });
+  });
+});
+describe("summary mode", () => {
+  it("drops the system prompt, the earlier plans and the model output, keeping the task and outcomes", () => {
+    const memory = new AgentMemory();
+    memory.addStep(new TaskStep("Solve it."));
+    memory.addStep(new SystemPromptStep("You are an agent."));
+    memory.addStep(new PlanningStep("Here are the facts and the plan."));
+    const action = new ActionStep("the model's reasoning");
+    action.toolCalls = [{ id: "t1", name: "echo", arguments: { value: "x" }, result: "x" }];
+    action.observations = "x";
+    memory.addStep(action);
+
+    const messages = memory.toMessages({ summaryMode: true });
+    const text = messages.map((message) => message.content).join("\n");
+    expect(messages[0]?.content).toBe("Solve it.");
+    expect(text).toContain("Calling tools:");
+    expect(text).toContain("Observation:");
+    expect(text).not.toContain("the model's reasoning");
+    expect(text).not.toContain("You are an agent.");
+    expect(text).not.toContain("Here are the facts and the plan.");
+    expect(messages.some((message) => message.role === "system")).toBe(false);
+  });
+
+  it("keeps a condensation summary in place of the steps it hid", () => {
+    const memory = new AgentMemory();
+    memory.addStep(new TaskStep("Solve it."));
+    memory.addStep(new CondensationStep("Earlier: the first two steps did X.", [], "soft"));
+
+    const messages = memory.toMessages({ summaryMode: true });
+    expect(messages.some((message) => message.content.includes("Earlier: the first two steps did X."))).toBe(true);
   });
 });

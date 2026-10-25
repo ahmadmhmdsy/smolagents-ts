@@ -48,7 +48,16 @@ import { TraceBuilder } from "../monitoring/trace.js";
 import { deriveCost, type ModelPrice, type RunCost } from "../monitoring/pricing.js";
 import { digestOf } from "../utils/digest.js";
 import { populateTemplate } from "../prompts/populate-template.js";
-import { MANAGED_AGENTS_SECTION_TEMPLATE } from "../prompts/templates.js";
+import {
+  CODE_FENCE,
+  MANAGED_AGENTS_SECTION_TEMPLATE,
+  PLAN_END_TAG,
+  PLANNING_INITIAL_TEMPLATE,
+  PLANNING_UPDATE_SYSTEM_TEMPLATE,
+  PLANNING_UPDATE_USER_TEMPLATE,
+  wrapInitialPlan,
+  wrapUpdatedPlan,
+} from "../prompts/templates.js";
 import { ToolRegistry } from "../tool/registry.js";
 import {
   advertisedToolRegistry,
@@ -115,7 +124,10 @@ export interface AgentOptions {
   tools?: readonly Tool[] | ToolRegistry;
   /** Hard cap on action steps. Defaults to 20. */
   maxSteps?: number;
-  /** Emit a planning step every N steps. 0 disables planning. Defaults to 0. */
+  /**
+   * Plan before the first action, then again every N steps: `0` disables planning, and `N` plans at
+   * step 0, N, 2N and so on. Defaults to 0.
+   */
   planningInterval?: number;
   /** Wall-clock budget handed to the executor for one action. Defaults to 30000. */
   executionTimeoutMs?: number;
@@ -349,8 +361,10 @@ const MAX_ANSWER_REPAIRS = 2;
 /** How many policy refusals one run may spend before the unmet requirement ends it. */
 const MAX_POLICY_REPAIRS = 2;
 
-const PLANNING_INSTRUCTION =
-  "Before you continue, write a short numbered plan for the remaining work. Reply with the plan only.";
+/** The step ceiling a planning update tells the planner it still has, as upstream does. */
+function remainingStepsAfter(stepIndex: number, maxSteps: number): number {
+  return maxSteps - stepIndex - 1;
+}
 
 /**
  * The ReAct loop, shared by every agent flavour (design spec 6.2).
@@ -1118,7 +1132,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
       yield* this.maybeCondense();
 
-      if (this.planningInterval > 0 && stepIndex > 0 && stepIndex % this.planningInterval === 0) {
+      if (this.planningInterval > 0 && (stepIndex === 0 || stepIndex % this.planningInterval === 0)) {
         const planning = yield* this.runPlanningStep(stepIndex, context);
         if ("cancelled" in planning) {
           yield* this.cancelRun(context);
@@ -1407,27 +1421,82 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   }
 
+  /**
+   * One planning turn (decision 0028). The first plan reads one user template carrying the task and
+   * the tools; every later plan reads a system prelude, a summary-mode history and a user postlude
+   * carrying the tools and the steps left. Both stop at \`<end_plan>\`, and the stored plan is the
+   * reply wrapped the way upstream wraps it.
+   */
   private async *runPlanningStep(
     stepIndex: number,
     context: RunContext,
   ): AsyncGenerator<AgentEvent, { ok: true } | { cancelled: true } | { failed: AgentError }> {
     yield this.emit({ type: "planning.started", stepIndex });
-    const messages = this.transcript();
-    messages.push({ role: "user", content: PLANNING_INSTRUCTION });
+    const first = stepIndex === 0;
+    const task = this.memory.task ?? "";
+    const messages = first ? this.initialPlanMessages(task) : this.updatePlanMessages(task, stepIndex);
     let completion: ChatCompletion;
     try {
-      completion = yield* this.streamCompletion(messages, stepIndex, context, "planning");
+      completion = yield* this.streamCompletion(messages, stepIndex, context, "planning", {
+        stopSequences: [PLAN_END_TAG],
+        tools: [],
+      });
     } catch (error) {
       if (context.signal.aborted) return { cancelled: true };
       return { failed: AgentError.from(error, "AGENT_GENERATION", stepIndex) };
     }
-    const step = new PlanningStep(completion.content);
+    const plan = first ? wrapInitialPlan(completion.content) : wrapUpdatedPlan(task, completion.content);
+    const step = new PlanningStep(plan);
     step.tokenUsage = completion.usage;
     this.memory.addStep(step);
-    yield this.emit({ type: "planning.completed", stepIndex, text: completion.content });
+    yield this.emit({ type: "planning.completed", stepIndex, text: plan });
     const saveFailure = await this.commitRun(context, "running");
     if (saveFailure !== undefined) return { failed: saveFailure };
     return { ok: true };
+  }
+
+  /** The initial plan's one user turn: the task, the tool prompts and the managed agents. */
+  private initialPlanMessages(task: string): ChatMessage[] {
+    return [
+      {
+        role: "user",
+        content: populateTemplate(PLANNING_INITIAL_TEMPLATE, {
+          codeFence: CODE_FENCE,
+          managedAgentsBlock: this.renderManagedAgents(),
+          planEndTag: PLAN_END_TAG,
+          task,
+          toolsBlock: this.planningToolsBlock(),
+        }),
+      },
+    ];
+  }
+
+  /** The update plan's three-part input: system prelude, summary-mode memory, user postlude. */
+  private updatePlanMessages(task: string, stepIndex: number): ChatMessage[] {
+    return [
+      {
+        role: "system",
+        content: populateTemplate(PLANNING_UPDATE_SYSTEM_TEMPLATE, { codeFence: CODE_FENCE, task }),
+      },
+      ...this.memory.toMessages({ summaryMode: true }),
+      {
+        role: "user",
+        content: populateTemplate(PLANNING_UPDATE_USER_TEMPLATE, {
+          managedAgentsBlock: this.renderManagedAgents(),
+          planEndTag: PLAN_END_TAG,
+          remainingSteps: remainingStepsAfter(stepIndex, this.maxSteps),
+          toolsBlock: this.planningToolsBlock(),
+        }),
+      },
+    ];
+  }
+
+  /** The tool section a planning template carries; a run without tools says so instead of faking one. */
+  private planningToolsBlock(): string {
+    const descriptions = this.renderToolDescriptions().trim();
+    return descriptions === ""
+      ? "This agent has no tools: the plan must be carried out by reasoning alone."
+      : "The tools available:" + String.fromCharCode(10) + descriptions;
   }
 
   /**
@@ -1876,10 +1945,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /** The request options for one model turn, assembled in one place. */
-  private modelOptions(context: RunContext): GenerateOptions {
-    // The caller's options come first, so the loop's signal and advertised tools always win.
-    const options: GenerateOptions = { ...this.baseModelOptions, signal: context.signal };
-    if (this.advertisesTools) {
+  private modelOptions(context: RunContext, extra?: GenerateOptions): GenerateOptions {
+    // The caller's options come first, so the loop's signal and advertised tools always win — except
+    // that a turn may name its own tools (the planning call sends none) or its own stop sequences.
+    const options: GenerateOptions = { ...this.baseModelOptions, signal: context.signal, ...extra };
+    if (extra?.tools === undefined && this.advertisesTools) {
       const specs = [...this.advertisedRegistry().toSpecs()];
       // The bound answer schema travels as the final_answer parameter schema, so the model
       // validates against the contract it will be held to instead of discovering it afterwards.
@@ -1977,6 +2047,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     stepIndex: number,
     context: RunContext,
     kind: "action" | "planning",
+    extra?: GenerateOptions,
   ): AsyncGenerator<AgentEvent, ChatCompletion> {
     const stepId = context.openStep?.stepId;
     if (stepId !== undefined) {
@@ -2003,7 +2074,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       let finishReason: FinishReason = "stop";
       let streamUsage: TokenUsage | undefined;
 
-      for await (const chunk of this.model.generateStream(messages, this.modelOptions(context))) {
+      for await (const chunk of this.model.generateStream(messages, this.modelOptions(context, extra))) {
         if (chunk.delta !== "") {
           text += chunk.delta;
           if (kind === "planning") {
@@ -2036,7 +2107,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       };
     } else {
       const startedAt = Date.now();
-      completion = await this.model.generate(messages, this.modelOptions(context));
+      completion = await this.model.generate(messages, this.modelOptions(context, extra));
       if (completion.content !== "") {
         yield this.emit(
           kind === "planning"

@@ -164,7 +164,7 @@ describe("terminal-event contract", () => {
       latestForConversation: () => undefined,
     };
     const agent = new ToolCallingAgent({
-      model: new MockModel(["no tool call", "1. answer", answerTurn]),
+      model: new MockModel(["1. answer"]),
       store,
       planningInterval: 1,
     });
@@ -206,8 +206,8 @@ describe("cancellation during a model call", () => {
     const controller = new AbortController();
     const agent = new ToolCallingAgent({
       model: new ScriptedModel([
-        () => completion("no tool call"),
         hangUntilAborted(() => queueMicrotask(() => controller.abort())),
+        () => completion("no tool call"),
       ]),
       planningInterval: 1,
     });

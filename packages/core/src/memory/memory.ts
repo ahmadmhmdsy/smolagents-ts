@@ -21,6 +21,12 @@ export interface ToMessagesOptions {
    * role "tool" message per result.
    */
   toolResults?: "observation" | "tool-messages";
+  /**
+   * The bounded view the planning lane's update plan reads (decision 0028): the system prompt and
+   * earlier plans render nothing, an action renders its tool calls and observations but not the
+   * model output, and the task and the condensation summaries stay.
+   */
+  summaryMode?: boolean;
 }
 
 /**
@@ -94,8 +100,9 @@ export class AgentMemory {
    */
   toMessages(options: ToMessagesOptions = {}): ChatMessage[] {
     const messages: ChatMessage[] = [];
+    const summaryMode = options.summaryMode ?? false;
     const systemPrompt = options.systemPrompt ?? this.systemPrompt;
-    if (systemPrompt !== undefined) {
+    if (!summaryMode && systemPrompt !== undefined) {
       messages.push({ role: "system", content: systemPrompt });
     }
     // A condensation is a read-time projection: the stored steps stay, and the transcript shows
@@ -107,6 +114,45 @@ export class AgentMemory {
     }
     for (const step of this.items) {
       if (forgotten.has(step.id)) continue;
+      if (summaryMode) {
+        // What the run learned, without what it was thinking: a planning update re-plans from
+        // outcomes, so earlier thoughts and earlier plans would bias it towards themselves.
+        switch (step.kind) {
+          case "task":
+            messages.push({ role: "user", content: step.task });
+            break;
+          case "message":
+            messages.push({ role: "user", content: step.from + ": " + step.text });
+            break;
+          case "action": {
+            if (step.toolCalls.length > 0) {
+              messages.push({
+                role: "user",
+                content:
+                  "Calling tools:\n" +
+                  JSON.stringify(
+                    step.toolCalls.map((call) => ({
+                      id: call.id,
+                      name: call.name,
+                      arguments: call.arguments ?? {},
+                      ...(call.error === undefined ? {} : { error: call.error }),
+                    })),
+                  ),
+              });
+            }
+            if (step.error !== undefined) {
+              messages.push({ role: "user", content: "Error:\n" + step.error.message });
+            }
+            if (step.observations !== null) {
+              messages.push({ role: "user", content: "Observation:\n" + step.observations });
+            }
+            break;
+          }
+          default:
+            break;
+        }
+        continue;
+      }
       switch (step.kind) {
         case "task":
           messages.push({ role: "user", content: step.task });

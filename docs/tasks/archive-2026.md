@@ -23,6 +23,7 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-18 | decide a budget-exhausted run's ending: upstream reports the last model output as the final answer, this loop raises `AgentMaxStepsError` | done | owner | `packages/core/src/agent/multi-step-agent.ts` | decided `D-01`; implementation is `T-49` | decision `0027` (2026-10-25) -- both ceilings throw typed errors; `max_steps_reached` removed |
 | T-28 | let the session snapshot feed `ChatSurface` | done | owner | `packages/core/src/session/` | decided `D-06`; implementation is `T-51` | decision `0031` (2026-10-25) -- A+A1: the snapshot carries the conversation projection, `ChatSurface` defaults to it, pre-release |
 | T-49 | implement `D-01`'s ending contract | done | lead | `packages/core/src/agent/`, `packages/core/src/session/`, `packages/core/test/` | `0027`; `T-48` next | `packages/core/test/core-loop-fixes.test.ts` |
+| T-50 | implement `D-02`'s planning lane | done | lead | `packages/core/src/agent/`, `packages/core/src/memory/`, `packages/core/test/` | `0028`; `T-48` next | `packages/core/test/planning.test.ts` |
 
 ## Closed 2026-10-16
 
