@@ -28,7 +28,7 @@ const DEFAULT_NANO_CPUS = 1_000_000_000;
 const DEFAULT_START_TIMEOUT_MS = 60_000;
 
 const DOCKERFILE_LINES: readonly string[] = [
-  "FROM python:3.12-slim",
+  "FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159",
   'CMD ["python", "-u", "-c", "import time; time.sleep(31536000)"]',
   "",
 ];
@@ -37,6 +37,7 @@ const DOCKERFILE_LINES: readonly string[] = [
  * The image a sandbox builds: a plain Python base whose only job is to stay alive, because the
  * guest arrives through `docker exec` and speaks the frame protocol on that session's stdio.
  * It publishes no port and installs no kernel gateway.
+ * The base is pinned by digest, so the tag below names one image; moving it is a deliberate edit.
  */
 export const DOCKERFILE = DOCKERFILE_LINES.join("\n");
 
@@ -490,7 +491,7 @@ interface DockerodeExecLike {
 
 interface DockerodeContainerLike {
   start(): Promise<unknown>;
-  stop(): Promise<unknown>;
+  stop(options?: { t?: number }): Promise<unknown>;
   remove(options?: { force?: boolean }): Promise<unknown>;
   inspect(): Promise<{ Id?: string }>;
   exec(options: Record<string, unknown>): Promise<DockerodeExecLike>;
@@ -532,7 +533,8 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
 /** The Engine API seam over a dockerode client. */
 export function dockerodeRuntime(docker: DockerodeLike): ContainerRuntime {
   const stopContainer = async (containerId: string): Promise<void> => {
-    await docker.getContainer(containerId).stop();
+    // The guest is disposable and its PID 1 ignores SIGTERM, so a grace period only delays the kill.
+    await docker.getContainer(containerId).stop({ t: 0 });
   };
   /** Killing the exec client alone would leave the interpreter alive, so this stops the container. */
   const killContainer = async (containerId: string): Promise<void> => {

@@ -153,15 +153,20 @@ function dockerodeDouble(buildEvents: readonly unknown[] = []): {
   docker: DockerodeLike;
   builds: unknown[];
   created: Record<string, unknown>[];
+  stops: unknown[];
   sinks: () => Sinks;
 } {
   const builds: unknown[] = [];
   const created: Record<string, unknown>[] = [];
+  const stops: unknown[] = [];
   let sinks: Sinks | undefined;
   const container = {
     id: "container-1",
     inspect: async () => ({ Id: "container-1" }),
     start: async () => undefined,
+    stop: async (options: unknown) => {
+      stops.push(options);
+    },
     exec: async () => ({
       start: async () => ({ write: () => undefined, end: () => undefined, on: () => undefined }),
     }),
@@ -188,6 +193,7 @@ function dockerodeDouble(buildEvents: readonly unknown[] = []): {
     docker,
     builds,
     created,
+    stops,
     sinks: () => {
       if (sinks === undefined) throw new Error("onData has not run");
       return sinks;
@@ -228,6 +234,12 @@ describe("the dockerode seam", () => {
     });
   });
 
+  it("stops the container with no grace period, because PID 1 ignores SIGTERM", async () => {
+    const { docker, stops } = dockerodeDouble();
+    await dockerodeRuntime(docker).stopContainer("container-1");
+    expect(stops).toEqual([{ t: 0 }]);
+  });
+
   it("demultiplexes the two streams and keeps a character split across chunks", async () => {
     const { docker, sinks } = dockerodeDouble();
     const session = await dockerodeRuntime(docker).execSession("container-1", { argv: ["python"], stdin: true });
@@ -251,7 +263,7 @@ describe("the Docker backend", () => {
     const docker = new DockerSandbox({ runtime, egress: "deny-all" });
     await docker.start({ shimSource: "print('prelude')" });
     expect(records.builds[0]?.dockerfile).toBe(DOCKERFILE);
-    expect(DOCKERFILE).toContain("FROM python:");
+    expect(DOCKERFILE).toMatch(/^FROM python:3\.12-slim@sha256:[0-9a-f]{64}$/m);
     expect(DOCKERFILE).not.toContain("jupyter");
     expect(records.creates[0]?.networkMode).toBe("none");
     expect(records.creates[0]).not.toHaveProperty("portBindings");

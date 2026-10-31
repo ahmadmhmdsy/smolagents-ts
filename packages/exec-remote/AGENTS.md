@@ -24,7 +24,9 @@ client.
 
     pnpm vitest run --project exec-remote
 
-Expected result: thirteen files with one hundred and eight tests, exit code 0. Run
+Expected result: fourteen files with one hundred and nine tests passed and seven
+skipped, exit code 0. The skipped file is the live daemon suite; set
+`SMOLAGENTS_LIVE_DOCKER=1` to run it. Run
 `pnpm --filter @smolagents-ts/exec-remote run typecheck` beside it: the runner
 erases types, and the subpath entry points are only checked by the compiler.
 
@@ -56,7 +58,8 @@ are not re-exported here. The facade depends on it; nothing else does.
 - `allowPickle` is false by default because the pickle path runs host-side while
   a result is decoded; a payload that needs it is refused unless a caller asks.
 - A green suite proves the seam and the doubles; it proves nothing about a live
-  daemon or a hosted sandbox.
+  daemon or a hosted sandbox. `test/docker-live.test.ts` is the daemon's proof, and
+  the gate does not run it.
 
 ## Pointers to root rules
 

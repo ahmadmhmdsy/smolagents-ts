@@ -17,10 +17,10 @@ talks to the thing it names.
 
 ---
 
-Last recorded run: the process path, 2026-10-14 — five checks ok, 334 ms, exit 0. The
-Docker and E2B paths were attempted the same day and failed for the reasons the failure
-table gives, because this host has no daemon and no credential. Treat both as unexecuted
-until a run here says otherwise.
+Last recorded runs: the process path, 2026-10-14 — five checks ok, 334 ms, exit 0. The
+Docker path, 2026-10-31 on Docker 28.3.2 with cgroup v1 — five checks ok, 916 ms, exit 0,
+and the live suite 7 of 7 with no container left behind. The E2B path has no credential on
+this host, so treat it as unexecuted until a run here says otherwise.
 
 ## Preconditions
 
@@ -78,6 +78,12 @@ step kills the session, which stops the container.
     node scripts/exec-remote-smoke.mjs docker
 
 The first run builds the image and takes minutes; later runs start in seconds.
+
+The smoke check proves the path; the live suite proves the boundary: the tool round trip,
+the unprivileged user, the caps on cgroup v1 or v2, the read-only root, the deny-all
+network, a forged frame, and a timeout that leaves no container behind.
+
+    SMOLAGENTS_LIVE_DOCKER=1 pnpm vitest run --project exec-remote test/docker-live.test.ts
 
 ## Path 3 — the E2B backend
 
@@ -143,7 +149,8 @@ carries the backend's own words and, where the backend attached one, the cause b
 
 - The tool round trip. The check registers no tools, so the channel a guest would block on
   is established but never used. The package's own suite drives it with a real interpreter
-  for the process backend and a fake kernel for Docker.
+  for the process backend and a fake kernel for Docker; the live suite drives it on a real
+  daemon.
 - The agent loop. This drives the executor, not a model, so nothing here checks how a
   result reaches a prompt.
 - Network reach inside a guest. A backend reports what it mediates, not what the guest can
