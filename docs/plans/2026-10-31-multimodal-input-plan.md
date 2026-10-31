@@ -1,9 +1,9 @@
 # Plan — multimodal input for 0.2.0
 
-- **Status:** draft
+- **Status:** in_progress
 - **Owner:** lead
 - **Created:** 2026-10-31T23:55:00+03:00
-- **Authorized by:** the owner in chat, 2026-10-31: "Multimodal plan now". That covers writing this plan. It does not cover the build, a commit or a push.
+- **Authorized by:** the owner in chat, 2026-10-31: "Multimodal plan now". That covers writing this plan. The owner then chose the branch: "Yes, use the branch". That covers the build and commits on this branch. It does not cover a push or a merge to `main`.
 
 Status values are defined in docs/00-schema.md, the vocabulary authority.
 
@@ -113,17 +113,17 @@ Every phase is one or more revertible commits on the branch; until it merges, ab
 
 ## Open questions
 
-- [ ] Does the build wait for `T-14`, or start now on the branch? Blocks phase 1. Recommended: start on the branch, merge after `T-14`.
-- [ ] Does the owner approve this plan and the build? Blocks phase 1.
-- [ ] The `run` input shape: a bare `readonly ContentPart[]`, or `{ text, parts }`? Blocks phase 3, not phase 1. Recommended: the bare array, matching `ChatMessage.content`.
-- [ ] Default caps. Recommended: 5 MiB a part, 20 MiB a run, both caller-overridable, confirmed against current provider limits. Blocks phase 1.
+- [x] Does the build wait for `T-14`, or start now on the branch? Answered 2026-10-31: start on the branch, merge after `T-14`.
+- [x] Does the owner approve this plan and the build? Answered 2026-10-31: "Yes, use the branch".
+- [x] The `run` input shape: a bare `readonly ContentPart[]`, or `{ text, parts }`? Answered: the bare array, matching `ChatMessage.content`.
+- [x] Default caps. Answered: 5 MiB a part, 20 MiB a run, both caller-overridable; Phase 2 confirms them against current provider limits.
 - [ ] Should a live image call be a release requirement? Does not block phase 1. Recommended: yes for one provider; `GOOGLE_API_KEY` exists on this host.
 
 ## Tasks
 
 | Task ID | Phase | Status |
 |---|---|---|
-| T-56 | 1 to 7 | pending |
+| T-56 | 1 to 7 | in_progress |
 
 One row covers the plan, as `0034` asks that both slices ship together. Commits cite `T-56`. The row's `T-57` handover, the version-2 shim test and the Anthropic split fixture, sit in Phases 1 and 2.
 
