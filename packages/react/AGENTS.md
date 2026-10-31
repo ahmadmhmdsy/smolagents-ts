@@ -73,6 +73,9 @@ peer; `react-dom` is not a dependency of this package.
 - `ChatSurface` renders the snapshot's conversation when no `messages` is
   passed. That list mirrors memory, so it spans turns only when the session
   names a checkpoint; without one it resets with each run.
+- `ChatSurface` renders a passed message's parts: text, an image with its alt
+  text or a visible fallback, and audio as a labelled control. The snapshot's
+  conversation stays text, because `toChatMessages` is lossy on purpose.
 
 ## Pointers to root rules
 

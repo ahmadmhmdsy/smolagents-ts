@@ -238,6 +238,40 @@
   overflow-wrap: anywhere;
 }
 
+/* A message with media: its parts stacked, and nothing wider than the transcript. */
+.smol-chat-surface ol > li > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--smol-gap);
+}
+
+.smol-chat-surface ol > li > div > p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.smol-chat-surface figure {
+  margin: 0;
+}
+
+.smol-chat-surface img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--smol-radius);
+}
+
+.smol-chat-surface figcaption {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--smol-text) 72%, transparent);
+}
+
+.smol-chat-surface audio {
+  width: 100%;
+}
+
 /* The composer. */
 .smol-chat-surface form {
   display: flex;

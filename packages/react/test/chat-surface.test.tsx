@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { AgentSession, type AgentSessionSnapshot } from "@smolagents-ts/core";
+import { AgentSession, type AgentSessionSnapshot, type AudioPart, type ImagePart } from "@smolagents-ts/core";
 import { AgentRun } from "../src/agent-run.js";
 import { ChatSurface } from "../src/chat-surface.js";
 import { AgentRunProvider, type AgentRunContextValue } from "../src/context.js";
@@ -21,6 +21,68 @@ function wrap(children: ReactNode, overrides: Partial<AgentSessionSnapshot> = {}
   };
   return render(<AgentRunProvider value={value}>{children}</AgentRunProvider>);
 }
+
+const PNG: ImagePart = {
+  type: "image",
+  mediaType: "image/png",
+  bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+};
+const WAV: AudioPart = {
+  type: "audio",
+  mediaType: "audio/wav",
+  format: "wav",
+  bytes: Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45]),
+};
+
+describe("ChatSurface media", () => {
+  it("renders text, an image with its alt, and audio as a labelled control, in order", () => {
+    const { container } = wrap(
+      <ChatSurface
+        messages={[
+          {
+            role: "user",
+            content: [{ type: "text", text: "What is this?" }, { ...PNG, alt: "a red square" }, WAV],
+          },
+        ]}
+        onSubmit={() => undefined}
+      />,
+    );
+    expect(screen.getByText("What is this?").tagName).toBe("P");
+    const image = screen.getByRole("img", { name: "a red square" });
+    expect(image.getAttribute("src")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    expect(container.querySelector("figcaption")).toBeNull();
+    const audio = screen.getByLabelText("Audio clip");
+    expect(audio.tagName).toBe("AUDIO");
+    expect(audio.hasAttribute("controls")).toBe(true);
+    expect(audio.getAttribute("src")).toBe("data:audio/wav;base64,UklGRgAAAABXQVZF");
+    const body = container.querySelector("li > div");
+    expect([...(body?.children ?? [])].map((node) => node.tagName)).toEqual(["P", "FIGURE", "AUDIO"]);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+    ["blank", "   "],
+  ])("shows a fallback when the alt is %s, never an empty alt", (_name, alt) => {
+    const part = alt === undefined ? PNG : { ...PNG, alt };
+    const { container } = wrap(
+      <ChatSurface messages={[{ role: "user", content: [part] }]} onSubmit={() => undefined} />,
+    );
+    expect(screen.getByRole("img").getAttribute("alt")).toBe("Image");
+    expect(container.querySelector("figcaption")?.textContent).toBe("No description given.");
+  });
+
+  it("keeps text-only parts in the same span a string renders in", () => {
+    const { container } = wrap(
+      <ChatSurface
+        messages={[{ role: "user", content: [{ type: "text", text: "just words" }] }]}
+        onSubmit={() => undefined}
+      />,
+    );
+    expect(container.querySelector("li > span:last-child")?.textContent).toBe("just words");
+    expect(container.querySelector("li > div")).toBeNull();
+  });
+});
 
 describe("ChatSurface", () => {
   it("renders the transcript as an ordered list in message order", () => {
