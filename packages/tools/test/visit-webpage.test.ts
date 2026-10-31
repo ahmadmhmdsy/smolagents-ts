@@ -103,6 +103,104 @@ describe("visitWebpageTool", () => {
     expect(text.length).toBeLessThanOrEqual(4096);
   });
 
+  it.each([
+    "http://localhost:8080/",
+    "http://db.internal/",
+    "http://printer.local/",
+    "http://127.0.0.1/",
+    "http://2130706433/",
+    "http://0x7f.0.0.1/",
+    "http://10.0.0.1/",
+    "http://100.64.0.1/",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://172.16.0.1/",
+    "http://192.168.1.1/",
+    "http://[::1]/",
+    "http://[fe80::1]/",
+    "http://[fd00::1]/",
+    "http://[::ffff:127.0.0.1]/",
+    "http://[64:ff9b::a00:1]/",
+  ])("refuses %s before fetching", async (url) => {
+    const { fetch, urls } = recorder(page, "text/html");
+    const entry = visitWebpageTool({ fetch });
+
+    await expect(entry.execute({ url }, toolContext())).rejects.toThrow(/private or local/);
+    expect(urls).toEqual([]);
+  });
+
+  it("does not mistake a public name or address for a private one", async () => {
+    const { fetch, urls } = recorder(page, "text/html");
+    const entry = visitWebpageTool({ fetch });
+
+    await entry.execute({ url: "https://internal.example.test/" }, toolContext());
+    await entry.execute({ url: "http://172.32.0.1/" }, toolContext());
+    await entry.execute({ url: "http://[2001:db8::1]/" }, toolContext());
+
+    expect(urls).toHaveLength(3);
+  });
+
+  it("reaches a private address when the caller allows it", async () => {
+    const { fetch, urls } = recorder(page, "text/html");
+    const entry = visitWebpageTool({ fetch, allowPrivateNetwork: true });
+
+    await entry.execute({ url: "http://127.0.0.1:3000/" }, toolContext());
+
+    expect(urls).toEqual(["http://127.0.0.1:3000/"]);
+  });
+
+  function redirecting(...locations: string[]): { fetch: typeof globalThis.fetch; urls: string[] } {
+    const urls: string[] = [];
+    const fetchImpl = ((url: string) => {
+      urls.push(url);
+      const location = locations.shift();
+      return Promise.resolve(
+        location === undefined
+          ? new Response(page, { headers: { "content-type": "text/html" } })
+          : new Response(null, { status: 302, headers: { location } }),
+      );
+    }) as typeof globalThis.fetch;
+    return { fetch: fetchImpl, urls };
+  }
+
+  it("follows a redirect and checks where it leads", async () => {
+    const allowed = redirecting("/next");
+    await visitWebpageTool({ fetch: allowed.fetch }).execute(
+      { url: "https://example.test/start" },
+      toolContext(),
+    );
+    expect(allowed.urls).toEqual(["https://example.test/start", "https://example.test/next"]);
+
+    const refused = redirecting("http://169.254.169.254/");
+    await expect(
+      visitWebpageTool({ fetch: refused.fetch }).execute(
+        { url: "https://example.test/start" },
+        toolContext(),
+      ),
+    ).rejects.toThrow(/private or local/);
+    expect(refused.urls).toEqual(["https://example.test/start"]);
+  });
+
+  it("stops a redirect loop", async () => {
+    const { fetch, urls } = redirecting("/a", "/b", "/c", "/d", "/e", "/f", "/g");
+
+    await expect(
+      visitWebpageTool({ fetch }).execute({ url: "https://example.test/" }, toolContext()),
+    ).rejects.toThrow(/redirected more than 5/);
+    expect(urls).toHaveLength(6);
+  });
+
+  it("names the option when a browser hides the redirect", async () => {
+    const hidden = { type: "opaqueredirect", status: 0, headers: new Headers() } as Response;
+    const fetchImpl = (() => Promise.resolve(hidden)) as typeof globalThis.fetch;
+
+    await expect(
+      visitWebpageTool({ fetch: fetchImpl }).execute(
+        { url: "https://example.test/" },
+        toolContext(),
+      ),
+    ).rejects.toThrow(/allowPrivateNetwork/);
+  });
+
   it("advertises the url it takes", () => {
     const entry = visitWebpageTool();
 

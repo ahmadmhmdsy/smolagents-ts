@@ -25,6 +25,11 @@ describe("htmlToText", () => {
     expect(htmlToText(page)).toBe("kept");
   });
 
+  it("drops a script that never closes, and one whose closing tag has a space", () => {
+    expect(htmlToText("<p>Kept</p><script>steal()")).toBe("Kept");
+    expect(htmlToText("<p>Kept</p><script>steal()</script ><p>Also</p>")).toBe("Kept\n\nAlso");
+  });
+
   it("collapses the whitespace the markup left behind", () => {
     expect(htmlToText("<div>  a\n\n\n  b  </div>")).toBe("a\n\nb");
   });

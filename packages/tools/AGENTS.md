@@ -25,7 +25,7 @@ carries a Zod input schema.
 
     pnpm vitest run --project tools
 
-Expected result: seven files with thirty-two tests, exit code 0. Run
+Expected result: seven files with fifty-four tests, exit code 0. Run
 `pnpm --filter @smolagents-ts/tools run typecheck` beside it: the runner erases types, so
 only the compiler checks the mapping from a schema to the input its execute receives.
 

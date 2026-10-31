@@ -1,4 +1,4 @@
-const DROPPED = /<(script|style|noscript|template)\b[\s\S]*?<\/\1>/gi;
+const DROPPED = /<(script|style|noscript|template)\b[\s\S]*?(?:<\/\1\s*>|$)/gi;
 const COMMENT = /<!--[\s\S]*?-->/g;
 const HEADING = /<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi;
 const LIST_ITEM = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
