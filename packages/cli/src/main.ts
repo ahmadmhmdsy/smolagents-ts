@@ -2,7 +2,7 @@
 import { realpathSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { parseArguments } from "./args.js";
+import { argumentWarnings, parseArguments } from "./args.js";
 import { CliError, HelpRequested } from "./errors.js";
 import { interactiveMode, type InteractiveSelection } from "./interactive.js";
 import { supportsColor } from "./renderer.js";
@@ -49,6 +49,7 @@ export async function main(
     }
     throw error;
   }
+  for (const warning of argumentWarnings(args)) process.stderr.write(warning + "\n");
 
   let selection: InteractiveSelection;
   if (

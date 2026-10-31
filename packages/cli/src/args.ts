@@ -60,7 +60,7 @@ export const USAGE = [
   "  --tools NAME ...      tools to load; defaults to web_search",
   "  --verbosity-level N   0 quiet, 1 default (default), 2 verbose",
   "  --provider NAME       the InferenceClientModel provider label",
-  "  --api-base URL        the endpoint for OpenAIModel",
+  "  --api-base URL        the endpoint of the model; pair it with --model-type OpenAIModel",
   "  --api-key KEY         the key; without it HF_TOKEN or OPENAI_API_KEY is read",
   "  --run-id ID           store this run under ID so it survives the process",
   "  --resume ID           resume the stored run ID instead of starting a new one;",
@@ -118,6 +118,28 @@ const LIST_OPTIONS: ReadonlyMap<string, ListOption> = new Map([
   ["--imports", "imports"],
   ["--tools", "tools"],
 ]);
+
+/**
+ * What the parsed flags risk without being wrong, one line each for stderr. A warning and not
+ * a usage error, because upstream accepts both and a script may rely on them.
+ */
+export function argumentWarnings(args: CliArguments): string[] {
+  const warnings: string[] = [];
+  if (args.apiKey !== undefined) {
+    warnings.push(
+      "warning: --api-key is visible in the process list and shell history; prefer HF_TOKEN or OPENAI_API_KEY.",
+    );
+  }
+  // With no prompt the interactive setup still picks the model type.
+  if (args.apiBase !== undefined && args.prompt !== undefined && args.modelType === DEFAULT_MODEL_TYPE) {
+    warnings.push(
+      "warning: --api-base is sent with --model-type " +
+        args.modelType +
+        ", so HF_TOKEN goes to that endpoint; pass --model-type OpenAIModel for an OpenAI-compatible server.",
+    );
+  }
+  return warnings;
+}
 
 const INTEGER = new RegExp("^-?[0-9]+$");
 

@@ -29,7 +29,7 @@ surface is the same parser, factories, renderer and run function the bin uses.
 
     pnpm vitest run --project cli
 
-Expected result: eleven files with seventy-seven tests, exit code 0. Measured on
+Expected result: eleven files with eighty-one tests, exit code 0. Measured on
 2026-10-21 as "Test Files 8 passed (8)" and "Tests 59 passed (59)"; the extra
 case covers recognising a symlinked entry point as the main module, the durability
 surface added the tenth file and its seven cases (four parser, three in-process

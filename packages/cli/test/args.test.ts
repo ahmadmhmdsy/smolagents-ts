@@ -1,6 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { parseArguments } from "../src/args.js";
+import { argumentWarnings, parseArguments } from "../src/args.js";
 import { CliUsageError, HelpRequested } from "../src/errors.js";
+
+describe("argumentWarnings", () => {
+  it("is silent for a plain run", () => {
+    expect(argumentWarnings(parseArguments(["do the thing"]))).toEqual([]);
+  });
+
+  it("warns that a key on the command line is visible", () => {
+    const warnings = argumentWarnings(parseArguments(["go", "--api-key", "k"]));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("process list");
+    expect(warnings[0]).not.toContain(" k ");
+  });
+
+  it("warns that an endpoint on the default model type receives the Hugging Face token", () => {
+    const warnings = argumentWarnings(parseArguments(["go", "--api-base", "http://gw.test"]));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("HF_TOKEN");
+  });
+
+  it("stays quiet about an endpoint when the type is OpenAIModel or not chosen yet", () => {
+    const openai = ["go", "--api-base", "http://gw.test", "--model-type", "OpenAIModel"];
+
+    expect(argumentWarnings(parseArguments(openai))).toEqual([]);
+    expect(argumentWarnings(parseArguments(["--api-base", "http://gw.test"]))).toEqual([]);
+  });
+});
 
 describe("parseArguments", () => {
   it("defaults every flag when only the prompt is given", () => {

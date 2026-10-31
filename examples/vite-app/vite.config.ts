@@ -23,6 +23,26 @@ function liveStatus(available: boolean, model: string): Plugin {
   };
 }
 
+/**
+ * True for a request the page itself could have sent. The proxy adds a key, so a request from
+ * any other site open in the same browser must not reach it; a browser marks those, and a
+ * caller with no browser headers is a local tool that can read the .env anyway.
+ */
+export function isSameOriginRequest(headers: {
+  origin?: string | undefined;
+  host?: string | undefined;
+  "sec-fetch-site"?: string | string[] | undefined;
+}): boolean {
+  const site = headers["sec-fetch-site"];
+  if (site !== undefined && site !== "same-origin" && site !== "none") return false;
+  if (headers.origin === undefined) return true;
+  try {
+    return new URL(headers.origin).host === headers.host;
+  } catch {
+    return false;
+  }
+}
+
 // The example consumes the published names, so the dev server and the build map them to the
 // sources the packages build from: a fresh clone has no dist/ yet, and the whole point of this
 // page is that a reader can start it without building the workspace first.
@@ -47,6 +67,8 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             rewrite: (path: string) => path.replace(/^\/api\/gemini/, ""),
             headers: { "x-goog-api-key": apiKey },
+            // False answers 404 before anything is forwarded.
+            bypass: (request) => (isSameOriginRequest(request.headers) ? undefined : false),
           },
         };
 
