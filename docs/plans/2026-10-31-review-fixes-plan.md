@@ -78,9 +78,9 @@ Everything stays uncommitted in the tree, grouped by task, so any phase can be d
 
 None block phase 1. Owner decisions the plan will not make alone are listed in `T-65`'s handoff entry:
 
-- [ ] Commit and push: needed before CI can go green, since the lockfile fix exists only in the tree.
-- [ ] Adding the five public packages outside the changeset `fixed` group.
-- [ ] Bumping `jsdom` and the other dev dependencies behind `pnpm audit` (rule 07).
+- [x] Commit and push: done, CI green at `18d9c03`.
+- [x] Adding the five public packages outside the changeset `fixed` group: not added, see [0035](../09-decisions/0035-the-fixed-group-stays-and-hardening-ships-in-0-1-0.md).
+- [x] Bumping `jsdom` and the other dev dependencies behind `pnpm audit` (rule 07): done under `T-68`, three dev-only findings accepted.
 - [ ] Prettier: 302 files are unformatted and the gate does not check it.
 - [ ] Audit claims 6 and 8, and `context-pack.json`'s five components.
 - [ ] Deleting the local `.dsh/` and `.superpowers/` directories, and whether `reports/` is tracked.

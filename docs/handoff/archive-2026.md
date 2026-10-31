@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T22:45:00+03:00 — T-51 lands: the snapshot carries the conversation
+
+**State.** `D-06` is code. `T-39` (gateway docs, example, fixture) is the last implementation row before `T-48` and the `T-14` release.
+
+**Did.** `MultiStepAgent` gained a `messages` getter over `AgentMemory.toChatMessages`, and the renderer now walks every task step, not the first, so a checkpointed memory reads as a multi-turn conversation. `AgentSessionSnapshot.messages` is additive and readonly; the session recomputes it from the agent at step boundaries only -- planning and observation completion, message completion, and every terminal transition -- guarded by a frozen event-type set, so a delta never touches it. `ChatSurfaceProps.messages` is optional and defaults to the snapshot; the vite example now renders its own run instead of a fixed `TRANSCRIPT`.
+
+**Verified.** Core 63 files and 680 tests, react 12 and 58, react-ui 5 and 23, all exit 0; `pnpm typecheck`, the example's typecheck and suite, and the validator (0/0) clean. Four cases in the new `agent-session-messages.test.ts` pin the agent-equals-snapshot projection, the getter-read count across deltas, the in-flight step's absence, and a checkpointed second turn; react tests pin the default and the override, react-ui the styled default.
+
+**Unverified / open.** The example's rendered conversation was checked by its typecheck, not by a browser run. The projection keeps its treatment of condensation (hidden steps still render); that is a follow-up for whichever task owns condensation in chat.
+
+**Next.** `T-39`: the gateway phase-0 README subsection, runbook, example and hand-shaped fixture.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`agent-session-messages.test.ts`](../packages/core/test/agent-session-messages.test.ts), [`agent-session.ts`](../packages/core/src/session/agent-session.ts), [`chat-surface.tsx`](../packages/react/src/chat-surface.tsx), [`0031`](09-decisions/0031-the-snapshot-carries-the-conversation.md).
+
 ## 2026-10-25T22:35:00+03:00 — T-50 lands: the planning lane is upstream-shaped
 
 **State.** `D-02` is code. `T-51` (projection) and `T-39` (gateway docs) remain before `T-48` and the `T-14` release.

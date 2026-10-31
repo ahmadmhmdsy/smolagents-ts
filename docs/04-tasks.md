@@ -51,12 +51,13 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-55 | write and run the retrieval plan | pending | lead | `packages/retrieval/**`, `docs/plans/**` | after 0.1.0; deterministic embedding, message-first retriever with `asTool()`, refuse-list-tested packaging | - |
 | T-56 | write and run the multimodal input plan (0.2.0's headline) | pending | lead | `packages/core/**`, `packages/models/**`, `packages/react-ui/**` | after 0.1.0; `0034`: input parts, adapter v2 + the v1 shim test, honest capabilities, attachments without executor changes, `MediaRef`s in snapshots | - |
 | T-57 | run the D-12 residual-risk batch (fork first) | pending | next session | `packages/core/test/`, `docs/**`, `docs/.baseline.json` | fork-at-`intent` test; claim-board fence and child-store docs; the v2 shim test and Anthropic split fixture ride `T-56`; #4's sentence in README until `T-52`; live Docker/E2B when an account exists; D-03's guard; re-baseline | - |
+| T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
 <!-- rotate:end -->
 
 ## Blocked
 
-Four rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
-(guide home), T-54 (gateway demand).
+Five rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
+(guide home), T-54 (gateway demand), T-70 (E2B key).
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
 recorded; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete and only T-14's gate stands between this tree and 0.1.0. A blocked row
 stays in the live table above; only `done` rows rotate to

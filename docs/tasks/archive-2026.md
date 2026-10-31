@@ -37,6 +37,9 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-64 | warn on CLI flags, limit the Vite proxy | done | lead | `packages/cli/**`, `examples/vite-app/**` | phase 3; closes `T-53` | 81 cli and 10 vite-app tests |
 | T-65 | close the review-fixes plan | done | lead | `docs/**`, `.changeset/**` | phase 4 | `pnpm gate` exit 0, 1396 tests; uncommitted tree |
 | T-66 | harden the workflows | done | lead | `.github/**` | phase 1 | `pnpm gate` exit 0, 1396 tests; uncommitted tree |
+| T-67 | run the Docker path live and pin the base image | done | lead | `packages/exec-remote/**`, `docs/10-runbooks/**` | 7 of 7 live; found and fixed the 10 s stop | `packages/exec-remote/test/docker-live.test.ts` |
+| T-68 | bump the dev dependencies behind `pnpm audit` | done | lead | `package.json`, `pnpm-lock.yaml` | 12 findings to 3, none high, prod clean | `pnpm audit` |
+| T-69 | settle the fixed group and the version | done | lead | `.changeset/**`, `packages/*/CHANGELOG.md` | no version move | `docs/09-decisions/0035-the-fixed-group-stays-and-hardening-ships-in-0-1-0.md` |
 
 ## Closed 2026-10-16
 

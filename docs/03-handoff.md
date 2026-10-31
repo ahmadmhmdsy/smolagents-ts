@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-31T23:40:00+03:00 — Docker runs live, the audit is down to three, the version stays 0.1.0
+
+**State.** Supersedes the 12:52 entry: T-58 to T-66 are committed at `18d9c03`, CI green. T-67 to T-69 are done; only `T-14` and the owner's other rows remain before release, and the owner has put publishing off. Nothing is published.
+
+**Did.** Ran the Docker backend against a real daemon, with `docker-live.test.ts` as an opt-in suite. That found a live bug the doubles could not: the stop waited out a 10 s grace period PID 1 ignores, so it now stops with `t: 0`. Pinned `python:3.12-slim` by digest. Bumped eslint, tsup, vite and jsdom. Recorded `0035`: the fixed group stays at six and no version moves; the review changeset is folded into the 0.1.0 changelogs.
+
+**Verified.** `pnpm gate` exit 0, 176 files passed and 1 skipped, 1397 tests passed and 7 skipped. `SMOLAGENTS_LIVE_DOCKER=1` live suite 7 of 7, no container left. `node scripts/exec-remote-smoke.mjs docker` five checks ok, 916 ms. `pnpm audit --prod` clean.
+
+**Unverified / open.** E2B never ran: no key on this host (`T-70`). The live run covers Docker 28.3.2 on cgroup v1; the v2 branch of the caps test has not executed. `pnpm audit` keeps 1 low and 2 moderate, all dev-only and accepted: esbuild through tsup 8 (tsup 9 needs Node ^22.18, above the 22.12 floor), minimatch through eslint, and glob through e2b. The plan's other Open questions stay with the owner.
+
+**Next.** The owner picks when to run `T-14`; until then, `T-19` or `T-57`.
+
+**Blockers.** `T-14` on npm credentials and the owner's timing; `T-24`, `T-52`, `T-54`, `T-70` on the owner.
+
+**Artifacts.** [`docker-live.test.ts`](../packages/exec-remote/test/docker-live.test.ts), [`0035`](09-decisions/0035-the-fixed-group-stays-and-hardening-ships-in-0-1-0.md), [`exec-remote-live-backends.md`](10-runbooks/exec-remote-live-backends.md).
+
 ## 2026-10-31T12:52:00+03:00 — The review's findings are fixed in the tree, not committed
 
 **State.** T-53 and T-58 to T-66 are done on `main` at `4ba765c` plus an uncommitted tree. Nothing is committed or pushed. CI stays red until the lockfile fix lands.
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
 
 **Artifacts.** [`gateway-through-openai-compatible.md`](10-runbooks/gateway-through-openai-compatible.md), [`openai-compatible-gateway.test.ts`](../packages/models/test/openai-compatible-gateway.test.ts), [`examples/gateway/index.mjs`](../examples/gateway/index.mjs), [`README.md`](../README.md).
-
-## 2026-10-25T22:45:00+03:00 — T-51 lands: the snapshot carries the conversation
-
-**State.** `D-06` is code. `T-39` (gateway docs, example, fixture) is the last implementation row before `T-48` and the `T-14` release.
-
-**Did.** `MultiStepAgent` gained a `messages` getter over `AgentMemory.toChatMessages`, and the renderer now walks every task step, not the first, so a checkpointed memory reads as a multi-turn conversation. `AgentSessionSnapshot.messages` is additive and readonly; the session recomputes it from the agent at step boundaries only -- planning and observation completion, message completion, and every terminal transition -- guarded by a frozen event-type set, so a delta never touches it. `ChatSurfaceProps.messages` is optional and defaults to the snapshot; the vite example now renders its own run instead of a fixed `TRANSCRIPT`.
-
-**Verified.** Core 63 files and 680 tests, react 12 and 58, react-ui 5 and 23, all exit 0; `pnpm typecheck`, the example's typecheck and suite, and the validator (0/0) clean. Four cases in the new `agent-session-messages.test.ts` pin the agent-equals-snapshot projection, the getter-read count across deltas, the in-flight step's absence, and a checkpointed second turn; react tests pin the default and the override, react-ui the styled default.
-
-**Unverified / open.** The example's rendered conversation was checked by its typecheck, not by a browser run. The projection keeps its treatment of condensation (hidden steps still render); that is a follow-up for whichever task owns condensation in chat.
-
-**Next.** `T-39`: the gateway phase-0 README subsection, runbook, example and hand-shaped fixture.
-
-**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
-
-**Artifacts.** [`agent-session-messages.test.ts`](../packages/core/test/agent-session-messages.test.ts), [`agent-session.ts`](../packages/core/src/session/agent-session.ts), [`chat-surface.tsx`](../packages/react/src/chat-surface.tsx), [`0031`](09-decisions/0031-the-snapshot-carries-the-conversation.md).
 <!-- rotate:end -->
