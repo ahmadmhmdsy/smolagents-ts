@@ -1,4 +1,4 @@
-import type { ChatMessage } from "../types.js";
+import type { ChatMessage, ContentPart } from "../types.js";
 import {
   stepFromJSON,
   stepToJSON,
@@ -71,6 +71,12 @@ export class AgentMemory {
     return this.items.find((s): s is TaskStep => s.kind === "task")?.task;
   }
 
+  /** The first task's media, for a message that restates the task in its own words. */
+  get taskMedia(): readonly ContentPart[] {
+    const task = this.items.find((s): s is TaskStep => s.kind === "task");
+    return task?.parts?.filter((part) => part.type !== "text") ?? [];
+  }
+
   get finalAnswerStep(): FinalAnswerStep | undefined {
     return this.items.find((s): s is FinalAnswerStep => s.kind === "final_answer");
   }
@@ -119,7 +125,7 @@ export class AgentMemory {
         // outcomes, so earlier thoughts and earlier plans would bias it towards themselves.
         switch (step.kind) {
           case "task":
-            messages.push({ role: "user", content: step.task });
+            messages.push({ role: "user", content: step.content });
             break;
           case "message":
             messages.push({ role: "user", content: step.from + ": " + step.text });
@@ -155,7 +161,7 @@ export class AgentMemory {
       }
       switch (step.kind) {
         case "task":
-          messages.push({ role: "user", content: step.task });
+          messages.push({ role: "user", content: step.content });
           break;
         case "planning":
           messages.push({ role: "assistant", content: "Plan:\n" + step.plan });

@@ -1,5 +1,5 @@
 import type { AgentErrorInfo } from "../errors.js";
-import type { Timing, TokenUsage, ToolCall } from "../types.js";
+import type { ContentPart, MessageContent, Timing, TokenUsage, ToolCall } from "../types.js";
 
 export type AgentStepKind =
   | "task"
@@ -32,10 +32,18 @@ export abstract class AgentStep {
 export class TaskStep extends AgentStep {
   override readonly kind = "task";
   readonly task: string;
+  /** The task as parts, set only when it carries media. Bytes stay out of the checkpoint form. */
+  readonly parts: readonly ContentPart[] | undefined;
 
-  constructor(task: string) {
+  constructor(task: string, parts?: readonly ContentPart[]) {
     super();
     this.task = task;
+    this.parts = parts;
+  }
+
+  /** What the transcript shows: the parts when there is media, and the plain string otherwise. */
+  get content(): MessageContent {
+    return this.parts ?? this.task;
   }
 }
 

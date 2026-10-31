@@ -4,7 +4,8 @@ import type { AgentEvent, AgentEventType } from "../events.js";
 import type { ApprovalOutcome } from "../agent/approval.js";
 import type { MultiStepAgent } from "../agent/multi-step-agent.js";
 import type { RunResult } from "../agent/run-result.js";
-import { type ChatMessage, type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
+import { messageText } from "../media.js";
+import { type ChatMessage, type MessageContent, type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
 
 export type SessionStatus =
   | "idle"
@@ -213,7 +214,7 @@ export class AgentSession<TOut = unknown> {
    * continues the agent's prior memory by default; pass `reset: true` to start a fresh turn anyway.
    */
   async send(
-    task: string,
+    task: MessageContent,
     options: { signal?: AbortSignal; reset?: boolean } = {},
   ): Promise<RunResult<TOut>> {
     if (this.isRunning) {
@@ -233,7 +234,12 @@ export class AgentSession<TOut = unknown> {
       else external.addEventListener("abort", forwardAbort, { once: true });
     }
 
-    this.draft = { ...emptyRun(), status: "running", task, startedAt: Date.now() };
+    this.draft = {
+      ...emptyRun(),
+      status: "running",
+      task: messageText({ content: task }),
+      startedAt: Date.now(),
+    };
     this.publish(null);
 
     const unsubscribe = this.agent.on((event) => {

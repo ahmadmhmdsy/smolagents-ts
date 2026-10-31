@@ -41,8 +41,15 @@ import {
   type GenerateOptions,
   type Model,
   type ToolSpec,
+  upgradeModelAdapter,
 } from "../model.js";
-import { messageText } from "../media.js";
+import {
+  type MediaLimits,
+  DEFAULT_MEDIA_LIMITS,
+  checkContentParts,
+  mediaParts,
+  messageText,
+} from "../media.js";
 import { Monitor } from "../monitoring/monitor.js";
 import type { SpanExporter } from "../monitoring/otel.js";
 import { TraceBuilder } from "../monitoring/trace.js";
@@ -75,6 +82,7 @@ import {
 import { ToolDefinitionError, type Tool } from "../tool/tool.js";
 import {
   type ChatMessage,
+  type MessageContent,
   type TokenUsage,
   type ToolCall,
   EMPTY_TOKEN_USAGE,
@@ -155,6 +163,8 @@ export interface AgentOptions {
    * Off by default, so no existing run condenses.
    */
   condensation?: CondensationOptions;
+  /** Caps on a run's media, counted encoded. Unset fields keep `DEFAULT_MEDIA_LIMITS`. */
+  mediaLimits?: Partial<MediaLimits>;
   /**
    * Where a run's record lives. With a `runId` on the run, the agent commits the record after
    * each boundary and reads it back to resume, so a run survives its process.
@@ -385,6 +395,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
   /** The declared transfer targets, kept so a test or a caller can read the declaration back. */
   readonly transfers: readonly TransferTarget[];
   readonly limits: RunLimits;
+  private readonly mediaLimits: MediaLimits;
+  /** The encoded media this run has admitted so far, counted against `maxRunBytes`. */
+  private mediaBytes = 0;
   protected readonly logger: Logger;
   protected readonly memory = new AgentMemory();
   protected monitor: Monitor;
@@ -436,6 +449,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   constructor(options: AgentOptions) {
     this.model = options.model;
     this.limits = options.limits ?? {};
+    this.mediaLimits = { ...DEFAULT_MEDIA_LIMITS, ...options.mediaLimits };
     this.approve = options.approve;
     this.approvalPolicy = options.approvalPolicy ?? "ask";
     this.store = options.store;
@@ -803,7 +817,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   ): AsyncGenerator<AgentEventPayload, ActionOutcome>;
 
   /** Drain the stream and return the result, throwing if the run did not succeed. */
-  async run(task: string, options: RunOptions = {}): Promise<RunResult<TOut>> {
+  async run(task: MessageContent, options: RunOptions = {}): Promise<RunResult<TOut>> {
     let completed: RunResult<TOut> | undefined;
     let failure: AgentError | undefined;
     for await (const event of this.stream(task, options)) {
@@ -849,7 +863,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
    * The async source of truth for a run (design spec 6.3). Deltas are advisory;
    * run.completed, run.failed, run.maxStepsReached and run.cancelled are terminal.
    */
-  async *stream(task: string, options: RunOptions = {}): AsyncGenerator<AgentEvent, void> {
+  async *stream(task: MessageContent, options: RunOptions = {}): AsyncGenerator<AgentEvent, void> {
     // Every run ends in exactly one terminal event. The loop emits its own; anything that still
     // escapes it — a subclass's interpret(), a prompt builder — is reported here instead of being
     // thrown past a consumer that waits for the terminal event.
@@ -902,9 +916,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /** The run itself. stream() owns the release hook so that no terminal path can skip it. */
   private async *runStream(
-    task: string,
+    content: MessageContent,
     options: RunOptions = {},
   ): AsyncGenerator<AgentEvent, void> {
+    // Text is the task everywhere but the transcript: events, traces, policies and guardrails.
+    const task = messageText({ content });
+    const parts = mediaParts(content);
     const runId = options.runId ?? crypto.randomUUID();
     const fork = options.fork;
     const signal = options.signal ?? new AbortController().signal;
@@ -949,6 +966,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.parkingDecision = undefined;
     this.answerRepairs = 0;
     this.policyRepairs = 0;
+    this.mediaBytes = 0;
     this.policyCalled.clear();
     this.stepCalled = new Set<string>();
     this.stepView = undefined;
@@ -992,6 +1010,17 @@ export abstract class MultiStepAgent<TOut = unknown> {
     if (loadFailure !== undefined) {
       yield this.emit({ type: "run.failed", error: loadFailure.info });
       return;
+    }
+    if (parts !== undefined) {
+      // Before memory or the record changes, so a refused task costs nothing and leaves no trace.
+      try {
+        // A model on the earlier contract cannot carry media, whatever its capabilities say.
+        const { capabilities } = upgradeModelAdapter(this.model);
+        this.mediaBytes = checkContentParts(parts, capabilities, this.mediaLimits);
+      } catch (error) {
+        yield this.emit({ type: "run.failed", error: AgentError.from(error).info });
+        return;
+      }
     }
 
     if (fork !== undefined) {
@@ -1084,7 +1113,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       });
       return;
     }
-    if (options.resume === undefined && fork === undefined) this.memory.addStep(new TaskStep(task));
+    if (options.resume === undefined && fork === undefined) this.memory.addStep(new TaskStep(task, parts));
     // A fork continues the budget its copied steps already spent.
     if (fork !== undefined && options.budget === undefined) {
       const seed = budgetSeedFromSteps(this.memory.steps);
@@ -1469,18 +1498,16 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /** The initial plan's one user turn: the task, the tool prompts and the managed agents. */
   private initialPlanMessages(task: string): ChatMessage[] {
-    return [
-      {
-        role: "user",
-        content: populateTemplate(PLANNING_INITIAL_TEMPLATE, {
-          codeFence: CODE_FENCE,
-          managedAgentsBlock: this.renderManagedAgents(),
-          planEndTag: PLAN_END_TAG,
-          task,
-          toolsBlock: this.planningToolsBlock(),
-        }),
-      },
-    ];
+    const text = populateTemplate(PLANNING_INITIAL_TEMPLATE, {
+      codeFence: CODE_FENCE,
+      managedAgentsBlock: this.renderManagedAgents(),
+      planEndTag: PLAN_END_TAG,
+      task,
+      toolsBlock: this.planningToolsBlock(),
+    });
+    const media = this.memory.taskMedia;
+    const content = media.length === 0 ? text : [{ type: "text" as const, text }, ...media];
+    return [{ role: "user", content }];
   }
 
   /** The update plan's three-part input: system prelude, summary-mode memory, user postlude. */

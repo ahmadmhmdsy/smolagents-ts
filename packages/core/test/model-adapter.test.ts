@@ -18,6 +18,11 @@ function fenced(thought: string, code: string): string {
   return "Thought: " + thought + "\nCode:\n" + CODE_FENCE + "\n" + code + "\n" + CODE_FENCE;
 }
 
+/** A model that says nothing about its contract, as one written before the versions were. */
+function undeclared(responses: string[]): MockModel {
+  return Object.defineProperty(new MockModel(responses), "adapterVersion", { value: undefined });
+}
+
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 const TEXT_PARTS: readonly ChatMessage[] = [
@@ -64,7 +69,7 @@ function declaredV1(): { model: ModelAdapterV1; inner: MockModel } {
 describe("the numbered adapter contract", () => {
   it("upgrades a model written before the numbering", async () => {
     expect(MODEL_ADAPTER_VERSION).toBe(2);
-    const legacy = new MockModel(["hello"]);
+    const legacy = undeclared(["hello"]);
     const upgraded = upgradeModelAdapter(legacy);
 
     expect(upgraded.adapterVersion).toBe(MODEL_ADAPTER_VERSION);
@@ -118,7 +123,7 @@ describe("the shim over an earlier contract", () => {
   });
 
   it("passes a string message through untouched", async () => {
-    const legacy = new MockModel(["hello"]);
+    const legacy = undeclared(["hello"]);
     const message: ChatMessage = { role: "user", content: "hi" };
     await upgradeModelAdapter(legacy).generate([message]);
     expect(legacy.calls[0]?.[0]).toBe(message);
@@ -131,7 +136,7 @@ describe("the shim over an earlier contract", () => {
   });
 
   it("flattens text parts on the streamed path too", async () => {
-    const legacy = new MockModel(["hello"]);
+    const legacy = undeclared(["hello"]);
     expect(await drain(upgradeModelAdapter(legacy).generateStream(TEXT_PARTS))).toBe("hello");
     expect(legacy.calls[0]).toEqual([{ role: "user", content: "first\nsecond" }]);
   });
@@ -146,7 +151,7 @@ describe("the shim over an earlier contract", () => {
   });
 
   it("refuses media before a model with no declared version is called", async () => {
-    const legacy = new MockModel(["hello"]);
+    const legacy = undeclared(["hello"]);
     await expect(upgradeModelAdapter(legacy).generate(WITH_MEDIA)).rejects.toBeInstanceOf(UnsupportedContentError);
     await expect(drain(upgradeModelAdapter(legacy).generateStream(WITH_MEDIA))).rejects.toBeInstanceOf(
       UnsupportedContentError,

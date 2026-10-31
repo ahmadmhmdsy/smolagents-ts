@@ -1,6 +1,12 @@
 import { ContentTooLargeError, UnsupportedContentError } from "./errors.js";
 import type { ModelCapabilities } from "./model.js";
-import type { AudioMediaType, ChatMessage, ContentPart, ImageMediaType } from "./types.js";
+import type {
+  AudioMediaType,
+  ChatMessage,
+  ContentPart,
+  ImageMediaType,
+  MessageContent,
+} from "./types.js";
 
 /** The media types a part may declare. Anything else is refused before a model sees it. */
 export const MEDIA_TYPES: readonly (ImageMediaType | AudioMediaType)[] = [
@@ -40,6 +46,11 @@ export function messageText(message: Pick<ChatMessage, "content">): string {
 export function hasMedia(message: Pick<ChatMessage, "content">): boolean {
   if (typeof message.content === "string") return false;
   return message.content.some((part) => part.type !== "text");
+}
+
+/** The parts of content that carries media, or undefined for content that is text however held. */
+export function mediaParts(content: MessageContent): readonly ContentPart[] | undefined {
+  return typeof content !== "string" && hasMedia({ content }) ? content : undefined;
 }
 
 function startsWith(bytes: Uint8Array, signature: readonly number[], offset = 0): boolean {

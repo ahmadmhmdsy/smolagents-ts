@@ -34,6 +34,7 @@ const RUNTIME_EXPORTS = [
   "DEFAULT_MEDIA_LIMITS",
   "messageText",
   "hasMedia",
+  "mediaParts",
   "sniffMediaType",
   "checkContentParts",
   "checkMessageMedia",

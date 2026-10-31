@@ -1,5 +1,5 @@
 import { AgentGenerationError } from "../errors.js";
-import { type ChatCompletion, type ChatCompletionChunk, type FinishReason, type GenerateOptions, type Model, type ModelCapabilities, modelCapabilities } from "../model.js";
+import { type ChatCompletion, type ChatCompletionChunk, type FinishReason, type GenerateOptions, MODEL_ADAPTER_VERSION, type Model, type ModelCapabilities, modelCapabilities } from "../model.js";
 import type { ToolCallRequest } from "../types.js";
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "../types.js";
 import type { ChatMessage } from "../types.js";
@@ -29,6 +29,7 @@ export interface MockModelOptions {
 export class MockModel implements Model {
   readonly id: string;
   readonly provider = "mock";
+  readonly adapterVersion = MODEL_ADAPTER_VERSION;
   readonly capabilities = modelCapabilities({ streaming: true, toolCalls: true });
 
   private readonly turns: MockTurn[];
