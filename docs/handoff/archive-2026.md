@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T22:55:00+03:00 — T-39 lands: D-08's phase 0 ships
+
+**State.** `D-08`'s phase 0 is done. `T-48` (parity re-adjudication) is the last live row before the `T-14` release; phase 1 stays parked behind `T-54`'s demand.
+
+**Did.** README gained "Gateways and proxies": the two-line `OpenAICompatibleModel` recipe, the CLI form with `--api-base`, `--model-id` and `--api-key`, the browser CORS and localhost-only rules, and the pin-the-id rule. `docs/10-runbooks/gateway-through-openai-compatible.md` carries discovery through `GET /v1/models`, the model id as the determinism boundary, `AbortSignal` ownership, retry-is-the-caller's, verification and failure modes. `examples/gateway/` drives `generate`, `generateStream` and one `CodeAgent` through the adapter and prints `SKIPPED`, exit 0, without `OMNIROUTE_BASE_URL`. The fixture `openai-compatible-gateway.sse.txt` and four cases pin the keepalive drop, the `choices: []` usage chunk, the synthesized finish and the error-as-data raise without the key.
+
+**Verified.** Models 17 files and 93 tests, example-gateway 3 tests, both exit 0; `pnpm typecheck`, lint, the validator (0/0) and the full gate green.
+
+**Unverified / open.** No live gateway was contacted: the fixture is hand-shaped from the research note at `3.8.53`, the example's tests drive an injected fetch, and the runbook records "never executed" as its verification. An error stream replaces the body it interrupts, so that fourth frame is an inline body in the test rather than a fixture line.
+
+**Next.** `T-48`: re-adjudicate parity against the five scenarios that declare `planningInterval: 0`.
+
+**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`gateway-through-openai-compatible.md`](10-runbooks/gateway-through-openai-compatible.md), [`openai-compatible-gateway.test.ts`](../packages/models/test/openai-compatible-gateway.test.ts), [`examples/gateway/index.mjs`](../examples/gateway/index.mjs), [`README.md`](../README.md).
+
 ## 2026-10-25T22:45:00+03:00 — T-51 lands: the snapshot carries the conversation
 
 **State.** `D-06` is code. `T-39` (gateway docs, example, fixture) is the last implementation row before `T-48` and the `T-14` release.
