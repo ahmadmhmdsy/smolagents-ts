@@ -15,7 +15,7 @@
     "test:architecture": "vitest run --project core packages/core/test/architecture",
     "example:node": "pnpm --filter smolagents-ts build && node examples/node-script/index.mjs",
     "lint": "eslint .",
-    "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
+    "depcruise": "depcruise packages examples --config .dependency-cruiser.cjs",
     "changeset": "changeset",
     "release:version": "changeset version && pnpm version:sync",
     "version:sync": "node scripts/sync-versions.mjs",

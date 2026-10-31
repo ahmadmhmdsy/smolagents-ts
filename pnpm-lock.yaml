@@ -167,6 +167,18 @@ importers:
         specifier: workspace:*
         version: link:../../packages/smolagents-ts
 
+  examples/gateway:
+    dependencies:
+      '@jitl/quickjs-wasmfile-release-sync':
+        specifier: ^0.32.0
+        version: 0.32.0
+      quickjs-emscripten-core:
+        specifier: ^0.32.0
+        version: 0.32.0
+      smolagents-ts:
+        specifier: workspace:*
+        version: link:../../packages/smolagents-ts
+
   examples/live-provider:
     dependencies:
       '@jitl/quickjs-wasmfile-release-sync':

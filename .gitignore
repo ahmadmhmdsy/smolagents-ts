@@ -12,6 +12,7 @@ reference/
 docs/.locks/
 # harness local state (session handoff archives, scratch commit messages)
 .dsh/
+.superpowers/
 *.tmp
 .pytest_cache/
 
