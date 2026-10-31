@@ -1,4 +1,6 @@
 """Self-tests for the pack scripts. Stdlib unittest only."""
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
@@ -8,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import _mdtable
 import _packmodel as pm
+import checks
 import rotate
 
 GOOD = "# T\n\n| id | status |\n|---|---|\n| a | done |\n"
@@ -270,6 +273,100 @@ class TestRotate(unittest.TestCase):
             before = pack.read("docs/03-handoff.md")
             rotate.run(pack, apply=False, year=2026)
             self.assertEqual(pack.read("docs/03-handoff.md"), before)
+
+
+class TestChecks(unittest.TestCase):
+    @staticmethod
+    def _write(root, rel, text):
+        f = root / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(text, encoding="utf-8")
+
+    def test_a_link_to_a_missing_file_is_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write(root, "docs/00.md", "# Doc\n\n[gone](missing.md)\n")
+            got = checks.c00_paths(pm.Pack(root))
+            self.assertEqual([f.path for f in got], ["docs/00.md"])
+            self.assertIn("missing.md", got[0].message)
+
+    def test_a_link_inside_a_fence_is_not_a_reference(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fence = chr(96) * 3
+            self._write(root, "docs/00.md",
+                        "# Doc\n\n" + fence + "md\n[gone](missing.md)\n" + fence + "\n")
+            self.assertEqual(checks.c00_paths(pm.Pack(root)), [])
+
+    def test_a_history_record_keeps_the_links_it_was_written_with(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write(root, "docs/handoff/archive-2026.md",
+                        "# Archive\n\n[gone](../missing.md)\n")
+            self.assertEqual(checks.c00_paths(pm.Pack(root)), [])
+
+    def test_a_docs_link_is_read_from_the_repository_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write(root, "docs/01.md", "# One\n\n[two](docs/02.md)\n")
+            self._write(root, "docs/02.md", "# Two\n")
+            self.assertEqual(checks.c00_paths(pm.Pack(root)), [])
+
+    def test_a_missing_rotation_marker_is_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            rel = "docs/03-handoff.md"
+            self._write(root, rel, "# H\n\n" + pm.BEGIN + "\nbody\n" + pm.END + "\n")
+            self.assertEqual(checks.c14_markers(pm.Pack(root)), [])
+            self._write(root, rel, "# H\n\n" + pm.BEGIN + "\nbody\n")
+            self.assertTrue(checks.c14_markers(pm.Pack(root)))
+
+    def test_the_rotate_check_fails_on_a_missing_marker(self):
+        with tempfile.TemporaryDirectory() as d:
+            self._write(Path(d), "docs/03-handoff.md", "# H\n\n" + pm.BEGIN + "\nbody\n")
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(rotate.main(["--root", d, "--check"]), 1)
+
+    def test_an_unregistered_component_rule_file_is_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            tick = chr(96)
+            self._write(root, "AGENTS.md",
+                        "# A\n\n| id | component rule |\n|---|---|\n"
+                        "| x | " + tick + "rules/components/x.md" + tick + " |\n")
+            self._write(root, "rules/components/x.md", "# x\n")
+            self.assertEqual(checks.c15_components(pm.Pack(root)), [])
+            self._write(root, "rules/components/ghost.md", "# ghost\n")
+            got = checks.c15_components(pm.Pack(root))
+            self.assertEqual([f.path for f in got], ["rules/components/ghost.md"])
+
+    def test_a_component_row_pointing_at_a_missing_file_is_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            tick = chr(96)
+            self._write(root, "AGENTS.md",
+                        "# A\n\n| id | component rule |\n|---|---|\n"
+                        "| x | " + tick + "rules/components/x.md" + tick + " |\n")
+            got = checks.c15_components(pm.Pack(root))
+            self.assertTrue(any("missing file" in f.message for f in got))
+
+    def test_every_status_value_is_validated(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            rel = "docs/09-decisions/0001-x.md"
+            self._write(root, rel, "# 0001 - X\n\n- **Status:** accepted\n")
+            self.assertEqual(checks.c03_vocabulary(pm.Pack(root)), [])
+            self._write(root, rel, "# 0001 - X\n\n- **Status:** accepted | nonsense-value\n")
+            got = checks.c03_vocabulary(pm.Pack(root))
+            self.assertEqual([f.line for f in got], [3])
+            self.assertIn("nonsense-value", got[0].message)
+
+    def test_a_superseded_decision_may_name_its_successor(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self._write(root, "docs/09-decisions/0001-x.md",
+                        "# 0001 - X\n\n- **Status:** superseded by 0002\n")
+            self.assertEqual(checks.c03_vocabulary(pm.Pack(root)), [])
 
 
 if __name__ == "__main__":

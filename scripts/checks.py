@@ -1,6 +1,7 @@
 """The context-pack checks. Pure functions over a Pack. Stdlib only."""
 from __future__ import annotations
 
+import posixpath
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,7 +11,7 @@ import _packmodel as pm
 from _mdtable import TableError, find_tables, h2_blocks
 
 STRENGTH = re.compile(r"\b(MUST|SHOULD|MAY)\b")
-STATUS_LINE = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?Status(?:\*\*)?\s*:\s*([A-Za-z_]+)", re.I)
+STATUS_LINE = re.compile(r"^\s*(?:[-*]\s*)?(?:\*\*)?Status(?:\*\*)?\s*:\s*(.+?)\s*$", re.I)
 SECRET = re.compile(
     r"(?i)\b(api[_-]?key|secret|password|passwd|token)\b\s*[:=]\s*['\"]?([A-Za-z0-9/+_\-]{16,})")
 SENTENCE = re.compile(r"[^.!?\n]{60,}?\.")
@@ -39,6 +40,27 @@ TASK_STATUS = {"pending", "in_progress", "blocked", "done"}
 PLAN_STATUS = {"draft", "approved", "in_progress", "done", "abandoned"}
 DECISION_STATUS = {"proposed", "accepted", "superseded", "rejected"}
 LESSON_STATUS = {"observed", "candidate", "validated", "promoted", "rejected"}
+
+
+def _status_values(raw):
+    """Every value a Status line declares, not only the first word.
+
+    A line like Status: draft | nonsense-value used to be read as draft and pass. A
+    status line may carry a rationale after an em dash (decision 0018 does); the
+    rationale is prose, not a value, so only the part before the dash is split.
+    """
+    head = re.split(r"\s+[—–]\s+|\s+--?\s+|;", raw, maxsplit=1)[0]
+    return [v.strip().strip(chr(96) + "* ").lower() for v in head.split("|") if v.strip()]
+
+
+def _status_known(value, vocab):
+    if value in vocab:
+        return True
+    # docs/09-decisions/0000-template.md writes the successor into the value:
+    # superseded by NNNN. Only superseded is a vocabulary value.
+    m = re.fullmatch(r"superseded\s+by\s+(?:\d{4}|nnnn)", value)
+    return bool(m) and "superseded" in vocab
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -91,8 +113,18 @@ def table_with(pack, rel, *columns):
 ENTRY_FILES = ("AGENTS.md", "CLAUDE.md")
 RULE_MODULE_REF = re.compile(r"rules/(\d{2}-[a-z0-9\-]+\.md)")
 PATH_REF = re.compile(r"(?<![\w/.\-])((?:rules|docs|_templates|scripts)/[A-Za-z0-9_./\-]*\.(?:md|py))")
-MD_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+FENCE = re.compile(r"(?m)^[ \t]{0,3}(\x60{3,}|~{3,})[^\n]*\n.*?^[ \t]{0,3}\1[ \t]*$", re.S)
+CODE_SPAN = re.compile(r"\x60[^\x60\n]*\x60")
+EXTERNAL_REF = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//)")
 ADAPT = re.compile(r"\bADAPT\b")
+
+# A history record keeps the links it had at the revision it was written for, and a
+# rotation moves entries between directories without rewriting their relative links.
+# Scanning those would report the archive's distance from the live tree as a defect;
+# the live surface is what a reader of this pack is expected to reach.
+HISTORY_DIRS = ("docs/handoff/", "docs/tasks/", "docs/design/", "docs/plans/",
+                "docs/reports/", "docs/research/")
 
 
 def c00_required(pack):
@@ -122,26 +154,84 @@ def c00_index(pack):
     return out
 
 
-def c00_paths(pack):
-    """Every path-looking reference in the entry files, docs/ and rules/ resolves."""
+def _blank(match):
+    return "".join(ch if ch == "\n" else " " for ch in match.group(0))
+
+
+def _line_at(text, offset):
+    return text.count("\n", 0, offset) + 1
+
+
+def _live_markdown(pack):
+    """The markdown whose references a reader of this pack is expected to reach.
+
+    docs/handoff, docs/tasks, docs/design, docs/plans, docs/reports and docs/research
+    are history pinned to the revision they were written at; their relative links were
+    written for the directory the entries lived in then, not the one they sit in now.
+    """
+    rels = ["SOUL.md", "AGENTS.md", "README.md"] + list(ENTRY_FILES) + list(pm.ADAPTERS)
     docs = pack.root / "docs"
-    rules = pack.root / "rules"
-    targets = list(ENTRY_FILES)
     if docs.is_dir():
-        targets += sorted(p.relative_to(pack.root).as_posix() for p in docs.rglob("*.md"))
-    if rules.is_dir():
-        targets += sorted(p.relative_to(pack.root).as_posix() for p in rules.glob("*.md"))
+        for p in sorted(docs.rglob("*.md")):
+            rel = p.relative_to(pack.root).as_posix()
+            if not rel.startswith(HISTORY_DIRS):
+                rels.append(rel)
+    for sub in ("rules", "_templates"):
+        d = pack.root / sub
+        if d.is_dir():
+            rels += [p.relative_to(pack.root).as_posix() for p in sorted(d.rglob("*.md"))]
+    rels += list(pack.scoped_agents())
+    seen = set()
     out = []
-    for rel in targets:
-        if not pack.exists(rel):
-            continue
-        text = MD_LINK.sub(" ", pack.read(rel))
-        for ref in sorted(set(PATH_REF.findall(text))):
-            ref = ref.rstrip(".,;:)")
+    for rel in rels:
+        if rel not in seen and pack.exists(rel):
+            seen.add(rel)
+            out.append(rel)
+    return out
+
+
+def _resolve_ref(owner, target):
+    """Repo-relative POSIX path a link names, or None for a link that leaves the repo.
+
+    A docs/... target is written from the repository root in this tree; every other
+    relative target is read from the directory of the file that links it.
+    """
+    target = target.strip().strip("<>")
+    target = target.split("#", 1)[0].split("?", 1)[0]
+    if not target or EXTERNAL_REF.match(target):
+        return None
+    target = target.lstrip("/")
+    if target.startswith("docs/"):
+        return posixpath.normpath(target)
+    return posixpath.normpath(posixpath.join(posixpath.dirname(owner), target))
+
+
+def c00_paths(pack):
+    """Every path a live document names in a link or in prose resolves.
+
+    The previous version deleted every markdown link before scanning, so the one
+    reference form readers actually click was the one form never checked, and it read
+    only the entry files plus top-level docs/ and rules/. Scoped entries, templates and
+    component rules were unread. A link target is now resolved, and prose paths are
+    still read from the same text.
+    """
+    out = []
+    for rel in _live_markdown(pack):
+        text = pack.read(rel)
+        framed = FENCE.sub(_blank, text)
+        clickable = CODE_SPAN.sub(_blank, framed)
+        for m in LINK.finditer(clickable):
+            path = _resolve_ref(rel, m.group(1))
+            if path is not None and not (pack.root / path).exists():
+                out.append(F("paths", "error", rel, _line_at(text, m.start()),
+                             "markdown link does not resolve: %s" % m.group(1)))
+        prose = LINK.sub(_blank, framed)
+        for m in PATH_REF.finditer(prose):
+            ref = m.group(1).rstrip(".,;:)")
             if "*" in ref or "?" in ref:
                 continue
-            if not (pack.root / ref).exists():
-                out.append(F("paths", "error", rel, 0,
+            if not pack.exists(ref):
+                out.append(F("paths", "error", rel, _line_at(text, m.start()),
                              "references a path that does not exist: %s" % ref))
     return out
 
@@ -255,25 +345,34 @@ def c03_vocabulary(pack):
                              "unknown task status %r in row %s" % (v, r.get("id"))))
     for p in sorted((pack.root / "docs" / "09-decisions").glob("*.md")):
         rel = "docs/09-decisions/" + p.name
-        if p.name.startswith("0000"):
-            continue
         for n, line in enumerate(pack.read(rel).split("\n"), 1):
             m = STATUS_LINE.match(line)
-            if m and m.group(1).lower() not in DECISION_STATUS:
-                out.append(F("vocabulary", "error", rel, n, "unknown decision status %r" % m.group(1)))
+            if m:
+                for value in _status_values(m.group(1)):
+                    if not _status_known(value, DECISION_STATUS):
+                        out.append(F("vocabulary", "error", rel, n,
+                                     "unknown decision status %r" % value))
     for p in sorted((pack.root / "docs" / "memory").glob("*.md")):
         rel = "docs/memory/" + p.name
         for n, line in enumerate(pack.read(rel).split("\n"), 1):
             m = STATUS_LINE.match(line)
-            if m and m.group(1).lower() not in LESSON_STATUS:
-                out.append(F("vocabulary", "error", rel, n, "unknown lesson status %r" % m.group(1)))
+            if m:
+                for value in _status_values(m.group(1)):
+                    if not _status_known(value, LESSON_STATUS):
+                        out.append(F("vocabulary", "error", rel, n,
+                                     "unknown lesson status %r" % value))
+    template_vocab = {"plan": PLAN_STATUS, "lesson": LESSON_STATUS}
     known = PLAN_STATUS | TASK_STATUS | LESSON_STATUS | DECISION_STATUS
     for p in sorted((pack.root / "_templates").glob("*.md")):
         rel = "_templates/" + p.name
+        vocab = template_vocab.get(p.stem, known)
         for n, line in enumerate(pack.read(rel).split("\n"), 1):
             m = STATUS_LINE.match(line)
-            if m and m.group(1).lower() not in known:
-                out.append(F("vocabulary", "error", rel, n, "unknown form status %r" % m.group(1)))
+            if m:
+                for value in _status_values(m.group(1)):
+                    if not _status_known(value, vocab):
+                        out.append(F("vocabulary", "error", rel, n,
+                                     "unknown form status %r" % value))
     return out
 
 
@@ -518,6 +617,63 @@ def c13_locks(pack):
     return out
 
 
+def c14_markers(pack):
+    """Every region-capped document still declares both rotation markers.
+
+    A missing marker made capped_size report 0, which every cap compares as passing:
+    the file was green precisely when its history had become unrotatable.
+    """
+    out = []
+    for rel in pm.REGION_CAPPED:
+        if not pack.exists(rel):
+            continue
+        text = pack.read(rel)
+        if pm.BEGIN not in text or pm.END not in text:
+            out.append(F("markers", "error", rel, 0,
+                         "rotation marker missing; the region cannot be measured or rotated"))
+        elif pack.capped_size(rel) <= 0:
+            out.append(F("markers", "error", rel, 0, "rotation region is empty"))
+    return out
+
+
+def c15_components(pack):
+    """Every component rule file has a row in the router's component table, and every
+    row names a file that exists.
+
+    rules/components/README.md states this requirement; no check enforced it, so an
+    orphan rule file was invisible and a row could point at a file that never existed.
+    """
+    out = []
+    t = table_with(pack, "AGENTS.md", "id", "component rule")
+    if t is None:
+        out.append(F("components", "error", "AGENTS.md", 0,
+                     "no component table with id and component rule columns"))
+        return out
+    declared = set()
+    for row in t.rows:
+        raw = (row.get("component rule") or "").strip().strip(chr(96))
+        cid = (row.get("id") or "").strip()
+        if not raw:
+            continue
+        declared.add(raw)
+        if not pack.exists(raw):
+            out.append(F("components", "error", "AGENTS.md", t.line(),
+                         "component table names a missing file: %s" % raw))
+        elif cid and Path(raw).stem != cid:
+            out.append(F("components", "error", "AGENTS.md", t.line(),
+                         "component id %r and rule file %r disagree" % (cid, raw)))
+    comp = pack.root / "rules" / "components"
+    if comp.is_dir():
+        for p in sorted(comp.glob("*.md")):
+            if p.name == "README.md":
+                continue
+            rel = "rules/components/" + p.name
+            if rel not in declared:
+                out.append(F("components", "error", rel, 0,
+                             "component rule file has no row in the AGENTS.md component table"))
+    return out
+
+
 # The four ported checks that assert the pack is complete and internally consistent run in
 # every pass. `c00_adapt` is deliberately not in this tuple: its findings are `info` - the
 # count of markers a consumer still has to fill in - so `validate_context.py` prints them as
@@ -541,6 +697,8 @@ ALL = (
     c11_duplicate_facts,
     c12_secrets,
     c13_locks,
+    c14_markers,
+    c15_components,
 )
 
 

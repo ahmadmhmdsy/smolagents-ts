@@ -215,11 +215,18 @@ def main(argv=None) -> int:
     if args.check:
         over = [(rel, pack.capped_size(rel), cap) for rel, cap in pm.CAPS.items()
                 if pack.exists(rel) and pack.capped_size(rel) > cap]
+        # A missing marker is not a size problem: capped_size reads the region as 0, so
+        # the file passes every cap exactly when rotation has stopped being possible.
+        unmarked = [rel for rel in pm.REGION_CAPPED
+                    if pack.exists(rel) and (pm.BEGIN not in pack.read(rel)
+                                             or pm.END not in pack.read(rel))]
         if args.json:
-            print(json.dumps({"over_cap": over}, indent=2))
+            print(json.dumps({"over_cap": over, "marker_missing": unmarked}, indent=2))
         for rel, size, cap in over:
             print("OVER CAP %s: %d > %d" % (rel, size, cap))
-        return 1 if over else 0
+        for rel in unmarked:
+            print("MISSING ROTATION MARKER: %s" % rel)
+        return 1 if (over or unmarked) else 0
     try:
         results = run(pack, apply=args.apply, year=args.year)
     except Abort as exc:
