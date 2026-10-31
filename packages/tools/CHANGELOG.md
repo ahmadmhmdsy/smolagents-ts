@@ -4,6 +4,8 @@
 
 ### Minor Changes
 
+- `visit_webpage` refuses private and local addresses, on the first URL and on every redirect, unless `allowPrivateNetwork` is set. HTML cleaning drops an unclosed `<script>`.
+
 - The first release of the tool ecosystem: `ToolCollection` groups tools and converts them
   to the core's registry, `htmlToText` turns markup into text, and `userInputTool`,
   `duckDuckGoSearchTool` and `visitWebpageTool` are the defaults. Every default is built

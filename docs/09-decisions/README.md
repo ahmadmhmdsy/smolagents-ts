@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0035 | the fixed group stays at six, and the review hardening ships in 0.1.0 | accepted | 2026-10-31 |
 | 0034 | multimodal input is in, input-only, and it is the 0.2.0 phase | accepted | 2026-10-25 |
 | 0033 | the Pyodide interrupt stays deferred, and the worker path is pre-registered | accepted | 2026-10-25 |
 | 0032 | the parity corpus grows a tool-calling scenario family | accepted | 2026-10-25 |
