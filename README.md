@@ -93,6 +93,7 @@ run actually took, in order, with the code and the result beside them.
 | a run you can read back afterwards | the typed step list | [examples/multi-step](examples/multi-step) |
 | to watch a run while it happens | `Monitor`, `AgentEvent`, `AgentSession` | [examples/events](examples/events) |
 | to talk to a real provider | `GeminiModel`, `OpenAICompatibleModel`, `AnthropicModel`, `HuggingFaceModel`, `CustomModel` | [examples/live-provider](examples/live-provider) |
+| to show a model an image or audio | `agent.run(parts)`, `withAttachments` | [examples/vision](examples/vision) |
 | to declare your own tools | `tool()` with a zod schema | [examples/multi-step](examples/multi-step) |
 | the built-in web tools | `duckDuckGoSearchTool`, `visitWebpageTool`, `userInputTool` | [examples/tool-calling](examples/tool-calling) |
 | a run inspector in React | `AgentRun`, `RunInspector`, `useAgentSession` | [examples/vite-app](examples/vite-app) |
@@ -138,6 +139,54 @@ and a hosted page should go through a same-origin dev-server proxy rather than a
 widened gateway. A gateway can also route `auto` per request, so pin one model id
 when a run must be reproducible. The full procedure, with verification and failure
 modes, is [the gateway runbook](docs/10-runbooks/gateway-through-openai-compatible.md).
+
+## Images and audio
+
+Check the model first. A part it cannot take is refused before any request:
+
+```ts
+if (!model.capabilities.images) throw new Error("pick a model that can see");
+
+await agent.run([
+  { type: "text", text: "What does this chart show?" },
+  { type: "image", mediaType: "image/png", bytes, alt: "Monthly sales, 2026" },
+]);
+```
+
+`agent.run` takes a string or a parts array, and a string behaves exactly as it
+did. `alt` is for a person reading the transcript and never reaches the model;
+`ChatSurface` shows a visible fallback when it is missing. A tool hands media
+back with `withAttachments(text, parts)`: a `CodeAgent`'s program sees the text,
+and the model sees the image on its next call.
+
+| adapter | images | audio | what to know |
+|---|---|---|---|
+| `OpenAICompatibleModel` | yes | yes | a claim about the wire, not the route: a gateway or a local model can still refuse |
+| `AnthropicModel` | yes | no | audio is refused even if you claim it; `detail` is not sent |
+| `GeminiModel` | yes | yes | `image/gif` is refused, because the provider does not list it |
+| `HuggingFaceModel` | yes | yes | inherited from the OpenAI wire, and the route decides |
+| `CustomModel` | no | no | yours to claim through `capabilities` |
+
+`capabilities` on any adapter overrides the defaults for a route you know better.
+A part is limited to 5 MiB and a run to 20 MiB, both measured as encoded base64
+and both changed through `mediaLimits`. Anthropic on Bedrock caps an image at
+5 MB, just under the default, so set `maxPartBytes` lower there.
+
+Memory holds references, so bytes stay out of events, checkpoints, traces and
+`RunResult.messages`. A run that must resume in a new process needs a durable
+`mediaStore`: the default lives in memory, and a run whose bytes are gone fails
+with `AGENT_MEDIA_MISSING`. The framework never deletes from a store you pass.
+
+Costs follow the transcript. Every image is resent on every step, and image
+tokens are invisible to `estimatedTokens`, so read provider usage for the budget.
+
+**Security.** An image is untrusted input: text inside it can carry instructions
+the model may follow, and no guardrail here reads pixels, so a guardrail that
+checks text sees none of it. Keep risky tools behind `withApproval` when a run
+looks at images you do not control. The bytes are yours to own too: nothing here
+scans, redacts or strips metadata, and a request sends them to the provider
+whole. `ChatSurface` renders media as data URIs, so a page with a content
+security policy needs `data:` in `img-src` and `media-src`.
 
 ## In the browser
 

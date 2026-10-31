@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-11-01T01:10:00+03:00 — Multimodal is built on its branch, and a live run found an old bug
+
+**State.** All seven `T-56` phases are committed on `release/0.2-multimodal`, unpushed and unmerged. `main` is unchanged at `90e9b72`. `T-56` stays `in_progress` until the merge.
+
+**Did.** Phase 7: the README and models README sections, the capability table, `examples/vision`, the changeset. Fixed a defect that predates `T-56`: a `ToolCallingAgent` with no `outputSchema` never offered `final_answer` on the request, so a real provider could not finish a run.
+
+**Verified.** `pnpm gate`, `validate_context.py`, `selftest.py` and `rotate.py --check`. Live `examples/vision` on `gemini-2.5-flash`: the image reached the model, which called `final_answer` on step one and answered "Red".
+
+**Unverified / open.** OpenAI-compatible and Anthropic media have not run live, no key on this host. OpenAI chat completions' `image_url` shape and `mp3` audio are not confirmed by a provider page. `withAttachments` has not run against a live provider. The plan's open question on a live image call as a release requirement is the owner's.
+
+**Next.** The owner reviews the branch and decides its merge against `T-14`.
+
+**Blockers.** The merge on the owner; `T-14` on npm credentials and timing; `T-24`, `T-52`, `T-54`, `T-70` on the owner.
+
+**Artifacts.** `docs/plans/2026-10-31-multimodal-input-plan.md`, `examples/vision/index.mjs`, `packages/core/src/agent/multi-step-agent.ts`.
+
 ## 2026-10-31T23:58:00+03:00 — The multimodal plan is written, the build waits for the owner
 
 **State.** `T-56`'s execution plan exists in draft and is uncommitted. No multimodal code exists. `main` stays the unpublished 0.1.0 at `81d0598`.
