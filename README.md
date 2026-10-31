@@ -27,7 +27,8 @@ That last command runs a complete agent — a real sandbox, a real tool, and a
 scripted model, so it needs no provider and no key.
 
 The published name is `smolagents-ts`. Its five entries re-export the internal
-packages, so one install carries the whole stack and every declaration resolves:
+packages below, so one install carries them and every declaration resolves. The
+Pyodide and remote executors, MCP, the CLI and `react-ui` are separate installs:
 
 | entry | what it carries |
 |---|---|
@@ -138,8 +139,6 @@ widened gateway. A gateway can also route `auto` per request, so pin one model i
 when a run must be reproducible. The full procedure, with verification and failure
 modes, is [the gateway runbook](docs/10-runbooks/gateway-through-openai-compatible.md).
 
-
-
 ## In the browser
 
     pnpm --filter example-vite-app run dev
@@ -193,7 +192,7 @@ project's tests run with `pnpm vitest run --project core`.
 The repository also keeps a context pack, and its consistency is checked with
 Python:
 
-    python scripts/validate_context.py --root . --baseline docs/.baseline.json
+    python scripts/validate_context.py --root .
 
 Where things live:
 

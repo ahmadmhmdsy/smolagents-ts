@@ -27,6 +27,16 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 | T-51 | wire the projection into the snapshot and `ChatSurface` | done | lead | `packages/core/src/session/`, `packages/core/test/`, `packages/react/`, `packages/react-ui/` | `0031`; `T-48` next | `packages/core/test/agent-session-messages.test.ts` |
 | T-39 | implement D-08 phase 0 (README, runbook, example, fixture) | done | lead | `docs/**`, `examples/**`, `packages/models/**` | D-08 A; fixture hand-shaped, never a recording; example prints SKIPPED without `OMNIROUTE_BASE_URL` | `packages/models/test/openai-compatible-gateway.test.ts` |
 | T-48 | re-adjudicate parity after the endings and planning changes | done | lead | `packages/core/test/parity.test.ts`, `scripts/parity/scenarios/*.json` | after `T-49`/`T-50`; `D-02` unblocks the planning scenario S1.5 declined; a moved `differsOn` set is a finding | `scripts/parity/scenarios/planning-cadence.json`; five traces re-recorded identical, seven parity tests pass |
+| T-53 | warn when `--api-base` lacks `--model-type OpenAIModel` | done | next session | `packages/cli/**` | D-08: the flag is silently ignored on the default model type | closed by T-64; premise wrong: the flag reaches HuggingFaceModel and HF_TOKEN goes to that URL, so that is what it warns |
+| T-58 | fix the review's docs and governance items | done | lead | `docs/**`, `README.md`, `.gitignore` | review-fixes plan, phase 1 | `pnpm gate` exit 0, 1396 tests; uncommitted tree |
+| T-59 | close the remote guest boundary | done | lead | `packages/exec-remote/**` | phase 2 | 108 exec-remote tests; doubles only, no live Docker or E2B |
+| T-60 | make the dockerode shim real | done | lead | `packages/exec-remote/**` | phase 2 | 108 exec-remote tests; doubles only, no live Docker |
+| T-61 | harden the container and process kill | done | lead | `packages/exec-remote/**` | phase 2 | 108 exec-remote tests; doubles only, image digest unpinned |
+| T-62 | guard web fetches, drop unclosed tags | done | lead | `packages/tools/**` | phase 3 | 54 tools tests; DNS rebinding not covered, documented on the option |
+| T-63 | bound the MCP transports | done | lead | `packages/mcp/**` | phase 3 | 145 mcp tests; stdio env default changed |
+| T-64 | warn on CLI flags, limit the Vite proxy | done | lead | `packages/cli/**`, `examples/vite-app/**` | phase 3; closes `T-53` | 81 cli and 10 vite-app tests |
+| T-65 | close the review-fixes plan | done | lead | `docs/**`, `.changeset/**` | phase 4 | `pnpm gate` exit 0, 1396 tests; uncommitted tree |
+| T-66 | harden the workflows | done | lead | `.github/**` | phase 1 | `pnpm gate` exit 0, 1396 tests; uncommitted tree |
 
 ## Closed 2026-10-16
 

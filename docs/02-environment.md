@@ -73,7 +73,7 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 | Architecture check | dependency-cruiser 18.5.0 | `pnpm exec depcruise --version` | rule set in `.dependency-cruiser.cjs` |
 | Package shape check | publint 0.3.25 and attw 0.18.5 | `pnpm exec publint --version`; `pnpm exec attw --version` | both run inside the gate, after the build |
 | Formatter | Prettier 3.9.10 | `pnpm exec prettier --version` | installed; no gate stage calls it |
-| Git | 2.47.1.windows.1 | `git --version` | the adoption branch is `context-pack-adoption` |
+| Git | 2.47.1.windows.1 | `git --version` | work lands on `main` |
 | Python | 3.13.7 | `python --version` | the context-pack scripts under `scripts/` use it, and so does the remote-executor package's process suite, which spawns a real interpreter — `python` on Windows, `python3` elsewhere; the gate therefore needs an interpreter on `PATH`, and the GitHub runner images supply one |
 
 ## Services and ports
@@ -82,9 +82,10 @@ Every row was re-derived at the same instant, 2026-10-13T18:47:31+03:00.
 |---|---|---|---|
 | none | everything the build, the tests and the gate do runs in-process | — | — |
 
-No daemon and no external service is opened by a build, a test run or the gate,
-and no test opens a socket: the Docker backend is driven through an injected
-`ContainerRuntime` double whose fake guest answers on the session's own stdin.
+No daemon and no external service is opened by a build, a test run or the gate.
+The Docker backend is driven through an injected `ContainerRuntime` double whose
+fake guest answers on the session's own stdin. The one socket a test opens is the
+loopback listener named under Network and access.
 
 ## Credentials
 
@@ -94,9 +95,14 @@ Never record values here. Record only the **name**, the **location**, and the
 | Variable | Required for | Where it lives | Committed? |
 |---|---|---|---|
 | `GOOGLE_API_KEY` | the live provider smoke and any live Gemini run — never the gate, the tests or the build | the gitignored `.env` at the repository root, loaded with `node --env-file=.env` | no |
+| `GEMINI_API_KEY` | the Vite example's live mode, as the fallback when `GOOGLE_API_KEY` is unset | the same `.env` | no |
+| `HF_TOKEN` | the CLI with `InferenceClientModel`, when `--api-key` is absent | the caller's environment | no |
+| `OPENAI_API_KEY` | the CLI with `OpenAIModel`, when `--api-key` is absent | the caller's environment | no |
+| `OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY` | `examples/gateway`, which skips without the first; the second only when the gateway requires one | the caller's environment | no |
+| `E2B_API_KEY` | the live E2B runbook, `docs/10-runbooks/exec-remote-live-backends.md` | the caller's environment | no |
 | none | the gate, the tests and the build all run offline | not applicable | no |
 
-The gate needs no credential. A live call needs `GOOGLE_API_KEY`, which lives
+The gate needs no credential. A live Gemini call needs `GOOGLE_API_KEY`, which lives
 only in the gitignored `.env` and is read from the environment by
 `scripts/live-smoke.mjs`, which never prints it. Every further provider variable
 is recorded here by name and location before its first live call, and never by
@@ -188,3 +194,4 @@ Append-only.
 | 2026-10-14 | the full gate after the pre-publish pass | `pnpm gate` from the repository root | exit 0; 119 test files and 809 tests passed; 281 modules and 718 dependencies cruised; eleven packages packed and installed, the run printing `pack-smoke run OK: Hello, world!`; site built at 70 pages |
 | 2026-10-14 | the root test command after the projects glob was narrowed to config files | `pnpm vitest run --project core --project react` | exit 0; 41 test files and 347 tests passed |
 | 2026-10-14 | the demo's live mode, end to end, with the key held server-side | the dev server on `127.0.0.1:5178`; `GET /`, `GET /api/live`, then `POST /api/gemini/models/<model>:generateContent` | page 200; probe `available=True model=gemini-3.5-flash-lite`; the proxied call returned the model's reply, and no request from the browser carried a key |
+| 2026-10-31 | the full gate after the review fixes, on 4ba765c plus the uncommitted tree | `pnpm gate` from the repository root | exit 0; 176 test files and 1396 tests passed |

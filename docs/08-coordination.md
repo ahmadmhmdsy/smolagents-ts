@@ -35,6 +35,7 @@ renewable.
 |---|---|---|---|---|---|
 | T-13 L4/L5 (tasks 1 to 9), and the exec-remote review follow-up | this session | `packages/react-ui/**`, `packages/react/src/**`, `packages/exec-remote/**`, `examples/vite-app/**`, `scripts/pack-smoke.mjs`, and the doc rows for both layers | 2026-10-14T14:50+03:00 | 2026-10-14T17:30+03:00 | stale |
 | task-7 docs truth pass (the 2026-10-21 review) | docs-truth | `docs/**` except `docs/reports/**` and `docs/10-runbooks/publish-0.1.0.md`; `scripts/_packmodel.py`, `scripts/checks.py`; every package and app `AGENTS.md` whose test count was stale; `docs/memory/**` | 2026-10-21T15:42+03:00 | 2026-10-21T17:42+03:00 | released |
+| T-58 to T-66; reclaims the stale T-13 `packages/exec-remote/**` and `examples/vite-app/**` scope | lead | `packages/{exec-remote,tools,mcp,cli}/**`, `examples/vite-app/**`, `.github/**`, `.changeset/**`, `README.md`, `.gitignore`, `docs/**` | 2026-10-31T11:00+03:00 | 2026-10-31T13:00+03:00 | released |
 <!-- rotate:end -->
 
 1. Read the claims table before touching anything.

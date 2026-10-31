@@ -47,11 +47,10 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-26 | harden the Gemini adapter against a null `usageMetadata` | pending | next session | `packages/models/src/gemini.ts` | waits on evidence; the OpenAI fix closed this shape | - |
 | T-29 | settle `agent.on(type, handler)` against the shipped `agent.on(event)` | pending | next session | `packages/core/src/agent/` | a caller following the design gets a `TypeError`; add the overload or correct the design | - |
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
-| T-53 | warn when `--api-base` lacks `--model-type OpenAIModel` | pending | next session | `packages/cli/**` | D-08: the flag is silently ignored on the default model type | - |
+| T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019`) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
 | T-55 | write and run the retrieval plan | pending | lead | `packages/retrieval/**`, `docs/plans/**` | after 0.1.0; deterministic embedding, message-first retriever with `asTool()`, refuse-list-tested packaging | - |
 | T-56 | write and run the multimodal input plan (0.2.0's headline) | pending | lead | `packages/core/**`, `packages/models/**`, `packages/react-ui/**` | after 0.1.0; `0034`: input parts, adapter v2 + the v1 shim test, honest capabilities, attachments without executor changes, `MediaRef`s in snapshots | - |
 | T-57 | run the D-12 residual-risk batch (fork first) | pending | next session | `packages/core/test/`, `docs/**`, `docs/.baseline.json` | fork-at-`intent` test; claim-board fence and child-store docs; the v2 shim test and Anthropic split fixture ride `T-56`; #4's sentence in README until `T-52`; live Docker/E2B when an account exists; D-03's guard; re-baseline | - |
-| T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019`) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
 <!-- rotate:end -->
 
 ## Blocked

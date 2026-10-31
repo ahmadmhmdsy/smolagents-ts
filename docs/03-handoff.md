@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-10-31T12:52:00+03:00 — The review's findings are fixed in the tree, not committed
+
+**State.** T-53 and T-58 to T-66 are done on `main` at `4ba765c` plus an uncommitted tree. Nothing is committed or pushed. CI stays red until the lockfile fix lands.
+
+**Did.** Fixed the workflows and docs; closed the remote guest boundary, the dockerode shim and the kill path; made `visit_webpage` refuse private hosts on every hop; bounded the MCP transports and cut the stdio server's environment to a safe list; added CLI warnings and a same-origin guard on the Vite proxy. Added `.changeset/review-hardening.md`.
+
+**Verified.** `pnpm gate` exit 0, 176 files and 1396 tests. `scripts/validate_context.py`, `selftest.py` and `rotate.py --check` ran at close.
+
+**Unverified / open.** No live Docker or E2B run: doubles only, and the base image digest cannot be resolved offline. On Windows a guest that exits cleanly leaves its grandchild; forced dispose kills the tree. `visit_webpage` reads the URL, not DNS, so rebinding passes. T-53's premise was wrong: `--api-base` is honoured on the default type and sends `HF_TOKEN` there, so D-08's "silently ignored" no longer describes the code. The commit must keep the separate `scripts/` and `pnpm-lock.yaml` work this session did not write; earlier handoff lines 50 and 66 stand as written.
+
+**Next.** Owner decides the plan's Open questions, then authorizes commit and push.
+
+**Blockers.** Owner approval for commit and push.
+
+**Artifacts.** `docs/reports/2026-10-31-full-project-review.md`, `docs/plans/2026-10-31-review-fixes-plan.md`.
+
 ## 2026-10-25T23:05:00+03:00 — T-48 lands: parity is re-adjudicated, planning is measured
 
 **State.** The pre-release sequence is complete: `T-49`, `T-50`, `T-51`, `T-39` and `T-48` are done. Only `T-14`'s release gate remains; every other live row is post-release work.
@@ -47,7 +63,7 @@ entry is prepended inside the markers below.
 
 **Blockers.** `T-14` on npm credentials and the scope claim; `T-24`, `T-52`, `T-54` on the owner.
 
-**Artifacts.** [`planning-cadence.json`](../scripts/parity/scenarios/planning-cadence.json), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md), [`0027`](09-decisions/0027-the-endings-surface-only-on-the-stream.md).
+**Artifacts.** [`planning-cadence.json`](../scripts/parity/scenarios/planning-cadence.json), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md), [`0027`](09-decisions/0027-a-run-that-runs-out-of-room-throws.md).
 
 ## 2026-10-25T22:55:00+03:00 — T-39 lands: D-08's phase 0 ships
 
@@ -63,7 +79,7 @@ entry is prepended inside the markers below.
 
 **Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
 
-**Artifacts.** [`gateway-through-openai-compatible.md`](10-runbooks/gateway-through-openai-compatible.md), [`openai-compatible-gateway.test.ts`](../packages/models/test/openai-compatible-gateway.test.ts), [`examples/gateway/index.mjs`](../examples/gateway/index.mjs), [`README.md`](../README.md:121).
+**Artifacts.** [`gateway-through-openai-compatible.md`](10-runbooks/gateway-through-openai-compatible.md), [`openai-compatible-gateway.test.ts`](../packages/models/test/openai-compatible-gateway.test.ts), [`examples/gateway/index.mjs`](../examples/gateway/index.mjs), [`README.md`](../README.md).
 
 ## 2026-10-25T22:45:00+03:00 — T-51 lands: the snapshot carries the conversation
 
@@ -80,20 +96,4 @@ entry is prepended inside the markers below.
 **Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
 
 **Artifacts.** [`agent-session-messages.test.ts`](../packages/core/test/agent-session-messages.test.ts), [`agent-session.ts`](../packages/core/src/session/agent-session.ts), [`chat-surface.tsx`](../packages/react/src/chat-surface.tsx), [`0031`](09-decisions/0031-the-snapshot-carries-the-conversation.md).
-
-## 2026-10-25T22:35:00+03:00 — T-50 lands: the planning lane is upstream-shaped
-
-**State.** `D-02` is code. `T-51` (projection) and `T-39` (gateway docs) remain before `T-48` and the `T-14` release.
-
-**Did.** The loop now plans before the first action and every interval after it. The first plan is one user turn from `PLANNING_INITIAL_TEMPLATE` carrying the task, the tool prompts and the managed agents; every later plan is a system prelude, the summary-mode history and a user postlude carrying the tools and the remaining steps. Both calls stop at `<end_plan>`, and the stored plan is the reply wrapped as upstream wraps it. `AgentMemory.toMessages` gained `summaryMode`: the system prompt and earlier plans render nothing, an action keeps its tool calls, error and observation and loses the model output, and the task and condensation summaries stay. A planning call carries its own stop sequence and no tool schemas, so `modelOptions` takes a per-turn override. The three templates and their drift test live in `prompts/templates.ts`.
-
-**Verified.** `pnpm vitest run --project core`: 62 files and 676 tests, exit 0; `pnpm typecheck` and `pnpm lint` clean; validator 0 errors, 0 warnings. The new `planning.test.ts` pins the cadence, both input shapes, the wrapper, the stop sequence, the budget turn and the template variables; two summary-mode cases joined `memory.test.ts`.
-
-**Unverified / open.** No recording covers planning — all five parity scenarios declare `planningInterval: 0` — so plan quality and provider-side stop-sequence behaviour are untested. Five test scripts re-ordered; `T-48` owns the parity re-adjudication.
-
-**Next.** `T-51`: the conversation projection into the snapshot.
-
-**Blockers.** `T-14` on npm credentials; `T-24`, `T-52`, `T-54` on the owner.
-
-**Artifacts.** [`planning.test.ts`](../packages/core/test/planning.test.ts), [`templates.ts`](../packages/core/src/prompts/templates.ts), [`0028`](09-decisions/0028-planning-is-structurally-upstream-shaped.md).
 <!-- rotate:end -->
