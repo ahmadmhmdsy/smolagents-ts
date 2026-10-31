@@ -121,6 +121,7 @@ export class E2BSandbox implements RemoteSandbox {
   private client: E2BClient | undefined;
   private sandbox: E2BSandboxLike | undefined;
   private disposed = false;
+  private frameNonce: string | undefined;
 
   constructor(options: E2BSandboxOptions = {}) {
     const actual = options.nodeVersion ?? process.versions.node;
@@ -144,6 +145,7 @@ export class E2BSandbox implements RemoteSandbox {
   async start(options: SandboxStartOptions): Promise<void> {
     if (this.disposed) throw new SandboxError("This E2B sandbox has been disposed; one sandbox serves one run.");
     if (this.sandbox !== undefined) throw new SandboxError("This E2B sandbox has already started.");
+    this.frameNonce = options.frameNonce;
     // A declared tool set needs the mid-run channel this backend does not have. Refuse before
     // the client is loaded or a sandbox is created, rather than install tools nothing can answer.
     if (options.transfer !== undefined && options.transfer.tools.length > 0) {
@@ -213,7 +215,10 @@ export class E2BSandbox implements RemoteSandbox {
       if (line === "") return;
       let frame: SandboxFrame | undefined;
       try {
-        frame = parseFrameLine(line, { allowPickle: options.allowPickle === true });
+        frame = parseFrameLine(line, {
+        allowPickle: options.allowPickle === true,
+        frameNonce: this.frameNonce,
+      });
       } catch (error) {
         frames.push({
           type: "error",

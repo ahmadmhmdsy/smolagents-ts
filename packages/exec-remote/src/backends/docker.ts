@@ -6,6 +6,7 @@ import type {
   SandboxCapabilities,
   SandboxFrame,
   SandboxOutput,
+  SandboxOutputStream,
   SandboxRunOptions,
   SandboxRunResult,
   SandboxStartOptions,
@@ -19,6 +20,9 @@ const DEFAULT_MEMORY_LIMIT_BYTES = 512 * 1024 * 1024;
 
 /** The container's pid cap when the caller names none. */
 const DEFAULT_PIDS_LIMIT = 256;
+
+/** The container's CPU cap in billionths of a CPU when the caller names none (one CPU). */
+const DEFAULT_NANO_CPUS = 1_000_000_000;
 
 /** How long start waits for the guest's ready frame when the caller names no budget. */
 const DEFAULT_START_TIMEOUT_MS = 60_000;
@@ -54,6 +58,8 @@ export interface ContainerCreateRequest {
   readonly memoryLimitBytes: number;
   /** The container's pid cap, forwarded as `HostConfig.PidsLimit`. */
   readonly pidsLimit: number;
+  /** The container's CPU cap in billionths of a CPU, forwarded as `HostConfig.NanoCpus`. */
+  readonly nanoCpus: number;
 }
 
 /** What one long-lived guest session needs to be opened. */
@@ -69,7 +75,8 @@ export interface ExecSessionOptions {
  */
 export interface ExecSession {
   write(data: string): void;
-  onData(listener: (chunk: string) => void): void;
+  /** A runtime that keeps the streams apart names the stream; one that does not means stdout. */
+  onData(listener: (chunk: string, stream?: SandboxOutputStream) => void): void;
   onClose(listener: (info: { readonly code: number | null }) => void): void;
   end(): void;
   /**
@@ -99,6 +106,8 @@ export interface DockerSandboxOptions {
   readonly memoryLimitBytes?: number;
   /** The container's pid cap. Defaults to 256, so a fork bomb cannot exhaust the host. */
   readonly pidsLimit?: number;
+  /** The container's CPU cap in billionths of a CPU. Defaults to one CPU. */
+  readonly nanoCpus?: number;
   /** How long start waits for the guest's ready frame. Defaults to 60 000 ms. */
   readonly startTimeoutMs?: number;
   /**
@@ -138,7 +147,9 @@ export class DockerSandbox implements RemoteSandbox {
   private runtime: ContainerRuntime | undefined;
   private containerId: string | undefined;
   private session: ExecSession | undefined;
-  private buffer = "";
+  private stdoutBuffer = "";
+  private stderrBuffer = "";
+  private frameNonce: string | undefined;
   private pending: PendingStep | undefined;
   private ready: ReadyWaiter | undefined;
   private disposed = false;
@@ -159,6 +170,7 @@ export class DockerSandbox implements RemoteSandbox {
   async start(options: SandboxStartOptions): Promise<void> {
     if (this.disposed) throw new SandboxError("This Docker sandbox has been disposed; one sandbox serves one run.");
     if (this.containerId !== undefined) throw new SandboxError("This Docker sandbox has already started.");
+    this.frameNonce = options.frameNonce;
     try {
       const runtime = this.options.runtime ?? (await loadDockerodeRuntime());
       this.runtime = runtime;
@@ -169,6 +181,7 @@ export class DockerSandbox implements RemoteSandbox {
         networkMode: this.egress === "deny-all" ? "none" : "bridge",
         memoryLimitBytes: this.options.memoryLimitBytes ?? DEFAULT_MEMORY_LIMIT_BYTES,
         pidsLimit: this.options.pidsLimit ?? DEFAULT_PIDS_LIMIT,
+        nanoCpus: this.options.nanoCpus ?? DEFAULT_NANO_CPUS,
       });
       // Record the id before anything else can fail, so dispose always has something to remove.
       this.containerId = containerId;
@@ -178,7 +191,7 @@ export class DockerSandbox implements RemoteSandbox {
         stdin: true,
       });
       this.session = session;
-      session.onData((chunk) => this.onChunk(chunk));
+      session.onData((chunk, stream) => this.onChunk(chunk, stream ?? "stdout"));
       session.onClose((info) => this.onExit(info.code));
       await this.waitForReady();
     } catch (error) {
@@ -287,26 +300,35 @@ export class DockerSandbox implements RemoteSandbox {
     });
   }
 
-  private onChunk(chunk: string): void {
-    const combined = this.buffer + chunk;
+  private onChunk(chunk: string, stream: SandboxOutputStream): void {
+    const combined = (stream === "stdout" ? this.stdoutBuffer : this.stderrBuffer) + chunk;
     const lines = combined.split("\n");
-    this.buffer = lines.pop() ?? "";
+    const rest = lines.pop() ?? "";
+    if (stream === "stdout") this.stdoutBuffer = rest;
+    else this.stderrBuffer = rest;
     for (const raw of lines) {
-      this.handleLine(raw.endsWith("\r") ? raw.slice(0, -1) : raw);
+      this.handleLine(stream, raw.endsWith("\r") ? raw.slice(0, -1) : raw);
     }
   }
 
-  private handleLine(line: string): void {
+  private handleLine(stream: SandboxOutputStream, line: string): void {
     let frame: SandboxFrame | undefined;
+    // Frames only cross stdout; a marked line on stderr is the guest's text.
     try {
-      frame = parseFrameLine(line, { allowPickle: this.pending?.options.allowPickle === true });
+      frame =
+        stream === "stdout"
+          ? parseFrameLine(line, {
+              allowPickle: this.pending?.options.allowPickle === true,
+              frameNonce: this.frameNonce,
+            })
+          : undefined;
     } catch (error) {
       this.fail(error);
       return;
     }
     if (frame === undefined) {
       const pending = this.pending;
-      if (pending !== undefined) this.pushOutput(pending, line);
+      if (pending !== undefined) this.pushOutput(pending, stream, line);
       return;
     }
     if (frame.type === "ready") {
@@ -400,8 +422,8 @@ export class DockerSandbox implements RemoteSandbox {
     if (pending !== undefined) this.finish(pending, undefined, code);
   }
 
-  private pushOutput(pending: PendingStep, text: string): void {
-    const output: SandboxOutput = { stream: "stdout", text };
+  private pushOutput(pending: PendingStep, stream: SandboxOutputStream, text: string): void {
+    const output: SandboxOutput = { stream, text };
     pending.outputs.push(output);
     pending.options.onOutput?.(output);
   }
@@ -474,8 +496,17 @@ interface DockerodeContainerLike {
   exec(options: Record<string, unknown>): Promise<DockerodeExecLike>;
 }
 
-interface DockerodeLike {
-  buildImage(tar: Uint8Array, options: { t: string }): { on(event: string, listener: (value: unknown) => void): unknown };
+/** The part of dockerode this backend uses, typed here so the client stays out of the static graph. */
+export interface DockerodeLike {
+  buildImage(tar: Buffer, options: { t: string }): Promise<unknown>;
+  modem: {
+    followProgress(stream: unknown, onFinished: (error: unknown, events: readonly unknown[]) => void): void;
+    demuxStream(
+      stream: unknown,
+      stdout: { write(chunk: Uint8Array): unknown },
+      stderr: { write(chunk: Uint8Array): unknown },
+    ): void;
+  };
   createContainer(options: Record<string, unknown>): Promise<DockerodeContainerLike>;
   getContainer(id: string): DockerodeContainerLike;
 }
@@ -495,8 +526,11 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
   } catch {
     throw new MissingPeerDependencyError("dockerode", "@smolagents-ts/exec-remote/docker");
   }
-  const docker = new Docker();
+  return dockerodeRuntime(new Docker());
+}
 
+/** The Engine API seam over a dockerode client. */
+export function dockerodeRuntime(docker: DockerodeLike): ContainerRuntime {
   const stopContainer = async (containerId: string): Promise<void> => {
     await docker.getContainer(containerId).stop();
   };
@@ -511,10 +545,18 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
 
   return {
     async buildImage(request) {
+      const stream = await docker.buildImage(Buffer.from(dockerfileTar(request.dockerfile)), { t: request.tag });
       await new Promise<void>((resolve, reject) => {
-        const stream = docker.buildImage(dockerfileTar(request.dockerfile), { t: request.tag });
-        stream.on("end", () => resolve());
-        stream.on("error", (error) => reject(error));
+        docker.modem.followProgress(stream, (error, events) => {
+          // The daemon reports a failed build as an event on a stream that still ends cleanly.
+          const failed = events.find(
+            (event): event is { error: unknown } =>
+              typeof event === "object" && event !== null && "error" in event,
+          );
+          if (error !== null && error !== undefined) reject(error);
+          else if (failed !== undefined) reject(new SandboxError("The image build failed: " + String(failed.error)));
+          else resolve();
+        });
       });
       return request.tag;
     },
@@ -522,11 +564,18 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
       const container = await docker.createContainer({
         Image: request.image,
         Env: [...request.env],
+        // The guest runs model-written code: an unprivileged user with nothing to escalate to.
+        User: "65534:65534",
         HostConfig: {
           // Deny-all is the daemon's own network rule: the container has no interface to reach out.
           NetworkMode: request.networkMode,
           Memory: request.memoryLimitBytes,
           PidsLimit: request.pidsLimit,
+          NanoCpus: request.nanoCpus,
+          CapDrop: ["ALL"],
+          SecurityOpt: ["no-new-privileges"],
+          ReadonlyRootfs: true,
+          Tmpfs: { "/tmp": "rw,noexec,nosuid,size=64m" },
         },
       });
       const inspected = await container.inspect();
@@ -550,9 +599,18 @@ async function loadDockerodeRuntime(): Promise<ContainerRuntime> {
           stream.write(data);
         },
         onData(listener) {
-          stream.on("data", (chunk) => {
-            listener(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk as Uint8Array));
-          });
+          // Without a TTY the daemon frames both streams on one socket, and a frame can end
+          // inside a multibyte character, so each stream keeps its own streaming decoder.
+          const sink = (name: SandboxOutputStream): { write(chunk: Uint8Array): void } => {
+            const decoder = new TextDecoder();
+            return {
+              write(chunk) {
+                const text = decoder.decode(chunk, { stream: true });
+                if (text !== "") listener(text, name);
+              },
+            };
+          };
+          docker.modem.demuxStream(stream, sink("stdout"), sink("stderr"));
         },
         onClose(listener) {
           let done = false;

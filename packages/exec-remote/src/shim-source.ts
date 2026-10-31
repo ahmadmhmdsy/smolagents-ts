@@ -15,6 +15,11 @@ export interface ShimOptions {
    * with `SerializationError`, rather than producing a prelude that fails on import.
    */
   readonly variables?: Readonly<Record<string, unknown>>;
+  /**
+   * The per-run value in the frame marker. It stops accidental and echoed text from reading as a
+   * frame; code running in the interpreter can still read it, so it is not a trust boundary.
+   */
+  readonly frameNonce?: string;
 }
 
 /** The identifier subset the wire accepts: Python is wider, and a narrower promise is honest. */
@@ -23,12 +28,19 @@ const PYTHON_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export interface DecodeFrameOptions {
   /** Accept a `pickle:` final answer as raw bytes instead of refusing it. */
   readonly allowPickle?: boolean;
+  readonly frameNonce?: string | undefined;
+}
+
+function frameMarker(frameNonce: string | undefined): string {
+  return frameNonce === undefined ? FRAME_PREFIX : FRAME_PREFIX + frameNonce + "@@";
 }
 
 /** The Python prelude: the answer sentinel, the blocking tool helper and the host's counterpart. */
 export function buildShimSource(options: ShimOptions): string {
   const lines = PYTHON_PRELUDE.map((line) =>
-    line.replace("__TOOL_CALLS_ENABLED__", options.allowToolCalls ? "True" : "False"),
+    line
+        .replace("__TOOL_CALLS_ENABLED__", options.allowToolCalls ? "True" : "False")
+        .replace("__FRAME_MARKER__", JSON.stringify(frameMarker(options.frameNonce))),
   );
   for (const [name, value] of Object.entries(options.variables ?? {})) {
     if (!PYTHON_IDENTIFIER.test(name)) {
@@ -82,17 +94,22 @@ export function buildStepSource(code: string): string {
   );
 }
 
-/** Parse one line of guest output. A line without the sentinel is output, not a frame. */
+/**
+ * Parse one line of guest output. A line without the marker is output, and so is a marked line
+ * that is not a frame, so guest text cannot end the step. A real frame whose value cannot be
+ * decoded still refuses, typed.
+ */
 export function parseFrameLine(line: string, options: DecodeFrameOptions = {}): SandboxFrame | undefined {
-  if (!line.startsWith(FRAME_PREFIX)) return undefined;
+  const marker = frameMarker(options.frameNonce);
+  if (!line.startsWith(marker)) return undefined;
   let raw: unknown;
   try {
-    raw = JSON.parse(line.slice(FRAME_PREFIX.length));
+    raw = JSON.parse(line.slice(marker.length));
   } catch {
-    throw new SerializationError("The guest emitted a frame line that is not valid JSON.");
+    return undefined;
   }
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw new SerializationError("The guest emitted a frame that is not an object.");
+    return undefined;
   }
   const record = raw as Record<string, unknown>;
   const type = record["type"];
@@ -120,7 +137,7 @@ export function parseFrameLine(line: string, options: DecodeFrameOptions = {}): 
     case "step_end":
       return { type: "step_end" };
     default:
-      throw new SerializationError('Unknown sentinel frame type "' + String(type) + '".');
+      return undefined;
   }
 }
 
@@ -131,7 +148,7 @@ const PYTHON_PRELUDE: readonly string[] = [
   "import base64 as _base64",
   "import traceback as _traceback",
   "",
-  "_FRAME_PREFIX = \"@@SMOLAGENTS_FRAME@@\"",
+  "_FRAME_PREFIX = __FRAME_MARKER__",
   "_TOOL_CALLS_ENABLED = __TOOL_CALLS_ENABLED__",
   "_CALL_COUNTER = [0]",
   "",

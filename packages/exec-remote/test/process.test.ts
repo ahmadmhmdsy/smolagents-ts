@@ -1,5 +1,5 @@
 import { ToolRegistry, noopLogger } from "@smolagents-ts/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ProcessSandbox } from "../src/backends/process.js";
 import { EgressUnsupportedError, SandboxError } from "../src/errors.js";
 import { createProcessExecutor } from "../src/process.js";
@@ -190,5 +190,26 @@ describe("the process backend's child environment", () => {
     } finally {
       await sandbox.dispose();
     }
+  });
+
+  it("kills what the guest spawned when it has to force the dispose", async () => {
+    const sandbox = new ProcessSandbox({ gracePeriodMs: 100 });
+    await sandbox.start({ shimSource: shim });
+    const result = await sandbox.run({
+      code: [
+        "import subprocess, sys, threading, time",
+        'child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])',
+        // A live non-daemon thread keeps the interpreter from exiting on stdin close.
+        "threading.Thread(target=time.sleep, args=(60,)).start()",
+        "final_answer(child.pid)",
+      ].join("\n"),
+      timeoutMs: 10_000,
+      signal: new AbortController().signal,
+    });
+    const frame = result.frames[0];
+    const pid = frame?.type === "final_answer" ? (frame.value as number) : 0;
+    expect(pid).toBeGreaterThan(0);
+    await sandbox.dispose();
+    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), { timeout: 5_000 });
   });
 });

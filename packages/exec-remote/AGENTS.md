@@ -24,7 +24,7 @@ client.
 
     pnpm vitest run --project exec-remote
 
-Expected result: thirteen files with ninety-five tests, exit code 0. Run
+Expected result: thirteen files with one hundred and eight tests, exit code 0. Run
 `pnpm --filter @smolagents-ts/exec-remote run typecheck` beside it: the runner
 erases types, and the subpath entry points are only checked by the compiler.
 

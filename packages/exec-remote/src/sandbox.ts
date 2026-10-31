@@ -57,6 +57,8 @@ export interface SandboxTransfer {
 /** What a sandbox needs once, at start: the generated Python prelude, and what it carries. */
 export interface SandboxStartOptions {
   readonly shimSource: string;
+  /** The nonce the prelude was built with; a backend passes it to `parseFrameLine`. */
+  readonly frameNonce?: string;
   /** Declared transfer a backend checks before it opens anything; the prelude already carries it. */
   readonly transfer?: SandboxTransfer;
 }

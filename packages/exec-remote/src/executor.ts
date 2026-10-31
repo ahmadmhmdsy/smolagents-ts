@@ -3,11 +3,13 @@ import {
   AgentError,
   AgentExecutionError,
   AgentTimeoutError,
+  AgentToolCallError,
   type AgentErrorInfo,
   type CodeExecutor,
   type CodeResult,
   type ExecuteOptions,
   type ExecutorCapabilities,
+  type ToolContext,
 } from "@smolagents-ts/core";
 
 import type {
@@ -222,14 +224,16 @@ export class RemoteExecutor implements CodeExecutor {
   private async ensureStarted(options: ExecuteOptions): Promise<void> {
     if (this.started) return;
     const transfer = this.transfer;
+    const frameNonce = globalThis.crypto.randomUUID().replaceAll("-", "");
     const shimSource = buildShimSource({
       tools: transfer === undefined ? options.tools.toSpecs() : transfer.tools,
       allowToolCalls: this.sandbox.capabilities.toolRoundTrip,
+      frameNonce,
       ...(transfer === undefined ? {} : { variables: transfer.variables }),
     });
     const sandbox = this.sandbox;
     try {
-      await sandbox.start(transfer === undefined ? { shimSource } : { shimSource, transfer });
+      await sandbox.start(transfer === undefined ? { shimSource, frameNonce } : { shimSource, frameNonce, transfer });
     } catch (error) {
       // A start() that threw may still hold a container or a vendor sandbox. Hand the next
       // attempt a fresh backend from the factory, then dispose the old one so the half-live
@@ -247,7 +251,10 @@ export class RemoteExecutor implements CodeExecutor {
   }
 
   private async runTool(call: SandboxToolCall, options: ExecuteOptions): Promise<unknown> {
-    const tool = options.tools.get(call.name);
+    // A declared transfer is the grant: the registry may hold more than the guest was given, and
+    // the guest can write a tool frame for any name, not only for the helpers it was installed.
+    const granted = this.transfer === undefined || this.transfer.tools.some((spec) => spec.name === call.name);
+    const tool = granted ? options.tools.get(call.name) : undefined;
     if (tool === undefined) {
       const error: AgentErrorInfo = {
         name: "ToolNotFoundError",
@@ -258,16 +265,28 @@ export class RemoteExecutor implements CodeExecutor {
       options.onToolCall?.({ type: "failed", callId: call.callId, name: call.name, error });
       throw new Error(error.message);
     }
-    options.onToolCall?.({ type: "requested", callId: call.callId, name: call.name, args: call.args });
+    const parsed = tool.inputSchema.safeParse(call.args);
+    if (!parsed.success) {
+      const error = new AgentToolCallError("Invalid arguments for " + call.name + ": " + parsed.error.message, {
+        stepIndex: options.stepIndex,
+      });
+      options.onToolCall?.({ type: "failed", callId: call.callId, name: call.name, error: error.info });
+      throw new Error(error.message);
+    }
+    options.onToolCall?.({ type: "requested", callId: call.callId, name: call.name, args: parsed.data });
+    const toolContext: ToolContext = {
+      signal: options.signal,
+      fetch: this.fetchImpl,
+      callId: call.callId,
+      stepIndex: options.stepIndex,
+      logger: options.logger,
+      ...(options.agentPath === undefined ? {} : { agentPath: options.agentPath }),
+      onProgress: (progress) =>
+        options.onToolCall?.({ type: "progress", callId: call.callId, name: call.name, progress }),
+    };
     const startedAt = Date.now();
     try {
-      const output = await tool.execute(call.args as never, {
-        signal: options.signal,
-        fetch: this.fetchImpl,
-        callId: call.callId,
-        stepIndex: options.stepIndex,
-        logger: options.logger,
-      });
+      const output = await tool.execute(parsed.data, toolContext);
       options.onToolCall?.({
         type: "result",
         callId: call.callId,

@@ -78,6 +78,36 @@ function stripCarriageReturn(line: string): string {
   return line.endsWith("\r") ? line.slice(0, -1) : line;
 }
 
+/** Signal the guest's process group on POSIX; a group that already emptied needs nothing. */
+function killGroup(child: ChildProcessWithoutNullStreams): void {
+  if (child.pid === undefined) return;
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    // The group is gone.
+  }
+}
+
+/** Kill the interpreter and what it spawned; a signal to the child alone leaves its descendants. */
+async function killGuestTree(child: ChildProcessWithoutNullStreams): Promise<void> {
+  if (process.platform !== "win32") {
+    killGroup(child);
+    child.kill("SIGKILL");
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const killer = spawn("taskkill", ["/T", "/F", "/PID", String(child.pid)], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    killer.once("close", () => resolve());
+    killer.once("error", () => {
+      child.kill("SIGKILL");
+      resolve();
+    });
+  });
+}
+
 /**
  * Build the child's environment: the fixed allow-list plus any names the caller passes
  * through, with `PYTHONUNBUFFERED` forced so the frame protocol stays line-buffered, and the
@@ -126,6 +156,7 @@ export class ProcessSandbox implements RemoteSandbox {
   private disposed = false;
   private exited: number | null = null;
   private startError: unknown;
+  private frameNonce: string | undefined;
 
   constructor(options: ProcessSandboxOptions = {}) {
     this.options = options;
@@ -144,13 +175,20 @@ export class ProcessSandbox implements RemoteSandbox {
     if (this.egress === "deny-all") throw new EgressUnsupportedError("process", this.egress);
     if (this.disposed) throw new SandboxError("This process sandbox has been disposed; one sandbox serves one run.");
     if (this.child !== undefined) throw new SandboxError("This process sandbox has already started.");
+    this.frameNonce = options.frameNonce;
     // The prelude is the program, not a script on stdin: CPython reads a piped program to EOF
     // before it executes a line, so a stdin program would never run. The appended step loop is
     // what then reads each step from stdin and keeps the interpreter alive between steps.
     const prelude = options.shimSource + buildStepLoopSource();
     const args = ["-u", "-c", prelude, ...(this.options.args ?? [])];
     const env = childEnvironment(this.options);
-    const child = spawn(this.options.program ?? defaultProgram(), args, { stdio: "pipe", env, windowsHide: true });
+    const child = spawn(this.options.program ?? defaultProgram(), args, {
+      stdio: "pipe",
+      env,
+      windowsHide: true,
+      // Its own process group on POSIX, so dispose can reach what the guest spawned.
+      detached: process.platform !== "win32",
+    });
     this.child = child;
     const spawned = new Promise<void>((resolve, reject) => {
       child.once("spawn", () => resolve());
@@ -174,6 +212,7 @@ export class ProcessSandbox implements RemoteSandbox {
     });
     child.on("close", (code) => {
       this.exited = code ?? 0;
+      if (process.platform !== "win32") killGroup(child);
       // Flush what is left of a partial line before settling.
       if (this.stdoutBuffer !== "") {
         const rest = this.stdoutBuffer;
@@ -242,8 +281,7 @@ export class ProcessSandbox implements RemoteSandbox {
           resolve();
         };
         const timer = setTimeout(() => {
-          child.kill("SIGKILL");
-          finish();
+          void killGuestTree(child).finally(finish);
         }, this.options.gracePeriodMs ?? DEFAULT_GRACE_PERIOD_MS);
         child.once("close", finish);
       });
@@ -301,7 +339,10 @@ export class ProcessSandbox implements RemoteSandbox {
     }
     let frame: SandboxFrame | undefined;
     try {
-      frame = parseFrameLine(line, { allowPickle: pending?.options.allowPickle === true });
+      frame = parseFrameLine(line, {
+        allowPickle: pending?.options.allowPickle === true,
+        frameNonce: this.frameNonce,
+      });
     } catch (error) {
       if (pending !== undefined) this.finish(pending, error);
       return;
