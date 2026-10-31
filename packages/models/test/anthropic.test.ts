@@ -225,7 +225,7 @@ describe("AnthropicModel", () => {
     expect(model.capabilities).toEqual({
       streaming: true,
       toolCalls: true,
-      images: false,
+      images: true,
       audio: false,
     });
     expect(() => new AnthropicModel({ model: "  " })).toThrow(/model id/);

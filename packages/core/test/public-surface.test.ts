@@ -36,6 +36,8 @@ const RUNTIME_EXPORTS = [
   "hasMedia",
   "sniffMediaType",
   "checkContentParts",
+  "checkMessageMedia",
+  "encodeBase64",
   "UnsupportedContentError",
   "ContentTooLargeError",
   // The adapter contract's version and the shim that accepts a model written before it.

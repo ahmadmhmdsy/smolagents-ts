@@ -134,3 +134,7 @@ One row covers the plan, as `0034` asks that both slices ship together. Commits 
 - `docs/01-project.md`'s non-goal line already points at `0034`, so that follow-up is done.
 - No adapter sets `images` to true today, so nothing relies on the flag's old meaning.
 - `react-ui` sits outside the fixed group, so its change needs its own changeset entry. `0035` keeps the group at six.
+- Provider limits, read 2026-10-31. Gemini lists png, jpeg, webp, heic and heif, not gif, so its adapter refuses `image/gif`; it caps inline data at 20 MB a request. OpenAI lists png, jpeg, webp and non-animated gif, with 512 MB a request and no per-image size. Anthropic lists jpeg, png, gif and webp, with 10 MB base64-encoded an image on its own API and 5 MB on Bedrock, so the 5 MiB default clears the first and sits slightly over the second. No default changed; Phase 7 documents the Bedrock gap.
+- Two shapes stay unconfirmed by a provider page. OpenAI's vision page now shows only the Responses form, so the chat completions `image_url` part rests on its established shape, and its audio examples show only `wav`, so `mp3` is unconfirmed.
+- Live image calls, 2026-11-01. Gemini: run through the built adapter with `gemini-2.5-flash` and a generated red PNG; it answered "Red". OpenAI-compatible and Anthropic: not run, no key on this host.
+- That Gemini reply reported 271 input, 1 output and 364 total tokens. The gap is what the provider counts outside those two fields, presumably thinking, and it predates this work. It is not a media defect, and `usage` does not explain it.

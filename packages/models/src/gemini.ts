@@ -1,11 +1,16 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  UnsupportedContentError,
+  checkMessageMedia,
+  encodeBase64,
+  hasMedia,
   messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
+  type ContentPart,
   type FinishReason,
   type GenerateOptions,
   type ModelAdapterV2,
@@ -48,6 +53,7 @@ export type GeminiGenerateOptions = GenerateOptions & { providerOptions?: Gemini
 
 interface WirePart {
   text?: string;
+  inlineData?: { mimeType: string; data: string };
   functionCall?: { name?: string; args?: unknown; id?: string };
   functionResponse?: { name?: string; response?: unknown; id?: string };
 }
@@ -106,6 +112,22 @@ function toWireTools(tools: readonly ToolSpec[]): unknown[] {
   ];
 }
 
+/** A user turn's parts. GIF is on the core allowlist but not among the types this API lists. */
+function toWireParts(parts: readonly ContentPart[]): WirePart[] {
+  const wire: WirePart[] = [];
+  for (const part of parts) {
+    if (part.type === "text") {
+      if (part.text !== "") wire.push({ text: part.text });
+      continue;
+    }
+    if (part.mediaType === "image/gif") {
+      throw new UnsupportedContentError("Gemini does not take image/gif", { mediaType: part.mediaType });
+    }
+    wire.push({ inlineData: { mimeType: part.mediaType, data: encodeBase64(part.bytes) } });
+  }
+  return wire;
+}
+
 /** The transcript as contents, with every tool result folded into the user turn after its call. */
 function toWireMessages(
   messages: readonly ChatMessage[],
@@ -146,6 +168,10 @@ function toWireMessages(
         parts.push({ functionCall: { name: call.name, args: toArgs(call.arguments), id: call.id } });
       }
       if (parts.length > 0) contents.push({ role: "model", parts });
+      continue;
+    }
+    if (typeof message.content !== "string" && hasMedia(message)) {
+      contents.push({ role: "user", parts: toWireParts(message.content) });
       continue;
     }
     contents.push({ role: "user", parts: [{ text }] });
@@ -287,7 +313,7 @@ export class GeminiModel implements ModelAdapterV2 {
     }
     this.id = options.model;
     this.provider = options.provider ?? "gemini";
-    this.capabilities = modelCapabilities({ toolCalls: true, ...options.capabilities });
+    this.capabilities = modelCapabilities({ toolCalls: true, images: true, audio: true, ...options.capabilities });
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.apiKey = options.apiKey;
     this.headers = options.headers;
@@ -348,6 +374,7 @@ export class GeminiModel implements ModelAdapterV2 {
     messages: readonly ChatMessage[],
     options: GeminiGenerateOptions,
   ): Record<string, unknown> {
+    checkMessageMedia(messages, this.capabilities);
     const providerOptions = options.providerOptions;
     const transcript = toWireMessages(messages, options.systemPrompt ?? this.systemPrompt);
     const tools = options.tools;

@@ -68,6 +68,17 @@ function encodedLength(byteLength: number): number {
   return 4 * Math.ceil(byteLength / 3);
 }
 
+const FROM_CHAR_CODE_CHUNK = 0x8000;
+
+/** Base64 with no Buffer, for a browser. Spreading a whole clip into one call overflows the stack. */
+export function encodeBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let start = 0; start < bytes.length; start += FROM_CHAR_CODE_CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(start, start + FROM_CHAR_CODE_CHUNK));
+  }
+  return btoa(binary);
+}
+
 function refuseUnsupported(part: Exclude<ContentPart, { type: "text" }>, capabilities: Pick<ModelCapabilities, "images" | "audio">): void {
   const declared = part.mediaType;
   const refuse = (message: string): never => {
@@ -118,4 +129,28 @@ export function checkContentParts(
     }
   }
   return total;
+}
+
+const NO_SIZE_LIMIT: MediaLimits = { maxPartBytes: Infinity, maxRunBytes: Infinity };
+
+/**
+ * What an adapter runs before it builds a request, so a model called directly gets the same
+ * refusals as one called by the agent. Media belongs on a user turn: `messageText` would drop it
+ * from any other role without a word. The size limits stay with the caller that owns the run.
+ */
+export function checkMessageMedia(
+  messages: readonly ChatMessage[],
+  capabilities: Pick<ModelCapabilities, "images" | "audio">,
+): void {
+  for (const message of messages) {
+    if (typeof message.content === "string") continue;
+    for (const part of message.content) {
+      if (part.type !== "text" && message.role !== "user") {
+        throw new UnsupportedContentError("A " + message.role + " message cannot carry media", {
+          mediaType: part.mediaType,
+        });
+      }
+    }
+    checkContentParts(message.content, capabilities, NO_SIZE_LIMIT);
+  }
 }

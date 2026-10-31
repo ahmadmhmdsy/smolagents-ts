@@ -4,6 +4,8 @@ import {
   DEFAULT_MEDIA_LIMITS,
   MEDIA_TYPES,
   checkContentParts,
+  checkMessageMedia,
+  encodeBase64,
   hasMedia,
   messageText,
   sniffMediaType,
@@ -154,5 +156,65 @@ describe("checkContentParts", () => {
 
   it("defaults to five mebibytes a part and twenty a run", () => {
     expect(DEFAULT_MEDIA_LIMITS).toEqual({ maxPartBytes: 5 * 1024 * 1024, maxRunBytes: 20 * 1024 * 1024 });
+  });
+});
+
+describe("encodeBase64", () => {
+  it("encodes the RFC 4648 vectors", () => {
+    const encode = (text: string): string => encodeBase64(new TextEncoder().encode(text));
+    expect(encode("")).toBe("");
+    expect(encode("f")).toBe("Zg==");
+    expect(encode("fo")).toBe("Zm8=");
+    expect(encode("foo")).toBe("Zm9v");
+    expect(encode("foobar")).toBe("Zm9vYmFy");
+  });
+
+  it("agrees with Buffer across every byte value", () => {
+    const all = Uint8Array.from({ length: 256 }, (_, index) => index);
+    expect(encodeBase64(all)).toBe(Buffer.from(all).toString("base64"));
+  });
+
+  it("takes a clip far longer than one call's argument limit", () => {
+    const long = new Uint8Array(1024 * 1024 + 1).map((_, index) => index % 251);
+    expect(encodeBase64(long)).toBe(Buffer.from(long).toString("base64"));
+  });
+});
+
+describe("checkMessageMedia", () => {
+  it("passes strings, text parts and media on a user turn", () => {
+    expect(() => {
+      checkMessageMedia(
+        [
+          { role: "system", content: "s" },
+          { role: "assistant", content: [{ type: "text", text: "a" }] },
+          { role: "user", content: [{ type: "text", text: "u" }, image()] },
+        ],
+        BOTH,
+      );
+    }).not.toThrow();
+  });
+
+  it.each(["system", "assistant", "tool"] as const)("refuses media on a %s message", (role) => {
+    let caught: unknown;
+    try {
+      checkMessageMedia([{ role, content: [image()] }], BOTH);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(UnsupportedContentError);
+    expect((caught as UnsupportedContentError).mediaType).toBe("image/png");
+  });
+
+  it("refuses what the model does not declare", () => {
+    expect(() => {
+      checkMessageMedia([{ role: "user", content: [image()] }], { images: false, audio: true });
+    }).toThrow(UnsupportedContentError);
+  });
+
+  it("leaves the size limits to the caller that owns the run", () => {
+    const large = image(DEFAULT_MEDIA_LIMITS.maxPartBytes);
+    expect(() => {
+      checkMessageMedia([{ role: "user", content: [large] }], BOTH);
+    }).not.toThrow();
   });
 });

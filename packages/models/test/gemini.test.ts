@@ -228,8 +228,8 @@ describe("GeminiModel", () => {
     expect(model.capabilities).toEqual({
       streaming: true,
       toolCalls: true,
-      images: false,
-      audio: false,
+      images: true,
+      audio: true,
     });
     expect(() => new GeminiModel({ model: "  " })).toThrow(/model id/);
   });

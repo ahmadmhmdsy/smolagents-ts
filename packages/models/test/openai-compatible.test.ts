@@ -200,8 +200,8 @@ describe("OpenAICompatibleModel", () => {
     expect(model.capabilities).toEqual({
       streaming: true,
       toolCalls: true,
-      images: false,
-      audio: false,
+      images: true,
+      audio: true,
     });
     expect(new OpenAICompatibleModel({ model: "m", provider: "ollama" }).provider).toBe("ollama");
     expect(() => new OpenAICompatibleModel({ model: "  " })).toThrow(/model id/);

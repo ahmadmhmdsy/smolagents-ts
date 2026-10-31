@@ -1,11 +1,15 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  checkMessageMedia,
+  encodeBase64,
+  hasMedia,
   messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
+  type ContentPart,
   type FinishReason,
   type GenerateOptions,
   type ModelAdapterV2,
@@ -58,9 +62,14 @@ interface WireToolCall {
   function: { name: string; arguments: string };
 }
 
+type WireContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string; detail?: "auto" | "low" | "high" } }
+  | { type: "input_audio"; input_audio: { data: string; format: "wav" | "mp3" } };
+
 interface WireMessage {
   role: string;
-  content: string | null;
+  content: string | WireContentPart[] | null;
   tool_call_id?: string;
   name?: string;
   tool_calls?: WireToolCall[];
@@ -103,6 +112,23 @@ function toWireTools(tools: readonly ToolSpec[]): unknown[] {
   }));
 }
 
+function toWireContentPart(part: ContentPart): WireContentPart {
+  switch (part.type) {
+    case "text":
+      return { type: "text", text: part.text };
+    case "image":
+      return {
+        type: "image_url",
+        image_url: {
+          url: "data:" + part.mediaType + ";base64," + encodeBase64(part.bytes),
+          ...(part.detail === undefined ? {} : { detail: part.detail }),
+        },
+      };
+    case "audio":
+      return { type: "input_audio", input_audio: { data: encodeBase64(part.bytes), format: part.format } };
+  }
+}
+
 /** The transcript as the wire format wants it: tool calls on the assistant turn, and a
  * tool_call_id on every tool result. */
 function toWireMessages(messages: readonly ChatMessage[], systemPrompt?: string): WireMessage[] {
@@ -132,6 +158,11 @@ function toWireMessages(messages: readonly ChatMessage[], systemPrompt?: string)
         ...(message.toolCallId === undefined ? {} : { tool_call_id: message.toolCallId }),
         ...(message.name === undefined ? {} : { name: message.name }),
       });
+      continue;
+    }
+    // Only media takes the array form, so a request with none stays byte-identical to 0.1.0.
+    if (typeof message.content !== "string" && hasMedia(message)) {
+      wire.push({ role: message.role, content: message.content.map(toWireContentPart) });
       continue;
     }
     wire.push({ role: message.role, content: text });
@@ -241,7 +272,7 @@ export class OpenAICompatibleModel implements ModelAdapterV2 {
     }
     this.id = options.model;
     this.provider = options.provider ?? "openai-compatible";
-    this.capabilities = modelCapabilities({ toolCalls: true, ...options.capabilities });
+    this.capabilities = modelCapabilities({ toolCalls: true, images: true, audio: true, ...options.capabilities });
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.apiKey = options.apiKey;
     this.headers = options.headers;
@@ -300,6 +331,7 @@ export class OpenAICompatibleModel implements ModelAdapterV2 {
     options: OpenAICompatibleGenerateOptions,
     stream: boolean,
   ): Record<string, unknown> {
+    checkMessageMedia(messages, this.capabilities);
     const providerOptions = options.providerOptions;
     const systemPrompt = options.systemPrompt ?? this.systemPrompt;
     const temperature = options.temperature ?? this.temperature;

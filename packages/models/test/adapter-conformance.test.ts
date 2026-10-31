@@ -25,6 +25,7 @@ async function assertContract(adapter: Model): Promise<void> {
   expect(typeof adapter.capabilities.streaming).toBe("boolean");
   expect(typeof adapter.capabilities.toolCalls).toBe("boolean");
   expect(typeof adapter.capabilities.images).toBe("boolean");
+  expect(typeof adapter.capabilities.audio).toBe("boolean");
 
   const completion = await adapter.generate([{ role: "user", content: "answer" }]);
   expect(typeof completion.content).toBe("string");

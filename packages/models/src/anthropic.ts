@@ -1,11 +1,16 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  UnsupportedContentError,
+  checkMessageMedia,
+  encodeBase64,
+  hasMedia,
   messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
+  type ContentPart,
   type FinishReason,
   type GenerateOptions,
   type ModelAdapterV2,
@@ -82,7 +87,12 @@ interface WireToolResultBlock {
   content: string;
 }
 
-type WireBlock = (WireTextBlock | WireToolUseBlock | WireToolResultBlock) & {
+interface WireImageBlock {
+  type: "image";
+  source: { type: "base64"; media_type: string; data: string };
+}
+
+type WireBlock = (WireTextBlock | WireImageBlock | WireToolUseBlock | WireToolResultBlock) & {
   cache_control?: CacheMarker;
 };
 
@@ -143,6 +153,25 @@ function toWireTool(spec: ToolSpec): WireTool {
   return { name: spec.name, description: spec.description, input_schema: spec.inputSchema };
 }
 
+/** A user turn's parts as blocks. The wire refuses an empty text block, and has no `detail`. */
+function toWireBlocks(parts: readonly ContentPart[]): WireBlock[] {
+  const blocks: WireBlock[] = [];
+  for (const part of parts) {
+    if (part.type === "audio") {
+      throw new UnsupportedContentError("The Messages API takes no audio", { mediaType: part.mediaType });
+    }
+    if (part.type === "image") {
+      blocks.push({
+        type: "image",
+        source: { type: "base64", media_type: part.mediaType, data: encodeBase64(part.bytes) },
+      });
+    } else if (part.text !== "") {
+      blocks.push({ type: "text", text: part.text });
+    }
+  }
+  return blocks;
+}
+
 /** The transcript as blocks, with every tool result folded into the user turn after its call. */
 function toWireMessages(
   messages: readonly ChatMessage[],
@@ -186,6 +215,10 @@ function toWireMessages(
         });
       }
       if (blocks.length > 0) wire.push({ role: "assistant", content: blocks });
+      continue;
+    }
+    if (typeof message.content !== "string" && hasMedia(message)) {
+      wire.push({ role: "user", content: toWireBlocks(message.content) });
       continue;
     }
     wire.push({ role: "user", content: [{ type: "text", text }] });
@@ -290,7 +323,8 @@ export class AnthropicModel implements ModelAdapterV2 {
     }
     this.id = options.model;
     this.provider = options.provider ?? "anthropic";
-    this.capabilities = modelCapabilities({ toolCalls: true, ...options.capabilities });
+    // Audio comes last because no override can make this wire carry it.
+    this.capabilities = modelCapabilities({ toolCalls: true, images: true, ...options.capabilities, audio: false });
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.apiKey = options.apiKey;
     this.headers = options.headers;
@@ -408,6 +442,7 @@ export class AnthropicModel implements ModelAdapterV2 {
     options: AnthropicGenerateOptions,
     stream: boolean,
   ): Record<string, unknown> {
+    checkMessageMedia(messages, this.capabilities);
     const providerOptions = options.providerOptions;
     const cache = providerOptions?.cache;
     const marker: CacheMarker | undefined = cache === undefined ? undefined : cacheMarker(cache.ttl);
