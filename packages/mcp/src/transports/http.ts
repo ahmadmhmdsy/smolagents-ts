@@ -11,6 +11,16 @@ export interface HttpTransportOptions {
   readonly fetch?: FetchLike;
   /** Extra headers for every request, e.g. an Authorization value. */
   readonly headers?: Readonly<Record<string, string>>;
+  /**
+   * How long the server may stay silent, in milliseconds, before the request is aborted. Each
+   * chunk of a response restarts it, so a long event stream that keeps talking survives.
+   * Absent by default: the client's own request timeout then stops waiting, but not the fetch.
+   */
+  readonly timeoutMs?: number;
+  /** The most bytes of one JSON body or one stream event. Defaults to 32 MiB. */
+  readonly maxResponseBytes?: number;
+  /** Sends an Authorization header over plain http to a remote host, which is refused otherwise. */
+  readonly allowInsecureAuthorization?: boolean;
 }
 
 const CLOSED_MESSAGE =
@@ -19,6 +29,19 @@ const CLOSED_MESSAGE =
 const SESSION_HEADER = "mcp-session-id";
 const PROTOCOL_HEADER = "mcp-protocol-version";
 const ACCEPT = "application/json, text/event-stream";
+const DEFAULT_MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
+const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** True for a credential a network observer could read. An unparsable URL fails at fetch. */
+function exposesAuthorization(url: string, headers: Readonly<Record<string, string>>): boolean {
+  if (!Object.keys(headers).some((name) => name.toLowerCase() === "authorization")) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" && !LOOPBACK_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The Streamable HTTP transport: one POST per message.
@@ -39,6 +62,8 @@ export class StreamableHttpTransport implements MCPTransport {
   private readonly url: string;
   private readonly fetchImpl: FetchLike;
   private readonly headers: Readonly<Record<string, string>>;
+  private readonly timeoutMs: number | undefined;
+  private readonly maxResponseBytes: number;
   private protocolVersion = DEFAULT_NEGOTIATED_PROTOCOL_VERSION;
   private started = false;
   private closed = false;
@@ -53,6 +78,15 @@ export class StreamableHttpTransport implements MCPTransport {
     }
     this.fetchImpl = found as FetchLike;
     this.headers = options.headers ?? {};
+    if (options.allowInsecureAuthorization !== true && exposesAuthorization(this.url, this.headers)) {
+      throw new MCPTransportError(
+        "Refusing to send an Authorization header over plain http to " +
+          this.url +
+          ": use https, or pass allowInsecureAuthorization.",
+      );
+    }
+    this.timeoutMs = options.timeoutMs;
+    this.maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     this.setProtocolVersion = (version) => {
       this.protocolVersion = version;
     };
@@ -66,13 +100,30 @@ export class StreamableHttpTransport implements MCPTransport {
   async send(message: MCPMessage): Promise<void> {
     if (this.closed) throw new MCPClosedError(CLOSED_MESSAGE);
     if (!this.started) throw new MCPTransportError("send() before start()");
+    const watchdog = new Watchdog(this.timeoutMs);
+    try {
+      await this.exchange(message, watchdog);
+    } catch (error) {
+      if (!watchdog.expired) throw error;
+      throw new MCPTransportError(
+        "The MCP server was silent for " + String(this.timeoutMs) + " ms, so the request was aborted.",
+        { cause: error },
+      );
+    } finally {
+      watchdog.stop();
+    }
+  }
+
+  private async exchange(message: MCPMessage, watchdog: Watchdog): Promise<void> {
     const response = await this.fetchImpl(this.url, {
       method: "POST",
       headers: this.requestHeaders(),
       body: JSON.stringify(message),
+      ...(watchdog.signal === undefined ? {} : { signal: watchdog.signal }),
     });
+    watchdog.restart();
     if (!response.ok) {
-      const body = await response.text().catch(() => "");
+      const body = await this.readText(response, watchdog).catch(() => "");
       throw new MCPHttpStatusError(
         "The MCP server answered HTTP " +
           String(response.status) +
@@ -88,10 +139,10 @@ export class StreamableHttpTransport implements MCPTransport {
     if (session !== null && session !== "") this.sessionId = session;
     const contentType = response.headers.get("content-type") ?? "";
     if (contentType.includes("text/event-stream")) {
-      await this.readEventStream(response);
+      await this.readEventStream(response, watchdog);
       return;
     }
-    const text = await response.text();
+    const text = await this.readText(response, watchdog);
     if (text.trim() === "") return;
     let parsed: unknown;
     try {
@@ -124,23 +175,58 @@ export class StreamableHttpTransport implements MCPTransport {
   }
 
   private requestHeaders(): Record<string, string> {
+    // The caller's headers go first: a custom value must not replace the session the
+    // server assigned or the protocol version the client negotiated.
     return {
+      ...this.headers,
       accept: ACCEPT,
       "content-type": "application/json",
       [PROTOCOL_HEADER]: this.protocolVersion,
       ...(this.sessionId === undefined ? {} : { [SESSION_HEADER]: this.sessionId }),
-      ...this.headers,
     };
   }
 
-  private async readEventStream(response: Response): Promise<void> {
+  private tooLarge(): MCPTransportError {
+    return new MCPTransportError(
+      "The MCP server sent more than " + String(this.maxResponseBytes) + " bytes in one message.",
+    );
+  }
+
+  /** Reads a body within the cap, so a server cannot exhaust memory with one answer. */
+  private async readText(response: Response, watchdog: Watchdog): Promise<string> {
+    const body = response.body;
+    if (body === null) return "";
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    let held = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) return text + decoder.decode();
+        watchdog.restart();
+        held += value.byteLength;
+        if (held > this.maxResponseBytes) throw this.tooLarge();
+        text += decoder.decode(value, { stream: true });
+      }
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  private async readEventStream(response: Response, watchdog: Watchdog): Promise<void> {
     const body = response.body;
     if (body === null) return;
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let held = 0;
     const data: string[] = [];
     const take = (): void => {
+      held = 0;
       if (data.length === 0) return;
       const payload = data.join("\n");
       data.length = 0;
@@ -155,6 +241,9 @@ export class StreamableHttpTransport implements MCPTransport {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        watchdog.restart();
+        held += value.byteLength;
+        if (held > this.maxResponseBytes) throw this.tooLarge();
         buffer += decoder.decode(value, { stream: true });
         for (;;) {
           const index = buffer.indexOf("\n");
@@ -177,6 +266,9 @@ export class StreamableHttpTransport implements MCPTransport {
       buffer += decoder.decode();
       if (buffer !== "") data.push(buffer.endsWith("\r") ? buffer.slice(0, -1) : buffer);
       take();
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      throw error;
     } finally {
       reader.releaseLock();
     }
@@ -194,6 +286,36 @@ export class StreamableHttpTransport implements MCPTransport {
       // arrives after disconnect() is the ordinary way a handler throws.
       this.onerror?.(toError(error));
     }
+  }
+}
+
+/** Aborts a request after a silence; with no budget it does nothing and carries no signal. */
+class Watchdog {
+  expired = false;
+  private readonly controller: AbortController | undefined;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(private readonly budgetMs: number | undefined) {
+    this.controller = budgetMs === undefined ? undefined : new AbortController();
+    this.restart();
+  }
+
+  get signal(): AbortSignal | undefined {
+    return this.controller?.signal;
+  }
+
+  restart(): void {
+    if (this.budgetMs === undefined) return;
+    this.stop();
+    this.timer = setTimeout(() => {
+      this.expired = true;
+      this.controller?.abort();
+    }, this.budgetMs);
+  }
+
+  stop(): void {
+    if (this.timer !== undefined) clearTimeout(this.timer);
+    this.timer = undefined;
   }
 }
 

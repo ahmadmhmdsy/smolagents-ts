@@ -12,6 +12,8 @@ export interface WritableStreamLike {
   end(): unknown;
   /** A real pipe emits EPIPE here when the child has gone; optional so a test can omit it. */
   on?(event: "error", listener: (error: Error) => void): unknown;
+  /** A real pipe fires this once a full buffer has emptied; optional for the same reason. */
+  once?(event: "drain", listener: () => void): unknown;
 }
 
 const CLOSED_MESSAGE =
@@ -21,6 +23,39 @@ const CLOSED_MESSAGE =
 const STDIN_GRACE_MS = 200;
 /** After a kill, how long to wait for the exit before giving up on it. */
 const EXIT_TIMEOUT_MS = 5_000;
+/** The longest stdout line held while waiting for its newline. */
+const DEFAULT_MAX_LINE_CHARS = 32 * 1024 * 1024;
+/** The longest stderr line held; past it the text is logged as it stands. */
+const MAX_STDERR_LINE_CHARS = 64 * 1024;
+
+/** What a server inherits, the list the MCP SDKs use: enough to run, and no credential. */
+const INHERITED_ENV: readonly string[] =
+  process.platform === "win32"
+    ? [
+        "APPDATA",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "PATH",
+        "PROCESSOR_ARCHITECTURE",
+        "PROGRAMFILES",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "USERNAME",
+        "USERPROFILE",
+      ]
+    : ["HOME", "LOGNAME", "PATH", "SHELL", "TERM", "USER"];
+
+/** The inherited part of a server's environment. A value that opens a shell function is skipped. */
+function inheritedEnvironment(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const name of INHERITED_ENV) {
+    const value = process.env[name];
+    if (value !== undefined && !value.startsWith("()")) env[name] = value;
+  }
+  return env;
+}
 
 /** The features of a spawned child this transport uses. Structural, so a test can fake it. */
 export interface ChildProcessLike {
@@ -51,6 +86,8 @@ export interface StdioTransportOptions {
   readonly logger?: Logger;
   /** Injected in tests; defaults to node:child_process.spawn. */
   readonly spawn?: SpawnLike;
+  /** The longest line of stdout accepted, in characters. Defaults to 32 Mi. */
+  readonly maxLineChars?: number;
 }
 
 /**
@@ -60,6 +97,9 @@ export interface StdioTransportOptions {
  * This module is the package's only Node-specific entry. It is reachable as
  * "@smolagents-ts/mcp/stdio" and never from the barrel, so a browser bundle that
  * imports the package never reaches node:child_process.
+ *
+ * A server starts with a short safe environment plus its parameters' `env`, never the whole
+ * of this process's: an MCP server is third-party code, and keys live in the environment.
  */
 export class StdioTransport implements MCPTransport {
   onclose?: () => void;
@@ -71,6 +111,7 @@ export class StdioTransport implements MCPTransport {
   private readonly logger: Logger;
   private readonly spawnImpl: SpawnLike;
   private readonly parameters: StdioServerParameters;
+  private readonly maxLineChars: number;
   private child: ChildProcessLike | undefined;
   private started = false;
   private closed = false;
@@ -84,16 +125,16 @@ export class StdioTransport implements MCPTransport {
     this.parameters = parameters;
     this.logger = options.logger ?? noopLogger;
     this.spawnImpl = options.spawn ?? (nodeSpawn as unknown as SpawnLike);
+    this.maxLineChars = options.maxLineChars ?? DEFAULT_MAX_LINE_CHARS;
   }
 
   /** Spawns the child and starts listening. */
   start(): Promise<void> {
     if (this.started) return Promise.resolve();
     const args = [...(this.parameters.args ?? [])];
-    const env = this.parameters.env === undefined ? undefined : { ...this.parameters.env };
     const options: SpawnOptions = {
       stdio: ["pipe", "pipe", "pipe"],
-      ...(env === undefined ? {} : { env }),
+      env: { ...inheritedEnvironment(), ...this.parameters.env },
       ...(this.parameters.cwd === undefined ? {} : { cwd: this.parameters.cwd }),
     };
     let child: ChildProcessLike;
@@ -149,7 +190,15 @@ export class StdioTransport implements MCPTransport {
     if (child.killed) throw new MCPClosedError(CLOSED_MESSAGE);
     // One message per line, the whole line written at once: a chunked write would let
     // two messages interleave on the wire.
-    stdin.write(JSON.stringify(message) + "\n");
+    const flushed = stdin.write(JSON.stringify(message) + "\n");
+    // A server that stopped reading must not grow this process's buffer without limit, so the
+    // next message waits for the pipe. An exit ends the wait too: no drain follows one.
+    if (flushed === false && stdin.once !== undefined) {
+      const drained = new Promise<void>((resolve) => {
+        stdin.once?.("drain", resolve);
+      });
+      await Promise.race([drained, childExit(child)]);
+    }
   }
 
   async close(): Promise<void> {
@@ -194,6 +243,14 @@ export class StdioTransport implements MCPTransport {
       if (line === "") continue;
       this.deliver(line);
     }
+    if (this.stdoutBuffer.length > this.maxLineChars) {
+      this.stdoutBuffer = "";
+      this.onerror?.(
+        new MCPTransportError(
+          "The MCP server wrote a line longer than " + String(this.maxLineChars) + " characters.",
+        ),
+      );
+    }
   }
 
   /** Forwards the child's stderr line by line. A server logs there; it is not protocol. */
@@ -206,6 +263,10 @@ export class StdioTransport implements MCPTransport {
       this.stderrBuffer = this.stderrBuffer.slice(index + 1);
       if (line.trim() === "") continue;
       this.logger.info("mcp[stderr]: " + line);
+    }
+    if (this.stderrBuffer.length > MAX_STDERR_LINE_CHARS) {
+      this.logger.info("mcp[stderr]: " + this.stderrBuffer);
+      this.stderrBuffer = "";
     }
   }
 

@@ -22,6 +22,129 @@ function fakeFetch(response: Response | (() => Response)): {
   };
 }
 
+describe("the HTTP transport's limits", () => {
+  const ping: MCPMessage = { jsonrpc: "2.0", id: 1, method: "ping" };
+
+  function chunks(...parts: string[]): ReadableStream<Uint8Array> {
+    return new ReadableStream({
+      start(controller) {
+        for (const part of parts) controller.enqueue(new TextEncoder().encode(part));
+        controller.close();
+      },
+    });
+  }
+
+  it("refuses an Authorization header over plain http to a remote host", () => {
+    const headers = { Authorization: "Bearer x" };
+
+    expect(() => new StreamableHttpTransport({ url: "http://remote.test/mcp", headers })).toThrow(
+      /plain http/,
+    );
+    for (const url of [
+      "https://remote.test/mcp",
+      "http://localhost:3000/mcp",
+      "http://127.0.0.1:3000/mcp",
+      "http://[::1]:3000/mcp",
+    ]) {
+      expect(() => new StreamableHttpTransport({ url, headers })).not.toThrow();
+    }
+    expect(
+      () =>
+        new StreamableHttpTransport({
+          url: "http://remote.test/mcp",
+          headers,
+          allowInsecureAuthorization: true,
+        }),
+    ).not.toThrow();
+  });
+
+  it("does not let a custom header replace the session or the protocol version", async () => {
+    const { fetch, calls } = fakeFetch(() => jsonResponse({ jsonrpc: "2.0", id: 1, result: {} }));
+    const transport = new StreamableHttpTransport({
+      url: "https://remote.test/mcp",
+      fetch,
+      headers: { "mcp-protocol-version": "forged", "x-trace": "kept" },
+    });
+    await transport.start();
+    await transport.send(ping);
+
+    const sent = calls[0]?.init.headers as Record<string, string>;
+    expect(sent["mcp-protocol-version"]).not.toBe("forged");
+    expect(sent["x-trace"]).toBe("kept");
+  });
+
+  it("refuses a JSON body over the cap", async () => {
+    const body = new Response(chunks("x".repeat(64)), {
+      headers: { "content-type": "application/json" },
+    });
+    const { fetch } = fakeFetch(body);
+    const transport = new StreamableHttpTransport({
+      url: "https://remote.test/mcp",
+      fetch,
+      maxResponseBytes: 16,
+    });
+    await transport.start();
+
+    await expect(transport.send(ping)).rejects.toThrow(/more than 16 bytes/);
+  });
+
+  it("refuses a stream event over the cap, and counts each event alone", async () => {
+    const small = 'data: {"jsonrpc":"2.0","id":1,"result":{}}\n\n';
+    const stream = (...parts: string[]): Response =>
+      new Response(chunks(...parts), { headers: { "content-type": "text/event-stream" } });
+    const open = async (response: Response): Promise<StreamableHttpTransport> => {
+      const transport = new StreamableHttpTransport({
+        url: "https://remote.test/mcp",
+        fetch: fakeFetch(response).fetch,
+        maxResponseBytes: 64,
+      });
+      await transport.start();
+      return transport;
+    };
+
+    await expect((await open(stream(small, small, small, small))).send(ping)).resolves.toBeUndefined();
+    await expect((await open(stream("data: " + "x".repeat(32), "y".repeat(64)))).send(ping)).rejects.toThrow(
+      /more than 64 bytes/,
+    );
+  });
+
+  it("aborts after the silence budget, and a chunk restarts it", async () => {
+    const fetchImpl: FetchLike = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => {
+          reject(new Error("aborted"));
+        });
+      });
+    const silent = new StreamableHttpTransport({
+      url: "https://remote.test/mcp",
+      fetch: fetchImpl,
+      timeoutMs: 5,
+    });
+    await silent.start();
+    await expect(silent.send(ping)).rejects.toThrow(MCPTransportError);
+    await expect(silent.send(ping)).rejects.toThrow(/silent for 5 ms/);
+
+    let pushes = 0;
+    const slow = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        pushes += 1;
+        if (pushes === 4) controller.close();
+        else controller.enqueue(new TextEncoder().encode(": ping\n\n"));
+      },
+    });
+    const talking = new StreamableHttpTransport({
+      url: "https://remote.test/mcp",
+      fetch: fakeFetch(
+        new Response(slow, { headers: { "content-type": "text/event-stream" } }),
+      ).fetch,
+      timeoutMs: 50,
+    });
+    await talking.start();
+    await expect(talking.send(ping)).resolves.toBeUndefined();
+  });
+});
+
 function jsonResponse(body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status: 200,

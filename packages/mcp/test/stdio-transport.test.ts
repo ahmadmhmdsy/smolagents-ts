@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   StdioTransport,
   createStdioTransport,
@@ -133,9 +133,85 @@ describe("the stdio transport", () => {
     await transport.start();
 
     expect(calls).toEqual([
-      { command: "npx", args: ["-y", "server"], env: { TOKEN: "x" }, cwd: "/tmp" },
+      {
+        command: "npx",
+        args: ["-y", "server"],
+        env: expect.objectContaining({ TOKEN: "x" }) as Record<string, string>,
+        cwd: "/tmp",
+      },
     ]);
     await transport.close();
+  });
+
+  it("hands a server a short environment, not this process's", async () => {
+    vi.stubEnv("SMOLAGENTS_TEST_SECRET", "kept-here");
+    vi.stubEnv("PATH", "/usr/bin");
+    const child = new FakeChild();
+    const { spawn, calls } = spawnWith(child);
+    const transport = createStdioTransport({ command: "server" }, { spawn });
+    await transport.start();
+
+    expect(calls[0]?.env?.["SMOLAGENTS_TEST_SECRET"]).toBeUndefined();
+    expect(calls[0]?.env?.["PATH"]).toBe("/usr/bin");
+    await transport.close();
+    vi.unstubAllEnvs();
+  });
+
+  it("lets the parameters override an inherited variable", async () => {
+    const child = new FakeChild();
+    const { spawn, calls } = spawnWith(child);
+    const transport = createStdioTransport(
+      { command: "server", env: { PATH: "/custom" } },
+      { spawn },
+    );
+    await transport.start();
+
+    expect(calls[0]?.env?.["PATH"]).toBe("/custom");
+    await transport.close();
+  });
+
+  it("reports a stdout line over the cap instead of holding it", async () => {
+    const child = new FakeChild();
+    const { spawn } = spawnWith(child);
+    const transport = createStdioTransport(
+      { command: "server" },
+      { spawn, maxLineChars: 8 },
+    );
+    const errors: Error[] = [];
+    transport.onerror = (error) => errors.push(error);
+    await transport.start();
+
+    child.stdout.emit("data", "x".repeat(9));
+
+    expect(errors.map((error) => error.message)).toEqual([
+      "The MCP server wrote a line longer than 8 characters.",
+    ]);
+    await transport.close();
+  });
+
+  it("waits for a full pipe to drain before a send settles", async () => {
+    const child = new FakeChild();
+    const { spawn } = spawnWith(child);
+    let drain: (() => void) | undefined;
+    Object.assign(child.stdin, {
+      write: () => false,
+      once: (_event: "drain", listener: () => void) => {
+        drain = listener;
+      },
+    });
+    const transport = createStdioTransport({ command: "server" }, { spawn });
+    await transport.start();
+
+    let settled = false;
+    const sending = transport.send({ jsonrpc: "2.0", id: 1, method: "ping" }).then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    drain?.();
+    await sending;
+    expect(settled).toBe(true);
   });
 
   it("frames one message per line and reassembles split lines", async () => {
