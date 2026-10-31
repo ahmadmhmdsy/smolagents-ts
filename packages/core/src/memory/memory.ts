@@ -1,4 +1,11 @@
-import type { AudioPart, ChatMessage, ImagePart, MessageContent } from "../types.js";
+import type {
+  AudioPart,
+  ChatMessage,
+  ContentPart,
+  ImagePart,
+  MediaRef,
+  MessageContent,
+} from "../types.js";
 import {
   stepFromJSON,
   stepToJSON,
@@ -88,13 +95,20 @@ export class AgentMemory {
   /** A task as a request carries it. A reference with no bytes behind it reads as a placeholder. */
   private taskContent(step: TaskStep, mediaAsText: boolean): MessageContent {
     if (step.parts === undefined) return step.task;
-    return step.parts.map((part) => {
-      if (part.type === "text") return part;
-      const { id, mediaType, alt } = part.ref;
-      const kind = mediaType.split("/")[0] ?? "media";
-      const held = mediaAsText ? undefined : this.media.get(id);
-      return held ?? { type: "text", text: "[" + kind + ": " + (alt ?? id) + "]" };
-    });
+    return step.parts.map((part) => (part.type === "text" ? part : this.refContent(part.ref, mediaAsText)));
+  }
+
+  private refContent({ id, mediaType, alt }: MediaRef, mediaAsText: boolean): ContentPart {
+    const kind = mediaType.split("/")[0] ?? "media";
+    const held = mediaAsText ? undefined : this.media.get(id);
+    return held ?? { type: "text", text: "[" + kind + ": " + (alt ?? id) + "]" };
+  }
+
+  /** The turn that shows a step's tool media. A provider takes media in a user turn only. */
+  private attachmentTurn(step: ActionStep, mediaAsText: boolean): ChatMessage[] {
+    if (step.attachments.length === 0) return [];
+    const parts = step.attachments.map((ref) => this.refContent(ref, mediaAsText));
+    return [{ role: "user", content: [{ type: "text", text: "Attached by the tools above:" }, ...parts] }];
   }
 
   get finalAnswerStep(): FinalAnswerStep | undefined {
@@ -208,6 +222,7 @@ export class AgentMemory {
                   call.error === undefined ? stringifyOutput(call.result) : "Error: " + call.error,
               });
             }
+            messages.push(...this.attachmentTurn(step, options.mediaAsText ?? false));
             break;
           }
           if (step.modelOutput !== null) {
@@ -216,6 +231,7 @@ export class AgentMemory {
           if (step.observations !== null) {
             messages.push({ role: "user", content: "Observation:\n" + step.observations });
           }
+          messages.push(...this.attachmentTurn(step, options.mediaAsText ?? false));
           break;
         }
         case "message":

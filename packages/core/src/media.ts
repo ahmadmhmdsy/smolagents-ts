@@ -2,9 +2,11 @@ import { ContentTooLargeError, UnsupportedContentError } from "./errors.js";
 import type { ModelCapabilities } from "./model.js";
 import type {
   AudioMediaType,
+  AudioPart,
   ChatMessage,
   ContentPart,
   ImageMediaType,
+  ImagePart,
   MessageContent,
 } from "./types.js";
 
@@ -31,6 +33,26 @@ export const DEFAULT_MEDIA_LIMITS: MediaLimits = {
   maxPartBytes: 5 * 1024 * 1024,
   maxRunBytes: 20 * 1024 * 1024,
 };
+
+/**
+ * What a tool returns to hand media to the model: its text, and the parts beside it. The loop
+ * keeps the bytes, gives the tool's caller the text with a handle per part, and shows the parts
+ * to the model in a user turn. Bytes never cross into a code agent's sandbox.
+ */
+export class ToolAttachments {
+  constructor(
+    readonly text: string,
+    readonly attachments: readonly (ImagePart | AudioPart)[],
+  ) {}
+}
+
+/** Return this from a tool's `execute` to attach media to its text. */
+export function withAttachments(
+  text: string,
+  attachments: readonly (ImagePart | AudioPart)[],
+): ToolAttachments {
+  return new ToolAttachments(text, attachments);
+}
 
 /** A message's text, with any media left out. A string comes back as it is. */
 export function messageText(message: Pick<ChatMessage, "content">): string {

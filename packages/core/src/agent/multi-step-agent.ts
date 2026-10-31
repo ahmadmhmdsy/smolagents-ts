@@ -49,6 +49,7 @@ import {
 import {
   type MediaLimits,
   DEFAULT_MEDIA_LIMITS,
+  ToolAttachments,
   checkContentParts,
   hasMedia,
   mediaParts,
@@ -312,6 +313,8 @@ export interface RunOptions {
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */
 export interface RunContext {
+  /** The media this step's tools have returned so far, until the step takes it. */
+  readonly attachments: MediaRef[];
   readonly runId: string;
   readonly task: string;
   readonly signal: AbortSignal;
@@ -974,6 +977,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       parentRunId: options.parentRunId,
       parentStep: undefined,
       completed: [],
+      attachments: [],
       openStep: undefined,
       journal: [],
       replayStepId: undefined,
@@ -1752,7 +1756,10 @@ export abstract class MultiStepAgent<TOut = unknown> {
    * the current model cannot take: the model may have changed since the bytes were admitted.
    */
   private async hydrateMedia(steps: readonly StepJSON[]): Promise<AgentError | undefined> {
-    const refs = steps.flatMap((step) => (step.kind === "task" ? taskAttachments(step.parts) : []));
+    const refs = steps.flatMap((step) => {
+      if (step.kind === "task") return taskAttachments(step.parts);
+      return step.kind === "action" ? (step.attachments ?? []) : [];
+    });
     if (refs.length === 0) return undefined;
     try {
       const held: ContentPart[] = [];
@@ -1766,6 +1773,52 @@ export abstract class MultiStepAgent<TOut = unknown> {
       return undefined;
     } catch (error) {
       return AgentError.from(error);
+    }
+  }
+
+  /**
+   * Keep the media a tool returned and put a handle for each part in its text. What this returns
+   * is what the journal records, so a replayed call finds its media without running again. A
+   * refusal is a line in the text: the model can react to it, and the run goes on.
+   */
+  protected async admitToolResult(result: unknown): Promise<unknown> {
+    if (!(result instanceof ToolAttachments)) return result;
+    const { capabilities } = upgradeModelAdapter(this.model);
+    const lines = result.text === "" ? [] : [result.text];
+    const refs: MediaRef[] = [];
+    for (const part of result.attachments) {
+      try {
+        this.mediaBytes = checkContentParts([part], capabilities, this.mediaLimits, this.mediaBytes);
+      } catch (error) {
+        lines.push("[" + part.type + " refused: " + AgentError.from(error).message + "]");
+        continue;
+      }
+      const ref = await this.mediaStore.put(part);
+      this.memory.media.set(ref.id, part);
+      refs.push(ref);
+      lines.push("[" + part.type + " attached: " + (ref.alt ?? ref.id) + "]");
+    }
+    const admitted: AdmittedToolMedia = { kind: "tool-media", text: lines.join("\n"), refs };
+    return admitted;
+  }
+
+  /** The text a tool's caller gets for an admitted result, with its media queued for the step. */
+  protected async deliverToolResult(admitted: unknown, context: RunContext): Promise<unknown> {
+    if (!isAdmittedToolMedia(admitted)) return admitted;
+    for (const ref of admitted.refs) {
+      if (!this.memory.media.has(ref.id)) await this.recoverToolMedia(ref);
+      // A repaired step replays its calls, and a replay must not show the same media twice.
+      if (!context.attachments.some((queued) => queued.id === ref.id)) context.attachments.push(ref);
+    }
+    return admitted.text;
+  }
+
+  /** A replay after a crash. Bytes the store lost read as a placeholder, like any other ref. */
+  private async recoverToolMedia(ref: MediaRef): Promise<void> {
+    try {
+      this.memory.media.set(ref.id, partFromRef(ref, await this.mediaStore.get(ref)));
+    } catch (error) {
+      if (!(error instanceof MediaMissingError)) throw error;
     }
   }
 
@@ -2521,6 +2574,17 @@ function estimatedTokens(messages: readonly ChatMessage[]): number {
   let characters = 0;
   for (const message of messages) characters += messageText(message).length;
   return Math.ceil(characters / 4);
+}
+
+/** A tool's result once its bytes are in the store: the only form a journal holds. */
+interface AdmittedToolMedia {
+  readonly kind: "tool-media";
+  readonly text: string;
+  readonly refs: readonly MediaRef[];
+}
+
+function isAdmittedToolMedia(value: unknown): value is AdmittedToolMedia {
+  return typeof value === "object" && value !== null && (value as { kind?: unknown }).kind === "tool-media";
 }
 
 /** The part a reference names, from the bytes a store gave back. Wrong bytes are no bytes. */

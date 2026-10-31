@@ -138,6 +138,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     if (!settled.ok) throw settled.error;
 
     step.toolCalls = toolCalls;
+    step.attachments = context.attachments.splice(0);
     const claimed = settled.result.isFinalAnswer || submittedFinal;
     // The executor's own answer wins when it claims one; the sink is the fallback.
     const value = settled.result.isFinalAnswer ? settled.result.value : submitted;
@@ -170,10 +171,21 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     const runnable = this.stepRegistry()
       .list()
       .filter((definition) => definition.kind !== "hosted");
-    if (stepId === undefined || !this.journals(context)) return new ToolRegistry(runnable);
+    if (stepId === undefined || !this.journals(context)) {
+      return new ToolRegistry(runnable.map((definition) => this.mediaTool(definition, context)));
+    }
     return new ToolRegistry(
       runnable.map((definition) => this.journaledTool(definition, context, stepId)),
     );
+  }
+
+  /** A tool's media stops here: the guest gets the text and a handle, never the bytes. */
+  private mediaTool<T extends Tool>(definition: T, context: RunContext): T {
+    return {
+      ...definition,
+      execute: async (input: unknown, toolContext: ToolContext) =>
+        this.deliverToolResult(await this.admitToolResult(await definition.execute(input, toolContext)), context),
+    } as T;
   }
 
   private journaledTool<T extends Tool>(definition: T, context: RunContext, stepId: string): T {
@@ -194,7 +206,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     const callId = toolContext.callId;
     const recorded = this.journalLookup(context, stepId, callId);
     if (recorded !== undefined && recorded.state !== "intent" && recorded.result !== undefined) {
-      return recorded.result;
+      return this.deliverToolResult(recorded.result, context);
     }
     let retried = false;
     if (recorded?.state === "intent") {
@@ -222,7 +234,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       if (intentFailure !== undefined) throw intentFailure;
     }
     try {
-      const result = await definition.execute(input, toolContext);
+      const result = await this.admitToolResult(await definition.execute(input, toolContext));
       const doneFailure = await this.journalResult(
         context,
         stepId,
@@ -231,7 +243,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
         retried ? "unknown" : "done",
       );
       if (doneFailure !== undefined) throw doneFailure;
-      return result;
+      return await this.deliverToolResult(result, context);
     } catch (error) {
       this.discardIntent(context, stepId, callId);
       throw error;

@@ -211,6 +211,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     }
 
     step.toolCalls = calls;
+    step.attachments = context.attachments.splice(0);
     return {
       observations: observations.join("\n"),
       isFinalAnswer,
@@ -241,7 +242,9 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       const recorded = this.journalLookup(context, stepId, callId);
       if (recorded !== undefined && recorded.state !== "intent" && recorded.result !== undefined) {
         // The effect finished before the crash: return its recorded result, run nothing.
-        return recorded.result as { ok: true; output: unknown } | { ok: false; error: AgentErrorInfo };
+        const replayed = recorded.result as { ok: true; output: unknown } | { ok: false; error: AgentErrorInfo };
+        if (!replayed.ok) return replayed;
+        return { ok: true, output: await this.deliverToolResult(replayed.output, context) };
       }
       if (recorded?.state === "intent") {
         if (definition.idempotent !== true) {
@@ -270,7 +273,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     }
     let result: { ok: true; output: unknown } | { ok: false; error: AgentErrorInfo };
     try {
-      result = { ok: true, output: await definition.execute(args, toolContext) };
+      result = { ok: true, output: await this.admitToolResult(await definition.execute(args, toolContext)) };
     } catch (error) {
       // Cancellation is the run's outcome, not this call's failure; it must not be flattened into
       // a tool-call error. A timed-out tool keeps its own typed code so the reader sees the limit.
@@ -303,7 +306,8 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       );
       if (doneFailure !== undefined) throw doneFailure;
     }
-    return result;
+    if (!result.ok) return result;
+    return { ok: true, output: await this.deliverToolResult(result.output, context) };
   }
 }
 

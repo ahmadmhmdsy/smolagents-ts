@@ -36,6 +36,8 @@ const RUNTIME_EXPORTS = [
   "hasMedia",
   "mediaParts",
   "mediaRefFor",
+  "withAttachments",
+  "ToolAttachments",
   "taskAttachments",
   "MemoryMediaStore",
   "MediaMissingError",

@@ -112,6 +112,47 @@ describe.each(ADAPTERS)("media on the wire: $name", ({ reply, build }) => {
   });
 });
 
+const AFTER_TOOL: ChatMessage[] = [
+  { role: "user", content: "Look" },
+  {
+    role: "assistant",
+    content: "",
+    toolCalls: [{ id: "call_1", name: "screenshot", arguments: "{}" }],
+  },
+  { role: "tool", toolCallId: "call_1", name: "screenshot", content: "Captured." },
+  { role: "user", content: [{ type: "text", text: "Attached by the tools above:" }, PNG] },
+];
+
+describe("a tool's media after its result", () => {
+  it("follows the tool message on OpenAI", async () => {
+    const wire = recorder(fixture("openai-chat-completion.json"));
+    await new OpenAICompatibleModel({ model: "m", fetch: wire.fetch }).generate(AFTER_TOOL);
+    const messages = wire.bodies()[0]?.messages ?? [];
+    expect(messages.map((message) => message.role).slice(-2)).toEqual(["tool", "user"]);
+    expect(JSON.stringify(messages.at(-1))).toContain(PNG_BASE64);
+  });
+
+  it("folds into the tool_result's user turn on Anthropic", async () => {
+    const wire = recorder(fixture("anthropic-messages.json"));
+    await new AnthropicModel({ model: "m", fetch: wire.fetch }).generate(AFTER_TOOL);
+    const messages = wire.bodies()[0]?.messages ?? [];
+    expect(messages.map((message) => message.role)).toEqual(["user", "assistant", "user"]);
+    expect(messages.at(-1)?.content).toMatchObject([
+      { type: "tool_result", tool_use_id: "call_1" },
+      { type: "text", text: "Attached by the tools above:" },
+      { type: "image", source: { type: "base64", media_type: "image/png", data: PNG_BASE64 } },
+    ]);
+  });
+
+  it("reaches Gemini with the function response before the image", async () => {
+    const wire = recorder(fixture("gemini-generate-content.json"));
+    await new GeminiModel({ model: "m", fetch: wire.fetch }).generate(AFTER_TOOL);
+    const sent = JSON.stringify(wire.bodies()[0]?.contents ?? []);
+    expect(sent).toContain("functionResponse");
+    expect(sent.indexOf(PNG_BASE64)).toBeGreaterThan(sent.indexOf("functionResponse"));
+  });
+});
+
 describe("OpenAICompatibleModel media mapping", () => {
   it("maps an image to a data URI with its detail, and audio to input_audio", async () => {
     const wire = recorder(fixture("openai-chat-completion.json"));

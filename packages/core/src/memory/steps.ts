@@ -80,6 +80,8 @@ export class ActionStep extends AgentStep {
   /** The code the model asked to run, if it asked to run any. */
   codeAction: string | null = null;
   toolCalls: ToolCall[] = [];
+  /** The media this step's tools returned, shown to the model in a user turn after it. */
+  attachments: readonly MediaRef[] = [];
   /** Everything the executor printed. */
   observations: string | null = null;
   error: AgentErrorInfo | undefined = undefined;
@@ -170,6 +172,7 @@ export type StepJSON =
       readonly modelOutput: string | null;
       readonly codeAction: string | null;
       readonly toolCalls: readonly ToolCall[];
+      readonly attachments?: readonly MediaRef[];
       readonly observations: string | null;
       readonly error?: AgentErrorInfo;
       readonly isFinalAnswer: boolean;
@@ -214,6 +217,7 @@ export function stepToJSON(step: AnyAgentStep): StepJSON {
         modelOutput: step.modelOutput,
         codeAction: step.codeAction,
         toolCalls: step.toolCalls,
+        ...(step.attachments.length === 0 ? {} : { attachments: step.attachments }),
         observations: step.observations,
         ...(step.error === undefined ? {} : { error: step.error }),
         isFinalAnswer: step.isFinalAnswer,
@@ -262,6 +266,7 @@ function constructStep(json: StepJSON): AnyAgentStep {
       const step = new ActionStep(json.modelOutput);
       step.codeAction = json.codeAction;
       step.toolCalls = [...json.toolCalls];
+      step.attachments = json.attachments ?? [];
       step.observations = json.observations;
       step.error = json.error;
       step.isFinalAnswer = json.isFinalAnswer;

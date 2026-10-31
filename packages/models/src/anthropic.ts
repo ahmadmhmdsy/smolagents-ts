@@ -202,6 +202,12 @@ function toWireMessages(
       });
       continue;
     }
+    if (message.role === "user" && typeof message.content !== "string" && hasMedia(message)) {
+      // A tool's media follows its result, and belongs in the same turn as the tool_result.
+      wire.push({ role: "user", content: [...results, ...toWireBlocks(message.content)] });
+      results = [];
+      continue;
+    }
     flush();
     if (message.role === "assistant") {
       const blocks: WireBlock[] = [];
@@ -215,10 +221,6 @@ function toWireMessages(
         });
       }
       if (blocks.length > 0) wire.push({ role: "assistant", content: blocks });
-      continue;
-    }
-    if (typeof message.content !== "string" && hasMedia(message)) {
-      wire.push({ role: "user", content: toWireBlocks(message.content) });
       continue;
     }
     wire.push({ role: "user", content: [{ type: "text", text }] });
