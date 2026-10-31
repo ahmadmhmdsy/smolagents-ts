@@ -29,6 +29,15 @@ const RUNTIME_EXPORTS = [
   // model and execution seams
   "modelCapabilities",
   "collectCompletion",
+  // Media: the allowlist, the limits, and the checks a part goes through before a model sees it.
+  "MEDIA_TYPES",
+  "DEFAULT_MEDIA_LIMITS",
+  "messageText",
+  "hasMedia",
+  "sniffMediaType",
+  "checkContentParts",
+  "UnsupportedContentError",
+  "ContentTooLargeError",
   // The adapter contract's version and the shim that accepts a model written before it.
   "MODEL_ADAPTER_VERSION",
   "upgradeModelAdapter",
@@ -204,6 +213,8 @@ const ERROR_CASES: {
   { Ctor: core.AgentGuardrailError, name: "AgentGuardrailError", code: "AGENT_GUARDRAIL" },
   { Ctor: core.ToolPolicyDeniedError, name: "ToolPolicyDeniedError", code: "AGENT_TOOL_POLICY" },
   { Ctor: core.ToolHostedError, name: "ToolHostedError", code: "AGENT_TOOL_HOSTED" },
+  { Ctor: core.UnsupportedContentError, name: "UnsupportedContentError", code: "AGENT_UNSUPPORTED_CONTENT" },
+  { Ctor: core.ContentTooLargeError, name: "ContentTooLargeError", code: "AGENT_CONTENT_TOO_LARGE" },
 ];
 
 describe("error hierarchy", () => {

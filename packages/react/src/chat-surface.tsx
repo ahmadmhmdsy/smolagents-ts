@@ -1,5 +1,5 @@
 import { useId, type FormEvent, type ReactNode } from "react";
-import type { ChatMessage } from "@smolagents-ts/core";
+import { messageText, type ChatMessage } from "@smolagents-ts/core";
 import { useAgentRunSnapshot } from "./context.js";
 
 export interface ChatSurfaceProps {
@@ -51,7 +51,7 @@ export function ChatSurface({ messages, onSubmit, disabledReason, children }: Ch
         {transcript.map((message, index) => (
           <li key={index} data-role={message.role}>
             <span>{message.role}</span>
-            <span>{message.content}</span>
+            <span>{messageText(message)}</span>
           </li>
         ))}
       </ol>

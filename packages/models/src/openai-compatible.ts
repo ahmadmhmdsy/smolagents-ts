@@ -1,13 +1,14 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallDelta,
@@ -111,10 +112,11 @@ function toWireMessages(messages: readonly ChatMessage[], systemPrompt?: string)
     wire.push({ role: "system", content: systemPrompt });
   }
   for (const message of messages) {
+    const text = messageText(message);
     if (message.role === "assistant" && message.toolCalls !== undefined && message.toolCalls.length > 0) {
       wire.push({
         role: "assistant",
-        content: message.content === "" ? null : message.content,
+        content: text === "" ? null : text,
         tool_calls: message.toolCalls.map((call) => ({
           id: call.id,
           type: "function",
@@ -126,13 +128,13 @@ function toWireMessages(messages: readonly ChatMessage[], systemPrompt?: string)
     if (message.role === "tool") {
       wire.push({
         role: "tool",
-        content: message.content,
+        content: text,
         ...(message.toolCallId === undefined ? {} : { tool_call_id: message.toolCallId }),
         ...(message.name === undefined ? {} : { name: message.name }),
       });
       continue;
     }
-    wire.push({ role: message.role, content: message.content });
+    wire.push({ role: message.role, content: text });
   }
   return wire;
 }
@@ -219,7 +221,7 @@ function* chunksFor(parsed: WireResponse): Generator<ChatCompletionChunk> {
  * because they agree on the request and response shape, not because they agree on the
  * host.
  */
-export class OpenAICompatibleModel implements ModelAdapterV1 {
+export class OpenAICompatibleModel implements ModelAdapterV2 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;

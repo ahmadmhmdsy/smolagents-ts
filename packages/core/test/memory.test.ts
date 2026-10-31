@@ -1,3 +1,4 @@
+import { messageText } from "../src/media.js";
 import { describe, expect, it } from "vitest";
 import { AgentMemory } from "../src/memory/memory.js";
 import {
@@ -182,6 +183,6 @@ describe("summary mode", () => {
     memory.addStep(new CondensationStep("Earlier: the first two steps did X.", [], "soft"));
 
     const messages = memory.toMessages({ summaryMode: true });
-    expect(messages.some((message) => message.content.includes("Earlier: the first two steps did X."))).toBe(true);
+    expect(messages.some((message) => messageText(message).includes("Earlier: the first two steps did X."))).toBe(true);
   });
 });

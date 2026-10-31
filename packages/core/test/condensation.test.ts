@@ -1,3 +1,4 @@
+import { messageText } from "../src/media.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { FINAL_ANSWER_TOOL_NAME, ToolCallingAgent } from "../src/agent/tool-calling-agent.js";
@@ -123,9 +124,9 @@ describe("condensation as a step and an event", () => {
 
     // The third model call is the first one built after the condensation.
     const thirdCall = model.calls[2] ?? [];
-    expect(thirdCall.some((message) => message.content.includes(firstObservation))).toBe(false);
-    expect(thirdCall.some((message) => message.content.includes("Earlier steps, condensed:"))).toBe(true);
-    expect(thirdCall.some((message) => message.content.includes("condensed 1 step(s)"))).toBe(true);
+    expect(thirdCall.some((message) => messageText(message).includes(firstObservation))).toBe(false);
+    expect(thirdCall.some((message) => messageText(message).includes("Earlier steps, condensed:"))).toBe(true);
+    expect(thirdCall.some((message) => messageText(message).includes("condensed 1 step(s)"))).toBe(true);
     expect(thirdCall[0]?.role).toBe("system");
     expect(thirdCall.some((message) => message.content === TASK)).toBe(true);
 
@@ -157,10 +158,10 @@ describe("condensation as a step and an event", () => {
     });
 
     expect(projected).toEqual(again);
-    expect(projected.some((message) => message.content.includes("first " + "x".repeat(180)))).toBe(false);
+    expect(projected.some((message) => messageText(message).includes("first " + "x".repeat(180)))).toBe(false);
     const condensations = record.memory.steps.filter((step) => step.kind === "condensation");
     expect(condensations.length).toBeGreaterThanOrEqual(1);
-    expect(projected.filter((message) => message.content.includes("Earlier steps, condensed:"))).toHaveLength(
+    expect(projected.filter((message) => messageText(message).includes("Earlier steps, condensed:"))).toHaveLength(
       condensations.length,
     );
     expect(record.memory.steps.some((step) => step.id === firstAction?.id)).toBe(true);
@@ -204,7 +205,7 @@ describe("condensation as a step and an event", () => {
 
     expect(condensed(events)).toHaveLength(0);
     const thirdCall = model.calls[2] ?? [];
-    expect(thirdCall.some((message) => message.content.includes("first " + "x".repeat(180)))).toBe(true);
+    expect(thirdCall.some((message) => messageText(message).includes("first " + "x".repeat(180)))).toBe(true);
   });
 
   it("never forgets the task, the system prompt, a message step or the recent window", async () => {

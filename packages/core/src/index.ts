@@ -18,6 +18,7 @@ export * from "./events.js";
 
 // The two seams a host can replace: which model answers, and where code runs.
 export * from "./model.js";
+export * from "./media.js";
 export * from "./executor.js";
 
 // Tools.

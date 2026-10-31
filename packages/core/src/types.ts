@@ -1,10 +1,53 @@
 /** Roles accepted by every model adapter. */
 export type ChatRole = "system" | "user" | "assistant" | "tool";
 
+/** The image types a message may carry; `MEDIA_TYPES` holds the same list at run time. */
+export type ImageMediaType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+
+/** The audio types a message may carry; `MEDIA_TYPES` holds the same list at run time. */
+export type AudioMediaType = "audio/wav" | "audio/mpeg";
+
+export interface TextPart {
+  type: "text";
+  text: string;
+}
+
+/** An image as bytes. There is no URL form: the framework never hands a provider an address. */
+export interface ImagePart {
+  type: "image";
+  mediaType: ImageMediaType;
+  bytes: Uint8Array;
+  /** How closely a provider that offers the choice should look. */
+  detail?: "auto" | "low" | "high";
+  /** A description for a person reading the transcript; never sent to the model. */
+  alt?: string;
+}
+
+/** An audio clip as bytes. `format` is the name a provider's wire asks for. */
+export interface AudioPart {
+  type: "audio";
+  mediaType: AudioMediaType;
+  bytes: Uint8Array;
+  format: "wav" | "mp3";
+}
+
+export type ContentPart = TextPart | ImagePart | AudioPart;
+
+/** What a message says: a string for text alone, parts once media is involved. */
+export type MessageContent = string | readonly ContentPart[];
+
+/** Media named without its bytes, which is the only form a snapshot, event or trace may hold. */
+export interface MediaRef {
+  id: string;
+  mediaType: ImageMediaType | AudioMediaType;
+  byteLength: number;
+  alt?: string;
+}
+
 /** A single turn handed to a model. Provider-neutral by construction. */
 export interface ChatMessage {
   role: ChatRole;
-  content: string;
+  content: MessageContent;
   /** Set when role is "tool": which call this message answers. */
   toolCallId?: string;
   /** Optional tool name, for providers that require it on tool results. */

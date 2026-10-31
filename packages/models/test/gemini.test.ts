@@ -229,6 +229,7 @@ describe("GeminiModel", () => {
       streaming: true,
       toolCalls: true,
       images: false,
+      audio: false,
     });
     expect(() => new GeminiModel({ model: "  " })).toThrow(/model id/);
   });

@@ -1,3 +1,4 @@
+import { messageText } from "../src/media.js";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ToolCallingAgent } from "../src/agent/tool-calling-agent.js";
@@ -95,14 +96,14 @@ describe("the planning lane (decision 0028)", () => {
     expect(postlude?.role).toBe("user");
     expect(postlude?.content).toContain("This step has 1 of the run's step ceiling left.");
     const history = update.slice(1, -1);
-    expect(history.some((message) => message.content.includes("Calling tools:"))).toBe(true);
-    expect(history.some((message) => message.content.includes("Observation:"))).toBe(true);
+    expect(history.some((message) => messageText(message).includes("Calling tools:"))).toBe(true);
+    expect(history.some((message) => messageText(message).includes("Observation:"))).toBe(true);
     // The summary drops the model's reasoning and the earlier plan.
-    expect(history.some((message) => message.content.includes("first thought"))).toBe(false);
-    expect(history.some((message) => message.content.includes("1. echo"))).toBe(false);
+    expect(history.some((message) => messageText(message).includes("first thought"))).toBe(false);
+    expect(history.some((message) => messageText(message).includes("1. echo"))).toBe(false);
     expect(history.some((message) => message.role === "system")).toBe(false);
     // And the answer turn's request never sees the initial template again.
-    expect(model.calls[4]?.some((message) => message.content.includes("facts survey"))).toBe(false);
+    expect(model.calls[4]?.some((message) => messageText(message).includes("facts survey"))).toBe(false);
   });
 
   it("spends a model turn on the initial plan before any action", async () => {

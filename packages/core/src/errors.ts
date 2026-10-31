@@ -29,7 +29,9 @@ export type AgentErrorCode =
   | "AGENT_TASK_DELETED"
   | "AGENT_EFFECT_UNKNOWN"
   | "AGENT_TOOL_POLICY"
-  | "AGENT_TOOL_HOSTED";
+  | "AGENT_TOOL_HOSTED"
+  | "AGENT_UNSUPPORTED_CONTENT"
+  | "AGENT_CONTENT_TOO_LARGE";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -401,6 +403,36 @@ export class ToolHostedError extends AgentError {
   }
 }
 
+/**
+ * Raised when content cannot go to the model: a modality it does not declare, a media type off the
+ * list, or bytes that do not match their declared type. It comes before the call, so nothing is spent.
+ */
+export class UnsupportedContentError extends AgentError {
+  readonly mediaType: string | undefined;
+
+  constructor(message: string, options: AgentErrorOptions & { readonly mediaType?: string } = {}) {
+    super(message, { ...options, code: "AGENT_UNSUPPORTED_CONTENT" });
+    this.name = "UnsupportedContentError";
+    this.mediaType = options.mediaType;
+  }
+}
+
+/** Raised when a part or a run's media is over its encoded size limit. */
+export class ContentTooLargeError extends AgentError {
+  readonly byteLength: number | undefined;
+  readonly limit: number | undefined;
+
+  constructor(
+    message: string,
+    options: AgentErrorOptions & { readonly byteLength?: number; readonly limit?: number } = {},
+  ) {
+    super(message, { ...options, code: "AGENT_CONTENT_TOO_LARGE" });
+    this.name = "ContentTooLargeError";
+    this.byteLength = options.byteLength;
+    this.limit = options.limit;
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -433,4 +465,6 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_EFFECT_UNKNOWN: EffectOutcomeUnknownError,
   AGENT_TOOL_POLICY: ToolPolicyDeniedError,
   AGENT_TOOL_HOSTED: ToolHostedError,
+  AGENT_UNSUPPORTED_CONTENT: UnsupportedContentError,
+  AGENT_CONTENT_TOO_LARGE: ContentTooLargeError,
 };

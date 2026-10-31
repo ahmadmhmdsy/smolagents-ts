@@ -1,13 +1,14 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallRequest,
@@ -122,15 +123,16 @@ function toWireMessages(
   };
 
   for (const message of messages) {
+    const text = messageText(message);
     if (message.role === "system") {
-      if (message.content !== "") system.push(message.content);
+      if (text !== "") system.push(text);
       continue;
     }
     if (message.role === "tool") {
       results.push({
         functionResponse: {
           name: message.name ?? "",
-          response: { result: message.content },
+          response: { result: text },
           ...(message.toolCallId === undefined ? {} : { id: message.toolCallId }),
         },
       });
@@ -139,14 +141,14 @@ function toWireMessages(
     flush();
     if (message.role === "assistant") {
       const parts: WirePart[] = [];
-      if (message.content !== "") parts.push({ text: message.content });
+      if (text !== "") parts.push({ text });
       for (const call of message.toolCalls ?? []) {
         parts.push({ functionCall: { name: call.name, args: toArgs(call.arguments), id: call.id } });
       }
       if (parts.length > 0) contents.push({ role: "model", parts });
       continue;
     }
-    contents.push({ role: "user", parts: [{ text: message.content }] });
+    contents.push({ role: "user", parts: [{ text }] });
   }
   flush();
   return {
@@ -265,7 +267,7 @@ function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCom
 }
 
 /** Google's generateContent: contents and parts, a system instruction, and no tool finish reason. */
-export class GeminiModel implements ModelAdapterV1 {
+export class GeminiModel implements ModelAdapterV2 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;

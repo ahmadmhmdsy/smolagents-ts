@@ -3,7 +3,7 @@ import {
   upgradeModelAdapter,
   type ChatCompletionChunk,
   type Model,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
 } from "@smolagents-ts/core";
 import { describe, expect, it } from "vitest";
 import {
@@ -17,8 +17,8 @@ import {
 
 /** The assertions every adapter must satisfy at the current contract version. */
 async function assertContract(adapter: Model): Promise<void> {
-  const versioned = adapter as ModelAdapterV1;
-  expect(MODEL_ADAPTER_VERSION).toBe(1);
+  const versioned = adapter as ModelAdapterV2;
+  expect(MODEL_ADAPTER_VERSION).toBe(2);
   expect(versioned.adapterVersion).toBe(MODEL_ADAPTER_VERSION);
   expect(adapter.id.length).toBeGreaterThan(0);
   expect(adapter.provider.length).toBeGreaterThan(0);
@@ -61,7 +61,7 @@ describe("the adapter contract", () => {
     const legacy: Model = {
       id: "legacy",
       provider: "legacy",
-      capabilities: { streaming: false, toolCalls: false, images: false },
+      capabilities: { streaming: false, toolCalls: false, images: false, audio: false },
       generate: () => Promise.resolve({ ...CUSTOM_COMPLETION, toolCalls: [] }),
       generateStream: () => customStream(),
     };

@@ -42,6 +42,7 @@ import {
   type Model,
   type ToolSpec,
 } from "../model.js";
+import { messageText } from "../media.js";
 import { Monitor } from "../monitoring/monitor.js";
 import type { SpanExporter } from "../monitoring/otel.js";
 import { TraceBuilder } from "../monitoring/trace.js";
@@ -2409,7 +2410,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
 /** The default size estimate: a quarter of the transcript's characters, rounded up. */
 function estimatedTokens(messages: readonly ChatMessage[]): number {
   let characters = 0;
-  for (const message of messages) characters += message.content.length;
+  for (const message of messages) characters += messageText(message).length;
   return Math.ceil(characters / 4);
 }
 

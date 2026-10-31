@@ -1,13 +1,14 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
   type FinishReason,
   type GenerateOptions,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallRequest,
@@ -159,22 +160,23 @@ function toWireMessages(
   };
 
   for (const message of messages) {
+    const text = messageText(message);
     if (message.role === "system") {
-      if (message.content !== "") system.push(message.content);
+      if (text !== "") system.push(text);
       continue;
     }
     if (message.role === "tool") {
       results.push({
         type: "tool_result",
         tool_use_id: message.toolCallId ?? "",
-        content: message.content,
+        content: text,
       });
       continue;
     }
     flush();
     if (message.role === "assistant") {
       const blocks: WireBlock[] = [];
-      if (message.content !== "") blocks.push({ type: "text", text: message.content });
+      if (text !== "") blocks.push({ type: "text", text });
       for (const call of message.toolCalls ?? []) {
         blocks.push({
           type: "tool_use",
@@ -186,7 +188,7 @@ function toWireMessages(
       if (blocks.length > 0) wire.push({ role: "assistant", content: blocks });
       continue;
     }
-    wire.push({ role: "user", content: [{ type: "text", text: message.content }] });
+    wire.push({ role: "user", content: [{ type: "text", text }] });
   }
   flush();
   return { ...(system.length === 0 ? {} : { system: system.join("\n\n") }), messages: wire };
@@ -267,7 +269,7 @@ function fromWireUsage(usage: WireUsage | undefined): TokenUsage {
 }
 
 /** Anthropic's Messages API: a top-level system prompt, content blocks, a required limit. */
-export class AnthropicModel implements ModelAdapterV1 {
+export class AnthropicModel implements ModelAdapterV2 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
