@@ -5,6 +5,7 @@ import {
   AgentGuardrailError,
   AgentMaxStepsError,
   AgentParsingError,
+  MediaMissingError,
   RunAlreadySettledError,
   RunApprovalMismatchError,
   RunNotFoundError,
@@ -31,7 +32,9 @@ import {
   PlanningStep,
   SystemPromptStep,
   TaskStep,
+  taskAttachments,
   type AnyAgentStep,
+  type StepJSON,
 } from "../memory/steps.js";
 import { type AgentMiddleware, type MiddlewareContext, composeMiddleware } from "../middleware.js";
 import {
@@ -47,6 +50,7 @@ import {
   type MediaLimits,
   DEFAULT_MEDIA_LIMITS,
   checkContentParts,
+  hasMedia,
   mediaParts,
   messageText,
 } from "../media.js";
@@ -81,8 +85,13 @@ import {
 } from "../tool/policy.js";
 import { ToolDefinitionError, type Tool } from "../tool/tool.js";
 import {
+  type AudioPart,
   type ChatMessage,
+  type ContentPart,
+  type ImagePart,
+  type MediaRef,
   type MessageContent,
+  type TaskPart,
   type TokenUsage,
   type ToolCall,
   EMPTY_TOKEN_USAGE,
@@ -115,6 +124,7 @@ import {
   type RunStatus,
 } from "../session/run-record.js";
 import type { RunStore } from "../session/run-store.js";
+import { MemoryMediaStore, type MediaStore } from "../session/media-store.js";
 import { undeliveredMessages, type RunMessage } from "../session/messages.js";
 import {
   budgetSeedFromSteps,
@@ -165,6 +175,11 @@ export interface AgentOptions {
   condensation?: CondensationOptions;
   /** Caps on a run's media, counted encoded. Unset fields keep `DEFAULT_MEDIA_LIMITS`. */
   mediaLimits?: Partial<MediaLimits>;
+  /**
+   * Where media bytes live, so a run with media can resume in another process. The framework
+   * never deletes from it. Unset, bytes last only as long as this agent.
+   */
+  mediaStore?: MediaStore;
   /**
    * Where a run's record lives. With a `runId` on the run, the agent commits the record after
    * each boundary and reads it back to resume, so a run survives its process.
@@ -398,6 +413,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly mediaLimits: MediaLimits;
   /** The encoded media this run has admitted so far, counted against `maxRunBytes`. */
   private mediaBytes = 0;
+  /** Where media bytes live. Without a caller's store, the agent keeps its own for one process. */
+  private mediaStore: MediaStore;
+  private readonly ownsMediaStore: boolean;
   protected readonly logger: Logger;
   protected readonly memory = new AgentMemory();
   protected monitor: Monitor;
@@ -450,6 +468,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.model = options.model;
     this.limits = options.limits ?? {};
     this.mediaLimits = { ...DEFAULT_MEDIA_LIMITS, ...options.mediaLimits };
+    this.mediaStore = options.mediaStore ?? new MemoryMediaStore();
+    this.ownsMediaStore = options.mediaStore === undefined;
     this.approve = options.approve;
     this.approvalPolicy = options.approvalPolicy ?? "ask";
     this.store = options.store;
@@ -797,10 +817,11 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /** The one place the transcript options are assembled. */
-  protected transcript(): ChatMessage[] {
+  protected transcript(mediaAsText = false): ChatMessage[] {
     return this.memory.toMessages({
       systemPrompt: this.systemPrompt,
       toolResults: this.transcriptStyle,
+      mediaAsText,
     });
   }
 
@@ -1031,6 +1052,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
     } else if ((options.reset ?? true) && options.resume === undefined) {
       this.memory.reset();
+      if (this.ownsMediaStore) this.mediaStore = new MemoryMediaStore();
     } else if (lookup && store !== undefined && storedRunId !== undefined) {
       const resume = options.resume;
       // Validate before claiming: a refused resume must leave the record exactly as it found it.
@@ -1052,6 +1074,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
         return;
       }
       if (loaded !== undefined) {
+        // Before the claim, for the same reason: missing bytes leave a run a store can still save.
+        const unavailable = await this.hydrateMedia(loaded.memory.steps);
+        if (unavailable !== undefined) {
+          yield this.emit({ type: "run.failed", error: unavailable.info });
+          return;
+        }
         // One owner at a time: the claim fences every commit that follows.
         let claimed: RunRecord;
         try {
@@ -1113,7 +1141,19 @@ export abstract class MultiStepAgent<TOut = unknown> {
       });
       return;
     }
-    if (options.resume === undefined && fork === undefined) this.memory.addStep(new TaskStep(task, parts));
+    const addsTask = options.resume === undefined && fork === undefined;
+    // The one resolution step: from here on the transcript finds every byte without waiting.
+    let taskParts: readonly TaskPart[] | undefined;
+    try {
+      this.mediaBytes = 0;
+      const unavailable = await this.hydrateMedia(this.memory.toJSON());
+      if (unavailable !== undefined) throw unavailable;
+      if (addsTask && parts !== undefined) taskParts = await this.admitTaskParts(parts);
+    } catch (error) {
+      yield* this.failRun(context, AgentError.from(error));
+      return;
+    }
+    if (addsTask) this.memory.addStep(new TaskStep(task, taskParts));
     // A fork continues the budget its copied steps already spent.
     if (fork !== undefined && options.budget === undefined) {
       const seed = budgetSeedFromSteps(this.memory.steps);
@@ -1687,6 +1727,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
     const steps = [...parent.memory.steps];
     const position = steps.findIndex((step) => step.id === target);
     const copiedSteps = position === -1 ? steps : steps.slice(0, position);
+    const unavailable = await this.hydrateMedia(copiedSteps);
+    if (unavailable !== undefined) return unavailable;
     const journal = [...(parent.journal ?? [])];
     let last = -1;
     for (let index = 0; index < journal.length; index += 1) {
@@ -1703,6 +1745,45 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.memory.restore(copiedSteps);
     context.committedSteps = copiedSteps;
     return this.commitRun(context, "running");
+  }
+
+  /**
+   * Bring the bytes steps name back into memory and count them against this run, refusing what
+   * the current model cannot take: the model may have changed since the bytes were admitted.
+   */
+  private async hydrateMedia(steps: readonly StepJSON[]): Promise<AgentError | undefined> {
+    const refs = steps.flatMap((step) => (step.kind === "task" ? taskAttachments(step.parts) : []));
+    if (refs.length === 0) return undefined;
+    try {
+      const held: ContentPart[] = [];
+      for (const ref of refs) {
+        const part = this.memory.media.get(ref.id) ?? partFromRef(ref, await this.mediaStore.get(ref));
+        this.memory.media.set(ref.id, part);
+        held.push(part);
+      }
+      const { capabilities } = upgradeModelAdapter(this.model);
+      this.mediaBytes = checkContentParts(held, capabilities, this.mediaLimits);
+      return undefined;
+    } catch (error) {
+      return AgentError.from(error);
+    }
+  }
+
+  /** Count a new task's media against the run, then swap its bytes for references. */
+  private async admitTaskParts(parts: readonly ContentPart[]): Promise<readonly TaskPart[]> {
+    const { capabilities } = upgradeModelAdapter(this.model);
+    this.mediaBytes = checkContentParts(parts, capabilities, this.mediaLimits, this.mediaBytes);
+    const admitted: TaskPart[] = [];
+    for (const part of parts) {
+      if (part.type === "text") {
+        admitted.push(part);
+        continue;
+      }
+      const ref = await this.mediaStore.put(part);
+      this.memory.media.set(ref.id, part);
+      admitted.push({ type: "ref", ref });
+    }
+    return admitted;
   }
 
   /**
@@ -2100,7 +2181,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         stepId,
         "model",
         "",
-        digestOf(messages),
+        digestOf(withoutBytes(messages)),
       );
       if (intentFailure !== undefined) throw intentFailure;
     }
@@ -2347,7 +2428,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       runId: context.runId,
       output: output as TOut,
       steps: this.memory.steps,
-      messages: this.transcript(),
+      // A result travels in events and to the caller's logs, so it reads media by name.
+      messages: this.transcript(true),
       start: context.startedAt,
       end: Date.now(),
       tokenUsage: context.usage,
@@ -2439,6 +2521,37 @@ function estimatedTokens(messages: readonly ChatMessage[]): number {
   let characters = 0;
   for (const message of messages) characters += messageText(message).length;
   return Math.ceil(characters / 4);
+}
+
+/** The part a reference names, from the bytes a store gave back. Wrong bytes are no bytes. */
+function partFromRef(ref: MediaRef, bytes: Uint8Array | undefined): ImagePart | AudioPart {
+  if (bytes?.byteLength !== ref.byteLength) {
+    throw new MediaMissingError("The media store cannot produce " + ref.id, { mediaId: ref.id });
+  }
+  if (ref.mediaType === "audio/wav" || ref.mediaType === "audio/mpeg") {
+    const format = ref.mediaType === "audio/wav" ? "wav" : "mp3";
+    return { type: "audio", mediaType: ref.mediaType, bytes, format };
+  }
+  return {
+    type: "image",
+    mediaType: ref.mediaType,
+    bytes,
+    ...(ref.detail === undefined ? {} : { detail: ref.detail }),
+    ...(ref.alt === undefined ? {} : { alt: ref.alt }),
+  };
+}
+
+/** A request as a digest sees it: bytes become their length, and text-only messages stay as they are. */
+function withoutBytes(messages: readonly ChatMessage[]): readonly unknown[] {
+  return messages.map((message) => {
+    if (!hasMedia(message) || typeof message.content === "string") return message;
+    const content = message.content.map((part) => {
+      if (part.type === "text") return part;
+      const { bytes, ...described } = part;
+      return { ...described, byteLength: bytes.byteLength };
+    });
+    return { ...message, content };
+  });
 }
 
 /** The summary a hard trigger uses when no summarizer is configured, or it throws. */

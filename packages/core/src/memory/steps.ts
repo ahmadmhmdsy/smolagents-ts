@@ -1,5 +1,5 @@
 import type { AgentErrorInfo } from "../errors.js";
-import type { ContentPart, MessageContent, Timing, TokenUsage, ToolCall } from "../types.js";
+import type { MediaRef, TaskPart, Timing, TokenUsage, ToolCall } from "../types.js";
 
 export type AgentStepKind =
   | "task"
@@ -32,19 +32,24 @@ export abstract class AgentStep {
 export class TaskStep extends AgentStep {
   override readonly kind = "task";
   readonly task: string;
-  /** The task as parts, set only when it carries media. Bytes stay out of the checkpoint form. */
-  readonly parts: readonly ContentPart[] | undefined;
+  /** The task in order, set only when it carries media. It holds references and never bytes. */
+  readonly parts: readonly TaskPart[] | undefined;
 
-  constructor(task: string, parts?: readonly ContentPart[]) {
+  constructor(task: string, parts?: readonly TaskPart[]) {
     super();
     this.task = task;
     this.parts = parts;
   }
 
-  /** What the transcript shows: the parts when there is media, and the plain string otherwise. */
-  get content(): MessageContent {
-    return this.parts ?? this.task;
+  /** The media the task names. */
+  get attachments(): readonly MediaRef[] {
+    return taskAttachments(this.parts);
   }
+}
+
+/** The media a task's parts name, in order. */
+export function taskAttachments(parts: readonly TaskPart[] | undefined): readonly MediaRef[] {
+  return parts?.flatMap((part) => (part.type === "ref" ? [part.ref] : [])) ?? [];
 }
 
 export class SystemPromptStep extends AgentStep {
@@ -153,7 +158,11 @@ interface StepMetaJSON {
  * upstream's pydantic `step.dict()`, kind and every field of the step included.
  */
 export type StepJSON =
-  | (StepMetaJSON & { readonly kind: "task"; readonly task: string })
+  | (StepMetaJSON & {
+      readonly kind: "task";
+      readonly task: string;
+      readonly parts?: readonly TaskPart[];
+    })
   | (StepMetaJSON & { readonly kind: "system_prompt"; readonly systemPrompt: string })
   | (StepMetaJSON & { readonly kind: "planning"; readonly plan: string; readonly hasError: boolean })
   | (StepMetaJSON & {
@@ -188,7 +197,12 @@ export function stepToJSON(step: AnyAgentStep): StepJSON {
   const meta = stepMeta(step);
   switch (step.kind) {
     case "task":
-      return { ...meta, kind: "task", task: step.task };
+      return {
+        ...meta,
+        kind: "task",
+        task: step.task,
+        ...(step.parts === undefined ? {} : { parts: step.parts }),
+      };
     case "system_prompt":
       return { ...meta, kind: "system_prompt", systemPrompt: step.systemPrompt };
     case "planning":
@@ -236,7 +250,7 @@ export function stepFromJSON(json: StepJSON): AnyAgentStep {
 function constructStep(json: StepJSON): AnyAgentStep {
   switch (json.kind) {
     case "task":
-      return new TaskStep(json.task);
+      return new TaskStep(json.task, json.parts);
     case "system_prompt":
       return new SystemPromptStep(json.systemPrompt);
     case "planning": {

@@ -35,6 +35,10 @@ const RUNTIME_EXPORTS = [
   "messageText",
   "hasMedia",
   "mediaParts",
+  "mediaRefFor",
+  "taskAttachments",
+  "MemoryMediaStore",
+  "MediaMissingError",
   "sniffMediaType",
   "checkContentParts",
   "checkMessageMedia",
@@ -218,6 +222,7 @@ const ERROR_CASES: {
   { Ctor: core.ToolHostedError, name: "ToolHostedError", code: "AGENT_TOOL_HOSTED" },
   { Ctor: core.UnsupportedContentError, name: "UnsupportedContentError", code: "AGENT_UNSUPPORTED_CONTENT" },
   { Ctor: core.ContentTooLargeError, name: "ContentTooLargeError", code: "AGENT_CONTENT_TOO_LARGE" },
+  { Ctor: core.MediaMissingError, name: "MediaMissingError", code: "AGENT_MEDIA_MISSING" },
 ];
 
 describe("error hierarchy", () => {

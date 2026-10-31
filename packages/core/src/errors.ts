@@ -31,7 +31,8 @@ export type AgentErrorCode =
   | "AGENT_TOOL_POLICY"
   | "AGENT_TOOL_HOSTED"
   | "AGENT_UNSUPPORTED_CONTENT"
-  | "AGENT_CONTENT_TOO_LARGE";
+  | "AGENT_CONTENT_TOO_LARGE"
+  | "AGENT_MEDIA_MISSING";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -433,6 +434,17 @@ export class ContentTooLargeError extends AgentError {
   }
 }
 
+/** Raised when a run's memory names media its store cannot produce. */
+export class MediaMissingError extends AgentError {
+  readonly mediaId: string | undefined;
+
+  constructor(message: string, options: AgentErrorOptions & { readonly mediaId?: string } = {}) {
+    super(message, { ...options, code: "AGENT_MEDIA_MISSING" });
+    this.name = "MediaMissingError";
+    this.mediaId = options.mediaId;
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -467,4 +479,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_TOOL_HOSTED: ToolHostedError,
   AGENT_UNSUPPORTED_CONTENT: UnsupportedContentError,
   AGENT_CONTENT_TOO_LARGE: ContentTooLargeError,
+  AGENT_MEDIA_MISSING: MediaMissingError,
 };

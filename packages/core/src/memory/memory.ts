@@ -1,4 +1,4 @@
-import type { ChatMessage, ContentPart } from "../types.js";
+import type { AudioPart, ChatMessage, ImagePart, MessageContent } from "../types.js";
 import {
   stepFromJSON,
   stepToJSON,
@@ -12,6 +12,8 @@ import {
 } from "./steps.js";
 
 export interface ToMessagesOptions {
+  /** Read media as its placeholder, for a transcript that leaves the run and must hold no bytes. */
+  mediaAsText?: boolean;
   /** Overrides the stored system prompt, for callers that render it themselves. */
   systemPrompt?: string;
   /**
@@ -35,6 +37,11 @@ export interface ToMessagesOptions {
  */
 export class AgentMemory {
   private readonly items: AnyAgentStep[] = [];
+  /**
+   * The bytes behind the references steps hold, by ref id. Filled once before a run's first
+   * request, so the transcript stays synchronous. Never part of a checkpoint.
+   */
+  readonly media = new Map<string, ImagePart | AudioPart>();
 
   /**
    * A frozen snapshot, rebuilt on access, so callers can never mutate memory through it.
@@ -61,6 +68,7 @@ export class AgentMemory {
 
   reset(): void {
     this.items.length = 0;
+    this.media.clear();
   }
 
   get systemPrompt(): string | undefined {
@@ -72,9 +80,21 @@ export class AgentMemory {
   }
 
   /** The first task's media, for a message that restates the task in its own words. */
-  get taskMedia(): readonly ContentPart[] {
+  get taskMedia(): readonly (ImagePart | AudioPart)[] {
     const task = this.items.find((s): s is TaskStep => s.kind === "task");
-    return task?.parts?.filter((part) => part.type !== "text") ?? [];
+    return (task?.attachments ?? []).flatMap((ref) => this.media.get(ref.id) ?? []);
+  }
+
+  /** A task as a request carries it. A reference with no bytes behind it reads as a placeholder. */
+  private taskContent(step: TaskStep, mediaAsText: boolean): MessageContent {
+    if (step.parts === undefined) return step.task;
+    return step.parts.map((part) => {
+      if (part.type === "text") return part;
+      const { id, mediaType, alt } = part.ref;
+      const kind = mediaType.split("/")[0] ?? "media";
+      const held = mediaAsText ? undefined : this.media.get(id);
+      return held ?? { type: "text", text: "[" + kind + ": " + (alt ?? id) + "]" };
+    });
   }
 
   get finalAnswerStep(): FinalAnswerStep | undefined {
@@ -125,7 +145,7 @@ export class AgentMemory {
         // outcomes, so earlier thoughts and earlier plans would bias it towards themselves.
         switch (step.kind) {
           case "task":
-            messages.push({ role: "user", content: step.content });
+            messages.push({ role: "user", content: this.taskContent(step, options.mediaAsText ?? false) });
             break;
           case "message":
             messages.push({ role: "user", content: step.from + ": " + step.text });
@@ -161,7 +181,7 @@ export class AgentMemory {
       }
       switch (step.kind) {
         case "task":
-          messages.push({ role: "user", content: step.content });
+          messages.push({ role: "user", content: this.taskContent(step, options.mediaAsText ?? false) });
           break;
         case "planning":
           messages.push({ role: "assistant", content: "Plan:\n" + step.plan });

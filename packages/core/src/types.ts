@@ -42,7 +42,11 @@ export interface MediaRef {
   mediaType: ImageMediaType | AudioMediaType;
   byteLength: number;
   alt?: string;
+  detail?: ImagePart["detail"];
 }
+
+/** A task's part as memory and a checkpoint hold it: text as it is, media by reference. */
+export type TaskPart = TextPart | { type: "ref"; ref: MediaRef };
 
 /** A single turn handed to a model. Provider-neutral by construction. */
 export interface ChatMessage {

@@ -66,6 +66,7 @@ export * from "./agent/guardrail.js";
 export * from "./middleware.js";
 export * from "./session/agent-session.js";
 export * from "./session/run-store.js";
+export * from "./session/media-store.js";
 export * from "./session/event-log.js";
 export {
   sendRunMessage,

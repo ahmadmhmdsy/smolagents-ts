@@ -84,7 +84,7 @@ describe("a task with media", () => {
 
     const started = events.find((event) => event.type === "run.started");
     expect(started).toMatchObject({ task: "What is this?" });
-    expect(JSON.stringify(agent.record.toJSON())).not.toContain("image/png");
+    expect(JSON.stringify(agent.record.toJSON())).not.toContain('"bytes"');
     expect(agent.record.toChatMessages()[0]).toEqual({ role: "user", content: "What is this?" });
   });
 
