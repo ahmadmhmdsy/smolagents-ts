@@ -1964,9 +1964,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
       const specs = [...this.advertisedRegistry().toSpecs()];
       // The bound answer schema travels as the final_answer parameter schema, so the model
       // validates against the contract it will be held to instead of discovering it afterwards.
-      const answer = this.finalAnswerSpec();
-      if (answer !== undefined) specs.push(answer);
-      if (specs.length > 0) options.tools = specs;
+      specs.push(this.finalAnswerSpec());
+      options.tools = specs;
     }
     return options;
   }
@@ -1979,9 +1978,22 @@ export abstract class MultiStepAgent<TOut = unknown> {
     return schema;
   }
 
-  /** The final_answer spec carrying the bound schema, for a flavour that advertises tools. */
-  protected finalAnswerSpec(): ToolSpec | undefined {
-    if (this.outputSchema === undefined) return undefined;
+  /**
+   * The final_answer spec for a flavour that advertises tools, carrying the bound schema when
+   * there is one. Without it a provider has no way to finish: it can only call what it is offered.
+   */
+  protected finalAnswerSpec(): ToolSpec {
+    if (this.outputSchema === undefined) {
+      return {
+        name: FINAL_ANSWER_TOOL_NAME,
+        description: "Return the final answer and end the run.",
+        inputSchema: {
+          type: "object",
+          properties: { answer: { type: "string", description: "The final answer." } },
+          required: ["answer"],
+        },
+      };
+    }
     const wrapped = z.toJSONSchema(z.object({ answer: this.outputSchema }), { io: "output" }) as Record<
       string,
       unknown
