@@ -5,14 +5,16 @@ describe("the models public surface", () => {
   it("exports exactly the pinned names", () => {
     // Adding an export is a deliberate act: extend this list in the same commit and say
     // why in the message, so a name never reaches a consumer unnoticed. S2b added the
-    // three provider adapters.
+    // three provider adapters; T-71 added FallbackModel and its default move rule.
     expect(Object.keys(barrel).sort()).toEqual([
       "AnthropicModel",
       "CustomModel",
+      "FallbackModel",
       "GeminiModel",
       "HuggingFaceModel",
       "OpenAICompatibleModel",
       "VERSION",
+      "isRetryableModelError",
     ]);
   });
 });

@@ -27,6 +27,32 @@ Adapters written for `MODEL_ADAPTER_VERSION` 1 keep working through a shim that
 flattens text parts and refuses media. A consumer that read `content` as a
 string uses `messageText`, because `content` can now be a parts array.
 
+## Falling back to another provider
+
+`FallbackModel` wraps an ordered list of models and is itself a `Model`, so the
+agent loop does not know it is there.
+
+    const model = new FallbackModel({
+      models: [primary, backup],
+      onFallback: ({ from, to, error }) => log.warn(from.id + " failed, trying " + to.id, error),
+    });
+
+Every call starts with the first model. It moves to the next only on a failure
+a retry could fix: a network error, a timeout, or HTTP 408, 409, 429 or 5xx.
+Another 4xx, such as a bad key or a malformed request, is thrown as it is,
+because the next provider would answer the same way. An abort is never moved.
+A stream that has already yielded a chunk is never moved either, because a
+second provider cannot continue another's partial answer.
+
+Its capabilities are the intersection of its members'. When every model fails
+with a movable error, it throws an `AggregateError` holding each failure. Pass
+`isRetryable` to replace the move rule; the default is exported as
+`isRetryableModelError`.
+
+A move adds latency and spends a second provider's tokens, so `onFallback`
+reports each one. It is a policy over models you name, not a router: there is
+no cost table, health probe or load balancing.
+
 ## Install the facade, not this package
 
 `@smolagents-ts/models` is public because the `smolagents-ts` facade re-exports
