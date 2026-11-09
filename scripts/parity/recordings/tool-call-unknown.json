@@ -1,0 +1,44 @@
+{
+  "scenario": "tool-call-unknown",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-11-09T22:21:15+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "tool-call-unknown",
+    "outcome": "final-answer",
+    "finalAnswer": "recovered",
+    "steps": [
+      "action",
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "missing_tool"
+        ],
+        "error": true
+      },
+      {
+        "toolCalls": [
+          "final_answer"
+        ],
+        "error": false
+      }
+    ],
+    "modelCalls": [
+      [
+        "system",
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "observation"
+      ]
+    ]
+  }
+}

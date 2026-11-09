@@ -1,0 +1,37 @@
+{
+  "id": "tool-call-success",
+  "agent": "tool-calling",
+  "task": "Echo the word ready, then answer with it.",
+  "tools": [
+    "echo"
+  ],
+  "planningInterval": 0,
+  "maxSteps": 4,
+  "turns": [
+    {
+      "intent": "tool-call",
+      "calls": [
+        {
+          "name": "echo",
+          "arguments": {
+            "text": "ready"
+          }
+        }
+      ]
+    },
+    {
+      "intent": "final-answer",
+      "calls": [
+        {
+          "name": "final_answer",
+          "arguments": {
+            "answer": "ready"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "parity": "equal"
+  }
+}

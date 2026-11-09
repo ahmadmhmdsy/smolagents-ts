@@ -20,8 +20,8 @@ from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 
-from smolagents import CodeAgent, Model
-from smolagents.models import ChatMessage, MessageRole
+from smolagents import CodeAgent, Model, Tool, ToolCallingAgent
+from smolagents.models import ChatMessage, ChatMessageToolCall, ChatMessageToolCallDefinition, MessageRole
 
 ROOT = Path(__file__).resolve().parents[2]
 SCENARIOS = ROOT / "scripts" / "parity" / "scenarios"
@@ -35,6 +35,24 @@ CODE_LABEL = "code"
 ROLE_MAP = {"system": "system", "user": "user", "assistant": "assistant", "tool-response": "observation"}
 
 REQUIRED = ("id", "task", "tools", "planningInterval", "maxSteps", "turns", "expect")
+
+AGENTS = ("code", "tool-calling")
+
+
+class EchoTool(Tool):
+    """The shared stub (decision 0032): the TypeScript reader defines the same tool."""
+
+    name = "echo"
+    description = "Returns the text it is given."
+    inputs = {"text": {"type": "string", "description": "The text to return."}}
+    output_type = "string"
+
+    def forward(self, text: str) -> str:
+        return text
+
+
+# The stubs a tool-calling scenario may name, keyed by name.
+STUBS = {"echo": EchoTool}
 
 
 def role_name(value: object) -> str:
@@ -88,7 +106,7 @@ def jsonable(value: object) -> object:
 class ScriptedModel(Model):
     """A model whose every call returns the next scripted turn."""
 
-    def __init__(self, contents: list[str]) -> None:
+    def __init__(self, contents: list[object]) -> None:
         super().__init__()
         self._contents = list(contents)
         self.roles: list[list[str]] = []
@@ -97,10 +115,28 @@ class ScriptedModel(Model):
         self.roles.append([role_name(message["role"]) for message in messages])
         if not self._contents:
             raise RuntimeError("the scenario script is shorter than the model calls upstream makes")
-        return ChatMessage(role=MessageRole.ASSISTANT, content=self._contents.pop(0))
+        reply = self._contents.pop(0)
+        if isinstance(reply, str):
+            return ChatMessage(role=MessageRole.ASSISTANT, content=reply)
+        calls = [
+            ChatMessageToolCall(
+                id="call_" + str(index),
+                type="function",
+                function=ChatMessageToolCallDefinition(name=call["name"], arguments=call["arguments"]),
+            )
+            for index, call in enumerate(reply)
+        ]
+        return ChatMessage(role=MessageRole.ASSISTANT, content="", tool_calls=calls)
 
 
-def scripted_contents(scenario: dict) -> list[str]:
+def turn_reply(scenario: dict, turn: dict) -> object:
+    """A code turn replies with text; a tool-calling turn with its calls, arguments as a mapping."""
+    if scenario.get("agent", "code") == "tool-calling":
+        return turn["calls"]
+    return turn["py"]
+
+
+def scripted_contents(scenario: dict) -> list[object]:
     """The scripted replies in call order: a plan before each turn the cadence plans at.
 
     Upstream plans before the first action and again every planning_interval steps. The
@@ -108,13 +144,13 @@ def scripted_contents(scenario: dict) -> list[str]:
     """
     plans = scenario.get("plans") or []
     interval = scenario.get("planningInterval") or 0
-    contents: list[str] = []
+    contents: list[object] = []
     plan_index = 0
     for index, turn in enumerate(scenario["turns"]):
         if interval > 0 and index % interval == 0 and plan_index < len(plans):
             contents.append(plans[plan_index]["py"])
             plan_index += 1
-        contents.append(turn["py"])
+        contents.append(turn_reply(scenario, turn))
     if plan_index < len(plans):
         raise SystemExit(
             scenario["id"] + " declares " + str(len(plans) - plan_index) + " plan(s) the"
@@ -134,12 +170,26 @@ def read_scenarios() -> list[dict]:
         for field in REQUIRED:
             if field not in scenario:
                 raise SystemExit(path + " is missing the field " + field)
-        if scenario["tools"]:
+        agent = scenario.get("agent", "code")
+        if agent not in AGENTS:
+            raise SystemExit(path + " declares the unknown agent " + str(agent))
+        if agent == "code" and scenario["tools"]:
             raise SystemExit(
                 path
-                + " declares tools, and this recorder builds no tool for them; a scenario"
-                + " with tools would compare two runs that both ignored them"
+                + " is a code scenario that declares tools; a tool called from code changes"
+                + " no compared field, so both runs would compare equal while ignoring it"
             )
+        unknown = [name for name in scenario["tools"] if name not in STUBS]
+        if unknown:
+            raise SystemExit(path + " names tools with no registered stub: " + ", ".join(unknown))
+        if agent == "tool-calling":
+            for index, turn in enumerate(scenario["turns"]):
+                calls = turn.get("calls")
+                if not isinstance(calls, list) or not calls:
+                    raise SystemExit(path + " turn " + str(index) + " declares no calls")
+                for call in calls:
+                    if not isinstance(call.get("name"), str) or not isinstance(call.get("arguments"), dict):
+                        raise SystemExit(path + " turn " + str(index) + " has a call without a name and arguments")
         for plan in scenario.get("plans") or []:
             if not isinstance(plan.get("py"), str) or not isinstance(plan.get("ts"), str):
                 raise SystemExit(path + " declares a plan without a Python and a TypeScript reply")
@@ -149,10 +199,14 @@ def read_scenarios() -> list[dict]:
 
 def record(scenario: dict) -> dict:
     model = ScriptedModel(scripted_contents(scenario))
-    options = {"tools": [], "model": model, "max_steps": scenario["maxSteps"]}
+    tools = [STUBS[name]() for name in scenario["tools"]]
+    options = {"tools": tools, "model": model, "max_steps": scenario["maxSteps"]}
     if scenario.get("planningInterval"):
         options["planning_interval"] = scenario["planningInterval"]
-    agent = CodeAgent(**options)
+    if scenario.get("agent", "code") == "tool-calling":
+        agent = ToolCallingAgent(**options)
+    else:
+        agent = CodeAgent(**options)
 
     final_answer = None
     saw_final = False

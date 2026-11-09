@@ -1,0 +1,53 @@
+{
+  "id": "tool-call-unknown",
+  "agent": "tool-calling",
+  "task": "Call a tool that does not exist, then answer.",
+  "tools": [],
+  "planningInterval": 0,
+  "maxSteps": 4,
+  "turns": [
+    {
+      "intent": "tool-call",
+      "calls": [
+        {
+          "name": "missing_tool",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "intent": "final-answer",
+      "calls": [
+        {
+          "name": "final_answer",
+          "arguments": {
+            "answer": "recovered"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "parity": "divergent",
+    "differsOn": [
+      "actions"
+    ],
+    "why": "Upstream 1.14.0 raises AgentToolExecutionError for an unknown tool, so the step records the call and is marked errored. Our ToolCallingAgent records the failed call, hands the model the error as the observation and leaves the step without an error. Both sides recover on the next turn. Aligning our loop is a separate decision (0032).",
+    "ourTrace": {
+      "actions": [
+        {
+          "toolCalls": [
+            "missing_tool"
+          ],
+          "error": false
+        },
+        {
+          "toolCalls": [
+            "final_answer"
+          ],
+          "error": false
+        }
+      ]
+    }
+  }
+}

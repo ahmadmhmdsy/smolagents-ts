@@ -1,0 +1,44 @@
+{
+  "scenario": "tool-call-success",
+  "meta": {
+    "upstreamVersion": "1.14.0",
+    "pythonVersion": "3.13.7",
+    "recordedAt": "2026-11-09T22:21:15+03:00",
+    "recorder": "scripts/parity/record.py"
+  },
+  "trace": {
+    "scenario": "tool-call-success",
+    "outcome": "final-answer",
+    "finalAnswer": "ready",
+    "steps": [
+      "action",
+      "action"
+    ],
+    "actions": [
+      {
+        "toolCalls": [
+          "echo"
+        ],
+        "error": false
+      },
+      {
+        "toolCalls": [
+          "final_answer"
+        ],
+        "error": false
+      }
+    ],
+    "modelCalls": [
+      [
+        "system",
+        "user"
+      ],
+      [
+        "system",
+        "user",
+        "assistant",
+        "observation"
+      ]
+    ]
+  }
+}

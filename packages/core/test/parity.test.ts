@@ -1,9 +1,9 @@
 /**
  * S1.5 — the Python-to-TypeScript parity harness.
  *
- * Every scenario in scripts/parity/scenarios is replayed through our CodeAgent here and
- * compared with the trace scripts/parity/record.py recorded from the installed upstream
- * 1.14.0. The comparison is structural and normalized: the step kinds, the position of the
+ * Every scenario in scripts/parity/scenarios is replayed through our CodeAgent, or our
+ * ToolCallingAgent for the tool-calling family (decision 0032), and compared with the trace
+ * scripts/parity/record.py recorded from the installed upstream 1.14.0. The comparison is structural and normalized: the step kinds, the position of the
  * code-execution call, each step's error presence, the final-answer value, and the roles of
  * the messages each side sent its model. Prompt text, code source and observation text are
  * never compared.
@@ -17,11 +17,15 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { CodeAgent } from "../src/agent/code-agent.js";
+import type { MultiStepAgent } from "../src/agent/multi-step-agent.js";
+import { ToolCallingAgent } from "../src/agent/tool-calling-agent.js";
 import type { AgentErrorInfo } from "../src/errors.js";
 import { finalAnswerResult, ScriptedExecutor } from "../src/testing/scripted-executor.js";
-import { MockModel } from "../src/testing/mock-model.js";
+import { MockModel, type MockTurnInput } from "../src/testing/mock-model.js";
+import { tool } from "../src/tool/tool.js";
 import type { ChatMessage } from "../src/types.js";
 
 /** The one upstream release this harness records against. */
@@ -30,10 +34,28 @@ const PINNED_UPSTREAM_VERSION = "1.14.0";
 /** The label both sides' code-execution call normalizes to. */
 const CODE_LABEL = "code";
 
+/** The shared stub (decision 0032): scripts/parity/record.py defines the same tool. */
+const echo = tool({
+  name: "echo",
+  description: "Returns the text it is given.",
+  inputSchema: z.object({ text: z.string().describe("The text to return.") }),
+  execute: ({ text }) => text,
+});
+
+/** The stubs a tool-calling scenario may name, keyed by name. */
+const STUBS = new Map([[echo.name, echo]]);
+
+interface ParityCall {
+  readonly name: string;
+  readonly arguments: Readonly<Record<string, unknown>>;
+}
+
 interface ParityTurn {
-  readonly intent: "code" | "final-answer" | "text";
-  readonly py: string;
-  readonly ts: string;
+  readonly intent: "code" | "final-answer" | "text" | "tool-call";
+  readonly py?: string;
+  readonly ts?: string;
+  /** A tool-calling turn's calls; each leg serializes the arguments its own way. */
+  readonly calls?: readonly ParityCall[];
   readonly observation?: string;
   readonly error?: AgentErrorInfo;
   readonly value?: unknown;
@@ -48,6 +70,8 @@ interface ParityExpectation {
 
 interface ParityScenario {
   readonly id: string;
+  /** Absent means "code". */
+  readonly agent?: "code" | "tool-calling";
   readonly task: string;
   readonly tools: readonly string[];
   readonly planningInterval: number;
@@ -99,16 +123,32 @@ function readScenario(id: string): ParityScenario {
   const scenario = readJson<ParityScenario>(join(SCENARIOS, id + ".json"), "parity scenario");
   if (scenario.id !== id) throw new Error("Scenario " + id + " declares the id " + scenario.id);
   if (!Array.isArray(scenario.tools)) throw new Error("Scenario " + id + " declares no tools list");
-  if (scenario.tools.length > 0) {
+  const agent = scenario.agent ?? "code";
+  if (agent !== "code" && agent !== "tool-calling") {
+    throw new Error("Scenario " + id + " declares the unknown agent " + String(agent));
+  }
+  // The recorder's rule, mirrored: a tool called from code changes no compared field, and a
+  // tool-calling scenario may name only the registered stubs.
+  if (agent === "code" && scenario.tools.length > 0) {
     throw new Error(
-      "Scenario " + id + " declares tools, and neither leg wires them: both runs would ignore them"
-        + " and compare equal. Support them in both readers first.",
+      "Scenario " + id + " is a code scenario that declares tools; both runs would ignore them"
+        + " and compare equal.",
     );
+  }
+  const unknown = scenario.tools.filter((name) => !STUBS.has(name));
+  if (unknown.length > 0) {
+    throw new Error("Scenario " + id + " names tools with no registered stub: " + unknown.join(", "));
   }
   if (!Array.isArray(scenario.turns) || scenario.turns.length === 0) {
     throw new Error("Scenario " + id + " has no turns");
   }
   for (const [index, turn] of scenario.turns.entries()) {
+    if (agent === "tool-calling") {
+      if (!Array.isArray(turn.calls) || turn.calls.length === 0) {
+        throw new Error("Scenario " + id + " turn " + index + " declares no calls");
+      }
+      continue;
+    }
     if (typeof turn.ts !== "string" || turn.ts.length === 0) {
       throw new Error("Scenario " + id + " turn " + index + " has no TypeScript script");
     }
@@ -132,10 +172,10 @@ function readScenario(id: string): ParityScenario {
  * the same interleave scripts/parity/record.py hands upstream. A plan the cadence never asks
  * for would shift every later reply by one, so it is refused rather than left unused.
  */
-function scriptedReplies(scenario: ParityScenario): string[] {
+function scriptedReplies(scenario: ParityScenario): MockTurnInput[] {
   const plans = scenario.plans ?? [];
   let planIndex = 0;
-  const replies: string[] = [];
+  const replies: MockTurnInput[] = [];
   for (const [index, turn] of scenario.turns.entries()) {
     if (
       scenario.planningInterval > 0 &&
@@ -145,7 +185,7 @@ function scriptedReplies(scenario: ParityScenario): string[] {
       replies.push(plans[planIndex]?.ts ?? "");
       planIndex += 1;
     }
-    replies.push(turn.ts);
+    replies.push(turnReply(scenario, turn));
   }
   if (planIndex < plans.length) {
     throw new Error(
@@ -157,6 +197,21 @@ function scriptedReplies(scenario: ParityScenario): string[] {
     );
   }
   return replies;
+}
+
+/** A code turn replies with text; a tool-calling turn with its calls, arguments as JSON. */
+function turnReply(scenario: ParityScenario, turn: ParityTurn): MockTurnInput {
+  if ((scenario.agent ?? "code") === "tool-calling") {
+    return {
+      content: "",
+      toolCalls: (turn.calls ?? []).map((call, index) => ({
+        id: "call_" + String(index),
+        name: call.name,
+        arguments: JSON.stringify(call.arguments),
+      })),
+    };
+  }
+  return turn.ts ?? "";
 }
 
 /**
@@ -181,12 +236,23 @@ function normalizeRoles(messages: readonly ChatMessage[]): string[] {
   return roles;
 }
 
-async function replay(scenario: ParityScenario): Promise<ParityTrace> {
+function buildAgent(scenario: ParityScenario, model: MockModel): MultiStepAgent {
+  if ((scenario.agent ?? "code") === "tool-calling") {
+    return new ToolCallingAgent({
+      model,
+      tools: scenario.tools.map((name) => STUBS.get(name)).filter((stub) => stub !== undefined),
+      maxSteps: scenario.maxSteps,
+      planningInterval: scenario.planningInterval,
+    });
+  }
+  return buildCodeAgent(scenario, model);
+}
+
+function buildCodeAgent(scenario: ParityScenario, model: MockModel): CodeAgent {
   // Only the turns that produce an action reach the executor, in scenario order: a
   // prose turn is recorded by the loop as a parsing error and never executes.
   const executing = scenario.turns.filter((turn) => turn.intent !== "text");
   let index = 0;
-  const model = new MockModel(scriptedReplies(scenario));
   const executor = new ScriptedExecutor({
     handler: (code, options) => {
       const turn = executing[index];
@@ -205,12 +271,17 @@ async function replay(scenario: ParityScenario): Promise<ParityTrace> {
     },
   });
 
-  const agent = new CodeAgent({
+  return new CodeAgent({
     model,
     executor,
     maxSteps: scenario.maxSteps,
     planningInterval: scenario.planningInterval,
   });
+}
+
+async function replay(scenario: ParityScenario): Promise<ParityTrace> {
+  const model = new MockModel(scriptedReplies(scenario));
+  const agent = buildAgent(scenario, model);
 
   let outcome = "error";
   let finalAnswer: unknown = null;
