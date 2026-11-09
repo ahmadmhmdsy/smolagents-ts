@@ -28,8 +28,8 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
-| 0037 | provider fallback and local runtimes are scheduled, ahead of retrieval | accepted | 2026-11-09 |
-| 0036 | 0.1.0 ships from a frozen release line, and main moves on before the publish | accepted | 2026-11-09 |
+| 0038 | provider fallback and local runtimes are scheduled, ahead of retrieval | accepted | 2026-11-09 |
+| 0037 | 0.1.0 ships from a frozen release line, and main moves on before the publish | accepted | 2026-11-09 |
 | 0035 | the fixed group stays at six, and the review hardening ships in 0.1.0 | accepted | 2026-10-31 |
 | 0034 | multimodal input is in, input-only, and it is the 0.2.0 phase | accepted | 2026-10-25 |
 | 0033 | the Pyodide interrupt stays deferred, and the worker path is pre-registered | accepted | 2026-10-25 |

@@ -4,7 +4,7 @@
   release-identity change (the version bump, the `version:check` gate stage and the
   two version streams); amended 2026-10-25 by decision `0030` (the release gate,
   the token class, the recovery rule, the release-note step and the step-3
-  expectation); amended 2026-11-09 by decision `0036` (0.1.0 publishes from
+  expectation); amended 2026-11-09 by decision `0037` (0.1.0 publishes from
   `release/0.1.0`; `release-guide.md` gives the order). Every step below is a
   hypothesis until the first run.
 - **Estimated duration:** 20–30 minutes, plus the registry's propagation delay.
@@ -62,7 +62,7 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
       `changeset publish` stops mid-way on `EOTP` and leaves a partial release.
 - [ ] `git status --porcelain` is empty on the release branch, the branch
       equals its `origin` counterpart, and the tip's CI run is green. For 0.1.0
-      the branch is `release/0.1.0` (decision `0036`); for later releases it is
+      the branch is `release/0.1.0` (decision `0037`); for later releases it is
       `main`. Push first if the release commit is still local; a green local
       gate is not a green CI run. `release-guide.md` says which branch and what
       follows the publish.
@@ -99,7 +99,7 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
        # state that no longer occurs here (decision 0030 corrects it).
        # On release/0.1.0 add --since=HEAD: the configured base is main, and
        # without it the 0.1.0 fixes read as changes with no changeset (exit 1,
-       # observed 2026-11-09; decision 0036).
+       # observed 2026-11-09; decision 0037).
 
 4. Apply the bump — skip to step 5 when it is already applied. `commit: false`
    in `.changeset/config.json` means this writes the manifests, the CHANGELOGs

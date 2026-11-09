@@ -1,4 +1,4 @@
-# 0036 — 0.1.0 ships from a frozen release line, and main moves on before the publish
+# 0037 — 0.1.0 ships from a frozen release line, and main moves on before the publish
 
 **Contract**
 - **Role:** one decision, with its context and consequences.
@@ -36,7 +36,7 @@ One defect also had to reach the 0.1.0 line: a `ToolCallingAgent` without an `ou
 
 **Positive**
 
-- The post-release phases land on `main` now, in the owner's order ([0037](0037-provider-fallback-and-local-runtimes-before-retrieval.md)).
+- The post-release phases land on `main` now, in the owner's order ([0038](0038-provider-fallback-and-local-runtimes-before-retrieval.md)).
 - 0.1.0 stays exactly the six-phase program plus 0.1.0 fixes, and the publish procedure is unchanged apart from the branch name.
 
 **Negative / accepted costs**

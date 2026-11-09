@@ -41,7 +41,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0036`) | `0030`; `0036` |
+| T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0037`) | `0030`; `0037` |
 | T-19 | grow the parity corpus a tool-calling scenario family | pending | next session | `scripts/parity/**`, `packages/core/test/parity.test.ts` | `0032`: `agent` axis, `calls` turns, one shared `echo` stub, success and unknown-tool scenarios; five recordings untouched | - |
 | T-24 | give the Pyodide executor its pre-registered worker | blocked | owner | `packages/exec-pyodide/**` | `0033`: no headers; a browser runner, a caller without remote executors, or a recorded hang | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
@@ -50,8 +50,8 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-56 | write and run the multimodal input plan (0.2.0's headline) | pending | lead | `packages/core/**`, `packages/models/**`, `packages/react-ui/**` | after 0.1.0; `0034`: input parts, adapter v2 + the v1 shim test, honest capabilities, attachments without executor changes, `MediaRef`s in snapshots | plan: `docs/plans/2026-10-31-multimodal-input-plan.md`, draft, build awaits the owner |
 | T-57 | run the D-12 residual-risk batch (fork first) | pending | next session | `packages/core/test/`, `docs/**`, `docs/.baseline.json` | fork-at-`intent` test; claim-board fence and child-store docs; the v2 shim test and Anthropic split fixture ride `T-56`; #4's sentence in README until `T-52`; live Docker/E2B when an account exists; D-03's guard; re-baseline | - |
 | T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
-| T-71 | `FallbackModel`: move to the next model on a retryable failure | pending | lead | `packages/models/**` | `0037` item 1: network, timeout, 408/409/429/5xx move; other 4xx and aborts do not; no move after the first stream delta; capabilities intersect | - |
-| T-72 | local runtime presets over `OpenAICompatibleModel` | pending | lead | `packages/models/**`, `docs/10-runbooks/live-provider-smoke.md` | `0037` item 2: Ollama, LM Studio, llama.cpp, vLLM; default base URL, no key, honest capabilities, no process started | - |
+| T-71 | `FallbackModel`: move to the next model on a retryable failure | pending | lead | `packages/models/**` | `0038` item 1: network, timeout, 408/409/429/5xx move; other 4xx and aborts do not; no move after the first stream delta; capabilities intersect | - |
+| T-72 | local runtime presets over `OpenAICompatibleModel` | pending | lead | `packages/models/**`, `docs/10-runbooks/live-provider-smoke.md` | `0038` item 2: Ollama, LM Studio, llama.cpp, vLLM; default base URL, no key, honest capabilities, no process started | - |
 | T-73 | split `multi-step-agent.ts` into modules without changing behaviour | pending | lead | `packages/core/src/agent/**` | after the T-56 merge; the core suite passes unchanged and the public exports are identical | - |
 <!-- rotate:end -->
 

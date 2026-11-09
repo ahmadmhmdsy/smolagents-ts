@@ -1,6 +1,6 @@
 # 10 — Runbook: the release guide
 
-- **Last verified:** never executed. Written 2026-11-09 with decision `0036`. Every step is a hypothesis until the first release.
+- **Last verified:** never executed. Written 2026-11-09 with decision `0037`. Every step is a hypothesis until the first release.
 - **Estimated duration:** one hour for 0.1.0, including the account setup. About 30 minutes for each later release.
 - **Risk:** high. A published version is immutable, see `publish-0.1.0.md`.
 - **Reversible:** no. The only correction is a new version plus `npm deprecate`.
@@ -12,7 +12,7 @@
 - **Read when:** you are about to publish, or you are asking which branch a fix belongs on.
 - **Update when:** a release ran and something differed, or a decision changes the branch model.
 
-**Why this file exists:** 0.1.0 is published from `release/0.1.0` while `main` already carries the next version's work (decision `0036`). Without one page that states the order, an operator would publish the wrong branch or lose a release fix.
+**Why this file exists:** 0.1.0 is published from `release/0.1.0` while `main` already carries the next version's work (decision `0037`). Without one page that states the order, an operator would publish the wrong branch or lose a release fix.
 
 ---
 
@@ -33,7 +33,7 @@ Do **not** use this for a prerelease under a dist-tag; `publish-0.1.0.md` refuse
 | Branch | Carries | Version it publishes |
 |---|---|---|
 | `release/0.1.0` | the six-phase program plus 0.1.0 fixes, folded into the 0.1.0 changelogs (no `.changeset/*.md`) | 0.1.0 |
-| `main` | everything after 0.1.0: multimodal input (0034), provider fallback and local runtimes (0037), retrieval (0026), each with a changeset | the next version that `changeset version` computes |
+| `main` | everything after 0.1.0: multimodal input (0034), provider fallback and local runtimes (0038), retrieval (0026), each with a changeset | the next version that `changeset version` computes |
 
 **Where a fix goes before 0.1.0 is out.** A defect that 0.1.0 ships lands on `release/0.1.0` first, folded into the package's 0.1.0 changelog under "Patch Changes". Then merge `release/0.1.0` forward into `main`. Never cherry-pick from `main` back to the release line again: the history keeps one direction.
 
