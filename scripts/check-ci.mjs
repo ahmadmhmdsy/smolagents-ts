@@ -103,8 +103,30 @@ check("runtime-matrix runs runtime-smoke once per runtime, under its own conditi
   return true;
 });
 
+// D-03's guard (decision 0017, plan D-12): the release-age exemptions are the evidence the
+// quarantine is active, and nothing else stops a local install from appending one. The list must
+// equal this one exactly; changing it is a reviewed edit to both files, never a side effect.
+const RELEASE_AGE_EXEMPTIONS = ["@e2b/code-interpreter@2.9.0", "@e2b/dockerfile-utils@0.1.1", "e2b@2.56.0"];
+check("minimumReleaseAgeExclude matches the reviewed list", () => {
+  const workspace = parse(readFileSync(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8"));
+  const listed = [...(workspace.minimumReleaseAgeExclude || [])].map(String).sort();
+  const expected = [...RELEASE_AGE_EXEMPTIONS].sort();
+  if (JSON.stringify(listed) !== JSON.stringify(expected)) {
+    const added = listed.filter((entry) => !expected.includes(entry));
+    const removed = expected.filter((entry) => !listed.includes(entry));
+    throw new Error(
+      "pnpm-workspace.yaml exempts " + JSON.stringify(listed) + "; added " + JSON.stringify(added) +
+        ", removed " + JSON.stringify(removed) + ". Review the change, then update RELEASE_AGE_EXEMPTIONS here.",
+    );
+  }
+  return true;
+});
+
 if (failures.length > 0) {
   for (const failure of failures) console.error("  - " + failure);
   throw new Error("ci:check FAILED: " + failures.length + " assertion(s) failed");
 }
-console.log("ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm " + declaredVersion);
+console.log(
+  "ci:check OK: 2 jobs, node 22/24/26, runtime node/bun/deno, pnpm " + declaredVersion +
+    ", " + RELEASE_AGE_EXEMPTIONS.length + " release-age exemptions",
+);

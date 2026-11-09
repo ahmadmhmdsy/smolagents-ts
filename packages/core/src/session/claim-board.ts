@@ -2,6 +2,17 @@ import { RunNotFoundError, TaskBlockedError, TaskDeletedError, TaskStaleRevision
 import { translateRecord, type RunRecord } from "./run-record.js";
 import type { RunStore } from "./run-store.js";
 
+/*
+ * Concurrency, stated rather than enforced (plan D-12):
+ * - The compare-and-set fence is the parent record's generation, not the row's revision. Two
+ *   writers mutating different rows of one parent still race: the second commit is refused with
+ *   the store's typed conflict and must reload and retry. It is never merged.
+ * - The row revision guards the row's own lifecycle (claim, update, delete) against a stale
+ *   reader; it does not make writes to different rows independent.
+ * - A store that adds per-row commits must keep both guarantees: a lost write is a refusal, and a
+ *   tombstone stays readable.
+ */
+
 /** What a board row is doing. A tombstone stays readable and refuses every mutation. */
 export type BoardStatus = "open" | "claimed" | "blocked" | "done" | "deleted";
 

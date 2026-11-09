@@ -1,5 +1,11 @@
 # 0035 — the fixed group stays at six, and the review hardening ships in 0.1.0
 
+**Contract**
+- **Role:** the record that keeps the changeset `fixed` group at six packages and ships the 2026-10-31 review hardening in 0.1.0 rather than 0.2.0.
+- **Mutability:** frozen once accepted. A reversal is a separate record; this one stays as written. This block was added on 2026-11-09 by T-57 and changes no decided text.
+- **Read when:** editing `.changeset/config.json`'s `fixed` group, or deciding which line a hardening fix ships on.
+- **Update when:** never. A reversal is a new record.
+
 - **Status:** accepted
 - **Date:** 2026-10-31T23:30:00+03:00
 - **Decided by:** the lead, on the owner's instruction of 2026-10-31 to proceed and to move the version only if needed

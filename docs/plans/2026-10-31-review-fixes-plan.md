@@ -1,5 +1,11 @@
 # Plan — fix the 2026-10-31 review findings
 
+**Contract**
+- **Role:** the fix plan for the 2026-10-31 full review: each finding, its fix, and the evidence that closes it.
+- **Mutability:** live while `in_progress`. A finding's row and evidence are updated in place; a finding is never dropped without a recorded reason.
+- **Read when:** checking whether a 2026-10-31 review finding is fixed, or picking up one that is not.
+- **Update when:** a finding is fixed, deferred, or found not to reproduce.
+
 - **Status:** in_progress
 - **Owner:** lead
 - **Created:** 2026-10-31T11:00:00+03:00

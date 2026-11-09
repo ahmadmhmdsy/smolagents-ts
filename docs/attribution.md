@@ -1,9 +1,15 @@
 # Attribution
 
+**Contract**
+- **Role:** the record of what this project takes from upstream smolagents, file by file, and under which licence.
+- **Mutability:** live. A row is updated in place when a module is translated, adapted or dropped; the pinned upstream commit changes only with a recorded re-pin.
+- **Read when:** translating or porting an upstream module, or checking what a release owes upstream.
+- **Update when:** a module's treatment changes, or the pinned upstream commit moves.
+
 smolagents-ts is derived from [smolagents](https://github.com/huggingface/smolagents),
 commit 96f33faaf028479119ec8d34507b47694cf14e34 (v1.27.0.dev0, 2026-10-06), Apache-2.0.
 
-The table records, per upstream file, what this project does with it. It is kept current as modules are
+For each upstream file, the table records what this project does with it. It is kept current as modules are
 ported; a module is not "done" until its row is accurate.
 
 | upstream file | disposition | this project |

@@ -19,6 +19,8 @@ preferFrozenLockfile: true
 # The exemptions apply to this development tree only; no published package carries
 # them. Each entry is temporary: at the next vendor-peer bump, try deleting it and
 # keep it only if a frozen-lockfile install still needs it.
+# `pnpm ci:check` fails when this list differs from the reviewed copy in
+# scripts/check-ci.mjs (RELEASE_AGE_EXEMPTIONS); change both together.
 allowBuilds:
   cpu-features: false
   esbuild: true

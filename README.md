@@ -104,6 +104,18 @@ The other executors, the MCP client and the remote backends are described in
 [docs/design/2026-10-12-smolagents-ts-v1-design.md](docs/design/2026-10-12-smolagents-ts-v1-design.md)
 and their plans under [docs/plans/](docs/plans).
 
+## Limits on a run
+
+`limits` caps a run's turns, output tokens, total tokens and cost
+(`maxCostUsd`, priced from `priceTable`; a model the table does not price is
+never stopped by cost). A stopped run reports which limit it hit.
+
+One gap to know before you rely on the cost cap across a restart: a run
+resumed from its record re-counts turns and tokens from the steps it already
+holds, but **its cost counter starts at zero**, because a step records tokens,
+not a price. To keep one cost ceiling over a whole conversation, pass the same
+`budget` handle (`createBudgetHandle`) to every run, including the resumed one.
+
 ## The command line
 
     pnpm build

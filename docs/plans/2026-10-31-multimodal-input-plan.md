@@ -1,5 +1,11 @@
 # Plan — multimodal input for 0.2.0
 
+**Contract**
+- **Role:** the build plan for multimodal input (decision 0034), phase by phase, with the task rows each phase closes.
+- **Mutability:** live while `in_progress`. A phase's status and its evidence are updated in place; a change of scope is a dated entry, never a silent rewrite.
+- **Read when:** working on `T-56`, the media parts, or the version-1 adapter shim.
+- **Update when:** a phase lands, its scope changes, or a premise stops matching the code.
+
 - **Status:** in_progress
 - **Owner:** lead
 - **Created:** 2026-10-31T23:55:00+03:00
