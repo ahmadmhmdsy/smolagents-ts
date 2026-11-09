@@ -24,3 +24,5 @@
   observation, so the next turn can react to what went wrong.
 - The session snapshot gained a planning lane, which a reader can follow while the planning
   step is still streaming.
+- A `ToolCallingAgent` without an `outputSchema` now offers `final_answer` on the request.
+  Before this a real provider had no way to finish such a run, and it ended at `maxSteps`.

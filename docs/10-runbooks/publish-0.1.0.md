@@ -4,7 +4,9 @@
   release-identity change (the version bump, the `version:check` gate stage and the
   two version streams); amended 2026-10-25 by decision `0030` (the release gate,
   the token class, the recovery rule, the release-note step and the step-3
-  expectation). Every step below is a hypothesis until the first run.
+  expectation); amended 2026-11-09 by decision `0037` (0.1.0 publishes from
+  `release/0.1.0`; `release-guide.md` gives the order). Every step below is a
+  hypothesis until the first run.
 - **Estimated duration:** 20–30 minutes, plus the registry's propagation delay.
 - **Risk:** high — a published version is immutable. npm refuses to unpublish a
   version older than 72 hours, and refuses outright once anything depends on it.
@@ -34,7 +36,8 @@ next release) on npm. It is also the procedure for every later release: the
 version in the title is the first one, not the only one.
 
 Do **not** use it for a prerelease under a dist-tag, and do **not** start it from
-a tree whose gate is red or whose `main` is behind `origin`.
+a tree whose gate is red or whose release branch is behind `origin`. Read
+`release-guide.md` first: 0.1.0 publishes from `release/0.1.0`, not `main`.
 
 **Two version streams live at this root.** `VERSION` (currently 2.0.0) and the
 root `CHANGELOG.md` belong to the context pack; `context-pack.json` records
@@ -57,9 +60,12 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
       token). It is **not** in this repository: a local secrets file is not pack
       surface, and `.env` is never read by this procedure. Without the bypass,
       `changeset publish` stops mid-way on `EOTP` and leaves a partial release.
-- [ ] `git status --porcelain` is empty on `main`, `main` equals
-      `origin/main`, and the tip's CI run is green. Push first if the release
-      commit is still local; a green local gate is not a green CI run.
+- [ ] `git status --porcelain` is empty on the release branch, the branch
+      equals its `origin` counterpart, and the tip's CI run is green. For 0.1.0
+      the branch is `release/0.1.0` (decision `0037`); for later releases it is
+      `main`. Push first if the release commit is still local; a green local
+      gate is not a green CI run. `release-guide.md` says which branch and what
+      follows the publish.
 - [ ] Either at least one pending changeset exists under `.changeset/`, or the
       bump is already applied and reviewed in the tree (the 0.1.0 re-cut: no
       changesets remain, all eleven manifests and markers read 0.1.0).
@@ -91,6 +97,9 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
        # empty "Packages to be bumped:" list — that is the expected state, not a
        # failure. Observed 2026-10-25; the earlier exit-1 expectation described a
        # state that no longer occurs here (decision 0030 corrects it).
+       # On release/0.1.0 add --since=HEAD: the configured base is main, and
+       # without it the 0.1.0 fixes read as changes with no changeset (exit 1,
+       # observed 2026-11-09; decision 0037).
 
 4. Apply the bump — skip to step 5 when it is already applied. `commit: false`
    in `.changeset/config.json` means this writes the manifests, the CHANGELOGs
@@ -146,7 +155,8 @@ second stream only; the root `VERSION` and `CHANGELOG.md` are never staged here.
    is what rewrites `workspace:*` on the way out. If that line ever disappears,
    publish the rest with `pnpm -r publish` instead.
 
-10. Push the commit and the tags together, then confirm CI on the pushed commit:
+10. Push the commit and the tags together, then confirm CI on the pushed commit.
+    For 0.1.0 push `release/0.1.0` instead of `main` (`release-guide.md` Part A):
 
         git push --follow-tags origin main
         # the CI run on this sha must be green; Pages deploys the same commit
