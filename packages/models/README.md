@@ -53,6 +53,25 @@ A move adds latency and spends a second provider's tokens, so `onFallback`
 reports each one. It is a policy over models you name, not a router: there is
 no cost table, health probe or load balancing.
 
+## Local runtimes
+
+Ollama, LM Studio, llama.cpp's `llama-server` and vLLM all speak the
+OpenAI-compatible wire, so each has a preset over `OpenAICompatibleModel`
+rather than an adapter of its own:
+
+    const model = ollamaModel({ model: "qwen3:8b" });
+
+| preset | default address | tool calls |
+|---|---|---|
+| `ollamaModel` | `http://localhost:11434/v1` | yes |
+| `lmStudioModel` | `http://localhost:1234/v1` | yes |
+| `llamaCppModel` | `http://localhost:8080/v1` | claim it when the server runs with `--jinja` |
+| `vllmModel` | `http://localhost:8000/v1` | claim it when the server runs with `--enable-auto-tool-choice` |
+
+No key is needed; pass `apiKey` if you started the server with one. Images and
+audio are off, because they depend on the model you loaded; claim them through
+`capabilities`. A preset starts no process: run the server yourself.
+
 ## Install the facade, not this package
 
 `@smolagents-ts/models` is public because the `smolagents-ts` facade re-exports

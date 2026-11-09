@@ -7,7 +7,8 @@
   variable change.
 - **Read when:** after an adapter change, before a release, or when a provider
   moves and the fixtures cannot say whether the wire format still holds.
-- **Update when:** a check is added or removed, or the key's variable name changes.
+- **Update when:** a check is added or removed, the key's variable name changes, or a local
+  runtime preset's default address changes.
 
 **Why this file exists:** every unit test in this repository drives an injected
 fetch against a recorded fixture, so nothing in the gate reaches a provider. This
@@ -75,6 +76,50 @@ prints their text, and exits. The only cost is the calls themselves.
 | a 401 or 403 | the key is absent, revoked or not enabled for the API | the owner reissues it; the script cannot |
 | the streaming check fails on usage | the adapter stopped reading the provider's usage field | check the adapter's streamed payload and its fixture test |
 | `Cannot find module .../dist/index.js` | the packages were not built | run step 1 |
+
+## Local runtimes
+
+The four presets (`ollamaModel`, `lmStudioModel`, `llamaCppModel`, `vllmModel`)
+are tested against the OpenAI fixture only. This check calls a runtime that is
+already running on this host. The script starts no server, and it needs no key.
+
+1. Start the runtime yourself and load a model, for example `ollama serve`
+   and then `ollama pull qwen3:8b`. Each preset's default address:
+
+   | `LOCAL_RUNTIME` | preset | default address |
+   |---|---|---|
+   | `ollama` | `ollamaModel` | `http://localhost:11434/v1` |
+   | `lm-studio` | `lmStudioModel` | `http://localhost:1234/v1` |
+   | `llama-cpp` | `llamaCppModel` | `http://localhost:8080/v1` |
+   | `vllm` | `vllmModel` | `http://localhost:8000/v1` |
+
+2. Build, then run the check. `LOCAL_MODEL` names a model the server serves;
+   llama.cpp answers with whatever model it loaded, so it may be left out there.
+   `LOCAL_BASE_URL` overrides the address, and `LOCAL_API_KEY` is sent only
+   when set:
+
+       pnpm build
+       LOCAL_RUNTIME=ollama LOCAL_MODEL=qwen3:8b pnpm local:smoke
+
+**Verification:**
+
+- With a server, expect two "ok" lines and then `local-smoke OK (<runtime>, <model>)`.
+- With no server at the address, expect `local-smoke SKIPPED: no <runtime> server answered` and exit 0.
+- When something else answers at the address, the script reports FAILED with
+  that server's HTTP error and exits 1. On 2026-11-09 this happened on the
+  owner's machine, where an unrelated HTTPS server held port 8000; set
+  `LOCAL_BASE_URL` to the runtime's real address.
+
+**Why a check can fail:**
+
+- A preset reports tool calls only where the runtime parses them without extra
+  flags: Ollama and LM Studio do. llama.cpp needs `--jinja`, and vLLM needs
+  `--enable-auto-tool-choice` with a `--tool-call-parser`. Claim them through
+  `capabilities` once the server runs with those flags.
+- Images and audio are off in every preset, because they depend on the model
+  loaded and not on the runtime.
+
+No live run against a local runtime has been recorded yet.
 
 ## Notes
 

@@ -11,3 +11,5 @@ export { HuggingFaceModel } from "./huggingface.js";
 export type { HuggingFaceOptions } from "./huggingface.js";
 export { FallbackModel, isRetryableModelError } from "./fallback.js";
 export type { FallbackEvent, FallbackModelOptions } from "./fallback.js";
+export { ollamaModel, lmStudioModel, llamaCppModel, vllmModel } from "./local.js";
+export type { LocalModelOptions } from "./local.js";

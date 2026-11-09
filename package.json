@@ -25,6 +25,7 @@
     "pack:smoke": "node scripts/pack-smoke.mjs",
     "ci:check": "node scripts/check-ci.mjs",
     "live:smoke": "node scripts/live-smoke.mjs",
+    "local:smoke": "node scripts/local-smoke.mjs",
     "site:build": "pnpm --filter example-vite-app run build && pnpm --filter docs-site run build",
     "gate": "pnpm typecheck && pnpm version:check && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm publint && pnpm attw && pnpm ci:check && pnpm pack:smoke && pnpm site:build"
   },
