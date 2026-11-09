@@ -67,7 +67,7 @@ smoke green (11 tarballs) and the site build green (76 pages).
 The gate changes no source file. It writes `dist/` inside each package and a
 temporary consumer directory under the system temp folder. To undo a build:
 
-    git clean -fd packages/cli/dist packages/core/dist packages/exec-pyodide/dist packages/exec-quickjs/dist packages/exec-remote/dist packages/mcp/dist packages/models/dist packages/react/dist packages/react-ui/dist packages/smolagents-ts/dist packages/tools/dist
+    git clean -fd packages/cli/dist packages/core/dist packages/exec-pyodide/dist packages/exec-quickjs/dist packages/exec-remote/dist packages/mcp/dist packages/models/dist packages/react/dist packages/react-ui/dist packages/retrieval/dist packages/smolagents-ts/dist packages/tools/dist
 
 Do not reach for `git clean -fdx`: `-x` also removes the ignored vendored
 trees, which are expensive to re-clone.

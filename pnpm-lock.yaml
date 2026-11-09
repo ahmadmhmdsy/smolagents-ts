@@ -447,6 +447,19 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
 
+  packages/retrieval:
+    dependencies:
+      '@smolagents-ts/core':
+        specifier: workspace:*
+        version: link:../core
+      zod:
+        specifier: ^4.0.0
+        version: 4.6.6
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+
   packages/smolagents-ts:
     dependencies:
       '@smolagents-ts/core':

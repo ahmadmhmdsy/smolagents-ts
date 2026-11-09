@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { gunzipSync } from "node:zlib";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "react-ui", "cli", "mcp"];
+const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "react-ui", "cli", "mcp", "retrieval"];
 /** The published name: its tarball is the only one that is not scoped. */
 const FACADE = "smolagents-ts";
 

@@ -9,6 +9,13 @@ module.exports = {
       to: { dependencyTypes: ["core"] },
     },
     {
+      name: "retrieval-no-node-builtins",
+      severity: "error",
+      comment: "packages/retrieval is isomorphic: it runs wherever core runs (plan 2026-11-09-retrieval-plan).",
+      from: { path: "^packages/retrieval/src" },
+      to: { dependencyTypes: ["core"] },
+    },
+    {
       name: "core-no-react",
       severity: "error",
       comment: "core is framework-agnostic (design spec 5.3, layer L0).",

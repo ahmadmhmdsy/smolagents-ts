@@ -1,0 +1,55 @@
+{
+  "name": "@smolagents-ts/retrieval",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "Retrieval beside the agent: an embedder interface with a deterministic local default, a vector store interface with an in-memory reference, and a retriever that augments a task or becomes a tool.",
+  "keywords": [
+    "smolagents",
+    "agents",
+    "retrieval",
+    "rag",
+    "embeddings",
+    "vector-store"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/retrieval"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
+  },
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  }
+}

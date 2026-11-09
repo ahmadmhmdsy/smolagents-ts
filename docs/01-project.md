@@ -65,10 +65,12 @@ Three parts are hard to get right independently:
 - A Hub client or a model-hosting service.
 - An "improved" rewrite of upstream semantics. Where upstream is opinionated,
   the opinion is ported and documented.
-- A RAG or vector-store layer, a dev UI or Studio, a streaming UI transport,
-  voice, an agent-to-agent protocol, MCP server authoring, and a workspace
-  sandbox — the platform gaps decision 0018 keeps out. Multimodal input is the
-  one exception: decision 0034 schedules it, while output modalities stay out.
+- A dev UI or Studio, a streaming UI transport, voice, an agent-to-agent
+  protocol, MCP server authoring, and a workspace sandbox — the platform gaps
+  decision 0018 keeps out. Two are exceptions: decision 0034 schedules
+  multimodal input, while output modalities stay out; and decisions 0026 and
+  0038 bring retrieval in as the separate `@smolagents-ts/retrieval` package,
+  while a hosted vector database stays a caller's `VectorStore`.
 
 ## Success criteria
 
