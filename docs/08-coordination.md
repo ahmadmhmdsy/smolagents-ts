@@ -37,7 +37,7 @@ renewable.
 | task-7 docs truth pass (the 2026-10-21 review) | docs-truth | `docs/**` except `docs/reports/**` and `docs/10-runbooks/publish-0.1.0.md`; `scripts/_packmodel.py`, `scripts/checks.py`; every package and app `AGENTS.md` whose test count was stale; `docs/memory/**` | 2026-10-21T15:42+03:00 | 2026-10-21T17:42+03:00 | released |
 | T-58 to T-66; reclaims the stale T-13 `packages/exec-remote/**` and `examples/vite-app/**` scope | lead | `packages/{exec-remote,tools,mcp,cli}/**`, `examples/vite-app/**`, `.github/**`, `.changeset/**`, `README.md`, `.gitignore`, `docs/**` | 2026-10-31T11:00+03:00 | 2026-10-31T13:00+03:00 | released |
 | T-67 to T-70 | lead | `packages/{exec-remote,cli,mcp,tools}/**`, `package.json`, `pnpm-lock.yaml`, `examples/vite-app/package.json`, `packages/react*/package.json`, `.changeset/**`, `docs/**` | 2026-10-31T21:30+03:00 | 2026-10-31T23:30+03:00 | released |
-| T-14 release line, T-56 merge, T-19, T-57, T-71 to T-73, T-55 | lead | `packages/**`, `scripts/parity/**`, `.github/**`, `.changeset/**`, `docs/**`, `examples/**`, `package.json`, `pnpm-lock.yaml`, `README.md` | 2026-11-09T21:30+03:00 | 2026-11-09T23:30+03:00 | active |
+| T-14 release line, T-56 merge, T-19, T-57, T-71 to T-73, T-55 | lead | `packages/**`, `scripts/parity/**`, `.github/**`, `.changeset/**`, `docs/**`, `examples/**`, `package.json`, `pnpm-lock.yaml`, `README.md` | 2026-11-09T21:30+03:00 | 2026-11-09T23:30+03:00 | released |
 <!-- rotate:end -->
 
 1. Read the claims table before touching anything.

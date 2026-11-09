@@ -4,6 +4,22 @@ Rotated entries, newest first. Rotation moves; it never deletes.
 
 ---
 
+## 2026-10-25T23:05:00+03:00 — T-48 lands: parity is re-adjudicated, planning is measured
+
+**State.** The pre-release sequence is complete: `T-49`, `T-50`, `T-51`, `T-39` and `T-48` are done. Only `T-14`'s release gate remains; every other live row is post-release work.
+
+**Did.** Re-recorded all six traces against upstream 1.14.0: the five existing traces are identical apart from `meta.recordedAt`, so the endings and planning changes moved no compared field, and no `differsOn` set changed. Added `planning-cadence`, the scenario S1.5 declined: planning at step 0, two actions, one scripted plan. The recorder and the replay now interleave a plan only where both sides' cadence asks for one, and both refuse a plan list the run never reaches. The scenario replays equal, step kinds and model-call roles included. Corrected the runbook's "two divergences ship" note to the one that remains (the max-steps terminal shape), taught it the `plans` field, and cited `0027` in the step-budget expectation.
+
+**Verified.** `pnpm vitest run --project core`: 63 files and 681 tests, exit 0 (parity 7); every recording carries `upstreamVersion` 1.14.0 on Python 3.13.7; the validator and the full gate green.
+
+**Unverified / open.** The plan text is a scripted reply, not a model's plan, so the scenario measures where planning sits and what it sends, never plan quality. The tool-calling family (`T-19`) still owns the schema's `agent` axis.
+
+**Next.** The 0.1.0 release under `T-14`.
+
+**Blockers.** `T-14` on npm credentials and the scope claim; `T-24`, `T-52`, `T-54` on the owner.
+
+**Artifacts.** [`planning-cadence.json`](../scripts/parity/scenarios/planning-cadence.json), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md), [`0027`](09-decisions/0027-a-run-that-runs-out-of-room-throws.md).
+
 ## 2026-10-25T22:55:00+03:00 — T-39 lands: D-08's phase 0 ships
 
 **State.** `D-08`'s phase 0 is done. `T-48` (parity re-adjudication) is the last live row before the `T-14` release; phase 1 stays parked behind `T-54`'s demand.

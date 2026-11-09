@@ -33,6 +33,22 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+## 2026-11-09T23:20:00+03:00 — Fallback, local runtimes and retrieval are on main, unpublished
+
+**State.** `main` is at `390544e`, 24 commits ahead of `origin/main`, unpushed; so are `release/0.1.0` and `release/0.2-multimodal`. Nothing is published: the owner publishes later by `docs/10-runbooks/release-guide.md`. Every follow-up in decision `0038` is done.
+
+**Did.** `T-71` `FallbackModel` (`a0659b8`). `T-72` local runtime presets and `pnpm local:smoke` (`c377590`). `T-55` the new package `@smolagents-ts/retrieval`, outside the fixed group (`390544e`, plan `docs/plans/2026-11-09-retrieval-plan.md`). Added `rules/components/retrieval.md` under the owner's "proceed with them", since a component needs its rule file; `rules/` is approval-only, so the owner should review it. Retrieval left the `docs/01-project.md` non-goals.
+
+**Verified.** `pnpm vitest run --project retrieval`: 4 files, 31 passed. `pnpm gate`: exit 0. `validate_context.py` and `rotate.py --check`: exit 0.
+
+**Unverified / open.** No live run of `openAICompatibleEmbedder` or of a local runtime preset; none runs on this host.
+
+**Next.** The owner reviews the retrieval rule file, then pushes `main` and the two release branches.
+
+**Blockers.** Pushing and publishing wait on the owner.
+
+**Artifacts.** `packages/retrieval/AGENTS.md`, `rules/components/retrieval.md`, `docs/tasks/archive-2026.md`.
+
 ## 2026-11-01T01:10:00+03:00 — Multimodal is built on its branch, and a live run found an old bug
 
 **State.** All seven `T-56` phases are committed on `release/0.2-multimodal`, unpushed and unmerged. `main` is unchanged at `90e9b72`. `T-56` stays `in_progress` until the merge.
@@ -96,20 +112,4 @@ entry is prepended inside the markers below.
 **Blockers.** Owner approval for commit and push.
 
 **Artifacts.** `docs/reports/2026-10-31-full-project-review.md`, `docs/plans/2026-10-31-review-fixes-plan.md`.
-
-## 2026-10-25T23:05:00+03:00 — T-48 lands: parity is re-adjudicated, planning is measured
-
-**State.** The pre-release sequence is complete: `T-49`, `T-50`, `T-51`, `T-39` and `T-48` are done. Only `T-14`'s release gate remains; every other live row is post-release work.
-
-**Did.** Re-recorded all six traces against upstream 1.14.0: the five existing traces are identical apart from `meta.recordedAt`, so the endings and planning changes moved no compared field, and no `differsOn` set changed. Added `planning-cadence`, the scenario S1.5 declined: planning at step 0, two actions, one scripted plan. The recorder and the replay now interleave a plan only where both sides' cadence asks for one, and both refuse a plan list the run never reaches. The scenario replays equal, step kinds and model-call roles included. Corrected the runbook's "two divergences ship" note to the one that remains (the max-steps terminal shape), taught it the `plans` field, and cited `0027` in the step-budget expectation.
-
-**Verified.** `pnpm vitest run --project core`: 63 files and 681 tests, exit 0 (parity 7); every recording carries `upstreamVersion` 1.14.0 on Python 3.13.7; the validator and the full gate green.
-
-**Unverified / open.** The plan text is a scripted reply, not a model's plan, so the scenario measures where planning sits and what it sends, never plan quality. The tool-calling family (`T-19`) still owns the schema's `agent` axis.
-
-**Next.** The 0.1.0 release under `T-14`.
-
-**Blockers.** `T-14` on npm credentials and the scope claim; `T-24`, `T-52`, `T-54` on the owner.
-
-**Artifacts.** [`planning-cadence.json`](../scripts/parity/scenarios/planning-cadence.json), [`parity.test.ts`](../packages/core/test/parity.test.ts), [`record-parity-traces.md`](10-runbooks/record-parity-traces.md), [`0027`](09-decisions/0027-a-run-that-runs-out-of-room-throws.md).
 <!-- rotate:end -->
