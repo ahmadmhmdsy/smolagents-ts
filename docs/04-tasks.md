@@ -50,7 +50,6 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
 | T-71 | `FallbackModel`: move to the next model on a retryable failure | pending | lead | `packages/models/**` | `0038` item 1: network, timeout, 408/409/429/5xx move; other 4xx and aborts do not; no move after the first stream delta; capabilities intersect | - |
 | T-72 | local runtime presets over `OpenAICompatibleModel` | pending | lead | `packages/models/**`, `docs/10-runbooks/live-provider-smoke.md` | `0038` item 2: Ollama, LM Studio, llama.cpp, vLLM; default base URL, no key, honest capabilities, no process started | - |
-| T-73 | split `multi-step-agent.ts` into modules without changing behaviour | pending | lead | `packages/core/src/agent/**` | after the T-56 merge; the core suite passes unchanged and the public exports are identical | - |
 <!-- rotate:end -->
 
 ## Blocked
