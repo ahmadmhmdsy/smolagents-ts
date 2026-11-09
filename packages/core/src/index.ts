@@ -18,6 +18,7 @@ export * from "./events.js";
 
 // The two seams a host can replace: which model answers, and where code runs.
 export * from "./model.js";
+export * from "./media.js";
 export * from "./executor.js";
 
 // Tools.
@@ -65,6 +66,7 @@ export * from "./agent/guardrail.js";
 export * from "./middleware.js";
 export * from "./session/agent-session.js";
 export * from "./session/run-store.js";
+export * from "./session/media-store.js";
 export * from "./session/event-log.js";
 export {
   sendRunMessage,

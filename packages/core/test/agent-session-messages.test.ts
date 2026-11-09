@@ -7,7 +7,8 @@ import { MemoryRunStore } from "../src/session/run-store.js";
 import { MockModel, type MockTurnInput } from "../src/testing/mock-model.js";
 import { ScriptedExecutor } from "../src/testing/scripted-executor.js";
 import { tool } from "../src/tool/tool.js";
-import type { ToolCallRequest } from "../src/types.js";
+import { messageText } from "../src/media.js";
+import type { ChatMessage, ToolCallRequest } from "../src/types.js";
 
 function call(name: string, args: unknown, id = "c1"): ToolCallRequest {
   return { id, name, arguments: JSON.stringify(args) };
@@ -83,7 +84,7 @@ describe("the snapshot's conversation (decision 0031)", () => {
   });
 
   it("leaves the step in flight out of the conversation", async () => {
-    let duringFinal: readonly { role: string; content: string }[] = [];
+    let duringFinal: readonly ChatMessage[] = [];
     const executor = new ScriptedExecutor({
       handler: (code, options) => {
         if (code.includes("final_answer")) {
@@ -101,7 +102,7 @@ describe("the snapshot's conversation (decision 0031)", () => {
     expect(duringFinal).toHaveLength(2);
     expect(duringFinal[0]).toEqual({ role: "user", content: "Run the code." });
     expect(duringFinal[1]?.role).toBe("assistant");
-    expect(duringFinal.some((message) => message.content.includes("final_answer"))).toBe(false);
+    expect(duringFinal.some((message) => messageText(message).includes("final_answer"))).toBe(false);
   });
 
   it("spans turns when the session names a checkpoint", async () => {

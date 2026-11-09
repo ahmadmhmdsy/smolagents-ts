@@ -1,13 +1,19 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  UnsupportedContentError,
+  checkMessageMedia,
+  encodeBase64,
+  hasMedia,
+  messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
+  type ContentPart,
   type FinishReason,
   type GenerateOptions,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallRequest,
@@ -47,6 +53,7 @@ export type GeminiGenerateOptions = GenerateOptions & { providerOptions?: Gemini
 
 interface WirePart {
   text?: string;
+  inlineData?: { mimeType: string; data: string };
   functionCall?: { name?: string; args?: unknown; id?: string };
   functionResponse?: { name?: string; response?: unknown; id?: string };
 }
@@ -105,6 +112,22 @@ function toWireTools(tools: readonly ToolSpec[]): unknown[] {
   ];
 }
 
+/** A user turn's parts. GIF is on the core allowlist but not among the types this API lists. */
+function toWireParts(parts: readonly ContentPart[]): WirePart[] {
+  const wire: WirePart[] = [];
+  for (const part of parts) {
+    if (part.type === "text") {
+      if (part.text !== "") wire.push({ text: part.text });
+      continue;
+    }
+    if (part.mediaType === "image/gif") {
+      throw new UnsupportedContentError("Gemini does not take image/gif", { mediaType: part.mediaType });
+    }
+    wire.push({ inlineData: { mimeType: part.mediaType, data: encodeBase64(part.bytes) } });
+  }
+  return wire;
+}
+
 /** The transcript as contents, with every tool result folded into the user turn after its call. */
 function toWireMessages(
   messages: readonly ChatMessage[],
@@ -122,15 +145,16 @@ function toWireMessages(
   };
 
   for (const message of messages) {
+    const text = messageText(message);
     if (message.role === "system") {
-      if (message.content !== "") system.push(message.content);
+      if (text !== "") system.push(text);
       continue;
     }
     if (message.role === "tool") {
       results.push({
         functionResponse: {
           name: message.name ?? "",
-          response: { result: message.content },
+          response: { result: text },
           ...(message.toolCallId === undefined ? {} : { id: message.toolCallId }),
         },
       });
@@ -139,14 +163,18 @@ function toWireMessages(
     flush();
     if (message.role === "assistant") {
       const parts: WirePart[] = [];
-      if (message.content !== "") parts.push({ text: message.content });
+      if (text !== "") parts.push({ text });
       for (const call of message.toolCalls ?? []) {
         parts.push({ functionCall: { name: call.name, args: toArgs(call.arguments), id: call.id } });
       }
       if (parts.length > 0) contents.push({ role: "model", parts });
       continue;
     }
-    contents.push({ role: "user", parts: [{ text: message.content }] });
+    if (typeof message.content !== "string" && hasMedia(message)) {
+      contents.push({ role: "user", parts: toWireParts(message.content) });
+      continue;
+    }
+    contents.push({ role: "user", parts: [{ text }] });
   }
   flush();
   return {
@@ -265,7 +293,7 @@ function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCom
 }
 
 /** Google's generateContent: contents and parts, a system instruction, and no tool finish reason. */
-export class GeminiModel implements ModelAdapterV1 {
+export class GeminiModel implements ModelAdapterV2 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
@@ -285,7 +313,7 @@ export class GeminiModel implements ModelAdapterV1 {
     }
     this.id = options.model;
     this.provider = options.provider ?? "gemini";
-    this.capabilities = modelCapabilities({ toolCalls: true, ...options.capabilities });
+    this.capabilities = modelCapabilities({ toolCalls: true, images: true, audio: true, ...options.capabilities });
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.apiKey = options.apiKey;
     this.headers = options.headers;
@@ -346,6 +374,7 @@ export class GeminiModel implements ModelAdapterV1 {
     messages: readonly ChatMessage[],
     options: GeminiGenerateOptions,
   ): Record<string, unknown> {
+    checkMessageMedia(messages, this.capabilities);
     const providerOptions = options.providerOptions;
     const transcript = toWireMessages(messages, options.systemPrompt ?? this.systemPrompt);
     const tools = options.tools;

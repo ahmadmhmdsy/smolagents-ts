@@ -5,7 +5,7 @@ import {
   type ChatCompletionChunk,
   type ChatMessage,
   type GenerateOptions,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
   type ModelCapabilities,
 } from "@smolagents-ts/core";
 
@@ -33,7 +33,7 @@ export interface CustomModelOptions {
  * script a turn, and what a caller needs to plug in a transport this package does not
  * ship.
  */
-export class CustomModel implements ModelAdapterV1 {
+export class CustomModel implements ModelAdapterV2 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;

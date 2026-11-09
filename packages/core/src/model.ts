@@ -1,3 +1,5 @@
+import { UnsupportedContentError } from "./errors.js";
+import { hasMedia, messageText } from "./media.js";
 import { type TokenUsage, EMPTY_TOKEN_USAGE } from "./types.js";
 import type { ChatMessage, ToolCallRequest } from "./types.js";
 
@@ -65,6 +67,7 @@ export interface ModelCapabilities {
   streaming: boolean;
   toolCalls: boolean;
   images: boolean;
+  audio: boolean;
 }
 
 export interface GenerateOptions {
@@ -102,33 +105,51 @@ export interface Model {
  * written against; a later breaking change bumps this number, and `upgradeModelAdapter` keeps an
  * adapter written for the previous version working. Nothing here is provider-specific.
  */
-export const MODEL_ADAPTER_VERSION = 1 as const;
+export const MODEL_ADAPTER_VERSION = 2 as const;
 
-/** The adapter contract at its numbered version: `Model` plus the version the adapter implements. */
+/** The contract as 0.1.0 shipped it: every message's content is a string. */
 export interface ModelAdapterV1 extends Model {
+  readonly adapterVersion: 1;
+}
+
+/** The current contract: a message's content may be parts, and the adapter maps them to its wire. */
+export interface ModelAdapterV2 extends Model {
   readonly adapterVersion: typeof MODEL_ADAPTER_VERSION;
 }
 
 /** Whether a model already declares the current contract version. */
-function declaresAdapterVersion(model: Model): model is ModelAdapterV1 {
+function declaresAdapterVersion(model: Model): model is ModelAdapterV2 {
   return (model as { adapterVersion?: unknown }).adapterVersion === MODEL_ADAPTER_VERSION;
 }
 
+/** The transcript an earlier contract can read: parts flatten to strings, and media stops here. */
+function toStringMessages(messages: readonly ChatMessage[]): readonly ChatMessage[] {
+  return messages.map((message) => {
+    if (typeof message.content === "string") return message;
+    if (hasMedia(message)) {
+      throw new UnsupportedContentError("An adapter written before contract version 2 cannot take media");
+    }
+    return { ...message, content: messageText(message) };
+  });
+}
+
 /**
- * The upgrade shim for a model written before the contract was numbered: it supplies the version
- * on the model's behalf and forwards both calls unchanged, so an adapter that has not been
- * rewritten keeps working. When the contract moves to a new version, this is the one place that
- * translates the previous version's options.
+ * The upgrade shim for a model written against an earlier contract, or before the contract was
+ * numbered. It supplies the version on the model's behalf and hands the model the strings it was
+ * written for, refusing media before the call. It reports `images` and `audio` as false whatever
+ * the model declared, because those contracts never said what the flag promised (decision 0036).
  */
-export function upgradeModelAdapter(model: Model): ModelAdapterV1 {
+export function upgradeModelAdapter(model: Model): ModelAdapterV2 {
   if (declaresAdapterVersion(model)) return model;
   return {
     id: model.id,
     provider: model.provider,
-    capabilities: model.capabilities,
+    capabilities: { ...model.capabilities, images: false, audio: false },
     adapterVersion: MODEL_ADAPTER_VERSION,
-    generate: (messages, options) => model.generate(messages, options),
-    generateStream: (messages, options) => model.generateStream(messages, options),
+    generate: async (messages, options) => model.generate(toStringMessages(messages), options),
+    async *generateStream(messages, options) {
+      yield* model.generateStream(toStringMessages(messages), options);
+    },
   };
 }
 
@@ -136,6 +157,7 @@ const DEFAULT_CAPABILITIES: ModelCapabilities = {
   streaming: true,
   toolCalls: false,
   images: false,
+  audio: false,
 };
 
 export function modelCapabilities(overrides: Partial<ModelCapabilities> = {}): ModelCapabilities {

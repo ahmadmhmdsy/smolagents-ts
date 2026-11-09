@@ -4,6 +4,7 @@ import { FINAL_ANSWER_TOOL_NAME, ToolCallingAgent } from "../src/agent/tool-call
 import type { AgentEvent } from "../src/events.js";
 import { MockModel } from "../src/testing/mock-model.js";
 import { tool } from "../src/tool/tool.js";
+import type { Tool } from "../src/tool/tool.js";
 import type { ToolCallRequest } from "../src/types.js";
 
 const weatherTool = tool({
@@ -58,6 +59,23 @@ describe("ToolCallingAgent", () => {
     const failure = events.find((event) => event.type === "action.failed");
     expect(failure?.type === "action.failed" ? failure.error.code : "").toBe("AGENT_TOOL_TIMEOUT");
     expect(failure?.type === "action.failed" ? failure.error.message : "").toMatch(/15 ms/);
+  });
+
+  it("offers final_answer on the request, with or without other tools or a schema", async () => {
+    const finish = {
+      content: "",
+      finishReason: "tool_calls" as const,
+      toolCalls: [call(FINAL_ANSWER_TOOL_NAME, { answer: "done" })],
+    };
+    const offered = async (tools: Tool[], outputSchema?: z.ZodType) => {
+      const model = new MockModel([finish]);
+      await drain(new ToolCallingAgent({ model, tools, ...(outputSchema ? { outputSchema } : {}) }), "finish");
+      return model.requestOptions[0]?.tools?.map((spec) => spec.name);
+    };
+
+    expect(await offered([])).toEqual([FINAL_ANSWER_TOOL_NAME]);
+    expect(await offered([weatherTool])).toEqual(["get_weather", FINAL_ANSWER_TOOL_NAME]);
+    expect(await offered([], z.string())).toEqual([FINAL_ANSWER_TOOL_NAME]);
   });
 
   it("exposes the final_answer name as a constant", () => {

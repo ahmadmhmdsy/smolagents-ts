@@ -61,6 +61,22 @@ describe("AnthropicModel streaming", () => {
     expect(chunks.at(-1)?.finishReason).toBe("tool_calls");
   });
 
+  it("keeps the cache read and write split on a streamed usage", async () => {
+    const cached = transcript.replace(
+      '"input_tokens":42,',
+      '"input_tokens":42,"cache_read_input_tokens":40,"cache_creation_input_tokens":5,',
+    );
+    expect(cached).not.toBe(transcript);
+    const { fetch } = recorder(cached);
+    const model = new AnthropicModel({ model: "m", fetch });
+
+    const result = await collectCompletion(model.generateStream([{ role: "user", content: "W?" }]));
+
+    expect(result.usage.inputTokens).toBe(87);
+    expect(result.usage.cachedInputTokens).toBe(40);
+    expect(result.usage.cacheWriteInputTokens).toBe(5);
+  });
+
   it("collects the stream into the call the documented reply describes", async () => {
     const { fetch } = recorder(transcript);
     const model = new AnthropicModel({ model: "m", fetch });

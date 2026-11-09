@@ -1,13 +1,19 @@
 import {
   EMPTY_TOKEN_USAGE,
   MODEL_ADAPTER_VERSION,
+  UnsupportedContentError,
+  checkMessageMedia,
+  encodeBase64,
+  hasMedia,
+  messageText,
   modelCapabilities,
   type ChatCompletion,
   type ChatCompletionChunk,
   type ChatMessage,
+  type ContentPart,
   type FinishReason,
   type GenerateOptions,
-  type ModelAdapterV1,
+  type ModelAdapterV2,
   type ModelCapabilities,
   type TokenUsage,
   type ToolCallRequest,
@@ -81,7 +87,12 @@ interface WireToolResultBlock {
   content: string;
 }
 
-type WireBlock = (WireTextBlock | WireToolUseBlock | WireToolResultBlock) & {
+interface WireImageBlock {
+  type: "image";
+  source: { type: "base64"; media_type: string; data: string };
+}
+
+type WireBlock = (WireTextBlock | WireImageBlock | WireToolUseBlock | WireToolResultBlock) & {
   cache_control?: CacheMarker;
 };
 
@@ -142,6 +153,25 @@ function toWireTool(spec: ToolSpec): WireTool {
   return { name: spec.name, description: spec.description, input_schema: spec.inputSchema };
 }
 
+/** A user turn's parts as blocks. The wire refuses an empty text block, and has no `detail`. */
+function toWireBlocks(parts: readonly ContentPart[]): WireBlock[] {
+  const blocks: WireBlock[] = [];
+  for (const part of parts) {
+    if (part.type === "audio") {
+      throw new UnsupportedContentError("The Messages API takes no audio", { mediaType: part.mediaType });
+    }
+    if (part.type === "image") {
+      blocks.push({
+        type: "image",
+        source: { type: "base64", media_type: part.mediaType, data: encodeBase64(part.bytes) },
+      });
+    } else if (part.text !== "") {
+      blocks.push({ type: "text", text: part.text });
+    }
+  }
+  return blocks;
+}
+
 /** The transcript as blocks, with every tool result folded into the user turn after its call. */
 function toWireMessages(
   messages: readonly ChatMessage[],
@@ -159,22 +189,29 @@ function toWireMessages(
   };
 
   for (const message of messages) {
+    const text = messageText(message);
     if (message.role === "system") {
-      if (message.content !== "") system.push(message.content);
+      if (text !== "") system.push(text);
       continue;
     }
     if (message.role === "tool") {
       results.push({
         type: "tool_result",
         tool_use_id: message.toolCallId ?? "",
-        content: message.content,
+        content: text,
       });
+      continue;
+    }
+    if (message.role === "user" && typeof message.content !== "string" && hasMedia(message)) {
+      // A tool's media follows its result, and belongs in the same turn as the tool_result.
+      wire.push({ role: "user", content: [...results, ...toWireBlocks(message.content)] });
+      results = [];
       continue;
     }
     flush();
     if (message.role === "assistant") {
       const blocks: WireBlock[] = [];
-      if (message.content !== "") blocks.push({ type: "text", text: message.content });
+      if (text !== "") blocks.push({ type: "text", text });
       for (const call of message.toolCalls ?? []) {
         blocks.push({
           type: "tool_use",
@@ -186,7 +223,7 @@ function toWireMessages(
       if (blocks.length > 0) wire.push({ role: "assistant", content: blocks });
       continue;
     }
-    wire.push({ role: "user", content: [{ type: "text", text: message.content }] });
+    wire.push({ role: "user", content: [{ type: "text", text }] });
   }
   flush();
   return { ...(system.length === 0 ? {} : { system: system.join("\n\n") }), messages: wire };
@@ -267,7 +304,7 @@ function fromWireUsage(usage: WireUsage | undefined): TokenUsage {
 }
 
 /** Anthropic's Messages API: a top-level system prompt, content blocks, a required limit. */
-export class AnthropicModel implements ModelAdapterV1 {
+export class AnthropicModel implements ModelAdapterV2 {
   readonly id: string;
   readonly provider: string;
   readonly capabilities: ModelCapabilities;
@@ -288,7 +325,8 @@ export class AnthropicModel implements ModelAdapterV1 {
     }
     this.id = options.model;
     this.provider = options.provider ?? "anthropic";
-    this.capabilities = modelCapabilities({ toolCalls: true, ...options.capabilities });
+    // Audio comes last because no override can make this wire carry it.
+    this.capabilities = modelCapabilities({ toolCalls: true, images: true, ...options.capabilities, audio: false });
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.apiKey = options.apiKey;
     this.headers = options.headers;
@@ -406,6 +444,7 @@ export class AnthropicModel implements ModelAdapterV1 {
     options: AnthropicGenerateOptions,
     stream: boolean,
   ): Record<string, unknown> {
+    checkMessageMedia(messages, this.capabilities);
     const providerOptions = options.providerOptions;
     const cache = providerOptions?.cache;
     const marker: CacheMarker | undefined = cache === undefined ? undefined : cacheMarker(cache.ttl);

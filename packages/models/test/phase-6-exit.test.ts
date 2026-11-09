@@ -21,7 +21,7 @@ describe("the phase 6 exit criterion", () => {
     const legacy: Model = {
       id: "legacy",
       provider: "legacy",
-      capabilities: { streaming: false, toolCalls: false, images: false },
+      capabilities: { streaming: false, toolCalls: false, images: false, audio: false },
       generate: () =>
         Promise.resolve({
           content: fenced("done", "final_answer(7)"),

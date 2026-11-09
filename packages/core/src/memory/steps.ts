@@ -1,5 +1,5 @@
 import type { AgentErrorInfo } from "../errors.js";
-import type { Timing, TokenUsage, ToolCall } from "../types.js";
+import type { MediaRef, TaskPart, Timing, TokenUsage, ToolCall } from "../types.js";
 
 export type AgentStepKind =
   | "task"
@@ -32,11 +32,24 @@ export abstract class AgentStep {
 export class TaskStep extends AgentStep {
   override readonly kind = "task";
   readonly task: string;
+  /** The task in order, set only when it carries media. It holds references and never bytes. */
+  readonly parts: readonly TaskPart[] | undefined;
 
-  constructor(task: string) {
+  constructor(task: string, parts?: readonly TaskPart[]) {
     super();
     this.task = task;
+    this.parts = parts;
   }
+
+  /** The media the task names. */
+  get attachments(): readonly MediaRef[] {
+    return taskAttachments(this.parts);
+  }
+}
+
+/** The media a task's parts name, in order. */
+export function taskAttachments(parts: readonly TaskPart[] | undefined): readonly MediaRef[] {
+  return parts?.flatMap((part) => (part.type === "ref" ? [part.ref] : [])) ?? [];
 }
 
 export class SystemPromptStep extends AgentStep {
@@ -67,6 +80,8 @@ export class ActionStep extends AgentStep {
   /** The code the model asked to run, if it asked to run any. */
   codeAction: string | null = null;
   toolCalls: ToolCall[] = [];
+  /** The media this step's tools returned, shown to the model in a user turn after it. */
+  attachments: readonly MediaRef[] = [];
   /** Everything the executor printed. */
   observations: string | null = null;
   error: AgentErrorInfo | undefined = undefined;
@@ -145,7 +160,11 @@ interface StepMetaJSON {
  * upstream's pydantic `step.dict()`, kind and every field of the step included.
  */
 export type StepJSON =
-  | (StepMetaJSON & { readonly kind: "task"; readonly task: string })
+  | (StepMetaJSON & {
+      readonly kind: "task";
+      readonly task: string;
+      readonly parts?: readonly TaskPart[];
+    })
   | (StepMetaJSON & { readonly kind: "system_prompt"; readonly systemPrompt: string })
   | (StepMetaJSON & { readonly kind: "planning"; readonly plan: string; readonly hasError: boolean })
   | (StepMetaJSON & {
@@ -153,6 +172,7 @@ export type StepJSON =
       readonly modelOutput: string | null;
       readonly codeAction: string | null;
       readonly toolCalls: readonly ToolCall[];
+      readonly attachments?: readonly MediaRef[];
       readonly observations: string | null;
       readonly error?: AgentErrorInfo;
       readonly isFinalAnswer: boolean;
@@ -180,7 +200,12 @@ export function stepToJSON(step: AnyAgentStep): StepJSON {
   const meta = stepMeta(step);
   switch (step.kind) {
     case "task":
-      return { ...meta, kind: "task", task: step.task };
+      return {
+        ...meta,
+        kind: "task",
+        task: step.task,
+        ...(step.parts === undefined ? {} : { parts: step.parts }),
+      };
     case "system_prompt":
       return { ...meta, kind: "system_prompt", systemPrompt: step.systemPrompt };
     case "planning":
@@ -192,6 +217,7 @@ export function stepToJSON(step: AnyAgentStep): StepJSON {
         modelOutput: step.modelOutput,
         codeAction: step.codeAction,
         toolCalls: step.toolCalls,
+        ...(step.attachments.length === 0 ? {} : { attachments: step.attachments }),
         observations: step.observations,
         ...(step.error === undefined ? {} : { error: step.error }),
         isFinalAnswer: step.isFinalAnswer,
@@ -228,7 +254,7 @@ export function stepFromJSON(json: StepJSON): AnyAgentStep {
 function constructStep(json: StepJSON): AnyAgentStep {
   switch (json.kind) {
     case "task":
-      return new TaskStep(json.task);
+      return new TaskStep(json.task, json.parts);
     case "system_prompt":
       return new SystemPromptStep(json.systemPrompt);
     case "planning": {
@@ -240,6 +266,7 @@ function constructStep(json: StepJSON): AnyAgentStep {
       const step = new ActionStep(json.modelOutput);
       step.codeAction = json.codeAction;
       step.toolCalls = [...json.toolCalls];
+      step.attachments = json.attachments ?? [];
       step.observations = json.observations;
       step.error = json.error;
       step.isFinalAnswer = json.isFinalAnswer;

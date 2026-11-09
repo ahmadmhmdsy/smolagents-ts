@@ -8,7 +8,8 @@ streaming form of a completion. It ships `OpenAICompatibleModel`, which speaks t
 every endpoint that copies OpenAI's chat-completions format, `AnthropicModel` and
 `GeminiModel`, which each map a block-shaped wire of their own, `HuggingFaceModel`,
 which is the OpenAI adapter pointed at the Inference Providers router, and
-`CustomModel`, which turns two functions into a model.
+`CustomModel`, which turns two functions into a model. Media maps per adapter:
+the capability table is in this package's README.
 
 ## Entry points
 

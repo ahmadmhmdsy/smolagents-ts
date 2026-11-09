@@ -78,6 +78,18 @@ describe("StyledChatSurface", () => {
     expect(items[1]?.textContent).toContain("hi there");
   });
 
+  it("renders a media message inside the styled surface", async () => {
+    const bytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    await renderChat(
+      <StyledChatSurface
+        messages={[{ role: "user", content: [{ type: "image", mediaType: "image/png", bytes }] }]}
+        disabledReason="This transcript is read-only."
+      />,
+    );
+    expect(within(surface()).getByRole("img", { name: "Image" })).toBeTruthy();
+    expect(surface().querySelector("figcaption")?.textContent).toBe("No description given.");
+  });
+
   it("forwards disabledReason to the composer's described-by text", async () => {
     await renderChat(
       <StyledChatSurface messages={[]} disabledReason="This transcript is read-only." />,

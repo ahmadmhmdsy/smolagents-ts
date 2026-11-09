@@ -1,9 +1,9 @@
 # Plan — multimodal input for 0.2.0
 
-- **Status:** draft
+- **Status:** in_progress
 - **Owner:** lead
 - **Created:** 2026-10-31T23:55:00+03:00
-- **Authorized by:** the owner in chat, 2026-10-31: "Multimodal plan now". That covers writing this plan. It does not cover the build, a commit or a push.
+- **Authorized by:** the owner in chat, 2026-10-31: "Multimodal plan now". That covers writing this plan. The owner then chose the branch: "Yes, use the branch". That covers the build and commits on this branch. It does not cover a push or a merge to `main`.
 
 Status values are defined in docs/00-schema.md, the vocabulary authority.
 
@@ -113,17 +113,17 @@ Every phase is one or more revertible commits on the branch; until it merges, ab
 
 ## Open questions
 
-- [ ] Does the build wait for `T-14`, or start now on the branch? Blocks phase 1. Recommended: start on the branch, merge after `T-14`.
-- [ ] Does the owner approve this plan and the build? Blocks phase 1.
-- [ ] The `run` input shape: a bare `readonly ContentPart[]`, or `{ text, parts }`? Blocks phase 3, not phase 1. Recommended: the bare array, matching `ChatMessage.content`.
-- [ ] Default caps. Recommended: 5 MiB a part, 20 MiB a run, both caller-overridable, confirmed against current provider limits. Blocks phase 1.
+- [x] Does the build wait for `T-14`, or start now on the branch? Answered 2026-10-31: start on the branch, merge after `T-14`.
+- [x] Does the owner approve this plan and the build? Answered 2026-10-31: "Yes, use the branch".
+- [x] The `run` input shape: a bare `readonly ContentPart[]`, or `{ text, parts }`? Answered: the bare array, matching `ChatMessage.content`.
+- [x] Default caps. Answered: 5 MiB a part, 20 MiB a run, both caller-overridable; Phase 2 confirms them against current provider limits.
 - [ ] Should a live image call be a release requirement? Does not block phase 1. Recommended: yes for one provider; `GOOGLE_API_KEY` exists on this host.
 
 ## Tasks
 
 | Task ID | Phase | Status |
 |---|---|---|
-| T-56 | 1 to 7 | pending |
+| T-56 | 1 to 7 | in_progress |
 
 One row covers the plan, as `0034` asks that both slices ship together. Commits cite `T-56`. The row's `T-57` handover, the version-2 shim test and the Anthropic split fixture, sit in Phases 1 and 2.
 
@@ -134,3 +134,17 @@ One row covers the plan, as `0034` asks that both slices ship together. Commits 
 - `docs/01-project.md`'s non-goal line already points at `0034`, so that follow-up is done.
 - No adapter sets `images` to true today, so nothing relies on the flag's old meaning.
 - `react-ui` sits outside the fixed group, so its change needs its own changeset entry. `0035` keeps the group at six.
+- Provider limits, read 2026-10-31. Gemini lists png, jpeg, webp, heic and heif, not gif, so its adapter refuses `image/gif`; it caps inline data at 20 MB a request. OpenAI lists png, jpeg, webp and non-animated gif, with 512 MB a request and no per-image size. Anthropic lists jpeg, png, gif and webp, with 10 MB base64-encoded an image on its own API and 5 MB on Bedrock, so the 5 MiB default clears the first and sits slightly over the second. No default changed; Phase 7 documents the Bedrock gap.
+- Two shapes stay unconfirmed by a provider page. OpenAI's vision page now shows only the Responses form, so the chat completions `image_url` part rests on its established shape, and its audio examples show only `wav`, so `mp3` is unconfirmed.
+- Live image calls, 2026-11-01. Gemini: run through the built adapter with `gemini-2.5-flash` and a generated red PNG; it answered "Red". OpenAI-compatible and Anthropic: not run, no key on this host.
+- That Gemini reply reported 271 input, 1 output and 364 total tokens. The gap is what the provider counts outside those two fields, presumably thinking, and it predates this work. It is not a media defect, and `usage` does not explain it.
+- Phase 4 departs from the plan's plain `attachments` field. `TaskStep` holds `parts?: readonly TaskPart[]` in task order, and `attachments` is a getter over it, because a plain list loses where each image sat between the text parts. A string task's checkpoint form is unchanged.
+- The Phase 4 sentinel test found one leak the design had not named: `RunResult.messages` came from the request transcript, so `run.completed` carried raw bytes. A result now reads media as its placeholder, `[image: alt]`. Only a request to a model carries bytes.
+- `session/file-run-store.ts` and `agent/background-child.ts` needed no change: the first writes the record as JSON, which now holds references, and the second takes string tasks.
+- Phase 5 departs from the plan's `attachments: readonly MediaRef[]`. A tool returns `withAttachments(text, parts)`, holding the bytes, because a tool has no store to get a reference from; the loop stores them. `packages/core/src/tool/tool.ts` needed no change, as a tool's output type was already open.
+- A journal records a tool's media as `{ kind: "tool-media", text, refs }`, so a replayed call finds its media without running the tool again and the record holds no bytes. A refusal is a line in that text. A step that fails keeps its media queued for the next step.
+- The attachment turn opens with the text "Attached by the tools above:", so the model can tell it from the owner speaking. The Anthropic adapter folds that turn into the `tool_result` turn; text-only user turns keep their existing shape.
+- Phase 6 needed no change in `react-ui/src/` beyond its stylesheet, nor in `memory.ts`: the styled surface wraps `ChatSurface`, so it inherits the parts. A page shows media through data URIs, so a host's content security policy has to allow `data:` for images and media. The snapshot's conversation stays text, so only messages a caller passes render media.
+- Phase 7's live run found a defect older than this work. A `ToolCallingAgent` with no `outputSchema` never offered `final_answer` on the request, so a real provider could not finish: it replied in text, the loop read that as empty, and the run hit `maxSteps`. Tests missed it because a stub calls a tool it was never offered. The spec now always travels, as a string `answer` when no schema is bound, and both the core test and the vision example assert it on the request. It has its own changeset because it is a bug fix and not part of the feature.
+- Live `examples/vision`, 2026-11-01, after that fix: `gemini-2.5-flash` took a text and image task, called `final_answer` on the first step and answered "Red". OpenAI-compatible and Anthropic stay unrun, no key on this host.
+- Every phase is built. `T-56` stays `in_progress` until the branch merges, which waits on the owner's review and `T-14`.

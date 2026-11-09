@@ -1,5 +1,13 @@
-import { useId, type FormEvent, type ReactNode } from "react";
-import type { ChatMessage } from "@smolagents-ts/core";
+import { useId, useMemo, type FormEvent, type ReactNode } from "react";
+import {
+  encodeBase64,
+  mediaParts,
+  messageText,
+  type AudioPart,
+  type ChatMessage,
+  type ContentPart,
+  type ImagePart,
+} from "@smolagents-ts/core";
 import { useAgentRunSnapshot } from "./context.js";
 
 export interface ChatSurfaceProps {
@@ -13,6 +21,46 @@ export interface ChatSurfaceProps {
   readonly onSubmit?: (text: string) => void;
   readonly disabledReason?: string;
   readonly children?: ReactNode;
+}
+
+/** A data URI, so there is no object URL to revoke and a server can render it too. */
+function useDataUri(part: ImagePart | AudioPart): string {
+  return useMemo(() => "data:" + part.mediaType + ";base64," + encodeBase64(part.bytes), [part]);
+}
+
+/** An image is never left with an empty `alt`: with none given, the page says so. */
+function TranscriptImage({ part }: { readonly part: ImagePart }) {
+  const src = useDataUri(part);
+  const alt = part.alt?.trim() ?? "";
+  return (
+    <figure>
+      <img src={src} alt={alt === "" ? "Image" : alt} />
+      {alt === "" ? <figcaption>No description given.</figcaption> : null}
+    </figure>
+  );
+}
+
+function TranscriptAudio({ part }: { readonly part: AudioPart }) {
+  return <audio controls aria-label="Audio clip" src={useDataUri(part)} />;
+}
+
+function TranscriptPart({ part }: { readonly part: ContentPart }) {
+  if (part.type === "image") return <TranscriptImage part={part} />;
+  if (part.type === "audio") return <TranscriptAudio part={part} />;
+  return <p>{part.text}</p>;
+}
+
+/** Text stays one span; only a message that carries media takes the block form. */
+function MessageBody({ message }: { readonly message: ChatMessage }) {
+  const parts = mediaParts(message.content);
+  if (parts === undefined) return <span>{messageText(message)}</span>;
+  return (
+    <div>
+      {parts.map((part, index) => (
+        <TranscriptPart key={index} part={part} />
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -51,7 +99,7 @@ export function ChatSurface({ messages, onSubmit, disabledReason, children }: Ch
         {transcript.map((message, index) => (
           <li key={index} data-role={message.role}>
             <span>{message.role}</span>
-            <span>{message.content}</span>
+            <MessageBody message={message} />
           </li>
         ))}
       </ol>
