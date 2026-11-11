@@ -6,7 +6,7 @@
 - **Read when:** working on `T-56`, the media parts, or the version-1 adapter shim.
 - **Update when:** a phase lands, its scope changes, or a premise stops matching the code.
 
-- **Status:** in_progress
+- **Status:** done
 - **Owner:** lead
 - **Created:** 2026-10-31T23:55:00+03:00
 - **Authorized by:** the owner in chat, 2026-10-31: "Multimodal plan now". That covers writing this plan. The owner then chose the branch: "Yes, use the branch". That covers the build and commits on this branch. It does not cover a push or a merge to `main`.
@@ -129,7 +129,7 @@ Every phase is one or more revertible commits on the branch; until it merges, ab
 
 | Task ID | Phase | Status |
 |---|---|---|
-| T-56 | 1 to 7 | in_progress |
+| T-56 | 1 to 7 | done |
 
 One row covers the plan, as `0034` asks that both slices ship together. Commits cite `T-56`. The row's `T-57` handover, the version-2 shim test and the Anthropic split fixture, sit in Phases 1 and 2.
 

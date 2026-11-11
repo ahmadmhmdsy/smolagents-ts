@@ -45,7 +45,6 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-24 | give the Pyodide executor its pre-registered worker | blocked | owner | `packages/exec-pyodide/**` | `0033`: no headers; a browser runner, a caller without remote executors, or a recorded hang | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
 | T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019`) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
-| T-56 | write and run the multimodal input plan (0.2.0's headline) | in_progress | lead | `packages/core/**`, `packages/models/**`, `packages/react/**`, `packages/react-ui/**`, `examples/vision/**`, `docs/**` | all seven phases built on `release/0.2-multimodal`; merges after `T-14`, on the owner's review; `0034`: input parts, adapter v2 + the v1 shim test, honest capabilities, attachments without executor changes, `MediaRef`s in snapshots | plan: `docs/plans/2026-10-31-multimodal-input-plan.md` |
 | T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
 <!-- rotate:end -->
 
