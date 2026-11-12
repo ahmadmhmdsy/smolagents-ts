@@ -42,17 +42,15 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
 | T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0037`) | `0030`; `0037` |
-| T-24 | give the Pyodide executor its pre-registered worker | blocked | owner | `packages/exec-pyodide/**` | `0033`: no headers; a browser runner, a caller without remote executors, or a recorded hang | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
-| T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
-| T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019`) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
+| T-24 | give the Pyodide executor its pre-registered worker | pending | lead | `packages/exec-pyodide/**` | the owner chose on 2026-11-13 to build it ahead of `0033`'s triggers; `0041` supersedes the deferral and keeps the pre-registered shape; done when a Node test shows a busy loop cut at its deadline and `pnpm gate` is green | `docs/09-decisions/0041-the-pyodide-worker-is-built-ahead-of-its-trigger.md` |
+| T-54 | open the `models-gateway` package | pending | lead | `packages/models-gateway/**`, `AGENTS.md` | the owner chose on 2026-11-13 to open it; `0040` sets the v1 scope (`GatewayModel`, `onResponse`, `listGatewayModels`) and keeps it outside the fixed group; done when the package packs and `pnpm gate` is green | `docs/09-decisions/0040-a-models-gateway-package-reads-gateway-headers-through-fetch.md` |
 | T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
-| T-77 | document where each kind of behaviour belongs | blocked | owner | `docs/**` | T-52 settles where guides live; then a table of Model wrapper, hook, tool, executor and store, each row with a tested example | - |
 <!-- rotate:end -->
 
 ## Blocked
 
-Six rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
-(guide home), T-54 (gateway demand), T-70 (E2B key), T-77 (waits on T-52).
+Two rows wait on the owner: T-14 (credentials) and T-70 (E2B key). The owner
+settled T-24, T-52 and T-54 on 2026-11-13; T-52 and T-77 closed the same day.
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
 recorded; T-74, T-75 and T-76 (the `0039` plugin contract) closed on 2026-11-13; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete and only T-14's gate stands between this tree and 0.1.0. A blocked row
 stays in the live table above; only `done` rows rotate to

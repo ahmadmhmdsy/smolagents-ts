@@ -28,6 +28,8 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0041 | the Pyodide worker is built ahead of its trigger, in the shape 0033 pre-registered | accepted | 2026-11-13 |
+| 0040 | a `models-gateway` package reads gateway headers through `fetch` and reports them as an event | accepted | 2026-11-13 |
 | 0039 | a narrow plugin contract on the existing seams, proved before it is frozen | accepted | 2026-11-11 |
 | 0038 | provider fallback and local runtimes are scheduled, ahead of retrieval | accepted | 2026-11-09 |
 | 0037 | 0.1.0 ships from a frozen release line, and main moves on before the publish | accepted | 2026-11-09 |

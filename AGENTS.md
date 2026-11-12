@@ -72,12 +72,13 @@ Project surfaces with the same protection:
 
 ## Project document trees
 
-Two trees hold project documentation, and each kind of truth has one home:
+Three trees hold project documentation, and each kind of truth has one home:
 
 | tree | holds |
 |---|---|
 | the numbered documents, `docs/00` through `docs/10` | the mechanism: schema, spec, environment, handoff, tasks, memory, sources of truth, coordination, decisions, runbooks |
 | the project's own records: `docs/design/`, `docs/plans/`, `docs/reports/`, `docs/research/`, `docs/attribution.md` | the design record, the implementation plans, the completion reports and the upstream research behind them |
+| the user guides, `docs/guides/` | how to build on the library, one task per guide, each example tested; kept current with the code |
 
 A record under `docs/design/`, `docs/plans/`, `docs/reports/` or
 `docs/research/` is history pinned to the revision it was written at; it is
@@ -101,6 +102,7 @@ never the live answer to a status question.
 | Owners, claims, exclusive resources | `docs/08-coordination.md` |
 | Accepted decisions | `docs/09-decisions/` |
 | Repeatable procedures | `docs/10-runbooks/` |
+| How to build on the library | `docs/guides/` |
 | Forms to copy | `_templates/` |
 | Optional module packs | `modules/` |
 | Destructive actions, secrets, permission gates | modules 03, 04, and 11, indexed in `rules/00-index.md` |
@@ -115,6 +117,7 @@ never the live answer to a status question.
 | the machine or toolchain changes | `docs/02-environment.md` |
 | a decision is accepted | a new file in `docs/09-decisions/` |
 | a procedure changes | its file in `docs/10-runbooks/` |
+| a public behaviour a guide describes changes | its file in `docs/guides/` |
 | a rule changes | the module registered in `rules/00-index.md` |
 | a new kind of artifact appears | its form in `_templates/`, plus a pointer here |
 | a new component appears | a row in the component table above |

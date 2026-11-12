@@ -17,13 +17,14 @@ the fact produces a rationalization, not a record.
 | component-agents.md | a scoped AGENTS.md for one component | the component has a row in the root component table |
 | delegation-brief.md | one dispatched delegated task | the delegator has checked the return against the acceptance criterion |
 
-Two forms live beside the artifacts they produce, not here:
+Three forms live beside the artifacts they produce, not here:
 
 - **Decision records** -> docs/09-decisions/0000-template.md
 - **Runbooks** -> docs/10-runbooks/_template.md
+- **Guides** -> docs/guides/_template.md
 
 That split is deliberate: a form stays where the artifact is created, so the
-form and its index cannot drift apart. Do not copy those two here.
+form and its index cannot drift apart. Do not copy those three here.
 
 ## Close-out rules
 
