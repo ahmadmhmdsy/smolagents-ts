@@ -116,6 +116,9 @@ const RUNTIME_EXPORTS = [
   "StaleWriterError",
   "EffectOutcomeUnknownError",
   "RunMessageRefusedError",
+  // plugins: a resume that names a different plugin set, and a replay whose call changed
+  "RunPluginMismatchError",
+  "ReplayDivergedError",
   // messages: an ordinary record entry a send appends, and the delivery the run performs
   "sendRunMessage",
   // budget: limits, a caller-held handle that continues one budget, and its typed stop reason
@@ -225,6 +228,8 @@ const ERROR_CASES: {
   { Ctor: core.UnsupportedContentError, name: "UnsupportedContentError", code: "AGENT_UNSUPPORTED_CONTENT" },
   { Ctor: core.ContentTooLargeError, name: "ContentTooLargeError", code: "AGENT_CONTENT_TOO_LARGE" },
   { Ctor: core.MediaMissingError, name: "MediaMissingError", code: "AGENT_MEDIA_MISSING" },
+  { Ctor: core.RunPluginMismatchError, name: "RunPluginMismatchError", code: "AGENT_RUN_PLUGIN_MISMATCH" },
+  { Ctor: core.ReplayDivergedError, name: "ReplayDivergedError", code: "AGENT_REPLAY_DIVERGED" },
 ];
 
 describe("error hierarchy", () => {

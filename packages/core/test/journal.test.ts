@@ -22,6 +22,10 @@ import { MockModel } from "../src/testing/mock-model.js";
 import { ScriptedExecutor, finalAnswerResult } from "../src/testing/scripted-executor.js";
 import { tool } from "../src/tool/tool.js";
 import { EMPTY_TOKEN_USAGE, type ToolCallRequest } from "../src/types.js";
+import { digestOf } from "../src/utils/digest.js";
+import { nextRequestDigest } from "./support/request-digest.js";
+
+const ADD_DIGEST = digestOf({ a: 1, b: 1 });
 
 function call(name: string, args: unknown, id = "c1"): ToolCallRequest {
   return { id, name, arguments: JSON.stringify(args) };
@@ -53,12 +57,12 @@ function answerCompletion(id = "c-fin"): {
   };
 }
 
-function modelDone(stepId: string, completion: unknown): JournalEntry {
+function modelDone(stepId: string, completion: unknown, argsDigest = "digest"): JournalEntry {
   return {
     stepId,
     callId: "model",
     toolName: "",
-    argsDigest: "digest",
+    argsDigest,
     state: "done",
     result: completion,
     usage: EMPTY_TOKEN_USAGE,
@@ -105,7 +109,9 @@ describe("effects journal", () => {
       inputSchema: z.object({ a: z.number(), b: z.number() }),
       execute: ({ a, b }) => {
         intentSeenBeforeEffect = snapshots.some((record) =>
-          (record.journal ?? []).some((entry) => entry.toolName === "add" && entry.state === "intent"),
+          (record.journal ?? []).some(
+            (entry) => entry.toolName === "add" && entry.state === "intent",
+          ),
         );
         return a + b;
       },
@@ -157,7 +163,11 @@ describe("effects journal", () => {
         return a + b;
       },
     });
-    const agent = new ToolCallingAgent({ model: new MockModel([ANSWER_TURN]), tools: [add], store });
+    const agent = new ToolCallingAgent({
+      model: new MockModel([ANSWER_TURN]),
+      tools: [add],
+      store,
+    });
 
     const result = await agent.run("add", { runId: "run-journal", resume: {} });
 
@@ -171,23 +181,6 @@ describe("effects journal", () => {
 
   it("surfaces an effect announced without a result and refuses to retry it", async () => {
     const store = new MemoryRunStore();
-    store.commit(
-      "run-journal",
-      base({
-        step: { index: 0, stepId: "attempt-1", startedAt: "2026-10-24T00:00:02.000Z" },
-        journal: [
-          modelDone("attempt-1", ADD_TURN),
-          {
-            stepId: "attempt-1",
-            callId: "c-add",
-            toolName: "add",
-            argsDigest: "digest",
-            state: "intent",
-            at: "2026-10-24T00:00:02.500Z",
-          },
-        ],
-      }),
-    );
     let calls = 0;
     const add = tool({
       name: "add",
@@ -198,7 +191,45 @@ describe("effects journal", () => {
         return a + b;
       },
     });
-    const agent = new ToolCallingAgent({ model: new MockModel([]), tools: [add], store });
+    const recordWithoutJournal = base({
+      step: {
+        index: 0,
+        stepId: "attempt-1",
+        startedAt: "2026-10-24T00:00:02.000Z",
+      },
+    });
+    const digest = await nextRequestDigest(recordWithoutJournal, (model, probeStore) =>
+      new ToolCallingAgent({ model, tools: [add], store: probeStore }).run("add", {
+        runId: "run-journal",
+        resume: {},
+      }),
+    );
+    store.commit(
+      "run-journal",
+      base({
+        step: {
+          index: 0,
+          stepId: "attempt-1",
+          startedAt: "2026-10-24T00:00:02.000Z",
+        },
+        journal: [
+          modelDone("attempt-1", ADD_TURN, digest),
+          {
+            stepId: "attempt-1",
+            callId: "c-add",
+            toolName: "add",
+            argsDigest: ADD_DIGEST,
+            state: "intent",
+            at: "2026-10-24T00:00:02.500Z",
+          },
+        ],
+      }),
+    );
+    const agent = new ToolCallingAgent({
+      model: new MockModel([]),
+      tools: [add],
+      store,
+    });
 
     await expect(agent.run("add", { runId: "run-journal", resume: {} })).rejects.toMatchObject({
       code: "AGENT_EFFECT_UNKNOWN",
@@ -212,23 +243,6 @@ describe("effects journal", () => {
 
   it("retries an in-doubt effect once when its tool is declared idempotent", async () => {
     const store = new MemoryRunStore();
-    store.commit(
-      "run-journal",
-      base({
-        step: { index: 0, stepId: "attempt-1", startedAt: "2026-10-24T00:00:02.000Z" },
-        journal: [
-          modelDone("attempt-1", ADD_TURN),
-          {
-            stepId: "attempt-1",
-            callId: "c-add",
-            toolName: "add",
-            argsDigest: "digest",
-            state: "intent",
-            at: "2026-10-24T00:00:02.500Z",
-          },
-        ],
-      }),
-    );
     let calls = 1; // The crashed attempt ran the effect once; the retry is the second run.
     const add = tool({
       name: "add",
@@ -241,6 +255,42 @@ describe("effects journal", () => {
       },
     });
     // A resumed run gates tools: any call re-entering an effect must be approved again.
+    const recordWithoutJournal = base({
+      step: {
+        index: 0,
+        stepId: "attempt-1",
+        startedAt: "2026-10-24T00:00:02.000Z",
+      },
+    });
+    const digest = await nextRequestDigest(recordWithoutJournal, (model, probeStore) =>
+      new ToolCallingAgent({
+        model,
+        tools: [add],
+        store: probeStore,
+        approve: () => true,
+      }).run("add", { runId: "run-journal", resume: {} }),
+    );
+    store.commit(
+      "run-journal",
+      base({
+        step: {
+          index: 0,
+          stepId: "attempt-1",
+          startedAt: "2026-10-24T00:00:02.000Z",
+        },
+        journal: [
+          modelDone("attempt-1", ADD_TURN, digest),
+          {
+            stepId: "attempt-1",
+            callId: "c-add",
+            toolName: "add",
+            argsDigest: ADD_DIGEST,
+            state: "intent",
+            at: "2026-10-24T00:00:02.500Z",
+          },
+        ],
+      }),
+    );
     const agent = new ToolCallingAgent({
       model: new MockModel([ANSWER_TURN]),
       tools: [add],
@@ -268,29 +318,6 @@ describe("effects journal", () => {
       "final_answer(sum);",
       CODE_FENCE,
     ].join(String.fromCharCode(10));
-    store.commit(
-      "run-journal",
-      base({
-        step: { index: 0, stepId: "attempt-1", startedAt: "2026-10-24T00:00:02.000Z" },
-        journal: [
-          modelDone("attempt-1", {
-            content: code,
-            finishReason: "stop",
-            toolCalls: [],
-            usage: EMPTY_TOKEN_USAGE,
-          }),
-          {
-            stepId: "attempt-1",
-            callId: "c-add",
-            toolName: "add",
-            argsDigest: "digest",
-            state: "done",
-            result: 2,
-            at: "2026-10-24T00:00:02.500Z",
-          },
-        ],
-      }),
-    );
     let calls = 0;
     const add = tool({
       name: "add",
@@ -316,7 +343,56 @@ describe("effects journal", () => {
         return { ...finalAnswerResult(sum), logs: "" };
       },
     });
-    const agent = new CodeAgent({ model: new MockModel([]), executor, tools: [add], store });
+    const recordWithoutJournal = base({
+      step: {
+        index: 0,
+        stepId: "attempt-1",
+        startedAt: "2026-10-24T00:00:02.000Z",
+      },
+    });
+    const digest = await nextRequestDigest(recordWithoutJournal, (model, probeStore) =>
+      new CodeAgent({ model, executor, tools: [add], store: probeStore }).run("add", {
+        runId: "run-journal",
+        resume: {},
+      }),
+    );
+    store.commit(
+      "run-journal",
+      base({
+        step: {
+          index: 0,
+          stepId: "attempt-1",
+          startedAt: "2026-10-24T00:00:02.000Z",
+        },
+        journal: [
+          modelDone(
+            "attempt-1",
+            {
+              content: code,
+              finishReason: "stop",
+              toolCalls: [],
+              usage: EMPTY_TOKEN_USAGE,
+            },
+            digest,
+          ),
+          {
+            stepId: "attempt-1",
+            callId: "c-add",
+            toolName: "add",
+            argsDigest: ADD_DIGEST,
+            state: "done",
+            result: 2,
+            at: "2026-10-24T00:00:02.500Z",
+          },
+        ],
+      }),
+    );
+    const agent = new CodeAgent({
+      model: new MockModel([]),
+      executor,
+      tools: [add],
+      store,
+    });
 
     const result = await agent.run("add", { runId: "run-journal", resume: {} });
 
@@ -326,14 +402,31 @@ describe("effects journal", () => {
 
   it("replays a journaled model request instead of paying for it twice", async () => {
     const store = new MemoryRunStore();
+    // No scripted reply: a model call would throw, so finishing proves the request was replayed.
+    const recordWithoutJournal = base({
+      step: {
+        index: 0,
+        stepId: "attempt-1",
+        startedAt: "2026-10-24T00:00:02.000Z",
+      },
+    });
+    const digest = await nextRequestDigest(recordWithoutJournal, (model, probeStore) =>
+      new ToolCallingAgent({ model, store: probeStore }).run("add", {
+        runId: "run-journal",
+        resume: {},
+      }),
+    );
     store.commit(
       "run-journal",
       base({
-        step: { index: 0, stepId: "attempt-1", startedAt: "2026-10-24T00:00:02.000Z" },
-        journal: [modelDone("attempt-1", answerCompletion())],
+        step: {
+          index: 0,
+          stepId: "attempt-1",
+          startedAt: "2026-10-24T00:00:02.000Z",
+        },
+        journal: [modelDone("attempt-1", answerCompletion(), digest)],
       }),
     );
-    // No scripted reply: a model call would throw, so finishing proves the request was replayed.
     const agent = new ToolCallingAgent({ model: new MockModel([]), store });
 
     const result = await agent.run("add", { runId: "run-journal", resume: {} });

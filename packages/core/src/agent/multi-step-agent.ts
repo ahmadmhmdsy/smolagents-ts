@@ -10,6 +10,7 @@ import {
   RunApprovalMismatchError,
   RunNotFoundError,
   RunNotWaitingError,
+  RunPluginMismatchError,
   RunRecordVersionError,
   RunRequestExpiredError,
   RunRequestMismatchError,
@@ -113,7 +114,9 @@ import {
   RUN_RECORD_VERSION,
   translateRecord,
   type ApprovalSettlement,
+  pluginDrift,
   type JournalEntry,
+  type PluginEntry,
   type RunRecord,
   type RunStatus,
 } from "../session/run-record.js";
@@ -821,7 +824,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     }
 
     if (fork !== undefined) {
-      const failure = await this.loadFork(context, fork);
+      const failure = await this.loadFork(context, fork, options.allowPluginDrift === true);
       if (failure !== undefined) {
         yield this.emit({ type: "run.failed", error: failure.info });
         return;
@@ -850,6 +853,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
         return;
       }
       if (loaded !== undefined) {
+        // Before the claim, for the same reason: a changed plugin set refuses before any effect.
+        const drift = this.pluginRefusal(loaded, options.allowPluginDrift === true);
+        if (drift !== undefined) {
+          yield this.emit({ type: "run.failed", error: drift.info });
+          return;
+        }
         // Before the claim, for the same reason: missing bytes leave a run a store can still save.
         const unavailable = await this.hydrateMedia(loaded.memory.steps);
         if (unavailable !== undefined) {
@@ -1419,6 +1428,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       const events = recordedEvents.slice(
         Math.max(0, recordedEvents.length - this.maxRecordedEvents),
       );
+      const plugins = this.pluginEntries();
       const record: RunRecord = {
         schemaVersion: RUN_RECORD_VERSION,
         runId: context.runId,
@@ -1437,6 +1447,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
         memory: { steps },
         ...(context.pending === undefined ? {} : { pending: context.pending }),
         ...(context.transfer === undefined ? {} : { transfer: context.transfer }),
+        ...(plugins.length === 0 ? {} : { plugins }),
         ...(context.children === undefined || context.children.length === 0
           ? {}
           : { children: context.children }),
@@ -1467,6 +1478,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private async loadFork(
     context: RunContext,
     fork: { readonly fromRunId: string; readonly atStep: number },
+    allowPluginDrift: boolean,
   ): Promise<AgentError | undefined> {
     if (this.store === undefined) {
       return AgentError.from(new Error("A fork needs a store to read the parent run from."));
@@ -1483,6 +1495,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
         "The fork's parent run " + JSON.stringify(fork.fromRunId) + " holds no record.",
       );
     }
+    const drift = this.pluginRefusal(parent, allowPluginDrift);
+    if (drift !== undefined) return drift;
     const atStep = fork.atStep;
     const target =
       parent.step?.index === atStep
@@ -1621,6 +1635,28 @@ export abstract class MultiStepAgent<TOut = unknown> {
     context.openStep = { index: stepIndex, stepId, startedAt: new Date().toISOString() };
     context.stepIndex = stepIndex;
     return stepId;
+  }
+
+  /**
+   * The plugins active on this agent, as the run record names them. Resume and fork compare the
+   * recorded list with this one. Empty until the plugin host lands; a subclass may report its own.
+   */
+  protected pluginEntries(): readonly PluginEntry[] {
+    return [];
+  }
+
+  /** The refusal for a record whose plugin set differs from this agent's, unless drift is allowed. */
+  private pluginRefusal(record: RunRecord, allowDrift: boolean): AgentError | undefined {
+    if (allowDrift) return undefined;
+    const drift = pluginDrift(record.plugins, this.pluginEntries());
+    if (drift === undefined) return undefined;
+    return new RunPluginMismatchError(
+      "Run " +
+        JSON.stringify(record.runId) +
+        " was recorded with a different plugin set (" +
+        drift +
+        "). Restore the plugins, or pass allowPluginDrift to continue anyway.",
+    );
   }
 
   /** Whether this run writes a record, so journaling is meaningful for it. */
@@ -2009,17 +2045,20 @@ export abstract class MultiStepAgent<TOut = unknown> {
     const stepId = context.openStep?.stepId;
     if (stepId !== undefined) {
       const recorded = this.journaledCompletion(context, stepId);
-      if (recorded?.state === "done" && recorded.result !== undefined) {
+      const digest = digestOf(withoutBytes(messages));
+      if (recorded !== undefined && recorded.argsDigest !== digest) {
+        // The request is not the one the journal answered (a message arrived, a plugin changed the
+        // prompt): its reply belongs to another turn. The request is a read, so ask again.
+        this.logger.warn("journal: model request diverged on replay; asking the model again", {
+          runId: context.runId,
+          stepIndex,
+        });
+        context.journal = context.journal.filter((entry) => entry !== recorded);
+      } else if (recorded?.state === "done" && recorded.result !== undefined) {
         // The model request is a read: replaying its recorded reply costs nothing and runs no effect.
         return recorded.result as ChatCompletion;
       }
-      const intentFailure = await this.journalIntent(
-        context,
-        stepId,
-        "model",
-        "",
-        digestOf(withoutBytes(messages)),
-      );
+      const intentFailure = await this.journalIntent(context, stepId, "model", "", digest);
       if (intentFailure !== undefined) throw intentFailure;
     }
     let completion: ChatCompletion;

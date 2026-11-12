@@ -32,7 +32,9 @@ export type AgentErrorCode =
   | "AGENT_TOOL_HOSTED"
   | "AGENT_UNSUPPORTED_CONTENT"
   | "AGENT_CONTENT_TOO_LARGE"
-  | "AGENT_MEDIA_MISSING";
+  | "AGENT_MEDIA_MISSING"
+  | "AGENT_RUN_PLUGIN_MISMATCH"
+  | "AGENT_REPLAY_DIVERGED";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -445,6 +447,38 @@ export class MediaMissingError extends AgentError {
   }
 }
 
+/**
+ * Raised when a resume or fork finds a different set of plugins than the record names. The run's
+ * journal was written under the recorded set, so it is refused before any claim or model call,
+ * unless the caller passes `allowPluginDrift` (0039).
+ */
+export class RunPluginMismatchError extends AgentError {
+  constructor(message: string, options: AgentErrorOptions = {}) {
+    super(message, { ...options, code: "AGENT_RUN_PLUGIN_MISMATCH" });
+    this.name = "RunPluginMismatchError";
+  }
+}
+
+/**
+ * Raised when a replayed effect is asked for with inputs other than the ones its journal entry was
+ * recorded with. The recorded result belongs to another request, so it is never returned for this
+ * one, and the effect is not run again behind the record's back.
+ */
+export class ReplayDivergedError extends AgentError {
+  readonly toolName: string;
+  readonly callId: string;
+
+  constructor(
+    message: string,
+    options: AgentErrorOptions & { readonly toolName?: string; readonly callId?: string } = {},
+  ) {
+    super(message, { ...options, code: "AGENT_REPLAY_DIVERGED" });
+    this.name = "ReplayDivergedError";
+    this.toolName = options.toolName ?? "";
+    this.callId = options.callId ?? "";
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -480,4 +514,6 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_UNSUPPORTED_CONTENT: UnsupportedContentError,
   AGENT_CONTENT_TOO_LARGE: ContentTooLargeError,
   AGENT_MEDIA_MISSING: MediaMissingError,
+  AGENT_RUN_PLUGIN_MISMATCH: RunPluginMismatchError,
+  AGENT_REPLAY_DIVERGED: ReplayDivergedError,
 };

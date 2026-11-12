@@ -204,6 +204,12 @@ export interface RunOptions {
    * step with the copied journal, so a recorded effect replays instead of running twice.
    */
   fork?: { readonly fromRunId: string; readonly atStep: number };
+  /**
+   * Resume or fork although the record names other plugins than this agent has. The journal was
+   * written under the recorded set, so a replayed step may not match it; the default refuses with
+   * `RunPluginMismatchError` (0039). The record then names the plugins active now.
+   */
+  allowPluginDrift?: boolean;
 }
 
 /** Mutable per-run bookkeeping, handed to subclasses so they can execute an action. */

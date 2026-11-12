@@ -4,6 +4,7 @@ import {
   AgentError,
   AgentToolCallError,
   EffectOutcomeUnknownError,
+  ReplayDivergedError,
   ToolHostedError,
   ToolTimeoutError,
 } from "../errors.js";
@@ -240,6 +241,18 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     let retried = false;
     if (stepId !== undefined) {
       const recorded = this.journalLookup(context, stepId, callId);
+      const digest = digestOf(args);
+      if (recorded !== undefined && recorded.argsDigest !== digest) {
+        // The call is not the one the journal holds: neither its result nor a retry belongs here.
+        throw new ReplayDivergedError(
+          "Tool " +
+            definition.name +
+            " was called for " +
+            callId +
+            " with arguments that differ from the ones this run journaled, so the call is not replayed.",
+          { stepIndex, toolName: definition.name, callId },
+        );
+      }
       if (recorded !== undefined && recorded.state !== "intent" && recorded.result !== undefined) {
         // The effect finished before the crash: return its recorded result, run nothing.
         const replayed = recorded.result as { ok: true; output: unknown } | { ok: false; error: AgentErrorInfo };
@@ -266,7 +279,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
           stepId,
           callId,
           definition.name,
-          digestOf(args),
+          digest,
         );
         if (intentFailure !== undefined) throw intentFailure;
       }

@@ -9,6 +9,8 @@ import { MemoryRunStore, RUN_RECORD_VERSION, type JournalEntry } from "../src/se
 import { MockModel } from "../src/testing/mock-model.js";
 import { tool } from "../src/tool/tool.js";
 import { EMPTY_TOKEN_USAGE, type ToolCallRequest } from "../src/types.js";
+import { digestOf } from "../src/utils/digest.js";
+import { nextRequestDigest } from "./support/request-digest.js";
 
 function call(args: unknown, id: string): ToolCallRequest {
   return { id, name: "count", arguments: JSON.stringify(args) };
@@ -57,12 +59,28 @@ function recordOf(store: MemoryRunStore, runId: string): RunRecord {
  * A parent that crashed inside step 0: the model's reply is journaled, and the count call was
  * announced (`intent`) but never recorded a result, so nobody knows whether it ran.
  */
-function inDoubtParent(store: MemoryRunStore, runId: string): void {
+async function inDoubtParent(store: MemoryRunStore, runId: string): Promise<void> {
+  const record: RunRecord = {
+    schemaVersion: RUN_RECORD_VERSION,
+    runId,
+    status: "running",
+    generation: 0,
+    memory: { steps: [stepToJSON(new TaskStep("count"))] },
+    step: { index: 0, stepId: "attempt-0", startedAt: "2026-11-09T00:00:00.000Z" },
+  };
+  const requestDigest = await nextRequestDigest(record, (model, probeStore) =>
+    new ToolCallingAgent({
+      model,
+      tools: [countingTool().tool],
+      store: probeStore,
+      approve: () => true,
+    }).run("count", { runId, resume: {} }),
+  );
   const modelDone: JournalEntry = {
     stepId: "attempt-0",
     callId: "model",
     toolName: "",
-    argsDigest: "digest",
+    argsDigest: requestDigest,
     state: "done",
     result: { ...countTurn("c-doubt"), usage: EMPTY_TOKEN_USAGE },
     usage: EMPTY_TOKEN_USAGE,
@@ -72,19 +90,11 @@ function inDoubtParent(store: MemoryRunStore, runId: string): void {
     stepId: "attempt-0",
     callId: "c-doubt",
     toolName: "count",
-    argsDigest: "digest",
+    argsDigest: digestOf({}),
     state: "intent",
     at: "2026-11-09T00:00:02.000Z",
   };
-  store.commit(runId, {
-    schemaVersion: RUN_RECORD_VERSION,
-    runId,
-    status: "running",
-    generation: 0,
-    memory: { steps: [stepToJSON(new TaskStep("count"))] },
-    step: { index: 0, stepId: "attempt-0", startedAt: "2026-11-09T00:00:00.000Z" },
-    journal: [modelDone, intent],
-  });
+  store.commit(runId, { ...record, journal: [modelDone, intent] });
 }
 
 describe("fork from a named step", () => {
@@ -184,7 +194,7 @@ describe("fork from a named step", () => {
 
   it("refuses to guess at an in-doubt effect it inherits, and leaves the parent untouched", async () => {
     const store = new MemoryRunStore();
-    inDoubtParent(store, "parent-doubt");
+    await inDoubtParent(store, "parent-doubt");
     const counted = countingTool();
     const forked = new ToolCallingAgent({
       model: new MockModel([]),
@@ -211,7 +221,7 @@ describe("fork from a named step", () => {
 
   it("retries an inherited in-doubt effect once when the tool is idempotent", async () => {
     const store = new MemoryRunStore();
-    inDoubtParent(store, "parent-retry");
+    await inDoubtParent(store, "parent-retry");
     let calls = 0;
     const idempotent = tool({
       name: "count",

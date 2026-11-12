@@ -3,7 +3,7 @@ import { MultiStepAgent, type AgentOptions, type RunContext } from "./multi-step
 import type { AgentEventPayload } from "../events.js";
 import type { CodeExecutor, ToolCallEvent } from "../executor.js";
 import type { ActionStep } from "../memory/steps.js";
-import { type AgentErrorInfo, EffectOutcomeUnknownError } from "../errors.js";
+import { type AgentErrorInfo, EffectOutcomeUnknownError, ReplayDivergedError } from "../errors.js";
 import type { ChatCompletion } from "../model.js";
 import { buildCodeAgentSystemPrompt } from "../prompts/system-prompt.js";
 import { CODE_FENCE } from "../prompts/templates.js";
@@ -205,6 +205,17 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
   ): Promise<unknown> {
     const callId = toolContext.callId;
     const recorded = this.journalLookup(context, stepId, callId);
+    if (recorded !== undefined && recorded.argsDigest !== digestOf(input)) {
+      // The call is not the one the journal holds: neither its result nor a retry belongs here.
+      throw new ReplayDivergedError(
+        "Tool " +
+          definition.name +
+          " was called for " +
+          callId +
+          " with arguments that differ from the ones this run journaled, so the call is not replayed.",
+        { stepIndex: context.stepIndex, toolName: definition.name, callId },
+      );
+    }
     if (recorded !== undefined && recorded.state !== "intent" && recorded.result !== undefined) {
       return this.deliverToolResult(recorded.result, context);
     }

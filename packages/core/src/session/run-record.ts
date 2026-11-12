@@ -88,6 +88,38 @@ export interface JournalEntry {
   readonly at: string;
 }
 
+/**
+ * One plugin that was active when a run was written. A resume or fork compares the list, so a run
+ * never replays its journal under a different set of plugins without saying so (0039).
+ */
+export interface PluginEntry {
+  readonly name: string;
+  readonly version: string;
+  /** The digest of the plugin's configuration, so the same plugin set up differently also counts. */
+  readonly configDigest: string;
+}
+
+/**
+ * How two plugin lists differ, as one sentence, or undefined when they hold the same entries. Order
+ * does not count; a missing list is the empty list, so a record written before plugins existed
+ * matches an agent that has none.
+ */
+export function pluginDrift(
+  recorded: readonly PluginEntry[] | undefined,
+  current: readonly PluginEntry[],
+): string | undefined {
+  const key = (entry: PluginEntry): string => entry.name + "@" + entry.version + "#" + entry.configDigest;
+  const before = new Set((recorded ?? []).map(key));
+  const now = new Set(current.map(key));
+  const removed = [...before].filter((entry) => !now.has(entry)).sort();
+  const added = [...now].filter((entry) => !before.has(entry)).sort();
+  if (removed.length === 0 && added.length === 0) return undefined;
+  const parts: string[] = [];
+  if (removed.length > 0) parts.push("recorded but not active: " + removed.join(", "));
+  if (added.length > 0) parts.push("active but not recorded: " + added.join(", "));
+  return parts.join("; ");
+}
+
 /** One emitted event as the record keeps it: the seq it was assigned, and the event itself. */
 export interface RunEventEntry {
   readonly seq: number;
@@ -109,6 +141,8 @@ export interface RunRecord {
   readonly messages?: readonly RunMessage[];
   /** The declared target a transferred run handed the conversation to. */
   readonly transfer?: TransferSignal;
+  /** The plugins active when the record was written; absent when there were none (0039). */
+  readonly plugins?: readonly PluginEntry[];
   /** The background children this run started, with the phase each one reached. */
   readonly children?: readonly ChildRow[];
   /** The claim board rows a run owns, when it uses one. */
