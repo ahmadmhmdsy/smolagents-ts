@@ -28,6 +28,7 @@ Do **not** record routine implementation choices. They belong in the code.
 
 | ID | Title | Status | Date |
 |---|---|---|---|
+| 0039 | a narrow plugin contract on the existing seams, proved before it is frozen | accepted | 2026-11-11 |
 | 0038 | provider fallback and local runtimes are scheduled, ahead of retrieval | accepted | 2026-11-09 |
 | 0037 | 0.1.0 ships from a frozen release line, and main moves on before the publish | accepted | 2026-11-09 |
 | 0036 | the version-1 shim flattens text parts and refuses media | accepted | 2026-10-31 |

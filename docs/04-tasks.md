@@ -46,12 +46,16 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
 | T-54 | open the `models-gateway` package on a gateway feature demand | blocked | owner | `packages/models-gateway/**`, `AGENTS.md` | D-08 parked it: needs a record (`0019`) and a settled metadata channel (instance state is shared mutable state) | `docs/research/2026-10-21-omniroute-gateway-support.md` |
 | T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
+| T-74 | name the plugins in the run record and check digests on replay | pending | lead | `packages/core/src/session/**`, `packages/core/src/agent/**`, `packages/core/test/**` | `0039` rule 1: a resume with one plugin removed throws `RunPluginMismatchError` before any model call; a replayed step whose digest differs never returns the journaled result | - |
+| T-75 | add `PluginHost`, `definePlugin` and `agent.use()`, with tool hooks in the tool wrapper | pending | lead | `packages/core/src/plugin/**`, `packages/core/src/tool/**`, `packages/core/src/agent/**`, `packages/core/test/**` | after T-74; `0039` rules 2 to 5: a CodeAgent guest call fires `tool:before`, nothing rewrites args after approval, `dispose()` removes every registration | - |
+| T-76 | prove the contract: the monitor and cost wiring as a built-in plugin | pending | lead | `packages/core/**` | after T-75; by 2026-12-15, `pnpm gate` with no existing test edited, and a cost-logger example run in a test; a miss means a record with no public plugin API in 0.x | - |
+| T-77 | document where each kind of behaviour belongs | blocked | owner | `docs/**` | T-52 settles where guides live; then a table of Model wrapper, hook, tool, executor and store, each row with a tested example | - |
 <!-- rotate:end -->
 
 ## Blocked
 
-Five rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
-(guide home), T-54 (gateway demand), T-70 (E2B key).
+Six rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
+(guide home), T-54 (gateway demand), T-70 (E2B key), T-77 (waits on T-52).
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
 recorded; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete and only T-14's gate stands between this tree and 0.1.0. A blocked row
 stays in the live table above; only `done` rows rotate to
