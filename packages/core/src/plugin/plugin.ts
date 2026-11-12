@@ -1,5 +1,5 @@
 import type { ChatCompletion, GenerateOptions } from "../model.js";
-import type { ChatMessage } from "../types.js";
+import type { ChatMessage, TokenUsage } from "../types.js";
 
 /**
  * The plugin contract (decision 0039). A plugin is a name, a version, an optional config and a
@@ -19,6 +19,18 @@ export interface PluginRunInfo {
 export interface PluginToolInfo extends PluginRunInfo {
   readonly name: string;
   readonly callId: string;
+}
+
+/**
+ * A live completion's context: which model answered, how long the turn took, and whether the
+ * provider reported usage at all. A stream that reported none carries an empty usage, which is
+ * not the same claim as a reported zero, so `usage` is absent then.
+ */
+export interface PluginModelResponseInfo extends PluginRunInfo {
+  readonly modelId: string;
+  readonly provider: string;
+  readonly durationMs: number;
+  readonly usage?: TokenUsage;
 }
 
 /** A step that has finished and is about to be committed. */
@@ -56,8 +68,14 @@ export interface PluginHooks {
     request: PluginModelRequest,
     info: PluginRunInfo,
   ) => Awaitable<PluginModelRequest | undefined>;
-  /** Emit, after a live completion. A replayed completion does not fire it. */
-  "model:response": (completion: ChatCompletion, info: PluginRunInfo) => void | Promise<void>;
+  /**
+   * Emit, after a live completion and before its `usage.updated` event. A replayed completion
+   * does not fire it, so a listener counts each provider call once.
+   */
+  "model:response": (
+    completion: ChatCompletion,
+    info: PluginModelResponseInfo,
+  ) => void | Promise<void>;
   /**
    * Waterfall over the call's arguments, before the approval gate. A rewrite is validated against
    * the tool's input schema again, and the result is frozen: nothing changes it after approval.

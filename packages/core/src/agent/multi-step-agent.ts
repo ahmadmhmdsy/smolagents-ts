@@ -76,6 +76,7 @@ import { ToolRegistry } from "../tool/registry.js";
 import { PluginHost } from "../plugin/host.js";
 import type { Plugin, PluginHandle } from "../plugin/plugin.js";
 import { withToolHooks } from "../plugin/tool-hooks.js";
+import { monitorPlugin } from "../plugin/builtin/monitor.js";
 import {
   advertisedToolRegistry,
   applyToolPolicy,
@@ -293,6 +294,8 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.customInstructions = options.customInstructions;
     this.explicitSystemPrompt = options.systemPrompt;
     this.monitor = new Monitor();
+    // The token and timing accounting is a built-in plugin on model:response (T-76).
+    this.pluginHost.use(monitorPlugin(() => this.monitor), { builtin: true });
     this.managedAgents = managedAgents;
     for (const entry of this.managedAgents) {
       const wrapped = managedAgent(entry);
@@ -2182,21 +2185,19 @@ export abstract class MultiStepAgent<TOut = unknown> {
       }
       if (kind === "action") yield* this.emitCodeDelta(text, true, code, stepIndex);
 
-      if (streamUsage !== undefined) {
-        this.monitor.record(this.model.id, streamUsage, Date.now() - startedAt);
-        context.usage = addTokenUsage(context.usage, streamUsage);
-      }
-      const turnUsage = streamUsage ?? EMPTY_TOKEN_USAGE;
-      const costReason = this.spendRunCost(turnUsage, context.budget);
-      context.limitReached = spendBudget(context.budget, turnUsage) ?? costReason;
-      // Exactly one usage.updated per model turn, whether or not the stream reported usage.
-      yield this.emit({ type: "usage.updated", usage: context.usage });
       completion = {
         content: text,
         toolCalls: accumulator.finish(),
         usage: streamUsage ?? EMPTY_TOKEN_USAGE,
         finishReason,
       };
+      this.emitResponse(completion, context, stepIndex, Date.now() - startedAt, streamUsage);
+      if (streamUsage !== undefined) context.usage = addTokenUsage(context.usage, streamUsage);
+      const turnUsage = streamUsage ?? EMPTY_TOKEN_USAGE;
+      const costReason = this.spendRunCost(turnUsage, context.budget);
+      context.limitReached = spendBudget(context.budget, turnUsage) ?? costReason;
+      // Exactly one usage.updated per model turn, whether or not the stream reported usage.
+      yield this.emit({ type: "usage.updated", usage: context.usage });
     } else {
       const startedAt = Date.now();
       completion = await this.model.generate(messages, options);
@@ -2208,7 +2209,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
         );
       }
       if (kind === "action") yield* this.emitCodeDelta(completion.content, true, "", stepIndex);
-      this.monitor.record(this.model.id, completion.usage, Date.now() - startedAt);
+      this.emitResponse(
+        completion,
+        context,
+        stepIndex,
+        Date.now() - startedAt,
+        completion.usage,
+      );
       context.usage = addTokenUsage(context.usage, completion.usage);
       const costReason = this.spendRunCost(completion.usage, context.budget);
       context.limitReached = spendBudget(context.budget, completion.usage) ?? costReason;
@@ -2225,10 +2232,26 @@ export abstract class MultiStepAgent<TOut = unknown> {
       );
       if (doneFailure !== undefined) throw doneFailure;
     }
-    if (this.pluginHost.has("model:response")) {
-      this.pluginHost.emit("model:response", completion, { runId: context.runId, stepIndex });
-    }
     return completion;
+  }
+
+  /** Fire `model:response` for a live completion; the built-in monitor listens here. */
+  private emitResponse(
+    completion: ChatCompletion,
+    context: RunContext,
+    stepIndex: number,
+    durationMs: number,
+    usage: TokenUsage | undefined,
+  ): void {
+    if (!this.pluginHost.has("model:response")) return;
+    this.pluginHost.emit("model:response", completion, {
+      runId: context.runId,
+      stepIndex,
+      modelId: this.model.id,
+      provider: this.model.provider,
+      durationMs,
+      ...(usage === undefined ? {} : { usage }),
+    });
   }
 
   /**

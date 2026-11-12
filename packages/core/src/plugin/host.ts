@@ -16,8 +16,20 @@ interface Registration {
   readonly listener: (...args: never[]) => unknown;
 }
 
+/** How a plugin is installed. */
+export interface PluginUseOptions {
+  /**
+   * A plugin the library installs on every agent: it is part of the library's own version, so the
+   * run record does not name it and a resume never counts it as drift. Not for user plugins.
+   *
+   * @internal
+   */
+  readonly builtin?: boolean;
+}
+
 interface Installed {
   readonly entry: PluginEntry;
+  readonly builtin: boolean;
   readonly undos: (() => void)[];
   teardown: (() => void) | undefined;
 }
@@ -47,7 +59,7 @@ export class PluginHost {
     return this.revision;
   }
 
-  use<TConfig>(plugin: Plugin<TConfig>): PluginHandle {
+  use<TConfig>(plugin: Plugin<TConfig>, options: PluginUseOptions = {}): PluginHandle {
     this.guard();
     const name = plugin.name;
     if (this.installed.has(name)) {
@@ -57,6 +69,7 @@ export class PluginHost {
     }
     const installed: Installed = {
       entry: { name, version: plugin.version, configDigest: digestOf(plugin.config ?? null) },
+      builtin: options.builtin === true,
       undos: [],
       teardown: undefined,
     };
@@ -89,9 +102,11 @@ export class PluginHost {
     };
   }
 
-  /** The active plugins as the run record names them, in registration order. */
+  /** The active plugins as the run record names them, in registration order; built-ins excluded. */
   entries(): readonly PluginEntry[] {
-    return [...this.installed.values()].map((installed) => installed.entry);
+    return [...this.installed.values()]
+      .filter((installed) => !installed.builtin)
+      .map((installed) => installed.entry);
   }
 
   has(hook: PluginHookName): boolean {
