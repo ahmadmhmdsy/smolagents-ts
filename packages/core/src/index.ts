@@ -64,6 +64,7 @@ export * from "./agent/background-child.js";
 export * from "./agent/approval.js";
 export * from "./agent/guardrail.js";
 export * from "./middleware.js";
+export * from "./plugin/index.js";
 export * from "./session/agent-session.js";
 export * from "./session/run-store.js";
 export * from "./session/media-store.js";

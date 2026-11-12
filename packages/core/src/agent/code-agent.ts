@@ -143,7 +143,7 @@ export class CodeAgent<TOut = unknown> extends MultiStepAgent<TOut> {
     // The executor's own answer wins when it claims one; the sink is the fallback.
     const value = settled.result.isFinalAnswer ? settled.result.value : submitted;
     if (claimed) {
-      const invalid = this.invalidAnswer(value);
+      const invalid = await this.rejectedAnswer(value, context.runId, context.stepIndex);
       if (invalid !== undefined) {
         // Spends the run's repair budget; past it, answerFailure throws and ends the run.
         const correction = this.answerFailure(invalid, context.finishReason, context.stepIndex);

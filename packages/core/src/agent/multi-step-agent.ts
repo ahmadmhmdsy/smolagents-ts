@@ -6,6 +6,7 @@ import {
   AgentMaxStepsError,
   AgentParsingError,
   MediaMissingError,
+  PluginError,
   RunAlreadySettledError,
   RunApprovalMismatchError,
   RunNotFoundError,
@@ -72,6 +73,9 @@ import {
   wrapUpdatedPlan,
 } from "../prompts/templates.js";
 import { ToolRegistry } from "../tool/registry.js";
+import { PluginHost } from "../plugin/host.js";
+import type { Plugin, PluginHandle } from "../plugin/plugin.js";
+import { withToolHooks } from "../plugin/tool-hooks.js";
 import {
   advertisedToolRegistry,
   applyToolPolicy,
@@ -227,6 +231,12 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private readonly toolPolicy: ToolPolicy | ToolPolicyProvider | undefined;
   /** The step in flight's resolved tool view; undefined until the first step resolves one. */
   private stepView: StepToolView | undefined;
+  /** The plugins this agent uses and their hooks (decision 0039). */
+  private readonly pluginHost: PluginHost;
+  /** Runs in flight on this agent; registration is refused while any is (rule 5). */
+  private runsInFlight = 0;
+  /** Each runnable registry wrapped with the tool hooks, rebuilt when the hook set changes. */
+  private readonly hookedRegistries = new WeakMap<ToolRegistry, { version: number; registry: ToolRegistry }>();
   /** The exporter a caller installed; undefined means this agent never builds a trace. */
   private readonly exporter: SpanExporter | undefined;
   /** The price rows this agent costs a run against; undefined means the shipped table. */
@@ -278,6 +288,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     this.planningInterval = options.planningInterval ?? 0;
     this.executionTimeoutMs = options.executionTimeoutMs ?? 30_000;
     this.logger = options.logger ?? noopLogger;
+    this.pluginHost = new PluginHost(this.logger, () => this.assertBetweenRuns());
     this.middleware = options.middleware ?? [];
     this.customInstructions = options.customInstructions;
     this.explicitSystemPrompt = options.systemPrompt;
@@ -403,7 +414,33 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /** The step's runnable tools: what the executor and the lookup may run, hidden ones stubbed. */
   protected stepRegistry(): ToolRegistry {
-    return this.stepView?.registry ?? this.tools;
+    const base = this.stepView?.registry ?? this.tools;
+    const host = this.pluginHost;
+    if (!host.has("tool:before") && !host.has("tool:after")) return base;
+    const cached = this.hookedRegistries.get(base);
+    if (cached !== undefined && cached.version === host.version) return cached.registry;
+    const runId = () => this.activeContext?.runId ?? "";
+    const registry = new ToolRegistry(base.list().map((entry) => withToolHooks(entry, host, runId)));
+    this.hookedRegistries.set(base, { version: host.version, registry });
+    return registry;
+  }
+
+  /**
+   * Use a plugin: run its `setup`, which registers its hook listeners. Refused while a run is in
+   * flight (rule 5); the handle's `dispose()` removes every registration it made.
+   *
+   * @experimental
+   */
+  use<TConfig>(plugin: Plugin<TConfig>): PluginHandle {
+    return this.pluginHost.use(plugin);
+  }
+
+  private assertBetweenRuns(): void {
+    if (this.runsInFlight > 0) {
+      throw new PluginError(
+        "Plugins are registered and disposed between runs; this agent has a run in flight.",
+      );
+    }
   }
 
 
@@ -667,6 +704,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
     // escapes it — a subclass's interpret(), a prompt builder — is reported here instead of being
     // thrown past a consumer that waits for the terminal event.
     let ended = false;
+    this.runsInFlight += 1;
     try {
       for await (const event of this.runStream(task, options)) {
         if (isTerminal(event.type)) ended = true;
@@ -685,6 +723,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       ended = true;
       yield terminal;
     } finally {
+      this.runsInFlight -= 1;
       const context = this.activeContext;
       this.activeContext = undefined;
       if (ended && context?.trace !== undefined && this.exporter !== undefined) {
@@ -1104,7 +1143,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
           }
           continue;
         }
-        const invalid = this.invalidAnswer(action.output);
+        const invalid = await this.rejectedAnswer(action.output, context.runId, stepIndex);
         if (invalid !== undefined) {
           const correction = this.answerFailure(invalid, context.finishReason, stepIndex);
           step.observations = correction;
@@ -1639,10 +1678,10 @@ export abstract class MultiStepAgent<TOut = unknown> {
 
   /**
    * The plugins active on this agent, as the run record names them. Resume and fork compare the
-   * recorded list with this one. Empty until the plugin host lands; a subclass may report its own.
+   * recorded list with this one, in registration order.
    */
   protected pluginEntries(): readonly PluginEntry[] {
-    return [];
+    return this.pluginHost.entries();
   }
 
   /** The refusal for a record whose plugin set differs from this agent's, unless drift is allowed. */
@@ -1727,6 +1766,13 @@ export abstract class MultiStepAgent<TOut = unknown> {
   private markStepFinished(context: RunContext): void {
     const open = context.openStep;
     if (open === undefined) return;
+    if (this.pluginHost.has("step:end")) {
+      this.pluginHost.emit("step:end", {
+        runId: context.runId,
+        stepIndex: open.index,
+        stepId: open.stepId,
+      });
+    }
     context.completed = [
       ...context.completed,
       { stepId: open.stepId, index: open.index, state: "completed", finishedAt: new Date().toISOString() },
@@ -2002,6 +2048,21 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /**
+   * Why a value cannot be the final answer: the output schema first, then each `answer:check`
+   * listener in order. The first refusal is the reason the correction step carries.
+   */
+  protected async rejectedAnswer(
+    value: unknown,
+    runId: string,
+    stepIndex: number,
+  ): Promise<string | undefined> {
+    const invalid = this.invalidAnswer(value);
+    if (invalid !== undefined || !this.pluginHost.has("answer:check")) return invalid;
+    const reason = await this.pluginHost.check(value, { runId, stepIndex });
+    return reason === undefined ? undefined : "A plugin refused the final answer — " + reason;
+  }
+
+  /**
    * How one run answers a schema failure: as a correction observation, up to the repair budget,
    * then as a guardrail failure. A reply cut off by its length limit is never repaired, because
    * the missing part is not a mistake the model can correct in the next turn.
@@ -2032,16 +2093,51 @@ export abstract class MultiStepAgent<TOut = unknown> {
   }
 
   /**
+   * The request a model turn sends, after the `model:request` listeners (rule 4): they may edit
+   * the messages and the options, never the model, so a result naming a `model` is refused.
+   * Runs before the digest, so a replayed turn is checked against the request it would send.
+   */
+  private async pluggedRequest(
+    messages: readonly ChatMessage[],
+    context: RunContext,
+    stepIndex: number,
+    extra?: GenerateOptions,
+  ): Promise<{ messages: readonly ChatMessage[]; options: GenerateOptions }> {
+    const options = this.modelOptions(context, extra);
+    if (!this.pluginHost.has("model:request")) return { messages, options };
+    const result = await this.pluginHost.waterfall(
+      "model:request",
+      { messages, options },
+      { runId: context.runId, stepIndex },
+    );
+    const named = (value: unknown) =>
+      typeof value === "object" && value !== null && Object.hasOwn(value, "model");
+    if (named(result) || named(result.options)) {
+      throw new PluginError(
+        "A model:request listener returned a model; plugins edit the request, never the model.",
+        { stepIndex },
+      );
+    }
+    if (!Array.isArray(result.messages)) {
+      throw new PluginError("A model:request listener returned a request without messages.", {
+        stepIndex,
+      });
+    }
+    return { messages: result.messages, options: result.options ?? options };
+  }
+
+  /**
    * One model turn. Deltas are emitted as they arrive; the authoritative completion is
    * returned, never reconstructed from deltas by the caller.
    */
   private async *streamCompletion(
-    messages: readonly ChatMessage[],
+    requested: readonly ChatMessage[],
     stepIndex: number,
     context: RunContext,
     kind: "action" | "planning",
     extra?: GenerateOptions,
   ): AsyncGenerator<AgentEvent, ChatCompletion> {
+    const { messages, options } = await this.pluggedRequest(requested, context, stepIndex, extra);
     const stepId = context.openStep?.stepId;
     if (stepId !== undefined) {
       const recorded = this.journaledCompletion(context, stepId);
@@ -2070,7 +2166,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       let finishReason: FinishReason = "stop";
       let streamUsage: TokenUsage | undefined;
 
-      for await (const chunk of this.model.generateStream(messages, this.modelOptions(context, extra))) {
+      for await (const chunk of this.model.generateStream(messages, options)) {
         if (chunk.delta !== "") {
           text += chunk.delta;
           if (kind === "planning") {
@@ -2103,7 +2199,7 @@ export abstract class MultiStepAgent<TOut = unknown> {
       };
     } else {
       const startedAt = Date.now();
-      completion = await this.model.generate(messages, this.modelOptions(context, extra));
+      completion = await this.model.generate(messages, options);
       if (completion.content !== "") {
         yield this.emit(
           kind === "planning"
@@ -2128,6 +2224,9 @@ export abstract class MultiStepAgent<TOut = unknown> {
         completion.usage,
       );
       if (doneFailure !== undefined) throw doneFailure;
+    }
+    if (this.pluginHost.has("model:response")) {
+      this.pluginHost.emit("model:response", completion, { runId: context.runId, stepIndex });
     }
     return completion;
   }

@@ -118,6 +118,11 @@ const RUNTIME_EXPORTS = [
   "RunMessageRefusedError",
   // plugins: a resume that names a different plugin set, and a replay whose call changed
   "RunPluginMismatchError",
+  "PluginError",
+  "definePlugin",
+  "PluginHost",
+  "withToolHooks",
+  "sealArgs",
   "ReplayDivergedError",
   // messages: an ordinary record entry a send appends, and the delivery the run performs
   "sendRunMessage",
@@ -229,6 +234,7 @@ const ERROR_CASES: {
   { Ctor: core.ContentTooLargeError, name: "ContentTooLargeError", code: "AGENT_CONTENT_TOO_LARGE" },
   { Ctor: core.MediaMissingError, name: "MediaMissingError", code: "AGENT_MEDIA_MISSING" },
   { Ctor: core.RunPluginMismatchError, name: "RunPluginMismatchError", code: "AGENT_RUN_PLUGIN_MISMATCH" },
+  { Ctor: core.PluginError, name: "PluginError", code: "AGENT_PLUGIN" },
   { Ctor: core.ReplayDivergedError, name: "ReplayDivergedError", code: "AGENT_REPLAY_DIVERGED" },
 ];
 

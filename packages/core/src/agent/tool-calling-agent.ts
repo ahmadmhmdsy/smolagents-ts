@@ -121,7 +121,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
       if (request.name === FINAL_ANSWER_TOOL_NAME) {
         const value = extractAnswer(args);
-        const invalid = this.invalidAnswer(value);
+        const invalid = await this.rejectedAnswer(value, context.runId, stepIndex);
         if (invalid !== undefined) {
           // A wrong-shaped answer spends the run's repair budget; past it, answerFailure throws.
           const correction = this.answerFailure(invalid, context.finishReason, stepIndex);

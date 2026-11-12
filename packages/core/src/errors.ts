@@ -34,7 +34,8 @@ export type AgentErrorCode =
   | "AGENT_CONTENT_TOO_LARGE"
   | "AGENT_MEDIA_MISSING"
   | "AGENT_RUN_PLUGIN_MISMATCH"
-  | "AGENT_REPLAY_DIVERGED";
+  | "AGENT_REPLAY_DIVERGED"
+  | "AGENT_PLUGIN";
 
 /** The serialisable form of an error. Errors travel in events, so they must be plain data. */
 export interface AgentErrorInfo {
@@ -479,6 +480,21 @@ export class ReplayDivergedError extends AgentError {
   }
 }
 
+/**
+ * Raised when a plugin is registered or removed at a time the contract forbids: while a run is
+ * active, under a name already in use, or when a hook returns a value the host refuses, such as a
+ * model swap from `model:request` (0039).
+ */
+export class PluginError extends AgentError {
+  readonly pluginName: string;
+
+  constructor(message: string, options: AgentErrorOptions & { readonly pluginName?: string } = {}) {
+    super(message, { ...options, code: "AGENT_PLUGIN" });
+    this.name = "PluginError";
+    this.pluginName = options.pluginName ?? "";
+  }
+}
+
 type AgentErrorSubclass = new (message: string, options?: AgentErrorOptions) => AgentError;
 
 /** The subclass each code is raised as, read by `AgentError.fromInfo`. */
@@ -516,4 +532,5 @@ const SUBCLASS_FOR_CODE: Readonly<Partial<Record<string, AgentErrorSubclass>>> =
   AGENT_MEDIA_MISSING: MediaMissingError,
   AGENT_RUN_PLUGIN_MISMATCH: RunPluginMismatchError,
   AGENT_REPLAY_DIVERGED: ReplayDivergedError,
+  AGENT_PLUGIN: PluginError,
 };
