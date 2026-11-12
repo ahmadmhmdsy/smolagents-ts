@@ -97,8 +97,35 @@ await check("a live CodeAgent run executes a program and answers", async () => {
   }
 });
 
+// Fixtures cannot catch a provider rejecting the tool schema, or a replayed call missing the
+// token it was issued with; only a second live turn after a real tool call does.
+await check("a live ToolCallingAgent calls a tool, replays it, and is priced", async () => {
+  const { createRequire } = await import("node:module");
+  const { z } = createRequire(new URL("../packages/core/package.json", import.meta.url))("zod");
+  const seen = [];
+  const add = core.tool({
+    name: "add",
+    description: "Add two integers and return the sum.",
+    inputSchema: z.object({ a: z.number(), b: z.number() }),
+    execute: (input) => {
+      seen.push(input);
+      return input.a + input.b;
+    },
+  });
+  const agent = new core.ToolCallingAgent({ model, tools: [add], maxSteps: 4 });
+  const result = await agent.run("Use the add tool to add 2 and 3, then call final_answer with the sum.");
+  if (seen.length === 0) throw new Error("the tool was never called");
+  if (result.state !== "success") throw new Error("run state " + result.state);
+  // The run prices itself from the shipped table; "unknown" means no row matched this provider.
+  if (result.costBasis !== "table") throw new Error("the run was not priced (" + result.costBasis + ")");
+  console.log(
+    "       answer " + JSON.stringify(result.output) + " tool calls " + seen.length + " cost " + result.cost?.costUsd,
+  );
+  return true;
+});
+
 if (failures.length > 0) {
   for (const failure of failures) console.error("  - " + failure);
-  throw new Error("live-smoke FAILED: " + failures.length + " of 3 checks failed");
+  throw new Error("live-smoke FAILED: " + failures.length + " of 4 checks failed");
 }
 console.log("live-smoke OK (" + MODEL_ID + ")");

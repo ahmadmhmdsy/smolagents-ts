@@ -4,6 +4,14 @@ Completed task rows, moved verbatim from `docs/04-tasks.md`. Rotation moves; it 
 
 ---
 
+## Closed 2026-11-13
+
+| id | title | status | owner | scope | gate | evidence |
+|---|---|---|---|---|---|---|
+| T-74 | name the plugins in the run record and check digests on replay | done | lead | `packages/core/src/session/**`, `packages/core/src/agent/**`, `packages/core/test/**` | `0039` rule 1: a resume with one plugin removed throws `RunPluginMismatchError` before any model call; a replayed step whose digest differs never returns the journaled result | commit `7b0d022`; `npx vitest run test/plugin-drift.test.ts` 7/7 on 2026-11-13 |
+| T-75 | add `PluginHost`, `definePlugin` and `agent.use()`, with tool hooks in the tool wrapper | done | lead | `packages/core/src/plugin/**`, `packages/core/src/tool/**`, `packages/core/src/agent/**`, `packages/core/test/**` | `0039` rules 2 to 5: a CodeAgent guest call fires `tool:before`, nothing rewrites args after approval, `dispose()` removes every registration | commit `566ae7c`; `npx vitest run test/plugins.test.ts` 16/16 on 2026-11-13; live: a ToolCallingAgent on `gemini-3.5-flash-lite` fired every hook and the `tool:before` rewrite reached the tool, after `bd2bce2` and `3e53919` fixed three Gemini adapter bugs it exposed |
+| T-76 | prove the contract: the monitor and cost wiring as a built-in plugin | done | lead | `packages/core/**` | met before its 2026-12-15 kill-date: `pnpm gate` with no existing test edited, and a cost-logger example run in a test | commit `77c0cdd`; `npx vitest run test/plugin-proof.test.ts` 7/7; `pnpm gate` exit 0 at `3e53919` (1,643 passed); live: the monitor and the cost logger agreed on a streamed CodeAgent and a ToolCallingAgent run on Gemini |
+
 ## Closed 2026-10-21
 
 | id | title | status | owner | scope | gate | evidence |

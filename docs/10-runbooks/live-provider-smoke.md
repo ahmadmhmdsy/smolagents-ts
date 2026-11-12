@@ -52,17 +52,18 @@ is the one procedure that does, and it is the only one that needs a credential.
 
 ## Verification
 
-    # expect, in order: three "ok" lines and a final "live-smoke OK (<model>)"
+    # expect, in order: four "ok" lines and a final "live-smoke OK (<model>)"
     # expect, without the key: "live-smoke SKIPPED: GOOGLE_API_KEY is not set" and exit 0
     echo $LASTEXITCODE
 
-Last recorded run: 2026-10-14, `gemini-3.5-flash-lite`, the three checks ok and
-exit 0, with the streamed check reporting usage and the agent run reaching the
-executor once and answering `4`.
+Last recorded run: 2026-11-13, `gemini-3.5-flash-lite`, the four checks ok and
+exit 0: the streamed check reported usage, the `CodeAgent` run reached the
+executor once and answered `4`, and the `ToolCallingAgent` run called its tool
+once and was priced from the shipped table.
 
 ## Rollback
 
-Nothing is written outside the process: the script makes three provider calls,
+Nothing is written outside the process: the script makes a handful of provider calls,
 prints their text, and exits. The only cost is the calls themselves.
 
 1. Stop the script. No state to undo.
@@ -76,6 +77,8 @@ prints their text, and exits. The only cost is the calls themselves.
 | a 401 or 403 | the key is absent, revoked or not enabled for the API | the owner reissues it; the script cannot |
 | the streaming check fails on usage | the adapter stopped reading the provider's usage field | check the adapter's streamed payload and its fixture test |
 | `Cannot find module .../dist/index.js` | the packages were not built | run step 1 |
+| the tool check fails with an HTTP 400 | the provider rejected the tool schema, or a replayed call lost its `thoughtSignature` | check `toWireTools` and the signature round trip in the Gemini adapter |
+| the tool check says the run was not priced | no row in `DEFAULT_PRICE_TABLE` matches the adapter's provider and model | add or correct the row in `packages/core/src/monitoring/pricing.ts` |
 
 ## Local runtimes
 
@@ -123,8 +126,9 @@ No live run against a local runtime has been recorded yet.
 
 ## Notes
 
-- The three checks are: a non-streamed completion, a streamed completion with
-  usage, and one live `CodeAgent` run through the QuickJS executor that must
-  reach the executor at least once.
+- The four checks are: a non-streamed completion, a streamed completion with
+  usage, one live `CodeAgent` run through the QuickJS executor that must
+  reach the executor at least once, and one live `ToolCallingAgent` run that
+  must call its tool, finish a second turn after the call, and be priced.
 - A failure here does not fail the gate. The gate never runs this script, because
   the gate must stay credential-free.
