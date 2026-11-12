@@ -145,4 +145,26 @@ describe("GeminiModel streaming", () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("The provider returned no body to stream");
   });
+
+  it("carries a streamed call's thoughtSignature into the collected call", async () => {
+    const event = {
+      candidates: [
+        {
+          content: {
+            role: "model",
+            parts: [{ functionCall: { name: "add", args: { a: 1 } }, thoughtSignature: "sig-s" }],
+          },
+          finishReason: "STOP",
+        },
+      ],
+    };
+    const { fetch } = recorder("data: " + JSON.stringify(event) + "\n\n");
+    const model = new GeminiModel({ model: "m", fetch });
+
+    const result = await collectCompletion(model.generateStream([{ role: "user", content: "W?" }]));
+
+    expect(result.toolCalls).toEqual([
+      { id: "call-0", name: "add", arguments: '{"a":1}', signature: "sig-s" },
+    ]);
+  });
 });

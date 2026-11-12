@@ -156,6 +156,39 @@ describe("GeminiModel", () => {
     });
   });
 
+  it("keeps a call's thoughtSignature and sends it back on replay", async () => {
+    const reply = JSON.stringify({
+      candidates: [
+        {
+          content: {
+            role: "model",
+            parts: [
+              { functionCall: { name: "get_weather", args: { city: "Paris" } }, thoughtSignature: "sig-1" },
+            ],
+          },
+          finishReason: "STOP",
+        },
+      ],
+    });
+    const { fetch, calls } = recorder(reply);
+    const model = new GeminiModel({ model: "m", fetch });
+
+    const result = await model.generate([{ role: "user", content: "Weather?" }]);
+    expect(result.toolCalls).toEqual([
+      { id: "call-0", name: "get_weather", arguments: '{"city":"Paris"}', signature: "sig-1" },
+    ]);
+
+    await model.generate([
+      { role: "user", content: "Weather?" },
+      { role: "assistant", content: "", toolCalls: result.toolCalls },
+      { role: "tool", content: "sunny", toolCallId: "call-0", name: "get_weather" },
+    ]);
+    expect(bodyOf(calls, 1).contents[1]?.parts[0]).toEqual({
+      functionCall: { name: "get_weather", args: { city: "Paris" }, id: "call-0" },
+      thoughtSignature: "sig-1",
+    });
+  });
+
   it("merges consecutive tool results into one user content", async () => {
     const { fetch, calls } = recorder(completion);
     const model = new GeminiModel({ model: "m", fetch });

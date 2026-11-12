@@ -211,6 +211,7 @@ export class AgentMemory {
                 id: call.id,
                 name: call.name,
                 arguments: JSON.stringify(call.arguments ?? {}),
+                ...(call.signature === undefined ? {} : { signature: call.signature }),
               })),
             });
             for (const call of calls) {

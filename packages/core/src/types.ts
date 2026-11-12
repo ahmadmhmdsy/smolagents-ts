@@ -105,6 +105,11 @@ export interface ToolCallRequest {
   id: string;
   name: string;
   arguments: string;
+  /**
+   * An opaque token the provider attached to the call and requires back, unchanged, when the
+   * call is replayed in a later turn (Gemini's `thoughtSignature`). The core only carries it.
+   */
+  signature?: string;
 }
 
 /** One tool invocation, as recorded in an ActionStep. */
@@ -112,6 +117,8 @@ export interface ToolCall {
   id: string;
   name: string;
   arguments: unknown;
+  /** The provider's replay token from the request, kept so the next turn can send it back. */
+  signature?: string;
   result?: unknown;
   error?: string;
   durationMs?: number;

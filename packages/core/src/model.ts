@@ -28,6 +28,8 @@ export interface ToolCallDelta {
   id?: string;
   name?: string;
   argumentsDelta?: string;
+  /** The call's replay token; see `ToolCallRequest.signature`. */
+  signature?: string;
 }
 
 export interface ChatCompletionChunk {
@@ -50,6 +52,7 @@ export class ToolCallAccumulator {
     if (delta.id !== undefined) existing.id = delta.id;
     if (delta.name !== undefined) existing.name = delta.name;
     if (delta.argumentsDelta !== undefined) existing.arguments += delta.argumentsDelta;
+    if (delta.signature !== undefined) existing.signature = delta.signature;
     this.open.set(delta.index, existing);
   }
 

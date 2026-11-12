@@ -104,6 +104,8 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
 
     for (const [index, request] of requests.entries()) {
       const callId = request.id === "" ? "call-" + String(index) : request.id;
+      // A provider replay token rides on every record of the call, failed ones included.
+      const sig = request.signature === undefined ? {} : { signature: request.signature };
 
       let args: unknown;
       try {
@@ -114,7 +116,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
           { stepIndex },
         ).info;
         yield { type: "action.failed", callId, name: request.name, error: info };
-        calls.push({ id: callId, name: request.name, arguments: request.arguments, error: info.message });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: request.arguments, error: info.message });
         observations.push("Error: " + info.message);
         continue;
       }
@@ -127,11 +129,11 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
           const correction = this.answerFailure(invalid, context.finishReason, stepIndex);
           const info = new AgentToolCallError(invalid, { stepIndex }).info;
           yield { type: "action.failed", callId, name: request.name, error: info };
-          calls.push({ id: callId, name: request.name, arguments: args, error: invalid, durationMs: 0 });
+          calls.push({ id: callId, name: request.name, ...sig, arguments: args, error: invalid, durationMs: 0 });
           observations.push(correction);
           continue;
         }
-        calls.push({ id: callId, name: request.name, arguments: args, result: value, durationMs: 0 });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: args, result: value, durationMs: 0 });
         yield { type: "action.result", callId, name: request.name, output: value, durationMs: 0 };
         observations.push("Final answer: " + display(value));
         isFinalAnswer = true;
@@ -143,7 +145,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       if (definition === undefined) {
         const info = new AgentToolCallError("Unknown tool: " + request.name, { stepIndex }).info;
         yield { type: "action.failed", callId, name: request.name, error: info };
-        calls.push({ id: callId, name: request.name, arguments: args, error: info.message });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: args, error: info.message });
         observations.push("Error: " + info.message);
         continue;
       }
@@ -157,7 +159,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
           { stepIndex, provider },
         ).info;
         yield { type: "action.failed", callId, name: request.name, error: info };
-        calls.push({ id: callId, name: request.name, arguments: args, error: info.message });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: args, error: info.message });
         observations.push("Error: " + info.message);
         continue;
       }
@@ -169,7 +171,7 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
           { stepIndex },
         ).info;
         yield { type: "action.failed", callId, name: request.name, error: info };
-        calls.push({ id: callId, name: request.name, arguments: args, error: info.message });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: args, error: info.message });
         observations.push("Error: " + info.message);
         continue;
       }
@@ -201,11 +203,11 @@ export class ToolCallingAgent<TOut = unknown> extends MultiStepAgent<TOut> {
       const durationMs = Date.now() - startedAt;
 
       if (result.ok) {
-        calls.push({ id: callId, name: request.name, arguments: parsed.data, result: result.output, durationMs });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: parsed.data, result: result.output, durationMs });
         yield { type: "action.result", callId, name: request.name, output: result.output, durationMs };
         observations.push("Tool " + request.name + " returned: " + display(result.output));
       } else {
-        calls.push({ id: callId, name: request.name, arguments: parsed.data, error: result.error.message, durationMs });
+        calls.push({ id: callId, name: request.name, ...sig, arguments: parsed.data, error: result.error.message, durationMs });
         yield { type: "action.failed", callId, name: request.name, error: result.error };
         observations.push("Error: " + result.error.message);
       }

@@ -55,6 +55,8 @@ interface WirePart {
   text?: string;
   inlineData?: { mimeType: string; data: string };
   functionCall?: { name?: string; args?: unknown; id?: string };
+  /** Sits beside a functionCall; Gemini 400s if a replayed call drops it. */
+  thoughtSignature?: string;
   functionResponse?: { name?: string; response?: unknown; id?: string };
 }
 
@@ -169,7 +171,10 @@ function toWireMessages(
       const parts: WirePart[] = [];
       if (text !== "") parts.push({ text });
       for (const call of message.toolCalls ?? []) {
-        parts.push({ functionCall: { name: call.name, args: toArgs(call.arguments), id: call.id } });
+        parts.push({
+          functionCall: { name: call.name, args: toArgs(call.arguments), id: call.id },
+          ...(call.signature === undefined ? {} : { thoughtSignature: call.signature }),
+        });
       }
       if (parts.length > 0) contents.push({ role: "model", parts });
       continue;
@@ -203,6 +208,7 @@ function fromWireParts(parts: WirePart[] | undefined): {
         id: part.functionCall.id ?? "call-" + String(toolCalls.length),
         name: part.functionCall.name ?? "",
         arguments: JSON.stringify(part.functionCall.args ?? {}),
+        ...(part.thoughtSignature === undefined ? {} : { signature: part.thoughtSignature }),
       });
     }
   }
@@ -249,7 +255,7 @@ function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCom
   const candidate = parsed.candidates?.[0];
   const parts = candidate?.content?.parts ?? [];
   let text = "";
-  const calls: { name: string; args: unknown; id: string | undefined }[] = [];
+  const calls: { name: string; args: unknown; id: string | undefined; signature?: string }[] = [];
   for (const part of parts) {
     if (part.text !== undefined) text += part.text;
     if (part.functionCall !== undefined) {
@@ -257,6 +263,7 @@ function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCom
         name: part.functionCall.name ?? "",
         args: part.functionCall.args,
         id: part.functionCall.id,
+        ...(part.thoughtSignature === undefined ? {} : { signature: part.thoughtSignature }),
       });
     }
   }
@@ -280,6 +287,7 @@ function* chunksFor(parsed: WireResponse, state: StreamState): Generator<ChatCom
       id: call.id ?? "call-" + String(index),
       name: call.name,
       argumentsDelta: JSON.stringify(call.args ?? {}),
+      ...(call.signature === undefined ? {} : { signature: call.signature }),
     };
   });
   const first = deltas[0];
