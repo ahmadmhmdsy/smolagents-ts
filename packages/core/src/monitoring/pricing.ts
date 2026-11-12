@@ -59,7 +59,8 @@ export const DEFAULT_PRICE_TABLE: readonly ModelPrice[] = [
     source: "https://developers.openai.com/api/docs/pricing",
   },
   {
-    provider: "google",
+    // The provider name GeminiModel reports, so a Gemini run prices without a custom table.
+    provider: "gemini",
     modelPrefix: "gemini-3.5-flash-lite",
     currency: "USD",
     effectiveDate: PRICE_TABLE_DATE,

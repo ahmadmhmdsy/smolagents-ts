@@ -100,13 +100,17 @@ function toArgs(raw: string): unknown {
   }
 }
 
+/**
+ * The schema goes out as `parametersJsonSchema`: `parameters` takes only an OpenAPI subset and
+ * answers HTTP 400 on `additionalProperties`, which every zod object schema carries.
+ */
 function toWireTools(tools: readonly ToolSpec[]): unknown[] {
   return [
     {
       functionDeclarations: tools.map((spec) => ({
         name: spec.name,
         description: spec.description,
-        parameters: spec.inputSchema,
+        parametersJsonSchema: spec.inputSchema,
       })),
     },
   ];

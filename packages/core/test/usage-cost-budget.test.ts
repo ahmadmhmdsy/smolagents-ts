@@ -94,10 +94,10 @@ describe("prices and cost", () => {
     expect(DEFAULT_PRICE_TABLE.length).toBeGreaterThanOrEqual(3);
     expect(PRICE_TABLE_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
-    const gemini = findModelPrice({ provider: "google", model: "gemini-3.5-flash-lite" });
+    const gemini = findModelPrice({ provider: "gemini", model: "gemini-3.5-flash-lite" });
     expect(gemini?.effectiveDate).toBe(PRICE_TABLE_DATE);
     expect(gemini?.source).toMatch(/^https:\/\//);
-    expect(findModelPrice({ provider: "google", model: "gemini-9" })).toBeUndefined();
+    expect(findModelPrice({ provider: "gemini", model: "gemini-9" })).toBeUndefined();
     expect(findModelPrice({ provider: "nobody", model: "gemini-3.5-flash-lite" })).toBeUndefined();
 
     const longest = findModelPrice(

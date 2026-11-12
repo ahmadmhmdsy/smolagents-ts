@@ -23,7 +23,7 @@ interface SentBody {
   systemInstruction?: { parts: Array<{ text: string }> };
   contents: SentContent[];
   tools?: Array<{
-    functionDeclarations: Array<{ name: string; description: string; parameters: unknown }>;
+    functionDeclarations: Array<{ name: string; description: string; parametersJsonSchema: unknown }>;
   }>;
   generationConfig?: { temperature?: number; maxOutputTokens?: number; stopSequences?: string[] };
 }
@@ -91,7 +91,7 @@ describe("GeminiModel", () => {
     expect(body.tools?.[0]?.functionDeclarations[0]).toEqual({
       name: "get_weather",
       description: "Get the current weather for a city.",
-      parameters: weatherTool.inputSchema,
+      parametersJsonSchema: weatherTool.inputSchema,
     });
 
     expect(result.content).toBe("");
