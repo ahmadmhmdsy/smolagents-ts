@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { CODE_FENCE } from "smolagents-ts";
-import { App } from "../src/App.js";
+import { App, explainRunError } from "../src/App.js";
 import { createLiveRun, createScriptedRun } from "../src/agent.js";
 import { clearSession, readSession, saveSession, spaceOAuthAvailable } from "../src/auth.js";
 
@@ -118,5 +118,43 @@ describe("the page", () => {
       live.click();
     });
     expect(screen.getByLabelText("Model")).toBeTruthy();
+  });
+
+  it("says why a live run failed when the account has no credits", async () => {
+    const noCredits = async (): Promise<Response> =>
+      new Response(JSON.stringify({ error: "Purchase pre-paid credits to continue using Inference Providers." }), {
+        status: 402,
+      });
+    await act(async () => {
+      render(
+        <App
+          initialSession={{ accessToken: "t", expiresAt: Date.now() + 60_000, username: "someone" }}
+          oauthAvailable
+          createScripted={scripted}
+          createLive={(options) => createLiveRun({ ...options, fetch: noCredits })}
+        />,
+      );
+    });
+    await act(async () => {
+      screen.getByRole("radio", { name: /real model/ }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: "Run" }).click();
+    });
+    const alert = await screen.findByRole("alert", {}, { timeout: 15_000 });
+    expect(alert.textContent).toContain("no Inference Providers credits left");
+    expect(alert.textContent).toContain("HTTP 402");
+    expect(screen.getByRole("link", { name: "Open billing settings" }).getAttribute("href")).toBe(
+      "https://huggingface.co/settings/billing",
+    );
+  }, 30_000);
+});
+
+describe("explainRunError", () => {
+  it("maps the provider's status to advice, and leaves the rest alone", () => {
+    expect(explainRunError("HTTP 401 from x")).toContain("Sign out, sign in again");
+    expect(explainRunError("HTTP 429 from x")).toContain("rate-limiting");
+    expect(explainRunError("HTTP 500 from x")).toBeNull();
+    expect(explainRunError("the program threw")).toBeNull();
   });
 });

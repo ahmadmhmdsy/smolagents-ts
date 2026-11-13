@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyledChatSurface, StyledRunInspector } from "@smolagents-ts/react-ui";
+import { useAgentRunSnapshot } from "smolagents-ts/react";
 import "../../../packages/react-ui/src/styles.css";
 import {
   createLiveRun,
@@ -14,6 +15,48 @@ import { clearSession, restoreSession, signIn, spaceOAuthAvailable, type HfSessi
 const NO_COMPOSER = "This page shows the run's conversation; type a new task above instead.";
 
 type Mode = "scripted" | "live";
+
+const BILLING_URL = "https://huggingface.co/settings/billing";
+
+/** Turns the provider's HTTP status into what the visitor can do about it. */
+export function explainRunError(text: string): string | null {
+  const status = /HTTP (\d{3})/.exec(text)?.[1];
+  switch (status) {
+    case "402":
+      return "Your Hugging Face account has no Inference Providers credits left. Add pre-paid credits or subscribe to PRO, then run again.";
+    case "401":
+    case "403":
+      return "Hugging Face refused the sign-in token. Sign out, sign in again, and allow the inference permission.";
+    case "429":
+      return "The provider is rate-limiting this account. Wait a minute, or pick another model.";
+    default:
+      return null;
+  }
+}
+
+/** The inspector shows only "Failed"; this says why, inside the same run's snapshot. */
+function RunError() {
+  const { status, error } = useAgentRunSnapshot();
+  if (status !== "failed" || error === null) return null;
+  const cause = error.cause !== undefined && !error.message.includes(error.cause) ? error.cause : undefined;
+  const detail = cause === undefined ? error.message : error.message + " — " + cause;
+  const advice = explainRunError(detail);
+  return (
+    <div className="note run-error" role="alert">
+      {advice !== null ? <p>{advice}</p> : null}
+      {detail.includes("HTTP 402") ? (
+        <p>
+          <a href={BILLING_URL} target="_blank" rel="noreferrer">
+            Open billing settings
+          </a>
+        </p>
+      ) : null}
+      <p className="fineprint">
+        <code>{error.code}</code>: {detail}
+      </p>
+    </div>
+  );
+}
 
 export interface AppProps {
   /** Injected by tests; the page itself reads the Space's globals and session storage. */
@@ -172,6 +215,7 @@ export function App(props: AppProps) {
           <h2>The run, step by step</h2>
         </div>
         <StyledRunInspector agent={demo.agent} task={task}>
+          <RunError />
           <StyledChatSurface disabledReason={NO_COMPOSER} />
         </StyledRunInspector>
       </section>
