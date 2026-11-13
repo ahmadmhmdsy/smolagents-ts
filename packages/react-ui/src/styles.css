@@ -141,6 +141,8 @@
 /* Tool calls: a short list of one-line summaries. */
 .smol-run-inspector ul {
   display: grid;
+  /* minmax(0, 1fr), not auto: a long output line must scroll inside its pre, not widen the card. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--smol-gap);
   margin: 0;
   padding: 0;

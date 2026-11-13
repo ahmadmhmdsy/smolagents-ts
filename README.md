@@ -13,7 +13,10 @@ core is isomorphic by contract.
 
 **Try it in a browser, no install and no key:**
 [the live demo](https://ahmadmhmdsy.github.io/smolagents-ts/example/index.html)
-runs an agent in the real sandbox and renders the run as typed steps.
+runs an agent in the real sandbox and renders the run as typed steps. The
+[Hugging Face Space](https://huggingface.co/spaces/ahmadsy/smolagents-ts) runs the
+same agent, and after Sign in with Hugging Face it gives it a real model, billed to
+your own Inference Providers credits.
 
 ## Install
 
@@ -231,8 +234,10 @@ the one command that proves a change.
 
 ## Status
 
-Pre-release, and not yet on the registry — see
-[docs/04-tasks.md](docs/04-tasks.md) for the publish task and its gate. Scope is
+Published on npm: `smolagents-ts` and the `@smolagents-ts/*` packages are at
+0.1.0, and `@smolagents-ts/cli` is at 0.1.1. The line is 0.x, so a minor release
+can still change the API; [CHANGELOG](packages/smolagents-ts/CHANGELOG.md) records
+each release, and [docs/04-tasks.md](docs/04-tasks.md) says what is next. Scope is
 specified in
 [docs/design/2026-10-12-smolagents-ts-v1-design.md](docs/design/2026-10-12-smolagents-ts-v1-design.md).
 
