@@ -48,8 +48,10 @@ The package owns the command line: its parser, its questions, its factories and 
 renderer. It owns no agent loop, no model adapter, no tool and no executor. The loop,
 the events and the testing doubles come from the core; the adapters come from the
 models package; the two defaults come from the tools package.
-`@smolagents-ts/exec-quickjs` is an optional peer, loaded only when a code run has
-no injected executor.
+`@smolagents-ts/exec-quickjs` is a dependency, imported on demand only when a code
+run has no injected executor, so a `tool_calling` run never loads the engine. It was an
+optional peer through 0.1.0; `npx` installs no optional peer, so the default code run
+failed on a clean machine, and 0.1.1 chose the first run over the bytes, as `0014` did.
 
 ## Hazards
 

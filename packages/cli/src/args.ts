@@ -1,5 +1,6 @@
 import { CliUsageError, HelpRequested } from "./errors.js";
 import { DEFAULT_STATE_DIRECTORY } from "./store.js";
+import { VERSION } from "./version.js";
 
 /** The parsed command line. The optional fields are absent when their flag was absent. */
 export interface CliArguments {
@@ -52,6 +53,7 @@ export const USAGE = [
   "",
   "Options:",
   "  -h, --help            show this help and exit",
+  "  --version             print the version and exit (this port only; upstream has none)",
   "  --model-type TYPE     InferenceClientModel (default) or OpenAIModel",
   "  --action-type TYPE    code (default) or tool_calling",
   "  --model-id ID         the model identifier",
@@ -188,6 +190,12 @@ export function parseArguments(argv: readonly string[]): CliArguments {
 
     if (token === "-h" || token === "--help") {
       throw new HelpRequested(USAGE);
+    }
+
+    // Not in upstream cli.py. It answers through HelpRequested because both are an
+    // informational exit with code 0 that the bin prints to stdout.
+    if (token === "--version") {
+      throw new HelpRequested("smolagent " + VERSION);
     }
 
     if (!isOption(token)) {

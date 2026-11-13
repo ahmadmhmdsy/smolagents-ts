@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { argumentWarnings, parseArguments } from "../src/args.js";
 import { CliUsageError, HelpRequested } from "../src/errors.js";
+import { VERSION } from "../src/version.js";
 
 describe("argumentWarnings", () => {
   it("is silent for a plain run", () => {
@@ -90,6 +91,18 @@ describe("parseArguments", () => {
     expect(parseArguments(["-5"]).prompt).toBe("-5");
     expect(parseArguments(["--model-id", "-0.5"]).modelId).toBe("-0.5");
     expect(() => parseArguments(["--verbosity-level", "-x"])).toThrow(CliUsageError);
+  });
+
+  it("answers --version with the package version and exit code 0", () => {
+    try {
+      parseArguments(["--version"]);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(HelpRequested);
+      expect((error as HelpRequested).usage).toBe("smolagent " + VERSION);
+      expect((error as HelpRequested).exitCode).toBe(0);
+    }
+    expect(() => parseArguments(["a task", "--version"])).toThrow(HelpRequested);
   });
 
   it("throws HelpRequested for --help and -h", () => {
