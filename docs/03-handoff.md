@@ -33,6 +33,93 @@ entry is prepended inside the markers below.
 ---
 
 <!-- rotate:begin -->
+
+## 2026-11-12T10:00:00+03:00 — Upstream contribution: #1816 triage comment posted
+
+- Posted the #1816 triage comment. It recommends #2239, which yields the max-steps step that memory holds. https://github.com/huggingface/smolagents/issues/1816#issuecomment-6826104861
+- Upstream main is still 96f33fa. None of the watched threads has a reply yet.
+- Next: the #1998 draft (section C of reports/upstream-triage-draft.md), on another day and with approval.
+
+## 2026-11-11T18:00:00+03:00 — Upstream contribution: bug triage, #1849 comment posted
+
+- Reproduced three zero-comment bugs on upstream main 96f33fa, offline with a scripted model:
+  - #1998: a syntax error repeats the previous step's prints.
+  - #1816: a duplicate ActionStep yield, and an UnboundLocalError at `max_steps=0`.
+  - #1849: `from_dict` leaks the parent's settings into managed agents, even with no kwargs.
+- Compared the 15 competing PRs by diff only. None was run.
+- Posted the #1849 triage comment, which recommends #2534, or #2218 if `model=` should reach the children: https://github.com/huggingface/smolagents/issues/1849#issuecomment-6798697894
+- Drafts for #1816 (recommends #2239) and #1998 (recommends #2048 or #2111) are in reports/upstream-triage-draft.md. Post them on later days; each needs approval.
+- Gotcha: the upstream clone has an untracked `src/smolagents/.claude/` that its .gitignore doesn't cover. Keep it out of PR branches.
+## 2026-11-11T08:00:00+03:00 — Upstream contribution: option 5 memory-condensation comment on issue #901 is posted
+
+**State.** Nothing in this repo's packages changed. The owner approved, and we posted a [comment on issue #901](https://github.com/huggingface/smolagents/issues/901#issuecomment-6797764045), naming the TypeScript port in one line. It builds on hegu-1's point (compaction changes what the model sees, not what was recorded). It places compaction at `write_memory_to_messages()` (agents.py:758), which builds every model input. It proposes an append-only `CondensationStep` with covered step ids, soft and hard limits with a fallback summary, keeping the last k steps, and a pluggable summarizer. It links PR #2153 and offers a PR if a maintainer agrees with the shape. On purpose, nothing was posted to the hook threads (#2117/#2654/#2557, vendor-heavy; PR #2126 is open), skills (#1848) or async (#1342).
+
+**Verified.** We read upstream `main` 96f33fa: :684, :832, :1284 and :1646 all go through `write_memory_to_messages`. Nothing was run.
+
+**Unverified / open.** Upstream memory steps have no ids today, so the proposal would add them. No maintainer has replied in any option 5 thread.
+
+**Next.** All 5 options are done. Watch #3135 (for status:accepted, then the test-only PR), #2686, #2687, #3016, #2724, #963 and #901. Any #901 PR waits behind the #3135 PR (one open PR at a time).
+
+## 2026-11-10T17:30:00+03:00 — Upstream contribution: option 4 design comment on PR #963 is posted
+
+**State.** Nothing in this repo's packages changed. The owner approved, and we posted a [comment on PR #963](https://github.com/huggingface/smolagents/pull/963#issuecomment-6770349035), IlyaGusev's tool-images-as-observations PR. It names the TypeScript port in one line. The comment answers aymeric-roucher's 2025-07 accidental-trigger objection with four points: tools opt in, images are collected at call time, the model is checked before the run, and each image stays on its own step. It closes with a list of related threads: #1184, #3025, #3007/#2725, #1368 and #2393. We chose this over a new RFC issue because about 10 media issues are already open and most are claimed.
+
+**Verified.** `repro_opt4.py` (session scratchpad) ran on `main` 96f33fa with a fake model. A 4-step `run(images=[img])` sends 1, 2, 3, then 4 image items, because agents.py:574 puts the run's images on every `ActionStep`. This is the mechanism behind the already-reported #1487 (PR #1439).
+
+**Unverified / open.** The PR #963 branch was not run. The comment says the design is "shipped" in the port, but T-56 is still unmerged on `release/0.2-multimodal`.
+
+**Next.** Option 5, the design RFCs (skills #1848, pre-tool hook #2117/#2654/#2557, memory summary #901/#694, async #1342). Watch #3135, #2686, #2687, #3016, #2724 and #963.
+
+## 2026-11-10T16:30:00+03:00 — Upstream contribution: option 3 review of PR #2724 is posted
+
+**State.** Nothing in this repo's packages changed. The owner approved, and we posted a COMMENT review on [PR #2724](https://github.com/huggingface/smolagents/pull/2724#pullrequestreview-5843298514), the pluggable-executors PR for #2722. The review names the TypeScript port in one line. Daytona had already validated the PR, so the review raises only two points the thread had not covered:
+- `FINAL_ANSWER_EXCEPTION_BASE = "Exception"` lets `except Exception` in model code swallow the final answer. Our shim writes the answer frame before it raises.
+- Two lifecycle gaps: the factory's `TypeError` path drops the created executor without cleanup, and the `cleanup()` docstring implies `CodeAgent` cleans up after a failed `__init__`.
+
+**Did.** Read the diff at 5d49484 and upstream `main` 96f33fa. Compared the final-answer path with `packages/exec-remote/src/shim-source.ts:255`.
+
+**Verified.** The CPython script `repro_swallow.py` (session scratchpad) shows that a `BaseException` base reaches the executor and an `Exception` base is swallowed. `gh` shows the review as `COMMENTED` by ahmadmhmdsy.
+
+**Unverified / open.** The PR branch was not run. Upstream `DockerExecutor.cleanup()` uses `container.stop()` with the default 10 s timeout, the same bug we fixed with `t: 0`. That stop has not been timed upstream, so it's a possible separate issue.
+
+**Next.** Option 4, the multimodal tool-media RFC (#963, #1184, #3025, #3007). Keep watching #3135, #2686, #2687, #3016 and #2724.
+
+**Blockers.** Maintainer responses.
+
+**Artifacts.** [`upstream-comments-option3-draft.md`](../reports/upstream-comments-option3-draft.md).
+
+## 2026-11-10T15:00:00+03:00 — Upstream contribution: option 2 evidence and reviews are posted
+
+**State.** Nothing in this repo's packages changed. The owner approved and we posted three upstream comments, each naming the TypeScript port in one line: a design-evidence comment on [#2686](https://github.com/huggingface/smolagents/issues/2686#issuecomment-6769479425), and COMMENT reviews on [PR #2687](https://github.com/huggingface/smolagents/pull/2687#pullrequestreview-5843178227) and [PR #3016](https://github.com/huggingface/smolagents/pull/3016#pullrequestreview-5843178635). #3130 / PR #3134 were skipped: the bug is already reproduced and claimed, and our port has no evidence to add.
+
+**Did.** Reproduced #2686 and #3015 on upstream `main` 96f33fa. Found an unreported variant: in a two-call batch where one call is rejected, the valid call runs but the step keeps `tool_calls=None` and `observations=None`. The #2686 comment argues for failing closed, as decision `0027` does.
+
+**Verified.** The repro scripts ran in `smolagents/.venv`. `gh` shows both reviews as `COMMENTED` by ahmadmhmdsy.
+
+**Unverified / open.** The PR branches were not run (running external PR code was declined), so the review points come from reading the diffs. The batch variant has no upstream issue yet.
+
+**Next.** Watch #3135, #2686, #2687 and #3016 for replies, then move on to option 3 (review of #2724 for #2722).
+
+**Blockers.** Maintainer responses.
+
+**Artifacts.** [`upstream-comments-option2-draft.md`](../reports/upstream-comments-option2-draft.md).
+
+## 2026-11-10T12:00:00+03:00 — Upstream contribution: the executor conformance proposal is posted
+
+**State.** Nothing in this repo's packages changed. The owner wants to build a reputation with HF maintainers, with attention for smolagents-ts as a plus. The first upstream outward action is the proposal issue [huggingface/smolagents#3135](https://github.com/huggingface/smolagents/issues/3135), posted with the owner's approval. It is open, has no labels, and is waiting for `status:accepted`.
+
+**Did.** Surveyed upstream's open issues and PRs, plus its CONTRIBUTING.md (issue first, one open PR, AI disclosure). Ranked five options: the conformance tests, which are this issue; evidence comments on #2686/#2687 and #3015/#3130; a review of #2724; a multimodal RFC; and design RFCs. Created `smolagents/.venv` (Python 3.12.9, upstream editable). The global Python 3.13 + smolagents 1.14.0 recorder is untouched. Wrote a CPython-vs-LocalPythonExecutor prototype test.
+
+**Verified.** On upstream `main` 96f33fa the prototype gives 6 passed and 24 strict xfails, and each divergence was checked by hand. It passes `ruff check` and `ruff format` under upstream's settings. Upstream's own `test_local_python_executor.py` gives 5 failures in this venv, all from the environment: scipy and sklearn are missing, the pandas message changed, and `os.system` behaves differently on Windows.
+
+**Unverified / open.** Whether maintainers accept the issue. The auto-compact hook added `.claude/handoffs/` to `smolagents/.gitignore`, and that line must stay out of any upstream PR.
+
+**Next.** Wait for `status:accepted` on #3135, then open the test-only PR from `reports/test_executor_conformance.py`. Every further upstream post needs the owner's approval.
+
+**Blockers.** Upstream maintainers' response.
+
+**Artifacts.** [`upstream-issue-draft-executor-conformance.md`](../reports/upstream-issue-draft-executor-conformance.md), [`test_executor_conformance.py`](../reports/test_executor_conformance.py).
+
 ## 2026-11-09T23:20:00+03:00 — Fallback, local runtimes and retrieval are on main, unpublished
 
 **State.** `main` is at `390544e`, 24 commits ahead of `origin/main`, unpushed; so are `release/0.1.0` and `release/0.2-multimodal`. Nothing is published: the owner publishes later by `docs/10-runbooks/release-guide.md`. Every follow-up in decision `0038` is done.
