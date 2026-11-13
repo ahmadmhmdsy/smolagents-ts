@@ -41,15 +41,16 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0037`) | `0030`; `0037` |
+| T-14 | publish 0.1.0 to the registry | done (2026-11-13) | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0037`) | `0030`; `0037` |
 | T-70 | run the E2B path live | blocked | owner | `docs/10-runbooks/exec-remote-live-backends.md` | an `E2B_API_KEY` on this host | - |
 <!-- rotate:end -->
 
 ## Blocked
 
-Two rows wait on the owner: T-14 (credentials) and T-70 (E2B key). The owner
+One row waits on the owner: T-70 (E2B key). T-14 is done: 0.1.0 was published on
+2026-11-13, see `docs/10-runbooks/publish-0.1.0.md`. The owner
 settled T-24, T-52 and T-54 on 2026-11-13; T-52, T-77, T-54 and T-24 closed the same day.
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
-recorded; T-74, T-75 and T-76 (the `0039` plugin contract) closed on 2026-11-13; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete and only T-14's gate stands between this tree and 0.1.0. A blocked row
+recorded; T-74, T-75 and T-76 (the `0039` plugin contract) closed on 2026-11-13; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete. A blocked row
 stays in the live table above; only `done` rows rotate to
 `docs/tasks/archive-2026.md`.

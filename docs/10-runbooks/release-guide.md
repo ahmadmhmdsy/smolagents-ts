@@ -1,6 +1,6 @@
 # 10 — Runbook: the release guide
 
-- **Last verified:** never executed. Written 2026-11-09 with decision `0037`. Every step is a hypothesis until the first release.
+- **Last verified:** 2026-11-13, the 0.1.0 release. Every step ran as written; the differences (token class warning, a propagation delay of about 137 seconds, no CLI `--version`) are recorded in `publish-0.1.0.md`. Written 2026-11-09 with decision `0037`.
 - **Estimated duration:** one hour for 0.1.0, including the account setup. About 30 minutes for each later release.
 - **Risk:** high. A published version is immutable, see `publish-0.1.0.md`.
 - **Reversible:** no. The only correction is a new version plus `npm deprecate`.
