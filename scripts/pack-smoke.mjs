@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { gunzipSync } from "node:zlib";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "react-ui", "cli", "mcp", "retrieval"];
+const PACKAGES = ["core", "models", "tools", "exec-quickjs", "exec-pyodide", "exec-remote", "react", "react-ui", "cli", "mcp", "retrieval", "models-gateway"];
 /** The published name: its tarball is the only one that is not scoped. */
 const FACADE = "smolagents-ts";
 
@@ -111,7 +111,8 @@ try {
     return join(workspace, match);
   };
   const packed = [
-    ...PACKAGES.map((name) => ({ name, packageName: "@smolagents-ts/" + name, tarball: tarballFor(new RegExp("^smolagents-ts-" + name + "-")) })),
+    ...PACKAGES.map((name) => ({ name, packageName: "@smolagents-ts/" + name, tarball: tarballFor(new RegExp("^smolagents-ts-" + name + "-\\d")) })),
+    // A name is matched up to the version digit, so "models" never takes the models-gateway tarball.
     // The facade's tarball is "smolagents-ts-<version>.tgz": the scoped packages
     // start with the same prefix, so the version digit is what separates them.
     { name: FACADE, packageName: FACADE, tarball: tarballFor(/^smolagents-ts-\d/) },

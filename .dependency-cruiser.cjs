@@ -16,6 +16,13 @@ module.exports = {
       to: { dependencyTypes: ["core"] },
     },
     {
+      name: "models-gateway-no-node-builtins",
+      severity: "error",
+      comment: "packages/models-gateway is isomorphic: it runs wherever core runs (decision 0040).",
+      from: { path: "^packages/models-gateway/src" },
+      to: { dependencyTypes: ["core"] },
+    },
+    {
       name: "core-no-react",
       severity: "error",
       comment: "core is framework-agnostic (design spec 5.3, layer L0).",

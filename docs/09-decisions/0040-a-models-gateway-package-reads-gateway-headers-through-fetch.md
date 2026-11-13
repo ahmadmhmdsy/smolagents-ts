@@ -29,7 +29,7 @@ Open `@smolagents-ts/models-gateway` with this v1 scope:
 3. **`GatewayResponse`** carries the OmniRoute headers this record names, each optional: `provider`, `model`, `costUsd`, `cache` (`"hit"` or `"miss"`), `fallbackAttempts`, `latencyMs`, `decision` (the raw `X-OmniRoute-Decision` string), `requestId`, plus `headers`, every response header whose name starts with a configured prefix (default `x-omniroute-`). A gateway that is not OmniRoute is served by the prefix, without a parser per gateway.
 4. **`listGatewayModels(options)`** reads `GET {baseUrl}/models` and returns the ids. It is a function, not a method on the seam.
 5. **Capabilities are conservative.** One gateway id can front a model without tools, so `toolCalls` defaults to `false` and the caller sets it after pinning a tool-capable id. `provider` defaults to `"gateway"`, and `id` is the id the caller configured. The run is priced from the price table, or reported unpriced, exactly as any other adapter; the gateway's own USD figure is in the event and never enters `TokenUsage`.
-6. **The package is outside the fixed release group**, like `exec-remote`, `exec-pyodide`, `mcp` and `retrieval`, and it is not re-exported from the `smolagents-ts` umbrella. It depends on `@smolagents-ts/core` and `@smolagents-ts/models` as peers.
+6. **The package is outside the fixed release group**, like `exec-remote`, `exec-pyodide`, `mcp` and `retrieval`, and it is not re-exported from the `smolagents-ts` umbrella. It depends on `@smolagents-ts/core` and `@smolagents-ts/models`, as every package here depends on the core.
 
 v1 does not route, retry, budget, manage combos, read the optional SSE comment trailer, or call any endpoint but `/chat/completions` and `/models`.
 

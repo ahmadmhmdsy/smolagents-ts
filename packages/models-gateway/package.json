@@ -1,0 +1,55 @@
+{
+  "name": "@smolagents-ts/models-gateway",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "A model reached through an OpenAI-compatible AI gateway such as OmniRoute, with the gateway's routing, cost and cache result read from its response headers.",
+  "keywords": [
+    "smolagents",
+    "agents",
+    "llm",
+    "gateway",
+    "omniroute",
+    "openai-compatible"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmadmhmdsy/smolagents-ts.git",
+    "directory": "packages/models-gateway"
+  },
+  "homepage": "https://github.com/ahmadmhmdsy/smolagents-ts#readme",
+  "bugs": {
+    "url": "https://github.com/ahmadmhmdsy/smolagents-ts/issues"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "prepack": "node ../../scripts/copy-licence.mjs copy .",
+    "postpack": "node ../../scripts/copy-licence.mjs clean ."
+  },
+  "dependencies": {
+    "@smolagents-ts/core": "workspace:*",
+    "@smolagents-ts/models": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  }
+}

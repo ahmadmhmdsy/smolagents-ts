@@ -132,3 +132,8 @@ their text, and exits. The only cost is the calls.
 - A gateway is never part of the golden transcripts or the parity corpus: both
   pin a provider's own wire, and a router's output depends on which upstream it
   chose. The fixture here is the closest a repository with no gateway can get.
+- The adapter never reads response headers, so the gateway's routing, cost and
+  cache result are not visible through it. `GatewayModel` in
+  `@smolagents-ts/models-gateway` composes this adapter and reports them through
+  `onResponse` (decision 0040); `listGatewayModels` reads the gateway's
+  `GET /models`.

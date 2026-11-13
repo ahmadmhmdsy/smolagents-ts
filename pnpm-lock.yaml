@@ -388,6 +388,19 @@ importers:
         specifier: ^4.0.0
         version: 4.6.6
 
+  packages/models-gateway:
+    dependencies:
+      '@smolagents-ts/core':
+        specifier: workspace:*
+        version: link:../core
+      '@smolagents-ts/models':
+        specifier: workspace:*
+        version: link:../models
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+
   packages/react:
     dependencies:
       '@smolagents-ts/core':

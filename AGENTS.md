@@ -40,6 +40,7 @@ package should reach that component's entry without being told where to look.
 | mcp | `packages/mcp/` | `packages/mcp/AGENTS.md` | `rules/components/mcp.md` |
 | retrieval | `packages/retrieval/` | `packages/retrieval/AGENTS.md` | `rules/components/retrieval.md` |
 | models | `packages/models/` | `packages/models/AGENTS.md` | `rules/components/models.md` |
+| models-gateway | `packages/models-gateway/` | `packages/models-gateway/AGENTS.md` | `rules/components/models-gateway.md` |
 | react | `packages/react/` | `packages/react/AGENTS.md` | `rules/components/react.md` |
 | react-ui | `packages/react-ui/` | `packages/react-ui/AGENTS.md` | `rules/components/react-ui.md` |
 | smolagents-ts | `packages/smolagents-ts/` | `packages/smolagents-ts/AGENTS.md` | `rules/components/smolagents-ts.md` |
