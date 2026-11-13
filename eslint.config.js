@@ -44,6 +44,7 @@ export default defineConfig(
   {
     ignores: [
       "**/dist/**",
+      "**/space-dist/**",
       "**/coverage/**",
       "**/.superpowers/**",
       "**/.dsh/**",

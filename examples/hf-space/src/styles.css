@@ -1,0 +1,267 @@
+:root {
+  color-scheme: light dark;
+  --ink: #1b1b1f;
+  --muted: #5b5b66;
+  --line: #d8d8e0;
+  --panel: #fbfbfd;
+  --accent: #2b6cb0;
+  --ok: #1f7a4d;
+  --busy: #a8620a;
+  /*
+   * The styled layer's input tokens, mapped onto the page's own palette. The package reads each
+   * of these through a var() fallback, so setting the input here is the consumer's override: the
+   * values resolve through the page's variables, and the dark scheme below follows for free.
+   */
+  --smol-color-surface: var(--panel);
+  --smol-color-text: var(--ink);
+  --smol-color-accent: var(--accent);
+  --smol-shape-radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ececf1;
+    --muted: #a5a5b0;
+    --line: #33333d;
+    --panel: #16161c;
+    --accent: #7ab3e0;
+    --ok: #66c795;
+    --busy: #e0a94a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: Canvas;
+  color: var(--ink);
+  font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 5vw, 3.25rem) clamp(1rem, 4vw, 2rem) 5rem;
+}
+
+header h1 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.45rem, 1.05rem + 1.7vw, 1.95rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+header p {
+  max-width: 60ch;
+  margin: 0;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+p {
+  color: var(--muted);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/*
+ * Sections separate with a hairline rather than a second card, so the styled layer is the only
+ * card on the page — the thing the demo exists to show.
+ */
+.panel {
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.task {
+  margin: 0 0 1.25rem;
+  font-style: italic;
+}
+
+/* The mode picker: two selectable rows, the checked one carrying the accent. */
+.modes {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.modes label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.modes label:hover:not(:has(input:disabled)) {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.modes label:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  color: var(--ink);
+}
+
+.modes label:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modes input {
+  accent-color: var(--accent);
+}
+
+/* The live task box. */
+.live-task {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.live-task label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.live-task textarea {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
+/* Buttons: one vocabulary; the run button carries the accent. */
+button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  font-weight: 550;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+button.run {
+  border-color: transparent;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+button.run:hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 88%, #000000);
+}
+
+button:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+
+button.run:active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 80%, #000000);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+.live-task textarea:focus-visible,
+.modes label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  button.run {
+    color: #10131a;
+  }
+}
+
+/* The run's own status, coloured by the store's state. The styled layer keeps the shape. */
+.agent-run[data-status="success"] [role="status"] {
+  color: var(--ok);
+}
+
+.agent-run[data-status="running"] [role="status"] {
+  color: var(--busy);
+}
+
+.agent-step-observation {
+  color: var(--muted);
+}
+
+/* The answer reads as a settled result, not an accent stripe. */
+.agent-final-answer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  font-weight: 600;
+}
+
+.fineprint,
+.note {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.live-task select {
+  font: inherit;
+  padding: 0.4rem;
+  margin-bottom: 0.5rem;
+}

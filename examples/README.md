@@ -16,6 +16,7 @@ are real in every one of them.
 | [vision](vision) | an image handed to a real model, after the capability check, with alt text that stays out of the request | `node index.mjs` |
 | [gateway](gateway) | the same three calls through a gateway's base URL, with a pinned model id and a redacted key | `node index.mjs` |
 | [vite-app](vite-app) | the React layer in a browser tab, rendering a run as typed steps | `pnpm --filter example-vite-app run dev` |
+| [hf-space](hf-space) | a static Hugging Face Space: the scripted run by default, and Sign in with HF for a real model billed to the visitor | `pnpm --filter example-hf-space run dev` |
 | [supervisor](supervisor) | a supervisor that routes on typed child reports, one of them a schema failure | `node --experimental-strip-types src/index.ts` |
 
 Each script exports a `main()` and calls it only when run directly, so its test
