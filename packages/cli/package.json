@@ -49,18 +49,8 @@
   },
   "dependencies": {
     "@smolagents-ts/core": "workspace:*",
+    "@smolagents-ts/exec-quickjs": "workspace:*",
     "@smolagents-ts/models": "workspace:*",
     "@smolagents-ts/tools": "workspace:*"
-  },
-  "devDependencies": {
-    "@smolagents-ts/exec-quickjs": "workspace:*"
-  },
-  "peerDependencies": {
-    "@smolagents-ts/exec-quickjs": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "@smolagents-ts/exec-quickjs": {
-      "optional": true
-    }
   }
 }

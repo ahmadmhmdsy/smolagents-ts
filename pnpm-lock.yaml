@@ -293,16 +293,15 @@ importers:
       '@smolagents-ts/core':
         specifier: workspace:*
         version: link:../core
+      '@smolagents-ts/exec-quickjs':
+        specifier: workspace:*
+        version: link:../exec-quickjs
       '@smolagents-ts/models':
         specifier: workspace:*
         version: link:../models
       '@smolagents-ts/tools':
         specifier: workspace:*
         version: link:../tools
-    devDependencies:
-      '@smolagents-ts/exec-quickjs':
-        specifier: workspace:*
-        version: link:../exec-quickjs
 
   packages/core:
     dependencies:

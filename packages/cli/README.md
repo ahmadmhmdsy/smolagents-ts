@@ -6,17 +6,19 @@ event stream rendered at three verbosity levels. The bin is named `smolagent`.
 
 ## Status
 
-Release candidate. This package is at `0.1.0`; it is not on the registry yet
-because the first release is the project owner's gate, and the documented install
-name is `smolagents-ts`. Until then, build it from a checkout and run the bin
-from the tree:
+Published on npm. Run it without installing:
+
+    npx @smolagents-ts/cli --version
+    HF_TOKEN=... npx @smolagents-ts/cli "Summarise what a code agent is."
+
+or install the `smolagent` bin once:
+
+    npm install -g @smolagents-ts/cli
+
+From a checkout, build it and replace `smolagent` with `node packages/cli/dist/main.js`:
 
     pnpm install
     pnpm --filter @smolagents-ts/cli run build
-    node packages/cli/dist/main.js "Summarise what a code agent is."
-
-The examples below use the installed bin name; from a checkout today, replace
-`smolagent` with `node packages/cli/dist/main.js`.
 
 ## Usage
 
@@ -28,6 +30,7 @@ task.
 | flag | default | meaning |
 |---|---|---|
 | `-h`, `--help` | — | print the help and exit 0 |
+| `--version` | — | print `smolagent <version>` and exit 0; this port only, upstream has no such flag |
 | `--model-type TYPE` | `InferenceClientModel` | `InferenceClientModel` or `OpenAIModel` |
 | `--action-type TYPE` | `code` | `code` or `tool_calling` |
 | `--model-id ID` | `Qwen/Qwen3-Next-80B-A3B-Thinking` | the model identifier |
@@ -100,9 +103,10 @@ defaults; `renderEvent` turns one `AgentEvent` into lines at a verbosity;
 `runSmolagent` builds the agent, drains its stream and answers with the exit code.
 Each error class carries the exit code its caller should use.
 
-`@smolagents-ts/exec-quickjs` is an optional peer. The `code` action loads its
-`QuickJSExecutor` when the caller supplied none, and an absent peer becomes a
-`MissingExecutorError` rather than a silent fallback.
+`@smolagents-ts/exec-quickjs` is a dependency. The `code` action imports its
+`QuickJSExecutor` on demand when the caller supplied none, so a `tool_calling` run
+never loads the engine. A missing package still becomes a `MissingExecutorError`
+rather than a silent fallback.
 
 ## Documentation
 
