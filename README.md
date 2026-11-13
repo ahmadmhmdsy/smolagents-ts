@@ -17,7 +17,10 @@ runs an agent in the real sandbox and renders the run as typed steps.
 
 ## Install
 
-Until 0.1.0 is on the registry, run it from this repository:
+    npm install smolagents-ts zod
+
+`zod` is listed because your own code imports it to declare tool schemas, as the
+quick start below does. To run the examples from this repository instead:
 
     pnpm install
     pnpm build
@@ -118,19 +121,19 @@ not a price. To keep one cost ceiling over a whole conversation, pass the same
 
 ## The command line
 
-    pnpm build
-    node packages/cli/dist/main.js --help
+    npx @smolagents-ts/cli --help
 
 With a prompt it runs an agent; with none it asks for the configuration and then
 for the task:
 
-    node packages/cli/dist/main.js "How many people live in Iceland?"
+    npx @smolagents-ts/cli "How many people live in Iceland?"
 
 `--action-type` picks `code` (the default) or `tool_calling`, `--model-type` picks
 `InferenceClientModel` (the default) or `OpenAIModel`, and the key comes from
 `--api-key`, or from `HF_TOKEN` for the first and `OPENAI_API_KEY` for the second.
-The port never prompts for a key. The command ships as its own package, so the
-invocation above is the repository one.
+The port never prompts for a key. The command ships as its own package,
+`@smolagents-ts/cli`; `npm install -g @smolagents-ts/cli` puts the `smolagent` bin on
+your path, and from a checkout `node packages/cli/dist/main.js` is the same command.
 
 ## Gateways and proxies
 

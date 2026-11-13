@@ -11,7 +11,7 @@ intermediate values in JavaScript, executed in a sandbox, and returns a final
 answer. The same loop runs on Node, Bun, Deno and in a browser tab, because the
 core is isomorphic by contract.
 
-    npm install smolagents-ts
+    npm install smolagents-ts zod
 
 ## Quick start
 
