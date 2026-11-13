@@ -41,7 +41,7 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 <!-- rotate:begin -->
 | id | title | status | owner | scope | gate | evidence |
 |---|---|---|---|---|---|---|
-| T-14 | publish 0.1.0 to the registry | blocked | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0037`) | `0030`; `0037` |
+| T-14 | publish 0.1.0 to the registry | done (2026-11-13) | owner | `.changeset/**`, `packages/**` | the owner claims the npm scope and supplies a 2FA-bypass token; then `docs/10-runbooks/release-guide.md` from `release/0.1.0` (`0037`) | `0030`; `0037` |
 | T-19 | grow the parity corpus a tool-calling scenario family | pending | next session | `scripts/parity/**`, `packages/core/test/parity.test.ts` | `0032`: `agent` axis, `calls` turns, one shared `echo` stub, success and unknown-tool scenarios; five recordings untouched | - |
 | T-24 | give the Pyodide executor its pre-registered worker | blocked | owner | `packages/exec-pyodide/**` | `0033`: no headers; a browser runner, a caller without remote executors, or a recorded hang | `docs/09-decisions/0033-the-pyodide-interrupt-stays-deferred.md` |
 | T-52 | decide where user-facing guides live | blocked | owner | `docs/**`, `AGENTS.md`, `_templates/**` | D-08: a guide lands in README or a runbook; a new kind needs a template and a router row | - |
@@ -57,9 +57,10 @@ is fixed by `_templates/task-row.md`, so a row can be copied from that form.
 
 ## Blocked
 
-Five rows wait on the owner: T-14 (credentials), T-24 (worker trigger), T-52
-(guide home), T-54 (gateway demand), T-70 (E2B key).
+Four rows wait on the owner: T-24 (worker trigger), T-52 (guide home),
+T-54 (gateway demand), T-70 (E2B key). T-14 is done: 0.1.0 was published on
+2026-11-13, see `docs/10-runbooks/publish-0.1.0.md`.
 T-16, T-18 and T-28 left the live table on 2026-10-25 when their decisions were
-recorded; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete and only T-14's gate stands between this tree and 0.1.0. A blocked row
+recorded; T-49, T-50, T-51, T-39 and T-48 are done, so the pre-release sequence is complete. A blocked row
 stays in the live table above; only `done` rows rotate to
 `docs/tasks/archive-2026.md`.

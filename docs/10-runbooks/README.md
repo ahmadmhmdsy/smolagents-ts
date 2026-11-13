@@ -26,8 +26,8 @@ rediscovery of the same failure.
 | mcp-live-check.md | after a change to the MCP client, a transport or the tool adapter, or before a release | 2026-10-14 |
 | exec-pyodide-browser-probe.md | after a change to the exec-pyodide loader, executor or capabilities, or before a release that ships a browser bundle | 2026-10-14 |
 | exec-remote-live-backends.md | after a change to a remote backend, its transport or its lifecycle, or before a release that claims a live path | 2026-10-14 (process only) |
-| release-guide.md | before any publish: which branch releases, the credentials, and how `main` returns to one line | never executed |
-| publish-0.1.0.md | when the owner supplies registry credentials and a release is due | never executed |
+| release-guide.md | before any publish: which branch releases, the credentials, and how `main` returns to one line | 2026-11-13 (0.1.0) |
+| publish-0.1.0.md | when the owner supplies registry credentials and a release is due | 2026-11-13 (0.1.0) |
 | resume-a-parked-run.md | when a durable CLI run exits 3 on a pending approval, or a resume is refused | 2026-10-24 |
 
 ## What belongs here

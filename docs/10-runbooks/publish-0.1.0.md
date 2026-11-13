@@ -1,12 +1,25 @@
 # 10 — Runbook: publishing 0.1.0
 
-- **Last verified:** never executed. Written 2026-10-14; amended 2026-10-21 by the
-  release-identity change (the version bump, the `version:check` gate stage and the
-  two version streams); amended 2026-10-25 by decision `0030` (the release gate,
-  the token class, the recovery rule, the release-note step and the step-3
-  expectation); amended 2026-11-09 by decision `0037` (0.1.0 publishes from
-  `release/0.1.0`; `release-guide.md` gives the order). Every step below is a
-  hypothesis until the first run.
+- **Last verified:** 2026-11-13, first run, 0.1.0 published from `release/0.1.0`.
+  Step 9 printed "Successfully published:" for all eleven names at 0.1.0
+  (`@smolagents-ts/cli`, `core`, `exec-pyodide`, `exec-quickjs`, `exec-remote`,
+  `mcp`, `models`, `react`, `react-ui`, `tools`, and `smolagents-ts`) and then
+  "Created git tags." What differed from the steps below:
+  - The token sat in a throwaway userconfig (`NPM_CONFIG_USERCONFIG` pointing at a
+    one-line `.npmrc` holding `${NPM_TOKEN}`), never in `~/.npmrc`.
+  - npm CLI 11 warned that 2FA-bypass tokens are being restricted for direct
+    publishing. Plan the next release around a granular or trusted-publishing
+    token rather than this token class.
+  - Right after the publish, `npm view smolagents-ts` showed a `0.0.0-stage`
+    placeholder and the scoped names returned 404. That was propagation, not a
+    failure: all ten scoped names were live after about 137 seconds, and
+    `npm stage list` showed nothing staged. Wait before reading step 9 as broken.
+  - Verification: `npm install smolagents-ts@0.1.0` in an empty folder added 10
+    packages, and importing `smolagents-ts`, `/models` and `/tools` reported
+    `VERSION 0.1.0` with `CodeAgent` and `ToolCallingAgent` as functions.
+  - `npx @smolagents-ts/cli@0.1.0 --version` is rejected: the CLI has no
+    `--version` flag. Do not use it as a smoke check.
+  Written 2026-10-14; amended 2026-10-21, 2026-10-25 (`0030`) and 2026-11-09 (`0037`).
 - **Estimated duration:** 20–30 minutes, plus the registry's propagation delay.
 - **Risk:** high — a published version is immutable. npm refuses to unpublish a
   version older than 72 hours, and refuses outright once anything depends on it.
