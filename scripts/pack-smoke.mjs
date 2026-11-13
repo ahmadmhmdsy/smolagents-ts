@@ -137,6 +137,14 @@ try {
     }
   }
 
+  // PyodideWorkerExecutor starts dist/pyodide-worker.js from beside its entry (decision 0041),
+  // so a tarball without that file breaks the worker at its first step, not at import.
+  const pyodideTarball = packed.find((entry) => entry.name === "exec-pyodide");
+  const workerScript = pyodideTarball && readTarballMembers(pyodideTarball.tarball).get("package/dist/pyodide-worker.js");
+  if (workerScript === undefined || workerScript.toString("utf8").trim().length === 0) {
+    throw new Error("the exec-pyodide tarball carries no dist/pyodide-worker.js");
+  }
+
   writeFileSync(
     join(workspace, "package.json"),
     JSON.stringify({ name: "consumer", private: true, type: "module" }, null, 2),

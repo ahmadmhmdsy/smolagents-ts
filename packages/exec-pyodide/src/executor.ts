@@ -37,6 +37,16 @@ export interface PyodideExecutorOptions {
   fetch?: typeof globalThis.fetch;
 }
 
+/**
+ * The worker's construction options (decision 0041). Not exported from the barrel: inside a
+ * worker the tools live on the host, so the guest's tool global is a dispatcher that forwards
+ * each call there and returns the host bridge's envelope unchanged.
+ * @internal
+ */
+export interface WorkerHostedExecutorOptions extends PyodideExecutorOptions {
+  toolDispatch?: (name: string, argsJson: string) => Promise<string>;
+}
+
 /** One execute() call's mutable state. */
 interface RunState {
   readonly options: ExecuteOptions;
@@ -75,8 +85,10 @@ export class PyodideExecutor implements CodeExecutor {
   private guardedRuntime: PyodideRuntime | undefined;
   private lastLogger: Logger | undefined;
   private disposed = false;
+  private readonly toolDispatch: WorkerHostedExecutorOptions["toolDispatch"];
 
   constructor(options: PyodideExecutorOptions = {}) {
+    this.toolDispatch = (options as WorkerHostedExecutorOptions).toolDispatch;
     this.loader = options.loader ?? defaultPyodideLoader;
     this.indexURL = options.indexURL;
     this.authorizedImports = [
@@ -145,7 +157,7 @@ export class PyodideExecutor implements CodeExecutor {
 
     // Re-set the dispatcher every run: a bridge from a previous or abandoned run must never
     // serve this one.
-    runtime.globals.set(TOOL_CALL_GLOBAL, bridge.call);
+    runtime.globals.set(TOOL_CALL_GLOBAL, this.toolDispatch ?? bridge.call);
 
     const toolNames = options.tools.list().map((entry) => entry.name);
     const source = buildGuestSource({ code, toolNames });

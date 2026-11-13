@@ -10,4 +10,10 @@
 export { DEFAULT_AUTHORIZED_IMPORTS } from "./imports.js";
 export { PyodideExecutor, type PyodideExecutorOptions } from "./executor.js";
 export type { PyodideGlobals, PyodideLoader, PyodideRuntime } from "./loader.js";
+export {
+  DEFAULT_WORKER_CPU_TIME_LIMIT_MS,
+  PyodideWorkerExecutor,
+  type PyodideWorkerExecutorOptions,
+  type PyodideWorkerHandle,
+} from "./worker-executor.js";
 export { VERSION } from "./version.js";

@@ -6,15 +6,17 @@
 agent-authored Python on WASM CPython in this process, on Node and in a browser
 page. One instance serves one agent run — the runtime is loaded on the first step
 and reused, so a variable assigned in one step is readable in the next. Decision
-0016 owns the posture: there is no worker, no interrupt, and the import
-allow-list is fidelity rather than a security boundary.
+0016 owns the posture: the import allow-list is fidelity rather than a security
+boundary. Beside it, `PyodideWorkerExecutor` runs the same executor in a worker
+the host terminates at a deadline (decision 0041).
 
 ## Entry points
 
 | entry point | path | notes |
 |---|---|---|
-| public barrel | `packages/exec-pyodide/src/index.ts` | the three names the surface test pins |
+| public barrel | `packages/exec-pyodide/src/index.ts` | the five names the surface test pins |
 | executor | `packages/exec-pyodide/src/executor.ts` | `PyodideExecutor`; capabilities, the deadline race, the poisoning |
+| worker executor | `packages/exec-pyodide/src/{worker-executor,pyodide-worker,worker-protocol}.ts` | `PyodideWorkerExecutor`, the worker script, and the messages between them |
 | loader and session | `packages/exec-pyodide/src/{loader,runtime}.ts` | the injectable loader, and the one runtime a run reuses |
 | guest program | `packages/exec-pyodide/src/{guest-source,bridge,imports}.ts` | the Python prelude, the tool bridge, the import guard |
 | streams | `packages/exec-pyodide/src/streams.ts` | the log buffer and upstream's 50,000-character truncation |
@@ -24,7 +26,7 @@ allow-list is fidelity rather than a security boundary.
 
     pnpm vitest run --project exec-pyodide
 
-Expected result: ten files with sixty-two tests, exit code 0. Two of them load
+Expected result: eleven files with seventy tests, exit code 0. Three of them load
 the real runtime — about two seconds, no network — so the suite also proves the
 Python seam rather than only the TypeScript around it. Run
 `pnpm --filter @smolagents-ts/exec-pyodide run typecheck` beside it: the runner
@@ -39,10 +41,14 @@ are not re-exported here. The facade depends on it; nothing else does.
 
 ## Hazards
 
-- Nothing on the host can interrupt a synchronous guest loop. A deadline or an
-  abort is honoured at the next await boundary, and a run that ignores both runs
-  to completion; the executor poisons the runtime when a stop wins, so the next
-  step pays one cold start rather than sharing a live interpreter.
+- In process, nothing on the host can interrupt a synchronous guest loop. A
+  deadline or an abort is honoured at the next await boundary, and a run that
+  ignores both runs to completion; the executor poisons the runtime when a stop
+  wins, so the next step pays one cold start rather than sharing a live
+  interpreter. The worker executor terminates instead, and loses the globals.
+- The worker test bundles `src/pyodide-worker.ts` with the esbuild that vite
+  carries, because a worker cannot load TypeScript and the gate runs before any
+  `dist/` exists; the browser half of the worker has no test.
 - The import guard is scoped to the guest's own globals, because a real
   interpreter routes every module's internal imports through the hook and a
   global replacement refuses `_io` on the default list. A guest that restores
